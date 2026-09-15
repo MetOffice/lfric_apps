@@ -44,6 +44,7 @@ contains
     real(kind=r_single), allocatable  :: dest_heights(:)
     real(kind=r_single), allocatable  :: source_heights(:)
     real(kind=r_single), parameter    :: tol = 1.0e-12_r_single
+    real(kind=r_single)               :: expected, answer
 
     nlayers  = 3_i_def
     source_layers = 4_i_def
@@ -51,12 +52,12 @@ contains
                                  dim_space, dim_space_diff,      &
                                  nqp_h, nqp_v, source_layers)
 
-    call get_w3_m3x3_dofmap(map_source, 4_i_def)
+    call get_w3_m3x3_dofmap(map_source, source_layers)
 
     call get_w3_m3x3_q3x3x3_size(ndf_dest, undf_dest, ncell, &
                                  dim_space, dim_space_diff,  &
                                  nqp_h, nqp_v, nlayers)
-    call get_w3_m3x3_dofmap(map_dest, 5_i_def)
+    call get_w3_m3x3_dofmap(map_dest, nlayers)
 
     ! allocate
     allocate(destination_field(undf_dest))
@@ -113,21 +114,21 @@ contains
     1.5_r_single, 2.5_r_single, 3.5_r_single   &
     /), (/ undf_dest /))
 
-    cell = 2
+    cell = 5
     call lfric2lfric_vert_lin_interp_no_extrap_code_r_single(    &
                                       nlayers,                   &
                                       destination_field,         &
                                       source_field,              &
                                       source_layers,             &
-                                      cell,                      &
+                                      ncell,                     &
                                       dest_heights,              &
                                       source_heights,            &
                                       ndf_dest,                  &
                                       undf_dest,                 &
-                                      map_dest,                  &
+                                      map_dest(:,cell),          &
                                       ndf_source,                &
                                       undf_source,               &
-                                      map_source)
+                                      map_source(:,cell))
 
 
     dest_top_df =  nlayers - 2 + ndf_dest
@@ -135,8 +136,9 @@ contains
 
     do k=1, dest_top_df
       do m=0, multidata
-        @assertEqual(expected_field(map_dest(1,cell) + m * (dest_top_df + 1) +k), &
-                     destination_field(map_dest(1,cell) + m * (dest_top_df + 1) +k), tol)
+        expected = expected_field(map_dest(1,cell) + m * (dest_top_df + 1) +k)
+        answer = destination_field(map_dest(1,cell) + m * (dest_top_df + 1) +k)
+        @assertEqual(expected, answer, tol)
       end do
     end do
    
@@ -166,19 +168,20 @@ contains
     real(kind=r_single), allocatable  :: dest_heights(:)
     real(kind=r_single), allocatable  :: source_heights(:)
     real(kind=r_single), parameter    :: tol = 1.0e-12_r_single
-
+    real(kind=r_single) :: expected, answer
+    
     nlayers  = 5_i_def
     source_layers = 4_i_def
     call get_w3_m3x3_q3x3x3_size(ndf_source, undf_source, ncell, &
                                  dim_space, dim_space_diff,      &
                                  nqp_h, nqp_v, source_layers)
 
-    call get_w3_m3x3_dofmap(map_source, 4_i_def)
+    call get_w3_m3x3_dofmap(map_source, source_layers)
 
     call get_w3_m3x3_q3x3x3_size(ndf_dest, undf_dest, ncell, &
                                  dim_space, dim_space_diff,  &
                                  nqp_h, nqp_v, nlayers)
-    call get_w3_m3x3_dofmap(map_dest, 5_i_def)
+    call get_w3_m3x3_dofmap(map_dest, nlayers)
 
     ! allocate
     allocate(destination_field(undf_dest))
@@ -241,23 +244,24 @@ contains
                                       destination_field,       &
                                       source_field,            &
                                       source_layers,           &
-                                      cell,                    &
+                                      ncell,                   &
                                       dest_heights,            &
                                       source_heights,          &
                                       ndf_dest,                &
                                       undf_dest,               &
-                                      map_dest,                &
+                                      map_dest(:,cell),        &
                                       ndf_source,              &
                                       undf_source,             &
-                                      map_source)
+                                      map_source(:,cell))
 
     dest_top_df = nlayers - 2 + ndf_dest
     multidata = undf_dest / ((dest_top_df + 1) * ncell) - 1
 
     do k=1, dest_top_df
-      do m=0, multidata
-        @assertEqual(expected_field(map_dest(1,cell) + m * (dest_top_df + 1) +k), &
-              destination_field(map_dest(1,cell) + m * (dest_top_df + 1) +k), tol)
+       do m=0, multidata
+        expected = expected_field(map_dest(1,cell) + m * (dest_top_df + 1) +k)
+        answer = destination_field(map_dest(1,cell) + m * (dest_top_df + 1) +k)
+        @assertEqual(expected, answer, tol)
       end do
     end do
    
@@ -287,19 +291,20 @@ contains
     real(kind=r_double), allocatable  :: dest_heights(:)
     real(kind=r_double), allocatable  :: source_heights(:)
     real(kind=r_double), parameter    :: tol = 1.0e-12_r_double
-
+    real(kind=r_double)               :: expected, answer
+    
     nlayers = 3_i_def
     source_layers = 4_i_def
     call get_w3_m3x3_q3x3x3_size(ndf_source, undf_source, ncell, &
                                  dim_space, dim_space_diff,      &
                                  nqp_h, nqp_v, source_layers)
 
-    call get_w3_m3x3_dofmap(map_source, 4_i_def)
+    call get_w3_m3x3_dofmap(map_source, source_layers)
 
     call get_w3_m3x3_q3x3x3_size(ndf_dest, undf_dest, ncell, &
                                  dim_space, dim_space_diff,  &
                                  nqp_h, nqp_v, nlayers)
-    call get_w3_m3x3_dofmap(map_dest, 5_i_def)
+    call get_w3_m3x3_dofmap(map_dest, nlayers)
 
     ! allocate
     allocate(destination_field(undf_dest))
@@ -362,15 +367,15 @@ contains
                                       destination_field,         &
                                       source_field,              &
                                       source_layers,             &
-                                      cell,                      &
+                                      ncell,                     &
                                       dest_heights,              &
                                       source_heights,            &
                                       ndf_dest,                  &
                                       undf_dest,                 &
-                                      map_dest,                  &
+                                      map_dest(:,cell),          &
                                       ndf_source,                &
                                       undf_source,               &
-                                      map_source)
+                                      map_source(:,cell))
 
 
     dest_top_df = nlayers - 2 + ndf_dest
@@ -378,8 +383,9 @@ contains
 
     do k=1, dest_top_df
       do m=0, multidata
-        @assertEqual(expected_field(map_dest(1,cell) + m * (dest_top_df + 1) + k), &
-                     destination_field(map_dest(1,cell) + m * (dest_top_df + 1) + k), tol)
+        expected = expected_field(map_dest(1,cell) + m * (dest_top_df + 1) + k)
+        answer = destination_field(map_dest(1,cell) + m * (dest_top_df + 1) + k)
+        @assertEqual(expected, answer, tol)
       end do
     end do
    
@@ -409,19 +415,20 @@ contains
     real(kind=r_double), allocatable  :: dest_heights(:)
     real(kind=r_double), allocatable  :: source_heights(:)
     real(kind=r_double), parameter    :: tol = 1.0e-12_r_double
-
+    real(kind=r_double)               :: expected, answer
+    
     nlayers  = 5_i_def
     source_layers = 4_i_def
     call get_w3_m3x3_q3x3x3_size(ndf_source, undf_source, ncell, &
                                  dim_space, dim_space_diff,      &
                                  nqp_h, nqp_v, source_layers)
 
-    call get_w3_m3x3_dofmap(map_source, 4_i_def)
+    call get_w3_m3x3_dofmap(map_source, source_layers)
 
     call get_w3_m3x3_q3x3x3_size(ndf_dest, undf_dest, ncell, &
                                  dim_space, dim_space_diff,  &
                                  nqp_h, nqp_v, nlayers)
-    call get_w3_m3x3_dofmap(map_dest, 5_i_def)
+    call get_w3_m3x3_dofmap(map_dest, nlayers)
 
     ! allocate
     allocate(destination_field(undf_dest))
@@ -484,22 +491,23 @@ contains
                                       destination_field,       &
                                       source_field,            &
                                       source_layers,           &
-                                      cell,                    &
+                                      ncell,                   &
                                       dest_heights,            &
                                       source_heights,          &
                                       ndf_dest,                &
                                       undf_dest,               &
-                                      map_dest,                &
+                                      map_dest(:,cell),        &
                                       ndf_source,              &
                                       undf_source,             &
-                                      map_source)
+                                      map_source(:,cell))
 
     dest_top_df = nlayers - 2 + ndf_dest
     multidata = undf_dest / ((dest_top_df + 1) * ncell) - 1
     do k=1, dest_top_df
       do m=0, multidata
-        @assertEqual(expected_field(map_dest(1,cell) + m * (dest_top_df + 1) +k), &
-                     destination_field(map_dest(1,cell) + m * (dest_top_df + 1) + k), tol)
+        expected =expected_field(map_dest(1,cell) + m * (dest_top_df + 1) +k)
+        answer = destination_field(map_dest(1,cell) + m * (dest_top_df + 1) + k)
+        @assertEqual(expected, answer, tol)
       end do
     end do
    
