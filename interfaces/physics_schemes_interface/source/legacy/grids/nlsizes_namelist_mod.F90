@@ -5,7 +5,7 @@
 ! *****************************COPYRIGHT*******************************
 !-------------------------------------------------------------------------------
 ! Some of the content of this file has been produced with the assistance of
-! Anthropic Claude Opus 5 (Claude Code).
+! Met Office Claude Code Enterprise.
 !-------------------------------------------------------------------------------
 !
 ! Sizes for many of the UM's main, dynamic data arrays

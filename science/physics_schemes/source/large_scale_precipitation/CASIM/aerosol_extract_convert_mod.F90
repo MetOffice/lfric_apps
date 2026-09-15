@@ -5,7 +5,7 @@
 ! *****************************COPYRIGHT*******************************
 !-------------------------------------------------------------------------------
 ! Some of the content of this file has been produced with the assistance of
-! Anthropic Claude Opus 5 (Claude Code).
+! Met Office Claude Code Enterprise.
 !-------------------------------------------------------------------------------
 
 ! Code Owner: Please refer to the UM file CodeOwners.txt
