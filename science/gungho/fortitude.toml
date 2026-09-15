@@ -1,0 +1,30 @@
+##############################################################################
+# (c) Crown copyright Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+##############################################################################
+
+[check]
+
+file-extensions= ["f90", "F90", "X90", "x90", "pf"]   #check these file types
+
+select = ["E000", "C021", "C022", "C031", "C032", "C043",
+"C051", "C071", "C072", "C091", "C082", "C092",
+"C132", "C141", "OB011", "OB021", "OB051", "OB061", "MOD001", "MOD021",
+"S101", "S071", "PORT011", "PORT012", "PORT021", "FORT001",
+"FORT002", "FORT003", "FORT004", "FORT005"]
+
+
+output-format = "grouped"               #group results by file
+
+[check.per-file-ignores]
+
+"pressure_gradient_p0_kernel_mod_test.pf" = ["C092"]
+"departure_points_support_mod.F90" = ["MOD021"]
+"psykal_lite_mod.F90" = ["C132", "S071"]
+"psykal_lite_transport_mod.F90" = ["C132", "S071"]
+
+
+# Leaving out for now (these rules are used in the universal config):
+# C001, C081, C061, E001, C121
+

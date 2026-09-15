@@ -12,12 +12,14 @@ use, intrinsic :: iso_fortran_env, only: real64, int32, int64
 use mpi
 
 ! lfric modules
-use field_mod, only: field_type, field_proxy_type
-use constants_mod, only: r_def, i_def
-use mesh_mod, only: mesh_type
+use constants_mod,      only: r_def, i_def
+use field_mod,          only: field_type, field_proxy_type
 use function_space_mod, only: function_space_type
-use lfric_mpi_mod, only: global_mpi, lfric_comm_type
-use log_mod, only: log_scratch_space, log_event, log_level_info, log_level_error
+use lfric_mpi_mod,      only: global_mpi, lfric_comm_type
+use log_mod,            only: log_scratch_space, log_event, &
+                              LOG_LEVEL_INFO, LOG_LEVEL_ERROR
+use mesh_mod,           only: mesh_type
+
 implicit none
 
 private

@@ -88,7 +88,11 @@ def datetime_str() -> str:
 
 
 def clone_and_merge(
-    dependency: str, opts: Union[list, dict], loc: Path, use_mirrors: bool, mirror_loc: Path
+    dependency: str,
+    opts: Union[list, dict],
+    loc: Path,
+    use_mirrors: bool,
+    mirror_loc: Path,
 ) -> None:
     """
     Wrapper script for calling get_source and merge_source for a single dependency

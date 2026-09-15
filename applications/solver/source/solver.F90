@@ -12,6 +12,8 @@
 program solver
 
   use add_mesh_map_mod,        only: assign_mesh_maps
+  use config_mod,              only: config_type
+  use config_loader_mod,       only: final_configuration
   use constants_mod,           only: i_def, r_def, PRECISION_REAL, str_def
   use convert_to_upper_mod,    only: convert_to_upper
   use cli_mod,                 only: parse_command_line
@@ -34,7 +36,6 @@ program solver
   use field_mod,               only: field_type
   use sci_field_vector_mod,    only: field_vector_type
   use solver_miniapp_alg_mod,  only: solver_miniapp_alg
-  use configuration_mod,       only: final_configuration
   use solver_miniapp_mod,      only: solver_required_namelists
   use log_mod,                 only: log_event,            &
                                      log_scratch_space,    &
@@ -43,10 +44,7 @@ program solver
                                      LOG_LEVEL_INFO
   use mesh_mod,                only: mesh_type
   use mesh_collection_mod,     only: mesh_collection
-  use namelist_collection_mod, only: namelist_collection_type
-  use namelist_mod,            only: namelist_type
   use sci_checksum_alg_mod,    only: checksum_alg
-
 
   !------------------------------------
   ! Configuration modules
@@ -59,7 +57,7 @@ program solver
   character(*), parameter :: program_name = 'solver'
 
   character(:), allocatable :: filename
-  type(namelist_collection_type), SAVE :: configuration
+  type(config_type), save   :: config
 
   integer(i_def) :: total_ranks, local_rank
   type(lfric_comm_type) :: comm
@@ -79,10 +77,6 @@ program solver
 
   class(extrusion_type),        allocatable :: extrusion
   type(uniform_extrusion_type), allocatable :: extrusion_2d
-
-  type(namelist_type), pointer :: base_mesh_nml => null()
-  type(namelist_type), pointer :: planet_nml    => null()
-  type(namelist_type), pointer :: extrusion_nml => null()
 
   character(str_def) :: prime_mesh_name
 
@@ -116,10 +110,13 @@ program solver
   total_ranks = global_mpi%get_comm_size()
   local_rank  = global_mpi%get_comm_rank()
 
-  call configuration%initialise( program_name, table_len=10 )
+  call config%initialise( program_name )
+
   call init_config( filename, solver_required_namelists, &
-                    configuration )
+                    config=config )
+
   call init_logger( comm, program_name )
+
   call init_collections()
 
   deallocate( filename )
@@ -132,23 +129,14 @@ program solver
   !--------------------------------------
   ! 0.0 Extract namelist variables
   !--------------------------------------
-  base_mesh_nml => configuration%get_namelist('base_mesh')
-  planet_nml    => configuration%get_namelist('planet')
-  extrusion_nml => configuration%get_namelist('extrusion')
-
-  call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
-  call base_mesh_nml%get_value( 'geometry', geometry )
-  call extrusion_nml%get_value( 'method', method )
-  call extrusion_nml%get_value( 'domain_height', domain_height )
-  call extrusion_nml%get_value( 'number_of_layers', number_of_layers )
-  call planet_nml%get_value( 'scaled_radius', scaled_radius )
-
-  base_mesh_nml => null()
-  planet_nml    => null()
-  extrusion_nml => null()
+  prime_mesh_name  = config%base_mesh%prime_mesh_name()
+  geometry         = config%base_mesh%geometry()
+  method           = config%extrusion%method()
+  domain_height    = config%extrusion%domain_height()
+  number_of_layers = config%extrusion%number_of_layers()
+  scaled_radius    = config%planet%scaled_radius()
 
   call log_event( 'Initialising '//program_name//' ...', LOG_LEVEL_ALWAYS )
-
 
   !=======================================================================
   ! 1.0 Mesh
@@ -185,9 +173,8 @@ program solver
   !-----------------------------------------------------------------------
   stencil_depth = 1
   check_partitions = .false.
-  call init_mesh( configuration,              &
-                  local_rank, total_ranks,    &
-                  base_mesh_names, extrusion, &
+  call init_mesh( config, local_rank, total_ranks, &
+                  base_mesh_names, extrusion,      &
                   stencil_depth, check_partitions )
 
   allocate( twod_names, source=base_mesh_names )

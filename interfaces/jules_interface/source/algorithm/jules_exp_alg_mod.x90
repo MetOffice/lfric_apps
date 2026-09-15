@@ -229,7 +229,7 @@ contains
     integer(tik)         :: id
 
     if ( LPROF ) call start_timing( id, 'jules.explicit' )
- 
+
     call log_event( 'slow_physics: Running explicit JULES layer', LOG_LEVEL_DEBUG )
 
     ! Cannot pass null pointers to invoke calls. Therefore non-pointer variables

@@ -7,14 +7,13 @@
 !> @brief Set prognostic fields from FD start dump
 module map_fd_to_prognostics_alg_mod
 
+  use config_mod,                      only: config_type
   use constants_mod,                   only: r_def, i_def, l_def
   use log_mod,                         only: log_event,         &
                                              log_scratch_space, &
                                              LOG_LEVEL_INFO,    &
                                              LOG_LEVEL_DEBUG,   &
                                              LOG_LEVEL_TRACE
-  use namelist_collection_mod,         only: namelist_collection_type
-  use namelist_mod,                    only: namelist_type
 
   ! Derived Types
   use field_mod,                       only: field_type
@@ -73,23 +72,22 @@ module map_fd_to_prognostics_alg_mod
 contains
 
   !> @details Setting FE prognostic fields from FD fields
-  !> @param[in]     configuration      The application configuration object
+  !> @param[in]     config             The application configuration object
   !> @param[in,out] prognostic_fields  Collection of prognostic fields
   !> @param[in,out] mr                 Array of moisture mixing ratios
   !> @param[in,out] fd_fields          Collection of input Finite Difference
   !>                                   fields
-  subroutine map_fd_to_prognostics(configuration, prognostic_fields, mr, &
+  subroutine map_fd_to_prognostics(config, prognostic_fields, mr, &
                                    moist_dyn, fd_fields)
 
     implicit none
 
     ! FE Prognostic fields
-    type(namelist_collection_type), intent(in)      :: configuration
-    type(field_collection_type),    intent( inout ) :: prognostic_fields
-    type(field_type),               intent( inout ) :: mr(:)
-    type(field_type),               intent( inout ) :: moist_dyn(num_moist_factors)
-
-    type( field_collection_type),   intent( inout ) :: fd_fields
+    type(config_type),            intent( in )    :: config
+    type(field_collection_type),  intent( inout ) :: prognostic_fields
+    type(field_type),             intent( inout ) :: mr(:)
+    type(field_type),             intent( inout ) :: moist_dyn(num_moist_factors)
+    type( field_collection_type), intent( inout ) :: fd_fields
 
     ! Local dereferenced fields
     type( field_type ), pointer :: theta
@@ -114,14 +112,11 @@ contains
     type(integer_field_type), pointer :: face_selector_ew
     type(integer_field_type), pointer :: face_selector_ns
 
-    integer(i_def)               :: model_eos_height
-    logical(l_def)               :: read_w2h_wind
-    type(namelist_type), pointer :: initialization_nml
+    integer(i_def) :: model_eos_height
+    logical(l_def) :: read_w2h_wind
 
-    initialization_nml => configuration%get_namelist('initialization')
-    call initialization_nml%get_value( 'model_eos_height', model_eos_height )
-    call initialization_nml%get_value( 'read_w2h_wind', read_w2h_wind )
-    nullify( initialization_nml )
+    model_eos_height = config%initialization%model_eos_height()
+    read_w2h_wind    = config%initialization%read_w2h_wind()
 
     ! FD (source) fields
     if ( read_w2h_wind ) then

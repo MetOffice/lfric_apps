@@ -21,11 +21,12 @@ module deep_hot_jupiter_kernel_mod
                                               GH_READ, GH_READWRITE,     &
                                               GH_SCALAR,                 &
                                               ANY_DISCONTINUOUS_SPACE_3, &
+                                              ANY_SPACE_9,               &
                                               GH_READ, CELL_COLUMN
   use constants_mod,                    only: r_def, i_def
   use sci_chi_transform_mod,            only: chi2llr
   use calc_exner_pointwise_mod,         only: calc_exner_pointwise
-  use fs_continuity_mod,                only: Wtheta, Wchi
+  use fs_continuity_mod,                only: Wtheta
   use deep_hot_jupiter_forcings_mod,    only: deep_hot_jupiter_newton_frequency, &
                                               deep_hot_jupiter_equilibrium_theta
   use kernel_mod,                       only: kernel_type
@@ -42,11 +43,12 @@ module deep_hot_jupiter_kernel_mod
   !>
   type, public, extends(kernel_type) :: deep_hot_jupiter_kernel_type
     private
-    type(arg_type) :: meta_args(6) = (/                                          &
+    type(arg_type) :: meta_args(7) = (/                                          &
          arg_type(GH_FIELD,   GH_REAL, GH_READWRITE, Wtheta),                    &
          arg_type(GH_FIELD,   GH_REAL, GH_READ,      Wtheta),                    &
          arg_type(GH_FIELD,   GH_REAL, GH_READ,      Wtheta),                    &
-         arg_type(GH_FIELD*3, GH_REAL, GH_READ,      Wchi),                      &
+         arg_type(GH_FIELD,   GH_REAL, GH_READ,      Wtheta),                    &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,      ANY_SPACE_9),               &
          arg_type(GH_FIELD,   GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_3), &
          arg_type(GH_SCALAR,  GH_REAL, GH_READ)                                  &
          /)
@@ -68,6 +70,7 @@ contains
 !> @param[in,out] dtheta       Potential temperature increment data
 !> @param[in]     theta        Potential temperature data
 !> @param[in]     exner_in_wth The Exner pressure in Wtheta
+!> @param[in]     height_wth   Height at Wtheta points
 !> @param[in]     chi_1        First component of the chi coordinate field
 !> @param[in]     chi_2        Second component of the chi coordinate field
 !> @param[in]     chi_3        Third component of the chi coordinate field
@@ -84,6 +87,7 @@ contains
 !> @param[in]     map_pid      Dofmap for the cell at the base of the column for panel_id
 subroutine deep_hot_jupiter_code(nlayers,                    &
                                  dtheta, theta, exner_in_wth,&
+                                 height_wth,                 &
                                  chi_1, chi_2, chi_3,        &
                                  panel_id, dt,               &
                                  ndf_wth, undf_wth, map_wth, &
@@ -103,6 +107,7 @@ subroutine deep_hot_jupiter_code(nlayers,                    &
   real(kind=r_def), dimension(undf_wth), intent(inout) :: dtheta
   real(kind=r_def), dimension(undf_wth), intent(in)    :: theta
   real(kind=r_def), dimension(undf_wth), intent(in)    :: exner_in_wth
+  real(kind=r_def), dimension(undf_wth), intent(in)    :: height_wth
   real(kind=r_def), dimension(undf_chi), intent(in)    :: chi_1, chi_2, chi_3
   real(kind=r_def), dimension(undf_pid), intent(in)    :: panel_id
   real(kind=r_def),                      intent(in)    :: dt
@@ -119,6 +124,8 @@ subroutine deep_hot_jupiter_code(nlayers,                    &
 
   real(kind=r_def) :: coords(3)
   real(kind=r_def), dimension(ndf_chi) :: chi_1_at_dof, chi_2_at_dof, chi_3_at_dof
+
+  real(kind=r_def) :: height
 
   coords(:) = 0.0_r_def
 
@@ -140,10 +147,11 @@ subroutine deep_hot_jupiter_code(nlayers,                    &
   do k = 0, nlayers
 
     exner = exner_in_wth(map_wth(1) + k)
+    height = height_wth(map_wth(1) + k)
 
-    theta_eq = deep_hot_jupiter_equilibrium_theta(exner, lat, lon)
+    theta_eq = deep_hot_jupiter_equilibrium_theta(exner, lat, lon, height)
 
-    newton_frequency = deep_hot_jupiter_newton_frequency(exner)
+    newton_frequency = deep_hot_jupiter_newton_frequency(height)
 
     dtheta_dt = newton_frequency * (theta_eq - theta(map_wth(1) + k))
 

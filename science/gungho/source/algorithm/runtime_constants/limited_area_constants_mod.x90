@@ -16,7 +16,6 @@ module limited_area_constants_mod
   ! Infrastructure
   use constants_mod,                     only: i_def, r_def, l_def, &
                                                str_def, str_short
-  use copy_field_alg_mod,                only: copy_field
   use extrusion_mod,                     only: TWOD, PRIME_EXTRUSION
   use field_mod,                         only: field_type
   use r_solver_field_mod,                only: r_solver_field_type
@@ -698,7 +697,7 @@ contains
       fs => function_space_collection%get_fs(mesh, element_order_h, &
                                              element_order_v, space)
       call inventory%add_field(mask_r_solver, fs, mesh)
-      call copy_field(mask_r_def, mask_r_solver)
+      call invoke( real_to_real_x(mask_r_solver, mask_r_def) )
 
       if ( LPROF ) call stop_timing( id, 'runtime_constants.limited_area' )
     end if

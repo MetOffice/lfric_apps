@@ -128,6 +128,19 @@
                     crun_task,
                     plot_task]) %}
             {% endif %}
+
+            {% if metadatatest %}
+                {% set metadatatest_task = "metadata_test_"~
+                                           task_values["task_family"]~
+                                           "-crun"~restart_no %}
+                {% if metadatatest_task not in tasks_to_run %}
+                    {% do tasks_to_run.update({metadatatest_task: crun_values }) %}
+                {% endif %}
+                {% do graph_sections.append([
+                    crun_task,
+                    metadatatest_task]) %}
+            {% endif %}
+
         {% endif %}
     {% endif %}
 {% endfor %}

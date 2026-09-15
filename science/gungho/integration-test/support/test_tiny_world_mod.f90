@@ -103,6 +103,7 @@ contains
                                   decomposition,                         &
                                   max_stencil_depth=1_i_def,             &
                                   generate_inner_halos=.true.,           &
+                                  enforce_constraints=.true.,            &
                                   local_rank=global_mpi%get_comm_rank(), &
                                   total_ranks=global_mpi%get_comm_size() )
     allocate( local_mesh )

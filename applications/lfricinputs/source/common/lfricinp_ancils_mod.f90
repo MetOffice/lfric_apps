@@ -6,20 +6,19 @@
 module lfricinp_ancils_mod
 
 use constants_mod,                  only : i_def, l_def
-use log_mod,                        only : log_event,         &
-                                           log_scratch_space, &
-                                           LOG_LEVEL_INFO
-use field_collection_mod,           only: field_collection_type
+use field_collection_mod,           only : field_collection_type
 use field_mod,                      only : field_type
 use field_parent_mod,               only : read_interface, &
                                            write_interface
+use fs_continuity_mod,              only : W3
+use function_space_collection_mod,  only : function_space_collection
+use function_space_mod,             only : function_space_type
 use lfric_xios_read_mod,            only : read_field_generic
 use lfric_xios_write_mod,           only : write_field_generic
-use field_collection_mod,           only : field_collection_type
+use log_mod,                        only : log_event,         &
+                                           log_scratch_space, &
+                                           LOG_LEVEL_INFO
 use mesh_mod,                       only : mesh_type
-use function_space_mod,             only : function_space_type
-use function_space_collection_mod,  only : function_space_collection
-use fs_continuity_mod,              only : W3
 
 implicit none
 

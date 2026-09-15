@@ -16,7 +16,7 @@ module process_ssi_kernel_mod
                            ANY_DISCONTINUOUS_SPACE_2, &
                            ANY_DISCONTINUOUS_SPACE_3, &
                            GH_SCALAR, GH_LOGICAL
-  use constants_mod, only: r_def, i_def, l_def
+  use constants_mod, only: r_def, i_def, l_def, r_um
   use kernel_mod,    only: kernel_type
 
   use jules_control_init_mod, only: n_sea_ice_tile,     &
@@ -98,6 +98,7 @@ contains
     ! Internal variables
     integer(kind=i_def) :: i, i_sice
     real(kind=r_def) :: tot_ice, tot_land, ice_thick
+    real(kind=r_um)  :: tot_land_r_um
 
     ! Calculate the current ice fraction for use below
     tot_ice = 0.0_r_def
@@ -106,11 +107,18 @@ contains
     end do
 
     ! Set up the land fraction from the input data
+    ! Double precision version used for accurate calculation of ice fractions below
     tot_land = min(sum(tile_fraction(map_tile(1):map_tile(1)+n_land_tile-1)),1.0_r_def)
+    tot_land_r_um = min(sum(real(tile_fraction(map_tile(1):map_tile(1)+n_land_tile-1), r_um)),1.0_r_um)
     if (tot_land < 1.0_r_def .and. &
          tile_fraction(map_tile(1)+first_sea_tile-1) == 0.0_r_def .and. &
          tot_ice == 0.0_r_def ) then
       tot_land = 1.0_r_def
+    end if
+    if (tot_land_r_um < 1.0_r_um .and. &
+          tile_fraction(map_tile(1)+first_sea_tile-1) == 0.0_r_def .and. &
+          tot_ice == 0.0_r_def ) then
+      tot_land_r_um = 1.0_r_um
     end if
 
     ! Set the new sea ice fraction from an ancillary
@@ -119,10 +127,12 @@ contains
     do i = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
       i_sice = i_sice + 1
       ! Only use where field contains valid data
-      if (sea_ice_fraction(map_sice(1)+i_sice-1) > min_sea_ice_frac .and. &
-          tot_land < 1.0_r_def) then
-        tile_fraction(map_tile(1)+i-1) = sea_ice_fraction(map_sice(1)+i_sice-1)&
-                                       * (1.0_r_def - tot_land)
+      if (sea_ice_fraction(map_sice(1)+i_sice-1) > min_sea_ice_frac .and.      &
+          tot_land_r_um < 1.0_r_um) then
+        tile_fraction(map_tile(1)+i-1) = (                                     &
+            sea_ice_fraction(map_sice(1)+i_sice-1)                             &
+            * real(1.0_r_um - tot_land_r_um, r_def)                            &
+        )
       else
         tile_fraction(map_tile(1)+i-1) = 0.0_r_def
       end if

@@ -21,11 +21,12 @@ module earth_like_kernel_mod
                                       GH_READ, GH_READWRITE,     &
                                       GH_SCALAR,                 &
                                       ANY_DISCONTINUOUS_SPACE_3, &
+                                      ANY_SPACE_9,               &
                                       GH_READ, CELL_COLUMN
   use constants_mod,            only: r_def, i_def
   use sci_chi_transform_mod,    only: chi2llr
   use calc_exner_pointwise_mod, only: calc_exner_pointwise
-  use fs_continuity_mod,        only: Wtheta, Wchi
+  use fs_continuity_mod,        only: Wtheta
   use earth_like_forcings_mod,  only: earth_like_newton_frequency, &
                                       earth_like_equilibrium_theta
   use kernel_mod,               only: kernel_type
@@ -47,7 +48,7 @@ module earth_like_kernel_mod
          arg_type(GH_FIELD,   GH_REAL, GH_READ,      Wtheta),                    &
          arg_type(GH_FIELD,   GH_REAL, GH_READ,      Wtheta),                    &
          arg_type(GH_FIELD,   GH_REAL, GH_READ,      Wtheta),                    &
-         arg_type(GH_FIELD*3, GH_REAL, GH_READ,      Wchi),                      &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,      ANY_SPACE_9),               &
          arg_type(GH_FIELD,   GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_3), &
          arg_type(GH_SCALAR,  GH_REAL, GH_READ),                                 &
          arg_type(GH_SCALAR,  GH_REAL, GH_READ)                                  &

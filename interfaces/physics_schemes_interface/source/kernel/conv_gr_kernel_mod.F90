@@ -43,9 +43,9 @@ module conv_gr_kernel_mod
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! exner_in_w3
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! exner_in_wth
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! w_in_wth
-         arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! theta_star
-         arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! u_in_w3_star
-         arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! v_in_w3_star
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! theta_latest
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! u_in_w3_latest
+         arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! v_in_w3_latest
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! height_w3
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! height_wth
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! delta
@@ -269,9 +269,9 @@ contains
   !> @param[in]     exner_in_w3          Exner pressure field in density space
   !> @param[in]     exner_in_wth         Exner pressure field in wth space
   !> @param[in]     w_in_wth             'Vertical' wind in theta space
-  !> @param[in]     theta_star           Potential temperature after advection
-  !> @param[in]     u_in_w3_star         'Zonal' wind after advection
-  !> @param[in]     v_in_w3_star         'Meridional' wind after advection
+  !> @param[in]     theta_latest         Latest estimate of Potential temp
+  !> @param[in]     u_in_w3_latest       Latest estimate of 'Zonal' wind
+  !> @param[in]     v_in_w3_latest       Latest estimate of 'Meridional' wind
   !> @param[in]     height_w3            Height of density space above surface
   !> @param[in]     height_wth           Height of theta space above surface
   !> @param[in]     delta                Edge length on wtheta points
@@ -493,9 +493,9 @@ contains
                           exner_in_w3,                       &
                           exner_in_wth,                      &
                           w_in_wth,                          &
-                          theta_star,                        &
-                          u_in_w3_star,                      &
-                          v_in_w3_star,                      &
+                          theta_latest,                      &
+                          u_in_w3_latest,                    &
+                          v_in_w3_latest,                    &
                           height_w3,                         &
                           height_wth,                        &
                           delta,                             &
@@ -879,8 +879,8 @@ contains
     real(kind=r_def), dimension(undf_w3), intent(in) :: rho_in_w3,          &
                                                         wetrho_in_w3,       &
                                                         exner_in_w3,        &
-                                                        u_in_w3_star,       &
-                                                        v_in_w3_star,       &
+                                                        u_in_w3_latest,     &
+                                                        v_in_w3_latest,     &
                                                         height_w3
     real(kind=r_def), dimension(undf_wth), intent(in) :: cf_ice,            &
                                                          cf_liq, cf_bulk,   &
@@ -889,7 +889,7 @@ contains
                                                          wetrho_in_wth,     &
                                                          exner_in_wth,      &
                                                          w_in_wth,          &
-                                                         theta_star,        &
+                                                         theta_latest,      &
                                                          height_wth,        &
                                                          delta
 
@@ -1345,7 +1345,7 @@ contains
     do k=1,nlayers
       do i = 1, ncells
         ! Pointing to _star values
-        theta_conv(i,1,k) = theta_star(map_wth(1,i) + k)
+        theta_conv(i,1,k) = theta_latest(map_wth(1,i) + k)
         q_conv(i,1,k)   = m_v(map_wth(1,i) + k)
         qcl_conv(i,1,k) = m_cl(map_wth(1,i) + k)
         qcf_conv(i,1,k) = m_cf(map_wth(1,i) + k)
@@ -1417,8 +1417,8 @@ contains
     if (l_mom) then
       do k=1,nlayers
         do i = 1, ncells
-          u_conv(i,1,k) = u_in_w3_star(map_w3(1,i) + k-1)
-          v_conv(i,1,k) = v_in_w3_star(map_w3(1,i) + k-1)
+          u_conv(i,1,k) = u_in_w3_latest(map_w3(1,i) + k-1)
+          v_conv(i,1,k) = v_in_w3_latest(map_w3(1,i) + k-1)
         end do ! i
       end do ! k
     end if

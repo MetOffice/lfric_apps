@@ -20,6 +20,8 @@ export PSYCLONE_TRANSFORMATION ?= minimum
 
 export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 
+export ROSE_META_DIRS = $(APPS_ROOT_DIR)/rose-meta
+
 export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
                                $(CORE_ROOT_DIR)/components/driver \
                                $(CORE_ROOT_DIR)/components/science \

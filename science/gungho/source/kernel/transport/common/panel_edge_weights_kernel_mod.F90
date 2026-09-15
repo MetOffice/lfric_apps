@@ -16,10 +16,10 @@ use argument_mod,          only: arg_type, func_type,                          &
                                  ANY_DISCONTINUOUS_SPACE_3,                    &
                                  ANY_DISCONTINUOUS_SPACE_5,                    &
                                  ANY_DISCONTINUOUS_SPACE_9,                    &
+                                 ANY_SPACE_9,                                  &
                                  GH_BASIS, GH_EVALUATOR,                       &
                                  CELL_COLUMN, STENCIL, CROSS2D
 use constants_mod,         only: r_tran, r_def, i_def, l_def, LARGE_REAL_POSITIVE
-use fs_continuity_mod,     only: Wchi
 use reference_element_mod, only: W, S, N, E
 
 implicit none
@@ -37,7 +37,8 @@ type, public, extends(kernel_type) :: panel_edge_weights_kernel_type
        arg_type(GH_FIELD,   GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_5),  &
        arg_type(GH_FIELD,   GH_INTEGER, GH_WRITE, ANY_DISCONTINUOUS_SPACE_5),  &
        arg_type(GH_FIELD,   GH_INTEGER, GH_WRITE, ANY_DISCONTINUOUS_SPACE_5),  &
-       arg_type(GH_FIELD*3, GH_REAL,    GH_READ,  Wchi, STENCIL(CROSS2D)),     &
+       arg_type(GH_FIELD*3, GH_REAL,    GH_READ,  ANY_SPACE_9,                 &
+                                                        STENCIL(CROSS2D)),     &
        arg_type(GH_FIELD*2, GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_9),  &
        arg_type(GH_FIELD*2, GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_9),  &
        arg_type(GH_FIELD,   GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_3,   &
@@ -47,7 +48,7 @@ type, public, extends(kernel_type) :: panel_edge_weights_kernel_type
        arg_type(GH_SCALAR,  GH_INTEGER, GH_READ)                               &
   /)
   type(func_type) :: meta_funcs(2) = (/                                        &
-      func_type(Wchi, GH_BASIS),                                               &
+      func_type(ANY_SPACE_9, GH_BASIS),                                        &
       func_type(ANY_DISCONTINUOUS_SPACE_9, GH_BASIS)                           &
   /)
   integer :: operates_on = CELL_COLUMN

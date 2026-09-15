@@ -16,7 +16,6 @@ module calc_phys_predictors_alg_mod
   use formulation_config_mod,   only: horizontal_physics_predictor, &
                                       use_wavedynamics
 
-  use physics_mappings_alg_mod, only: map_physics_winds
   use sci_mass_matrix_solver_alg_mod, &
                                 only: mass_matrix_solver_alg
   use sci_hori_mass_matrix_solver_alg_mod, &
@@ -68,13 +67,11 @@ subroutine calc_phys_predictors_alg( derived_fields, rhs_np1, rhs_adv, &
 
     type( field_type ), pointer :: theta_star => null()
     type( field_type ), pointer :: u_star => null()
-    type( field_type ), pointer :: u_in_w3_star => null()
-    type( field_type ), pointer :: v_in_w3_star => null()
 
     type( field_type ), pointer :: lbc_u => null()
     type( field_type ), pointer :: lbc_theta => null()
 
-    type( field_type ) :: du, dtheta, rhsu_np1, w_in_w3_star
+    type( field_type ) :: du, dtheta, rhsu_np1
     integer( tik )     :: id
 
     if ( LPROF ) call start_timing( id, 'dynamics.phys_predictors' )
@@ -128,14 +125,6 @@ subroutine calc_phys_predictors_alg( derived_fields, rhs_np1, rhs_adv, &
       call invoke( setval_X(theta_star, state_after_slow(igh_t)), &
                    setval_X(u_star, state_after_slow(igh_u) ))
     end if !use_wavedynamics
-
-    ! map physics predictors into required spaces
-    call derived_fields%get_field('u_in_w3_star', u_in_w3_star)
-    call derived_fields%get_field('v_in_w3_star', v_in_w3_star)
-    call u_in_w3_star%copy_field_properties(w_in_w3_star)
-    call map_physics_winds(u_in_w3_star, v_in_w3_star, w_in_w3_star, &
-                           u_star)
-    call w_in_w3_star%field_final()
 
     if ( LPROF ) call stop_timing( id, 'dynamics.phys_predictors' )
 

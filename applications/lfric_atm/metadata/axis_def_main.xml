@@ -33,10 +33,11 @@
   <axis id="sw_bands_radiation_levels" name="sw_bands_radiation_levels" />
   <axis id="lw_bands_radiation_levels" name="lw_bands_radiation_levels" />
   <axis id="photolysis_pathways" name="photolysis_pathways" />
-  <axis id="photol_species" name="photol_species" />  
+  <axis id="photol_species" name="photol_species" />
   <axis id="one_time_axis" name="one_time_axis" n_glo="1" />
 
   <axis id="random_seed_size" name="random_seed_size" />
+  <axis id="stph_spectral_dimensions" name="stph_spectral_dimensions" />
   <axis id="scalar_axis" name="scalar" n_glo="1" />
   <axis id="aod_wavel" name="aod_wavel" />
 

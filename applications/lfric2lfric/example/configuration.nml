@@ -39,6 +39,8 @@ element_order_h         = 0,
 element_order_v         = 0,
 rehabilitate            = .true.,
 coord_order             = 1,
+coord_order_nonprime    = 1,
+coord_space             = 'Wchi',
 /
 
 &io
@@ -73,13 +75,13 @@ coord_order             = 1,
 /
 
 &partitioning
-  mesh_type             = 'destination',
+  mesh_target           = 'destination',
   partitioner           = 'cubedsphere',
   panel_decomposition   = 'auto',
 /
 
 &partitioning
-  mesh_type             = 'source',
+  mesh_target           = 'source',
   partitioner           = 'cubedsphere',
   panel_decomposition   = 'auto',
 /

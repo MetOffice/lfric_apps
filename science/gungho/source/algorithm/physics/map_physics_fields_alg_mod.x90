@@ -18,10 +18,6 @@ module map_physics_fields_alg_mod
   use sci_extract_w_kernel_mod,     only: extract_w_kernel_type
   use smagorinsky_shear_kernel_mod, only: smagorinsky_shear_kernel_type
   use mixing_config_mod,            only: smagorinsky
-  use physics_config_mod,           only: blayer_placement,            &
-                                          blayer_placement_slow,       &
-                                          convection_placement,        &
-                                          convection_placement_slow
   use sci_geometric_constants_mod,  only: get_da_at_w2, get_height_fv, &
                                           get_panel_id, get_dx_at_w2
   use fs_continuity_mod,            only: W3, Wtheta
@@ -60,7 +56,6 @@ contains
     type( field_collection_type ), intent(inout) :: derived_fields
 
     type( field_type ), pointer :: theta_in_w3 => null()
-    type( field_type ), pointer :: theta_star => null()
     type( field_type ), pointer :: rho_in_wth => null()
     type( field_type ), pointer :: exner_in_wth => null()
     type( field_type ), pointer :: wetrho_in_wth => null()
@@ -71,10 +66,7 @@ contains
     type( field_type ), pointer :: u_in_w2h => null()
     type( field_type ), pointer :: v_in_w2h => null()
     type( field_type ), pointer :: w_in_wth => null()
-    type( field_type ), pointer :: u_in_w3_star => null()
-    type( field_type ), pointer :: v_in_w3_star => null()
     type( field_type ), pointer :: u_physics => null()
-    type( field_type ), pointer :: u_star => null()
     type( field_type ), pointer :: velocity_w2v => null()
     type( field_type ), pointer :: shear => null()
     type( field_type ), pointer :: dA => null()
@@ -162,18 +154,6 @@ contains
                                                  panel_id, 1) )
     end if
 
-    if (blayer_placement == blayer_placement_slow .or.                        &
-         convection_placement == convection_placement_slow) then
-      ! Set up predictors with start of timestep variables
-      call derived_fields%get_field('theta_star', theta_star)
-      call derived_fields%get_field('u_star', u_star)
-      call derived_fields%get_field('u_in_w3_star', u_in_w3_star)
-      call derived_fields%get_field('v_in_w3_star', v_in_w3_star)
-      call invoke(setval_X(theta_star, theta),                                &
-                  setval_X(u_star, u),                                        &
-                  setval_X(u_in_w3_star, u_in_w3),                            &
-                  setval_X(v_in_w3_star, v_in_w3) )
-    end if
     if ( LPROF ) call stop_timing( id, 'mappings.map_physics_fields' )
 
   end subroutine map_physics_fields_alg

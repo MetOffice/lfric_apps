@@ -9,6 +9,7 @@ use planet_constants_mod, only: vkman => vkman_bl, cp => cp_bl,                &
      kappa => kappa_bl, r => rd_bl, repsilon => repsilon_bl
 
 use um_types, only: r_bl
+use constants_mod, only: r_um
 
 implicit none
 
@@ -26,7 +27,7 @@ subroutine conv_diag_6a(                                                       &
    ! in values defining vertical grid of model atmosphere :
    , bl_levels                                                                 &
    , p, P_theta_lev, exner_rho                                                 &
-   , rho_only, rho_theta, z_full, z_half, r_theta_levels, r_rho_levels         &
+   , rho_only, rho_theta, z_full, z_half, r_theta_levels                       &
 
    ! in Model switches
    , l_extra_call                                                              &
@@ -132,13 +133,11 @@ real(kind=r_bl), intent(in) ::                                                 &
               pdims_s%k_start:pdims_s%k_end)                                   &
   , rho_only(row_length,rows,1:tdims%k_end)    & ! density (kg/m3)
   , rho_theta(row_length,rows,1:tdims%k_end-1) & ! rho th lev (kg/m3)
-  , r_theta_levels(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,&
-                   0:tdims%k_end) & ! dist of theta lev from Earth centre (m)
-  , r_rho_levels(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,  &
-                 tdims%k_end) & ! dist of rho lev from Earth centre (m)
   , z_full(row_length,rows,1:tdims%k_end)      & ! height th lev (m)
   , z_half(row_length,rows,1:tdims%k_end)        ! height rho lev (m)
-
+real(kind=r_um), intent(in) ::                                                 &
+    r_theta_levels(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,&
+                   0:tdims%k_end)  ! dist of theta lev from Earth centre (m)
 
 logical,  intent(in) ::                                                        &
     L_spec_z0             & ! true if roughness length has been specified
@@ -538,7 +537,7 @@ if (nunstable > 0) then
   , bl_levels, nunstable                                                       &
   , index_i, index_j                                                           &
   , p, P_theta_lev, exner_rho                                                  &
-  , rho_only, rho_theta, z_full, z_half, r_theta_levels, r_rho_levels          &
+  , rho_only, rho_theta, z_full, z_half, r_theta_levels                        &
   , qcf, qcl, cloud_fraction                                                   &
   , pstar, q, theta, exner_theta_levels                                        &
   , frac_land_c                                                                &

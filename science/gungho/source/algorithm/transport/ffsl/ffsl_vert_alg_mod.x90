@@ -36,7 +36,6 @@ module ffsl_vert_alg_mod
   use wind_precomputations_alg_mod,     only: wind_precomputations_type
 
   ! Algorithms
-  use copy_field_alg_mod,               only: copy_field
   use ffsl_advective_updates_alg_mod,   only: swift_inner_update_tracer,       &
                                               ffsl_advective_increment
 
@@ -338,7 +337,7 @@ contains
       ! Get objects only needed for high order flux
       dz_w3_rdef => get_dz_w3(mesh_id)
       call dz_w3%initialise( vector_space = field_fs )
-      call copy_field(dz_w3_rdef, dz_w3)
+      call invoke( real_to_real_x(dz_w3, dz_w3_rdef) )
     end if
 
     ! Compute fluxes -----------------------------------------------------------

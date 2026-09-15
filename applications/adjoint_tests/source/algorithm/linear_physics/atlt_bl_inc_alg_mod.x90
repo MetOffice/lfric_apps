@@ -51,7 +51,7 @@ module atlt_bl_inc_alg_mod
    use tl_bl_inc_kernel_mod,      only : tl_bl_inc_kernel_type
    use atl_bl_inc_kernel_mod,     only : atl_bl_inc_kernel_type
    use linear_physics_config_mod, only : log_layer,            &
-                                         Blevs_m,              &
+                                         blevs_m,              &
                                          e_folding_levs_m,     &
                                          u_land_m,             &
                                          u_sea_m,              &
@@ -130,7 +130,7 @@ module atlt_bl_inc_alg_mod
                                          auv,buv_inv,          &
                                          face_selector_ew,     &
                                          face_selector_ns,     &
-                                         Blevs_m ) )
+                                         blevs_m ) )
     call invoke ( x_innerproduct_x( ip1(1), u_inc ), &
                   x_innerproduct_x( ip1(2), u ) )
 
@@ -151,7 +151,7 @@ module atlt_bl_inc_alg_mod
                                           auv,buv_inv,          &
                                           face_selector_ew,     &
                                           face_selector_ns,     &
-                                          Blevs_m ) )
+                                          blevs_m ) )
 
     call invoke ( x_innerproduct_y( ip2(1), u_inc, u_inc_input ), &
                   x_innerproduct_y( ip2(2), u, u_input ) )

@@ -23,9 +23,6 @@ module jedi_lfric_io_setup_mod
   use mesh_mod,                  only: mesh_type
   use mesh_collection_mod,       only: mesh_collection
   use model_clock_mod,           only: model_clock_type
-  use namelist_collection_mod,   only: namelist_collection_type
-  use namelist_mod,              only: namelist_type
-
   use jedi_lfric_file_meta_mod,  only: jedi_lfric_file_meta_type
   use jedi_lfric_init_files_mod, only: jedi_lfric_init_files
 

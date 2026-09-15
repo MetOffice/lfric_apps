@@ -1,0 +1,3 @@
+Inner product checksum zh = 41EA73B073DF7BAE
+Inner product checksum rho = 40FFDD7EF4FB1FB2
+Inner product checksum theta = 4255803F59E9B294

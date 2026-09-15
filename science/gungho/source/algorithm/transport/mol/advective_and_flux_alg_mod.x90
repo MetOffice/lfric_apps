@@ -12,7 +12,6 @@ module advective_and_flux_alg_mod
   use sci_fem_constants_mod,           only: get_inverse_mass_matrix_fv
   use r_tran_field_mod,                only: r_tran_field_type
   use field_mod,                       only: field_type
-  use copy_field_alg_mod,              only: copy_field
   use log_mod,                         only: log_event, LOG_LEVEL_ERROR
   use monotonic_update_kernel_mod,     only: monotonic_update_kernel_type
   use operator_mod,                    only: operator_type
@@ -138,8 +137,8 @@ contains
             end if
             call rmultiplicity%initialise(  &
                vector_space = rmultiplicity_rdef%get_function_space()  )
-            call copy_field(rmultiplicity_rdef, rmultiplicity)
-            call invoke( setval_c(reconstruction_field, 0.0_r_tran), &
+            call invoke( real_to_real_x(rmultiplicity, rmultiplicity_rdef), &
+                         setval_c(reconstruction_field, 0.0_r_tran),        &
                          sample_field_kernel_type(reconstruction_field, rmultiplicity, density) )
             if ( do_flux ) then
               call invoke( X_times_Y(mass_flux, reconstruction_field, wind) )

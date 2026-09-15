@@ -264,7 +264,7 @@ module update_iau_inc_alg_mod
     ! PC2 cloud and humidity adjustments
     if ( iau_pc2 ) then
 
-      call iau_pc2_assimilation( exner_wth, exner_earlier_wth,     &
+      call iau_pc2_assimilation( exner, exner_wth, exner_earlier_wth,          &
                                  theta, theta_earlier,             &
                                  m_v, mv_earlier ,                 &
                                  m_cl, mcl_earlier,                &

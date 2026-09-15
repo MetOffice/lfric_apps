@@ -44,7 +44,7 @@ program semi_implicit
 
   modeldb%mpi => global_mpi
 
-  call modeldb%configuration%initialise( application_name, table_len=10 )
+  call modeldb%config%initialise( application_name )
   call modeldb%values%initialise('values', 5)
 
   call log_event( 'TL testing running ...', LOG_LEVEL_INFO )
@@ -103,7 +103,7 @@ program semi_implicit
 
   call init_comm( application_name, modeldb )
   call init_config( filename, gungho_required_namelists, &
-       modeldb%configuration )
+                    config=modeldb%config )
   call init_logger( modeldb%mpi%get_comm(), application_name )
   call init_collections()
   call init_time( modeldb )
