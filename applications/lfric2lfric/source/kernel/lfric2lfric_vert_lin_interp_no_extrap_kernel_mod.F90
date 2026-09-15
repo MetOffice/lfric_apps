@@ -4,19 +4,19 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 
-!> @brief Perform the vertical interpolation from a source mesh to a destination mesh
+!> @brief Vertical interpolation from a source mesh to a destination mesh.
 !> @details The source and destination meshes have a different number of vertical levels,
-!!         but the same number of cells in the horizontal.
+!!          but the same number of cells in the horizontal.
 module lfric2lfric_vert_lin_interp_no_extrap_kernel_mod
 
 use constants_mod,           only: i_def, r_double, r_single
 use kernel_mod,              only: kernel_type
-use argument_mod,            only: arg_type, CELL_COLUMN,                     &
-                                   GH_FIELD, GH_INTEGER, GH_REAL,             &
-                                   GH_READ, GH_READWRITE, GH_SCALAR,          &
-                                   ANY_DISCONTINUOUS_SPACE_1,                 &
+use argument_mod,            only: arg_type, CELL_COLUMN,             &
+                                   GH_FIELD, GH_INTEGER, GH_REAL,     &
+                                   GH_READ, GH_READWRITE, GH_SCALAR,  &
+                                   ANY_DISCONTINUOUS_SPACE_1,         &
                                    ANY_DISCONTINUOUS_SPACE_2
-use fs_continuity_mod,       only : W3
+use fs_continuity_mod,       only: W3
 
 implicit none
 
@@ -90,31 +90,36 @@ subroutine lfric2lfric_vert_lin_interp_no_extrap_code_r_single(    &
   integer(kind=i_def), intent(in)    :: source_layers
   integer(kind=i_def), intent(in)    :: ndf_dest, ndf_source
   integer(kind=i_def), intent(in)    :: undf_dest, undf_source
-  integer(kind=i_def), intent(in), dimension(ndf_dest)    :: map_dest(ndf_dest)
-  integer(kind=i_def), intent(in), dimension(ndf_source)  :: map_source(ndf_source)
-  real(kind=r_single), intent(inout), dimension(ndf_dest) :: destination_field(undf_dest)
-  real(kind=r_single), intent(in), dimension(ndf_source)  :: source_field(undf_source)
-  real(kind=r_single), intent(in), dimension(ndf_dest) :: dest_heights(undf_dest)
-  real(kind=r_single), intent(in), dimension(ndf_source)  :: source_heights(undf_source)
+  integer(kind=i_def), intent(in),    dimension(ndf_dest)   :: map_dest(ndf_dest)
+  integer(kind=i_def), intent(in),    dimension(ndf_source) :: map_source(ndf_source)
+  real(kind=r_single), intent(inout), dimension(ndf_dest)   :: destination_field(undf_dest)
+  real(kind=r_single), intent(in),    dimension(ndf_source) :: source_field(undf_source)
+  real(kind=r_single), intent(in),    dimension(ndf_dest)   :: dest_heights(undf_dest)
+  real(kind=r_single), intent(in),    dimension(ndf_source) :: source_heights(undf_source)
 
-  integer(kind=i_def) :: multidata, df, k, m, kk, level_below(nlayers), source_top_df, dest_top_df
+  integer(kind=i_def) :: multidata, df, k, m, kk, level_below(nlayers)
+  integer(kind=i_def) :: source_top_df, dest_top_df
   integer(kind=i_def) :: d_h, s_h_top, s_h_bottom, s_h_below
 
   ! Assume lowest order W3 or Wtheta space
   df = 1
+
   ! Loop is 0 -> nlayers-1 for W3 fields, but 0 -> nlayers for Wtheta fields
   dest_top_df = nlayers - 2 + ndf_dest
   source_top_df = source_layers - 2 + ndf_source
+
   ! Number of multidata values per grid cell
   multidata = undf_dest/((dest_top_df+1)*ncell) - 1
 
   do kk = 1, dest_top_df
     level_below(kk) = source_layers
+     
     do k = 1, source_top_df
       if ( (source_heights(k) > dest_heights(kk)) .and. &
            (level_below(kk) == source_layers) ) then
+
         level_below(kk) = k-1
-          ! potential optimisation: start from level_below(kk-1)
+        ! potential future optimisation: start from level_below(kk-1)
       end if
     end do
   end do
@@ -183,31 +188,36 @@ subroutine lfric2lfric_vert_lin_interp_no_extrap_code_r_double(    &
   integer(kind=i_def), intent(in)    :: source_layers
   integer(kind=i_def), intent(in)    :: ndf_dest, ndf_source
   integer(kind=i_def), intent(in)    :: undf_dest, undf_source
-  integer(kind=i_def), intent(in), dimension(ndf_dest)    :: map_dest(ndf_dest)
-  integer(kind=i_def), intent(in), dimension(ndf_source)  :: map_source(ndf_source)
-  real(kind=r_double), intent(inout), dimension(ndf_dest) :: destination_field(undf_dest)
-  real(kind=r_double), intent(in), dimension(ndf_source)  :: source_field(undf_source)
-  real(kind=r_double), intent(in), dimension(ndf_dest) :: dest_heights(undf_dest)
-  real(kind=r_double), intent(in), dimension(ndf_source)  :: source_heights(undf_source)
+  integer(kind=i_def), intent(in),    dimension(ndf_dest)   :: map_dest(ndf_dest)
+  integer(kind=i_def), intent(in),    dimension(ndf_source) :: map_source(ndf_source)
+  real(kind=r_double), intent(inout), dimension(ndf_dest)   :: destination_field(undf_dest)
+  real(kind=r_double), intent(in),    dimension(ndf_source) :: source_field(undf_source)
+  real(kind=r_double), intent(in),    dimension(ndf_dest)   :: dest_heights(undf_dest)
+  real(kind=r_double), intent(in),    dimension(ndf_source) :: source_heights(undf_source)
 
-  integer(kind=i_def) :: multidata, df, k, m, kk, level_below(nlayers), source_top_df, dest_top_df
+  integer(kind=i_def) :: multidata, df, k, m, kk, level_below(nlayers)
+  integer(kind=i_def) :: source_top_df, dest_top_df
   integer(kind=i_def) :: d_h, s_h_top, s_h_bottom, s_h_below
 
   ! Assume lowest order W3 or Wtheta space
   df = 1
+
   ! Loop is 0 -> nlayers-1 for W3 fields, but 0 -> nlayers for Wtheta fields
   dest_top_df = nlayers - 2 + ndf_dest
   source_top_df = source_layers - 2 + ndf_source
+
   ! Number of multidata values per grid cell
   multidata = undf_dest/((dest_top_df+1)*ncell) - 1
 
   do kk = 1, dest_top_df
-    level_below(kk) = source_layers
+     level_below(kk) = source_layers
+
     do k = 1, source_top_df
       if ( (source_heights(k) > dest_heights(kk)) .and. &
            (level_below(kk) == source_layers) ) then
+
         level_below(kk) = k-1
-          ! potential optimisation: start from level_below(kk-1)
+        ! potential optimisation: start from level_below(kk-1)
       end if
     end do
   end do

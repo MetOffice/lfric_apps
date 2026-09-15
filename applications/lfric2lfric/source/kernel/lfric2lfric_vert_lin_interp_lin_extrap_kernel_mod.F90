@@ -4,7 +4,7 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 
-!> @brief Perform the vertical interpolation from a source mesh to a destination mesh
+!> @brief Vertical interpolation with extrapolation from a source mesh to a destination mesh.
 !> @details The source and destination meshes have a different number of vertical levels,
 !!         but the same number of cells in the horizontal.
 !!         Extrapolation is added if the highest destination grid level is above the highest
@@ -12,21 +12,20 @@
 !!         the lowest source grid level.
 module lfric2lfric_vert_lin_interp_lin_extrap_kernel_mod
 
-use constants_mod,           only: i_def, r_double, r_single
-use kernel_mod,              only: kernel_type
-use argument_mod,            only: arg_type, CELL_COLUMN,                     &
-                                   GH_FIELD, GH_INTEGER, GH_REAL,             &
-                                   GH_READ, GH_READWRITE, GH_SCALAR,          &
-                                   ANY_DISCONTINUOUS_SPACE_1,                 &
-                                   ANY_DISCONTINUOUS_SPACE_2
-use fs_continuity_mod,       only : W3
+use constants_mod,        only: i_def, r_double, r_single
+use kernel_mod,           only: kernel_type
+use argument_mod,         only: arg_type, CELL_COLUMN,            &
+                                GH_FIELD, GH_INTEGER, GH_REAL,    &
+                                GH_READ, GH_READWRITE, GH_SCALAR, &
+                                ANY_DISCONTINUOUS_SPACE_1,        &
+                                ANY_DISCONTINUOUS_SPACE_2
+use fs_continuity_mod,    only: W3
 
 implicit none
 
 private
 
 type, public, extends(kernel_type) :: lfric2lfric_vert_lin_interp_lin_extrap_kernel_type
-
    type(arg_type) :: meta_args(6) = (/                                         &
         arg_type(GH_FIELD,  GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1), &
         arg_type(GH_FIELD,  GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_2), &
@@ -71,19 +70,19 @@ contains
 
 ! R_SINGLE PRECISION
 ! ==================
-subroutine lfric2lfric_vert_lin_interp_lin_extrap_code_r_single(  &
-                                          nlayers,                            &
-                                          destination_field,                  &
-                                          source_field,                       &
-                                          source_layers,                      &
-                                          ncell,                              &
-                                          dest_heights,                       &
-                                          source_heights,                     &
-                                          ndf_dest,                           &
-                                          undf_dest,                          &
-                                          map_dest,                           &
-                                          ndf_source,                         &
-                                          undf_source,                        &
+subroutine lfric2lfric_vert_lin_interp_lin_extrap_code_r_single( &
+                                          nlayers,               &
+                                          destination_field,     &
+                                          source_field,          &
+                                          source_layers,         &
+                                          ncell,                 &
+                                          dest_heights,          &
+                                          source_heights,        &
+                                          ndf_dest,              &
+                                          undf_dest,             &
+                                          map_dest,              &
+                                          ndf_source,            &
+                                          undf_source,           &
                                           map_source)
 
   implicit none
@@ -93,31 +92,40 @@ subroutine lfric2lfric_vert_lin_interp_lin_extrap_code_r_single(  &
   integer(kind=i_def), intent(in)    :: source_layers
   integer(kind=i_def), intent(in)    :: ndf_dest, ndf_source
   integer(kind=i_def), intent(in)    :: undf_dest, undf_source
-  integer(kind=i_def), intent(in), dimension(ndf_dest)    :: map_dest(ndf_dest)
-  integer(kind=i_def), intent(in), dimension(ndf_source)  :: map_source(ndf_source)
-  real(kind=r_single), intent(inout), dimension(ndf_dest) :: destination_field(undf_dest)
-  real(kind=r_single), intent(in), dimension(ndf_source)  :: source_field(undf_source)
-  real(kind=r_single), intent(in), dimension(ndf_dest)    :: dest_heights(undf_dest)
-  real(kind=r_single), intent(in), dimension(ndf_source)  :: source_heights(undf_source)
+  integer(kind=i_def), intent(in),    dimension(ndf_dest)   :: map_dest(ndf_dest)
+  integer(kind=i_def), intent(in),    dimension(ndf_source) :: map_source(ndf_source)
+  real(kind=r_single), intent(inout), dimension(ndf_dest)   :: destination_field(undf_dest)
+  real(kind=r_single), intent(in),    dimension(ndf_source) :: source_field(undf_source)
+  real(kind=r_single), intent(in),    dimension(ndf_dest)   :: dest_heights(undf_dest)
+  real(kind=r_single), intent(in),    dimension(ndf_source) :: source_heights(undf_source)
 
-  integer(kind=i_def) :: multidata, df, k, m, kk, level_below(nlayers), source_top_df, dest_top_df
+  integer(kind=i_def) :: level_below(nlayers)
+  integer(kind=i_def) :: multidata, df, k, m, kk
+  integer(kind=i_def) :: source_top_df, dest_top_df
   integer(kind=i_def) :: d_h, s_h_top, s_h_bottom, s_h_below
 
   ! Assume lowest order W3 or Wtheta space
   df = 1
+
   ! Loop is 0 -> nlayers-1 for W3 fields, but 0 -> nlayers for Wtheta fields
   dest_top_df = nlayers - 2 + ndf_dest
   source_top_df = source_layers - 2 + ndf_source
+
   ! Number of multidata values per grid cell
   multidata = undf_dest/((dest_top_df+1)*ncell) - 1
 
   do kk = 1, dest_top_df
+
     level_below(kk) = source_layers
+
     do k = 1, source_top_df
-      if ( (source_heights(k) > dest_heights(kk)) .and. &
-           (level_below(kk) == source_layers) ) then
+
+      if ((source_heights(k) > dest_heights(kk)) .and. &
+          (level_below(kk) == source_layers) ) then
+
         level_below(kk) = k-1
-          ! potential optimisation: start from level_below(kk-1)
+        ! potential future optimisation: start from level_below(kk-1)
+
       end if
     end do
   end do
@@ -126,7 +134,7 @@ subroutine lfric2lfric_vert_lin_interp_lin_extrap_code_r_single(  &
 
      do kk = 1, dest_top_df
    
-      ! EXTRAPOLATION METHOD - ! Linear extrapolation at top and bottom
+      ! EXTRAPOLATION METHOD is Linear extrapolation at top and bottom
 
       ! Define the array indices
         
@@ -168,7 +176,7 @@ subroutine lfric2lfric_vert_lin_interp_lin_extrap_code_r_single(  &
         ! Linearly interpolate
 
         ! dk(kk) =  ( (dh(kk) - sh(lb(kk))) * sf(lb(kk)+1) - (dh(kk) - sh(lb(kk)+1)) * sf(lb(kk)) )
-         !          / (sh(lb(kk)+1) - sh(lb(kk)))
+        !           / (sh(lb(kk)+1) - sh(lb(kk)))
          
         destination_field(d_h) = &
                   ( (dest_heights(d_h) - source_heights(s_h_below )) * source_field(s_h_below + 1)  &
@@ -183,19 +191,19 @@ end subroutine lfric2lfric_vert_lin_interp_lin_extrap_code_r_single
 
 ! R_DOUBLE PRECISION
 ! ==================
-subroutine lfric2lfric_vert_lin_interp_lin_extrap_code_r_double(  &
-                                          nlayers,                            &
-                                          destination_field,                  &
-                                          source_field,                       &
-                                          source_layers,                      &
-                                          ncell,                              &
-                                          dest_heights,                       &
-                                          source_heights,                     &
-                                          ndf_dest,                           &
-                                          undf_dest,                          &
-                                          map_dest,                           &
-                                          ndf_source,                         &
-                                          undf_source,                        &
+subroutine lfric2lfric_vert_lin_interp_lin_extrap_code_r_double( &
+                                          nlayers,               &
+                                          destination_field,     &
+                                          source_field,          &
+                                          source_layers,         &
+                                          ncell,                 &
+                                          dest_heights,          &
+                                          source_heights,        &
+                                          ndf_dest,              &
+                                          undf_dest,             &
+                                          map_dest,              &
+                                          ndf_source,            &
+                                          undf_source,           &
                                           map_source)
 
   implicit none
@@ -205,31 +213,40 @@ subroutine lfric2lfric_vert_lin_interp_lin_extrap_code_r_double(  &
   integer(kind=i_def), intent(in)    :: source_layers
   integer(kind=i_def), intent(in)    :: ndf_dest, ndf_source
   integer(kind=i_def), intent(in)    :: undf_dest, undf_source
-  integer(kind=i_def), intent(in), dimension(ndf_dest)    :: map_dest(ndf_dest)
-  integer(kind=i_def), intent(in), dimension(ndf_source)  :: map_source(ndf_source)
-  real(kind=r_double), intent(inout), dimension(ndf_dest) :: destination_field(undf_dest)
-  real(kind=r_double), intent(in), dimension(ndf_source)  :: source_field(undf_source)
-  real(kind=r_double), intent(in), dimension(ndf_dest)    :: dest_heights(undf_dest)
-  real(kind=r_double), intent(in), dimension(ndf_source)  :: source_heights(undf_source)
+  integer(kind=i_def), intent(in),    dimension(ndf_dest)   :: map_dest(ndf_dest)
+  integer(kind=i_def), intent(in),    dimension(ndf_source) :: map_source(ndf_source)
+  real(kind=r_double), intent(inout), dimension(ndf_dest)   :: destination_field(undf_dest)
+  real(kind=r_double), intent(in),    dimension(ndf_source) :: source_field(undf_source)
+  real(kind=r_double), intent(in),    dimension(ndf_dest)   :: dest_heights(undf_dest)
+  real(kind=r_double), intent(in),    dimension(ndf_source) :: source_heights(undf_source)
 
-  integer(kind=i_def) :: multidata, df, k, m, kk, level_below(nlayers), source_top_df, dest_top_df
+  integer(kind=i_def) :: level_below(nlayers)
+  integer(kind=i_def) :: multidata, df, k, m, kk
+  integer(kind=i_def) :: source_top_df, dest_top_df
   integer(kind=i_def) :: d_h, s_h_top, s_h_bottom, s_h_below
 
   ! Assume lowest order W3 or Wtheta space
   df = 1
+
   ! Loop is 0 -> nlayers-1 for W3 fields, but 0 -> nlayers for Wtheta fields
   dest_top_df = nlayers - 2 + ndf_dest
   source_top_df = source_layers - 2 + ndf_source
+
   ! Number of multidata values per grid cell
   multidata = undf_dest/((dest_top_df+1)*ncell) - 1
 
   do kk = 1, dest_top_df
+
     level_below(kk) = source_layers
+
     do k = 1, source_top_df
-      if ( (source_heights(k) > dest_heights(kk)) .and. &
+
+      if ((source_heights(k) > dest_heights(kk)) .and. &
            (level_below(kk) == source_layers) ) then
+
         level_below(kk) = k-1
-          ! potential optimisation: start from level_below(kk-1)
+        ! potential future optimisation: start from level_below(kk-1)
+
       end if
     end do
   end do
@@ -238,7 +255,7 @@ subroutine lfric2lfric_vert_lin_interp_lin_extrap_code_r_double(  &
 
      do kk = 1, dest_top_df
    
-      ! EXTRAPOLATION METHOD - ! Linear extrapolation at top and bottom
+      ! EXTRAPOLATION METHOD - Linear extrapolation at top and bottom
 
       ! Define the array indices
         
@@ -280,7 +297,7 @@ subroutine lfric2lfric_vert_lin_interp_lin_extrap_code_r_double(  &
         ! Linearly interpolate
 
         ! dk(kk) =  ( (dh(kk) - sh(lb(kk))) * sf(lb(kk)+1) - (dh(kk) - sh(lb(kk)+1)) * sf(lb(kk)) )
-         !          / (sh(lb(kk)+1) - sh(lb(kk)))
+        !           / (sh(lb(kk)+1) - sh(lb(kk)))
          
         destination_field(d_h) = &
                   ( (dest_heights(d_h) - source_heights(s_h_below )) * source_field(s_h_below + 1)  &
