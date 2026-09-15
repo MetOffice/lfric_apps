@@ -16,7 +16,7 @@ dsl:
   comment: "PSylone DSL Phase"
   api: lfric
 
-  script_dir: psykal
+  script_dir: ${site}-${platform}/psykal
 
   # The first two directives reproduce the default PSyclone triggering used
   # in LFRic:
@@ -35,7 +35,7 @@ transmute_after_dsl:
   # As above
   comment: "Post-DSL transmute phase"
   api:
-  script_dir: transmute
+  script_dir: ${site}-${platform}/transmute
 
   global.py:
     mphys_kernel_mod
