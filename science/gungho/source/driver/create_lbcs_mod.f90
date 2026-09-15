@@ -45,8 +45,9 @@ module create_lbcs_mod
    !> These two operations have to be separate because they have to happen
    !> at different times. The enabling of checkpoint fields has to happen
    !> before the io context closes, and this is too early for field creation.
-   !> @param  proc Processor to be applied to selected field specifiers
-   subroutine process_lbc_fields(proc)
+   !> @param  proc   Processor to be applied to selected field specifiers
+   !> @param  legacy Flag to enable/disable legacy CP
+   subroutine process_lbc_fields(proc, legacy)
       use field_spec_mod,             only : main => main_coll_dict,            &
                                              axis => time_axis_dict,            &
                                              processor_type,                    &
@@ -54,12 +55,10 @@ module create_lbcs_mod
       implicit none
 
       class(processor_type) :: proc
+      logical(l_def) :: legacy
 
       integer(i_def) :: imr
       character(str_def) :: name
-      logical(l_def) :: legacy
-
-      legacy = .true.
 
       select case( lbc_option )
 
@@ -162,6 +161,7 @@ module create_lbcs_mod
      type(gungho_time_axes_type), pointer    :: gungho_axes
 
      type(field_maker_type) :: creator
+     logical :: legacy
 
      call log_event('GungHo: Creating lbc fields...', LOG_LEVEL_INFO)
 
@@ -170,7 +170,8 @@ module create_lbcs_mod
 
      call creator%init(mesh, twod_mesh, mapper, clock)
 
-     call process_lbc_fields(creator)
+     legacy = (mesh%is_geometry_planar() .and. mesh%is_topology_periodic())
+     call process_lbc_fields(creator, legacy)
 
      call gungho_axes%save_lbc_time_axis()
 

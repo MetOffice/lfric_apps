@@ -9,6 +9,7 @@
 module gungho_model_mod
 
   use add_mesh_map_mod,           only : assign_mesh_maps
+  use base_mesh_config_mod,       only : geometry_planar, topology_fully_periodic
   use sci_checksum_alg_mod,       only : checksum_alg
   use driver_fem_mod,             only : init_fem, final_fem
   use driver_io_mod,              only : init_io, final_io, &
@@ -280,6 +281,7 @@ contains
 #ifdef UM_PHYSICS
     integer(i_def) :: i
 #endif
+    logical :: legacy
 
     DT = clock%get_seconds_per_step()
     call set_variable("DT", DT, tolerant=.true.)
@@ -293,8 +295,12 @@ contains
       to_process_nudging_fields = .false.
     end if
 
+
     call persistor%init(clock)
-    call process_gungho_prognostics(persistor)
+
+    legacy = ( (config%base_mesh%geometry() == geometry_planar) .and. &
+               (config%base_mesh%topology() == topology_fully_periodic) )
+    call process_gungho_prognostics(persistor, legacy)
     ! Add the temperature_correction_rate to the appropriate files
     if(checkpoint_write) then
       if ( encorr_usage /= encorr_usage_none ) then
@@ -418,8 +424,7 @@ contains
       end if
     end if
 
-
-    if (limited_area) call process_lbc_fields(persistor)
+    if (limited_area) call process_lbc_fields(persistor, legacy)
     if (use_physics) then
       call process_physics_prognostics(persistor)
       if (to_process_nudging_fields)   &
