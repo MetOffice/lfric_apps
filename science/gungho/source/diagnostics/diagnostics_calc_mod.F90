@@ -5,7 +5,7 @@
 !-----------------------------------------------------------------------------
 
 ! Some of the content of this file has been produced with the assistance of
-! Anthropic Claude Opus 5 (Claude Code).
+! Met Office Claude Code Enterprise.
 !>  @brief Module for computing and outputting derived diagnostics
 !!
 !!  @details Computes various derived diagnostics that are written out

@@ -4,7 +4,7 @@
 ! under which the code may be used.
 ! -----------------------------------------------------------------------------
 ! Some of the content of this file has been produced with the assistance of
-! Anthropic Claude Opus 5 (Claude Code).
+! Met Office Claude Code Enterprise.
 !> @brief Test height_above_surface_kernel
 !>
 !> The kernel turns W3 heights above mean sea level into heights above the
