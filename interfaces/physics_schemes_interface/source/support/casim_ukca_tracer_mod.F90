@@ -4,7 +4,7 @@
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
 ! Some of the content of this file has been produced with the assistance of
-! Anthropic Claude Opus 5 (Claude Code).
+! Met Office Claude Code Enterprise.
 !-------------------------------------------------------------------------------
 !> @brief Gather the GLOMAP aerosol fields into a UKCA tracer array column
 !> @details The UM CASIM aerosol routines locate the GLOMAP mode numbers and
