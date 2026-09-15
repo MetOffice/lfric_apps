@@ -92,6 +92,10 @@ do n = 1, max_ukca_diags
       if ( .not. l_chem_timestep ) l_diag_requested = .false.
     case (trim(nm_o3_column_du))      
       l_diag_requested = init_diag(o3_column_du, 'chemistry__o3_column_du')
+    case default
+      call log_event(                                                          &
+             'INIT_UKCA_DIAGS: Unrecognised field :'//trim(diagnames_map(n,1), &
+             LOG_LEVEL_ERROR )
   end select
   if (l_diag_requested) then
     idiag_status_3d(get_idx(trim(diagnames_map(n, 2)))) =          &
@@ -141,6 +145,10 @@ do i = 1, n_ukca_diags_3d
       if (idiag_status_3d(i) == ukca_diag_status_requested) then 
         call o3_column_du % write_field
       end if  
+    case default
+      write(log_scratch_space, '(A,A,A)')'OUTPUT_UKCA_DIAGS, Unrecognised ',   &
+            trim(xios_name),'. Add new diagnostic write statements here.'
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR )
   end select
 end do
 
