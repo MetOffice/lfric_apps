@@ -133,56 +133,56 @@ subroutine lfric2lfric_vert_lin_interp_lin_extrap_code_r_single( &
   do m = 0, multidata
 
      do kk = 1, dest_top_df
-   
+
       ! EXTRAPOLATION METHOD is Linear extrapolation at top and bottom
 
       ! Define the array indices
-        
-      d_h = map_dest(df) + m*(dest_top_df+1) + kk 
+
+      d_h = map_dest(df) + m*(dest_top_df+1) + kk
       s_h_top = map_source(df) + m*(source_top_df+1) + source_top_df
       s_h_bottom = map_source(df) + m*(source_top_df+1)
       s_h_below = map_source(df) + m*(source_top_df+1) + level_below(kk)
-       
+
       if (dest_heights(d_h) > source_heights(s_h_top)) then
 
         ! If requested level is above top of model, do linear
         ! extrapolation using data on top and second top levels.
- 
+
          destination_field(d_h) = source_field(s_h_top) +         &
               (dest_heights(d_h) - source_heights(s_h_top)) *     &
               (source_field(s_h_top) - source_field(s_h_top -1))/ &
               (source_heights(s_h_top) - source_heights(s_h_top-1))
-              
+
       else if (dest_heights(d_h) == source_heights(s_h_top)) then
 
         destination_field(d_h) = source_field(s_h_top)
-        
+
       else if (dest_heights(d_h) < source_heights(s_h_bottom)) then
 
         ! If requested level is below bottom of model, do linear
         ! extrapolation using data on first and second levels.
- 
+
          destination_field(d_h) = source_field(s_h_bottom) + &
               (dest_heights(d_h) - source_heights(s_h_bottom)) * &
               (source_field(s_h_bottom) - source_field(s_h_bottom +1)) / &
               (source_heights(s_h_bottom) - source_heights(s_h_bottom +1))
-         
+
       else if (dest_heights(d_h) == source_heights(s_h_bottom)) then
 
         destination_field(d_h) = source_field(s_h_bottom)
-       
+
       else
 
         ! Linearly interpolate
 
         ! dk(kk) =  ( (dh(kk) - sh(lb(kk))) * sf(lb(kk)+1) - (dh(kk) - sh(lb(kk)+1)) * sf(lb(kk)) )
         !           / (sh(lb(kk)+1) - sh(lb(kk)))
-         
+
         destination_field(d_h) = &
                   ( (dest_heights(d_h) - source_heights(s_h_below )) * source_field(s_h_below + 1)  &
                   - (dest_heights(d_h) - source_heights(s_h_below + 1)) * source_field(s_h_below) ) &
                   / ( source_heights(s_h_below + 1)  - source_heights(s_h_below) )
-     
+
       end if
     end do
   end do
@@ -254,56 +254,56 @@ subroutine lfric2lfric_vert_lin_interp_lin_extrap_code_r_double( &
   do m = 0, multidata
 
      do kk = 1, dest_top_df
-   
+
       ! EXTRAPOLATION METHOD - Linear extrapolation at top and bottom
 
       ! Define the array indices
-        
-      d_h = map_dest(df) + m*(dest_top_df+1) + kk 
+
+      d_h = map_dest(df) + m*(dest_top_df+1) + kk
       s_h_top = map_source(df) + m*(source_top_df+1) + source_top_df
       s_h_bottom = map_source(df) + m*(source_top_df+1)
       s_h_below = map_source(df) + m*(source_top_df+1) + level_below(kk)
-       
+
       if (dest_heights(d_h) > source_heights(s_h_top)) then
 
         ! If requested level is above top of model, do linear
         ! extrapolation using data on top and second top levels.
- 
+
          destination_field(d_h) = source_field(s_h_top) +         &
               (dest_heights(d_h) - source_heights(s_h_top)) *     &
               (source_field(s_h_top) - source_field(s_h_top -1))/ &
               (source_heights(s_h_top) - source_heights(s_h_top-1))
-              
+
       else if (dest_heights(d_h) == source_heights(s_h_top)) then
 
         destination_field(d_h) = source_field(s_h_top)
-        
+
       else if (dest_heights(d_h) < source_heights(s_h_bottom)) then
 
         ! If requested level is below bottom of model, do linear
         ! extrapolation using data on first and second levels.
- 
+
          destination_field(d_h) = source_field(s_h_bottom) + &
               (dest_heights(d_h) - source_heights(s_h_bottom)) * &
               (source_field(s_h_bottom) - source_field(s_h_bottom +1)) / &
               (source_heights(s_h_bottom) - source_heights(s_h_bottom +1))
-         
+
       else if (dest_heights(d_h) == source_heights(s_h_bottom)) then
 
         destination_field(d_h) = source_field(s_h_bottom)
-       
+
       else
 
         ! Linearly interpolate
 
         ! dk(kk) =  ( (dh(kk) - sh(lb(kk))) * sf(lb(kk)+1) - (dh(kk) - sh(lb(kk)+1)) * sf(lb(kk)) )
         !           / (sh(lb(kk)+1) - sh(lb(kk)))
-         
+
         destination_field(d_h) = &
                   ( (dest_heights(d_h) - source_heights(s_h_below )) * source_field(s_h_below + 1)  &
                   - (dest_heights(d_h) - source_heights(s_h_below + 1)) * source_field(s_h_below) ) &
                   / ( source_heights(s_h_below + 1)  - source_heights(s_h_below) )
-     
+
       end if
     end do
   end do

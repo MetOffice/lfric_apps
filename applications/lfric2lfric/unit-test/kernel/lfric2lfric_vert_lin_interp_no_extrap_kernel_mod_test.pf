@@ -141,7 +141,7 @@ contains
         @assertEqual(expected, answer, tol)
       end do
     end do
-   
+
   end subroutine test_all_r_single
 
 @Test
@@ -169,7 +169,7 @@ contains
     real(kind=r_single), allocatable  :: source_heights(:)
     real(kind=r_single), parameter    :: tol = 1.0e-12_r_single
     real(kind=r_single) :: expected, answer
-    
+
     nlayers  = 5_i_def
     source_layers = 4_i_def
     call get_w3_m3x3_q3x3x3_size(ndf_source, undf_source, ncell, &
@@ -264,7 +264,7 @@ contains
         @assertEqual(expected, answer, tol)
       end do
     end do
-   
+
   end subroutine test_all_with_extrap_r_single
 
 @Test
@@ -292,7 +292,7 @@ contains
     real(kind=r_double), allocatable  :: source_heights(:)
     real(kind=r_double), parameter    :: tol = 1.0e-12_r_double
     real(kind=r_double)               :: expected, answer
-    
+
     nlayers = 3_i_def
     source_layers = 4_i_def
     call get_w3_m3x3_q3x3x3_size(ndf_source, undf_source, ncell, &
@@ -388,7 +388,7 @@ contains
         @assertEqual(expected, answer, tol)
       end do
     end do
-   
+
   end subroutine test_all_r_double
 
 @Test
@@ -416,7 +416,7 @@ contains
     real(kind=r_double), allocatable  :: source_heights(:)
     real(kind=r_double), parameter    :: tol = 1.0e-12_r_double
     real(kind=r_double)               :: expected, answer
-    
+
     nlayers  = 5_i_def
     source_layers = 4_i_def
     call get_w3_m3x3_q3x3x3_size(ndf_source, undf_source, ncell, &
@@ -510,7 +510,7 @@ contains
         @assertEqual(expected, answer, tol)
       end do
     end do
-   
+
   end subroutine test_all_with_extrap_r_double
 
 end module lfric2lfric_vert_lin_interp_no_extrap_kernel_mod_test

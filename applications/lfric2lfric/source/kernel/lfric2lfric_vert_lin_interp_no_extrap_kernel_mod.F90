@@ -113,7 +113,7 @@ subroutine lfric2lfric_vert_lin_interp_no_extrap_code_r_single(    &
 
   do kk = 1, dest_top_df
     level_below(kk) = source_layers
-     
+
     do k = 1, source_top_df
       if ( (source_heights(k) > dest_heights(kk)) .and. &
            (level_below(kk) == source_layers) ) then
@@ -130,12 +130,12 @@ subroutine lfric2lfric_vert_lin_interp_no_extrap_code_r_single(    &
       ! EXTRAPOLATION METHOD - ! No linear extrapolation at top or bottom
 
       ! Define the array indices
-        
+
       d_h = map_dest(df) + m*(dest_top_df+1) + kk
       s_h_top = map_source(df) + m*(source_top_df+1) + source_top_df
       s_h_bottom = map_source(df) + m*(source_top_df+1)
       s_h_below = map_source(df) + m*(source_top_df+1) + level_below(kk)
-      
+
       if (dest_heights(d_h) >= source_heights(s_h_top)) then
 
         ! Top: Set to top input data
@@ -145,7 +145,7 @@ subroutine lfric2lfric_vert_lin_interp_no_extrap_code_r_single(    &
 
         ! Bottom: Set to bottom input data
         destination_field(d_h) = source_field(s_h_bottom)
-        
+
       else
 
         ! Linearly interpolate
@@ -228,12 +228,12 @@ subroutine lfric2lfric_vert_lin_interp_no_extrap_code_r_double(    &
       ! EXTRAPOLATION METHOD - ! No linear extrapolation at top or bottom
 
       ! Define the array indices
-        
+
       d_h = map_dest(df) + m*(dest_top_df+1) + kk
       s_h_top = map_source(df) + m*(source_top_df+1) + source_top_df
       s_h_bottom = map_source(df) + m*(source_top_df+1)
       s_h_below = map_source(df) + m*(source_top_df+1) + level_below(kk)
-      
+
       if (dest_heights(d_h) >= source_heights(s_h_top)) then
 
         ! Top: Set to top input data
@@ -243,7 +243,7 @@ subroutine lfric2lfric_vert_lin_interp_no_extrap_code_r_double(    &
 
         ! Bottom: Set to bottom input data
         destination_field(d_h) = source_field(s_h_bottom)
-        
+
       else
 
         ! Linearly interpolate
