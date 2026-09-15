@@ -109,7 +109,7 @@ subroutine lfric2lfric_vert_lin_interp_no_extrap_code_r_single(    &
   source_top_df = source_layers - 2 + ndf_source
 
   ! Number of multidata values per grid cell
-  multidata = undf_dest/((dest_top_df+1)*ncell) - 1
+  multidata = undf_dest/((dest_top_df + 1) * ncell) - 1
 
   do kk = 1, dest_top_df
     level_below(kk) = source_layers
@@ -207,7 +207,7 @@ subroutine lfric2lfric_vert_lin_interp_no_extrap_code_r_double(    &
   source_top_df = source_layers - 2 + ndf_source
 
   ! Number of multidata values per grid cell
-  multidata = undf_dest/((dest_top_df+1)*ncell) - 1
+  multidata = undf_dest/((dest_top_df + 1) * ncell) - 1
 
   do kk = 1, dest_top_df
      level_below(kk) = source_layers
