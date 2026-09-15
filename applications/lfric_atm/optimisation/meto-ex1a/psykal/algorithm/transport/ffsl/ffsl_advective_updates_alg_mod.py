@@ -43,13 +43,12 @@ fuse loops that are lower in the schedule e.g. coloured loops. This
 can be applied via the -s option in the psyclone script.
 
 '''
-from __future__ import absolute_import, print_function
 from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.psyGen import InvokeSchedule
 from psyclone.transformations import TransformationError
 from psyclone_tools import (redundant_computation_setval, colour_loops,
+                            openmp_parallelise_loops,
                             view_transformed_schedule)
-
 
 def fuse_loops(psyir):
     '''
@@ -101,4 +100,5 @@ def trans(psyir):
     redundant_computation_setval(psyir)
     fuse_loops(psyir)
     colour_loops(psyir)
+    openmp_parallelise_loops(psyir)
     view_transformed_schedule(psyir)
