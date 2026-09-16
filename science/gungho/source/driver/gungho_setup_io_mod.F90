@@ -397,7 +397,7 @@ module gungho_setup_io_mod
                                                            io_mode=FILE_MODE_READ, &
                                                            operation=OPERATION_TIMESERIES, &
                                                            update_freq=merge(0, 1*lx_day, sst_source == sst_source_surf), & ! Double check this!!
-                                                           fields_in_file=sst_ancil_fields, &
+                                                           fields_in_file=sst_ancil_fields &
                                                            ! freq=1 - Don't set this in the model 
                                                            ) )
           else
