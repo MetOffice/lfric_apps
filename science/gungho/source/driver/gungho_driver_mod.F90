@@ -59,6 +59,7 @@ module gungho_driver_mod
                                           log_scratch_space
   use mesh_mod,                    only : mesh_type
   use mesh_collection_mod,         only : mesh_collection
+  use stopwatch_mod,               only : stopwatch_type
   use remove_field_collection_mod, only : remove_field_collection
   use section_choice_config_mod,   only : iau,                   &
                                           iau_sst,               &
@@ -366,9 +367,14 @@ contains
     type(mesh_type), pointer :: twod_mesh => null()
     integer(kind=i_def)      :: ts_start, rc
     integer(tik)             :: tid_first, tid_rest
+    type(stopwatch_type)     :: gungho_driver_stopwatch, gungho_step_stopwatch
 
 #if defined(COUPLED) || defined(UM_PHYSICS)
     type( field_collection_type ), pointer :: depository => null()
+#endif
+
+#ifdef COUPLED
+    type(stopwatch_type) :: coupled_stopwatch
 #endif
 
     type( field_collection_type ), pointer :: lbc_fields
@@ -397,6 +403,8 @@ contains
         call start_timing(tid_rest, 'gungho_driver.timestep')
       end if
     end if
+    ! Time per timestep
+    call gungho_driver_stopwatch%start("(TPT) gungho_driver_step")
 #ifdef UM_PHYSICS
     nullify( surface_fields, ancil_fields )
 
@@ -445,6 +453,9 @@ contains
              '(A, I0)') 'Coupling timestep: ', modeldb%clock%get_step() - 1
        call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
+       ! Coupling time-per-timestep
+       call coupled_stopwatch%start("(TPT) Coupling timestep")
+
        depository => modeldb%fields%get_field_collection("depository")
        call save_sea_ice_frac_previous(depository)
 
@@ -453,6 +464,9 @@ contains
 
        ! Send all outgoing (ocean/seaice driving fields) to the coupler
        call cpl_snd( modeldb )
+
+       ! Pause to write out later with gungho timer
+       call coupled_stopwatch%pause()
 
     endif
 #endif
@@ -494,7 +508,9 @@ contains
 #endif
 
     ! Perform a timestep
+    call gungho_step_stopwatch%start("(TPT) gungho_step")
     call gungho_step( mesh, twod_mesh, modeldb, modeldb%clock )
+    call gungho_step_stopwatch%pause()
 
     ! Use diagnostic output frequency to determine whether to write
     ! diagnostics on this timestep
@@ -536,6 +552,14 @@ contains
     call output_model_data( modeldb )
 
     nullify(mesh, twod_mesh)
+
+    ! Stopwatches
+#ifdef COUPLED
+    call coupled_stopwatch%stop()
+#endif
+    call gungho_step_stopwatch%stop()
+    call gungho_driver_stopwatch%stop()
+
 
     if ( LPROF ) then
       if ( modeldb%clock%get_step() == ts_start ) then
