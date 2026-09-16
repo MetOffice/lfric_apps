@@ -1003,7 +1003,7 @@
   <field id="plev__omt_clim" name="plev_omt_clim" standard_name="product_of_lagrangian_tendency_of_air_pressure_and_air_temperature" unit="K Pa s-1" domain_ref="face" axis_ref="pressure_levels"> plev__omega_clim * plev__temp_clim </field>
   <field id="plev__tt_clim" name="plev_tt_clim" standard_name="square_of_air_temperature" unit="K2" domain_ref="face" axis_ref="pressure_levels"> plev__temp_clim * plev__temp_clim </field>
   <!-- Aviation diagnostics -->
-  <field id="aviation__clear_air_turb" name="aviation_clear_air_turb" long_name="clear_air_turbulence_predictor" unit="1" domain_ref="face" axis_ref="pressure_levels"/>
+  <field id="aviation__clear_air_turb" name="aviation_clear_air_turb" long_name="clear_air_turbulence_predictor" unit="1" domain_ref="face" axis_ref="pressure_levels_cat"/>
   <field id="aviation__max_clear_air_turb" name="aviation_max_clear_air_turb" long_name="maximum_clear_air_turbulence_predictor" unit="1" domain_ref="face"/>
   <field id="aviation__max_clear_air_turb_pressure" name="aviation_max_clear_air_turb_pressure" long_name="pressure_of_maximum_clear_air_turbulence_predictor" unit="Pa" domain_ref="face"/>
   <!-- Vertical integrals -->

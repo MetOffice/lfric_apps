@@ -35,6 +35,10 @@
   <axis id="photolysis_pathways" name="photolysis_pathways" />
   <axis id="photol_species" name="photol_species" />
   <axis id="one_time_axis" name="one_time_axis" n_glo="1" />
+  <!-- Pressure levels on which the clear air turbulence predictor is defined
+       (the UM computes it on these three only). Descending order: the maximum
+       over levels reports the first level visited when values tie. -->
+  <axis id="pressure_levels_cat" name="pressure_levels_cat" n_glo="3" value="(0,2)[30000 25000 20000]" />
   <axis id="nudging_time_axis" name="nudging_time_axis" />
   <axis id="nudging_levels" name="nudging_levels" />
 
