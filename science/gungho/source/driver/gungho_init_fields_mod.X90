@@ -454,8 +454,12 @@ subroutine create_model_data( modeldb,           &
     call modeldb%fields%add_empty_field_collection("convection_fields", table_len = 100)
     call modeldb%fields%add_empty_field_collection("stph_fields", table_len = 100)
     call modeldb%fields%add_empty_field_collection("ancil_fields", table_len = 100)
+    if (.not. modeldb%fields%field_collection_exists("sst_ancil_fields")) then
       call modeldb%fields%add_empty_field_collection("sst_ancil_fields", table_len = 10)
+    end if
+    if (.not. modeldb%fields%field_collection_exists("aerosol_ancil_fields")) then
       call modeldb%fields%add_empty_field_collection("aerosol_ancil_fields", table_len = 40)
+    end if
 
     turbulence_fields => modeldb%fields%get_field_collection("turbulence_fields")
     soil_fields => modeldb%fields%get_field_collection("soil_fields")
