@@ -60,6 +60,7 @@ function crosses_panel_edge(edge_dist_left, edge_dist_right,                   &
                             ndf_depk, undf_depk, map_depk)                     &
                             result(cross_edge_flag)
 
+  !$omp declare target
   implicit none
 
   ! Arguments
@@ -204,6 +205,7 @@ end function crosses_rotated_panel_edge
 !> @return                 The ID of the neighbouring panel
 function panel_neighbour(panel_id, direction) result(neighbour)
 
+  !$omp declare target
   implicit none
 
   integer(kind=i_def), intent(in) :: panel_id
@@ -267,6 +269,8 @@ end function panel_neighbour
 !> @return                Flag to indicate whether the panel edge is rotated
 function rotated_panel_neighbour(panel_id, direction) result(rotation_flag)
 
+
+  !$omp declare target
   implicit none
 
   integer(kind=i_def), intent(in) :: panel_id
