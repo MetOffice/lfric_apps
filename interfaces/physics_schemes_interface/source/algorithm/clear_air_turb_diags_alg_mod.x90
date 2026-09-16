@@ -1,0 +1,191 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Compute and output the clear air turbulence diagnostics: the
+!>        Dutton predictor on pressure levels, its maximum over those levels
+!>        and the pressure of that maximum.
+
+module clear_air_turb_diags_alg_mod
+
+  use cat_column_kernel_mod,       only: cat_column_kernel_type
+  use config_mod,                  only: config_type
+  use constants_mod,               only: r_def, i_def, l_def, rmdi
+  use dutton_cat_kernel_mod,       only: dutton_cat_kernel_type
+  use extrusion_config_mod,        only: planet_radius
+  use field_collection_mod,        only: field_collection_type
+  use field_mod,                   only: field_type
+  use fs_continuity_mod,           only: W3
+  use initialise_diagnostics_mod,  only: init_diag => init_diagnostic_field, &
+                                         diag_samp => diagnostic_to_be_sampled
+  use io_config_mod,               only: use_xios_io
+  use lfric_xios_diag_mod,         only: get_axis_dimension, get_axis_values
+  use log_mod,                     only: log_event, LOG_LEVEL_WARNING
+  use max_cat_kernel_mod,          only: max_cat_kernel_type
+  use mesh_mod,                    only: mesh_type
+  use planet_config_mod,           only: p_zero, kappa
+  use sci_geometric_constants_mod, only: get_height_fv,   &
+                                         get_latitude_fv, &
+                                         get_longitude_fv
+
+  implicit none
+
+  private
+
+  public :: clear_air_turb_diags_alg
+
+  !> Number of pressure levels on which the predictor is defined
+  integer(kind=i_def), parameter :: n_cat_levels = 3_i_def
+  !> Those pressure levels (Pa), in the order they are visited. The order
+  !> decides which level the maximum reports when the predictor ties, so it
+  !> is fixed here rather than taken from the axis: the UM sorts its level
+  !> list into descending pressure before its loop.
+  real(kind=r_def), parameter :: cat_levels(n_cat_levels) =                   &
+       (/ 30000.0_r_def, 25000.0_r_def, 20000.0_r_def /)
+  !> Depth of the horizontal stencil for the centred wind differences
+  integer(kind=i_def), parameter :: stencil_depth = 1_i_def
+
+contains
+
+  !> @brief   Compute and output the clear air turbulence diagnostics.
+  !> @details Port of the UM PWS clear air turbulence diagnostics (pws_cat
+  !>          and DuttonCAT in pws_cat_mod, driven by pws_diags_driver_mod).
+  !>          The predictor is defined on the 300, 250 and 200 hPa levels
+  !>          only; it is computed at whichever of those appear in the
+  !>          standard pressure_levels axis and set to missing data on every
+  !>          other level of the axis. The maximum and its pressure are taken
+  !>          over the same levels in descending pressure order.
+  !> @param[in] config          Application namelist configuration object
+  !> @param[in] derived_fields  Group of derived fields, for the cell-centre
+  !>                            winds
+  !> @param[in] exner_w3        Exner pressure at cell centres
+  !> @param[in] twod_mesh       The 2D mesh
+  subroutine clear_air_turb_diags_alg(config, derived_fields, exner_w3, &
+                                      twod_mesh)
+
+    implicit none
+
+    ! Arguments
+    type(config_type),           intent(in)          :: config
+    type(field_collection_type), intent(in)          :: derived_fields
+    type(field_type),            intent(in)          :: exner_w3
+    type(mesh_type),             intent(in), pointer :: twod_mesh
+
+    ! Output fields
+    type(field_type) :: cat, max_cat, max_press
+
+    ! Work fields on pressure levels
+    type(field_type) :: u_plev, v_plev, dwdz
+
+    ! Input fields
+    type(field_type), pointer :: u_in_w3, v_in_w3, height_w3
+    type(field_type), pointer :: latitude, longitude
+
+    logical(kind=l_def) :: cat_flag, max_cat_flag, max_press_flag
+    logical(kind=l_def) :: max_cat_req, max_press_req
+
+    integer(kind=i_def) :: nplev, kp, i
+    integer(kind=i_def), dimension(n_cat_levels) :: slot
+    real(kind=r_def), allocatable :: plevs(:)
+    real(kind=r_def) :: press_lev
+
+    nullify(u_in_w3, v_in_w3, height_w3, latitude, longitude)
+
+    ! The maximum and its pressure are produced together by one kernel, so
+    ! each must exist whenever the other is requested; the predictor must
+    ! exist whenever either of them is requested. Each field is written
+    ! only under its own request flag.
+    max_cat_req   = diag_samp('aviation__max_clear_air_turb')
+    max_press_req = diag_samp('aviation__max_clear_air_turb_pressure')
+    max_cat_flag   = init_diag(max_cat, 'aviation__max_clear_air_turb',     &
+                               activate=max_press_req)
+    max_press_flag = init_diag(max_press,                                   &
+                               'aviation__max_clear_air_turb_pressure',     &
+                               activate=max_cat_req)
+    cat_flag = init_diag(cat, 'aviation__clear_air_turb',                   &
+                         activate=(max_cat_flag .or. max_press_flag))
+
+    if ( .not. ( ( cat_flag .or. max_cat_flag .or. max_press_flag )         &
+                 .and. use_xios_io ) ) return
+
+    ! Slots of the pressure_levels axis holding the levels on which the
+    ! predictor is defined (the first match if several axis values round
+    ! to the same level); zero where a level is absent from the axis
+    nplev = get_axis_dimension('pressure_levels')
+    allocate(plevs(nplev))
+    plevs = get_axis_values('pressure_levels', nplev)
+
+    slot(:) = 0_i_def
+    do i = 1, n_cat_levels
+      do kp = 1, nplev
+        if ( nint(plevs(kp) / 100.0_r_def) ==                                 &
+             nint(cat_levels(i) / 100.0_r_def) .and.                          &
+             slot(i) == 0_i_def ) slot(i) = kp
+      end do
+    end do
+    if ( all(slot == 0_i_def) ) then
+      call log_event('Clear air turbulence: none of the 300, 250 and '     // &
+                     '200 hPa levels is in the pressure_levels axis; '     // &
+                     'the diagnostics are missing data', LOG_LEVEL_WARNING)
+    end if
+
+    call derived_fields%get_field('u_in_w3', u_in_w3)
+    call derived_fields%get_field('v_in_w3', v_in_w3)
+    height_w3 => get_height_fv(config, exner_w3%get_mesh(), W3)
+    latitude  => get_latitude_fv(config, twod_mesh, W3)
+    longitude => get_longitude_fv(config, twod_mesh, W3)
+
+    call cat%copy_field_properties(u_plev)
+    call cat%copy_field_properties(v_plev)
+    call cat%copy_field_properties(dwdz)
+
+    ! Levels not computed hold missing data
+    call invoke( setval_c(cat, rmdi),                                      &
+                 setval_c(u_plev, 0.0_r_def),                              &
+                 setval_c(v_plev, 0.0_r_def),                              &
+                 setval_c(dwdz, 0.0_r_def) )
+
+    ! Predictor, one level at a time as in the UM driver loop.
+    ! cat_column_kernel_type must come first in the invoke: PSyclone takes
+    ! nlayers from it (see https://github.com/stfc/PSyclone/issues/2636)
+    do i = 1, n_cat_levels
+      kp = slot(i)
+      if ( kp == 0_i_def ) cycle
+      press_lev = plevs(kp)
+      call invoke( cat_column_kernel_type(u_in_w3, v_in_w3,                &
+                                          exner_w3, height_w3,             &
+                                          u_plev, v_plev, dwdz,            &
+                                          press_lev, kp, p_zero, kappa),   &
+                   dutton_cat_kernel_type(cat,                             &
+                                          u_plev, stencil_depth,           &
+                                          v_plev, stencil_depth,           &
+                                          dwdz,                            &
+                                          latitude, stencil_depth,         &
+                                          longitude, stencil_depth,        &
+                                          kp, planet_radius) )
+    end do
+
+    if ( cat_flag ) call cat%write_field()
+
+    ! Maximum over the levels and the pressure at which it occurs
+    if ( max_cat_flag .or. max_press_flag ) then
+      call invoke( setval_c(max_cat, rmdi),                                &
+                   setval_c(max_press, rmdi) )
+      do i = 1, n_cat_levels
+        kp = slot(i)
+        if ( kp == 0_i_def ) cycle
+        ! Report the nominal level, as the UM does, not the axis value
+        press_lev = cat_levels(i)
+        call invoke( max_cat_kernel_type(max_cat, max_press, cat,          &
+                                         kp, press_lev) )
+      end do
+      if ( max_cat_flag )   call max_cat%write_field()
+      if ( max_press_flag ) call max_press%write_field()
+    end if
+
+    deallocate(plevs)
+
+  end subroutine clear_air_turb_diags_alg
+
+end module clear_air_turb_diags_alg_mod

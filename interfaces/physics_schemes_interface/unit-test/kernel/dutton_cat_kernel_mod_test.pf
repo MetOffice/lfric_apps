@@ -1,0 +1,245 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test the dutton_cat kernel
+!>
+module dutton_cat_kernel_mod_test
+
+  use funit
+  use constants_mod, only : r_def, i_def, rmdi, pi
+
+  implicit none
+
+  private
+  public :: test_knots, test_horizontal_shear, test_missing_neighbour
+
+  @TestCase
+  type, extends(TestCase), public :: dutton_cat_test_type
+    private
+    real(kind=r_def), allocatable :: cat(:), u_plev(:), v_plev(:), dwdz(:), &
+         latitude(:), longitude(:)
+    integer(i_def), allocatable :: map_pl(:), map_2d(:)
+    integer(i_def), allocatable :: smap_size(:), smap(:,:,:)
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure set_grid
+    procedure run_kernel
+    procedure test_knots
+    procedure test_horizontal_shear
+    procedure test_missing_neighbour
+  end type dutton_cat_test_type
+
+  ! Five cells: 1 centre, then its west, south, east and north neighbours
+  integer(i_def), parameter :: ncell = 5_i_def
+  integer(i_def), parameter :: ndf = 1_i_def
+  integer(i_def), parameter :: undf = ncell
+  integer(i_def), parameter :: n_branch = 4_i_def
+  integer(i_def), parameter :: sten_len = 2_i_def
+  integer(i_def), parameter :: kp = 1_i_def
+
+  real(r_def), parameter :: planet_radius = 6371229.0_r_def
+  ! One degree grid spacing
+  real(r_def), parameter :: spacing = pi / 180.0_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(dutton_cat_test_type), intent(inout) :: this
+
+    integer(i_def) :: n
+
+    allocate( this%cat(undf) )
+    allocate( this%u_plev(undf) )
+    allocate( this%v_plev(undf) )
+    allocate( this%dwdz(undf) )
+    allocate( this%latitude(undf) )
+    allocate( this%longitude(undf) )
+    allocate( this%map_pl(ndf) )
+    allocate( this%map_2d(ndf) )
+    allocate( this%smap_size(n_branch) )
+    allocate( this%smap(ndf, sten_len, n_branch) )
+
+    this%map_pl(1) = 1_i_def
+    this%map_2d(1) = 1_i_def
+    ! Every branch holds the centre cell then the neighbour
+    do n = 1, n_branch
+      this%smap_size(n) = sten_len
+      this%smap(1, 1, n) = 1_i_def
+      this%smap(1, 2, n) = n + 1_i_def
+    end do
+
+    call this%set_grid( 45.0_r_def )
+
+    this%cat(:)    = 0.0_r_def
+    this%u_plev(:) = 0.0_r_def
+    this%v_plev(:) = 0.0_r_def
+    this%dwdz(:)   = 0.0_r_def
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(dutton_cat_test_type), intent(inout) :: this
+
+    deallocate( this%cat, this%u_plev, this%v_plev, this%dwdz, &
+                this%latitude, this%longitude,                 &
+                this%map_pl, this%map_2d, this%smap_size, this%smap )
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Regular latitude-longitude cross centred on the given latitude at
+  !> longitude zero.
+  subroutine set_grid( this, centre_lat_deg )
+
+    implicit none
+
+    class(dutton_cat_test_type), intent(inout) :: this
+    real(r_def), intent(in) :: centre_lat_deg
+
+    real(r_def) :: lat0
+
+    lat0 = centre_lat_deg * pi / 180.0_r_def
+    this%latitude(:)  = lat0
+    this%longitude(:) = 0.0_r_def
+    this%longitude(2) = -spacing   ! west
+    this%latitude(3)  = lat0 - spacing   ! south
+    this%longitude(4) = spacing    ! east
+    this%latitude(5)  = lat0 + spacing   ! north
+
+  end subroutine set_grid
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine run_kernel( this )
+
+    use dutton_cat_kernel_mod, only : dutton_cat_code
+
+    implicit none
+
+    class(dutton_cat_test_type), intent(inout) :: this
+
+    call dutton_cat_code( 1_i_def, this%cat,                                &
+                          this%u_plev, this%smap_size, sten_len, this%smap, &
+                          this%v_plev, this%smap_size, sten_len, this%smap, &
+                          this%dwdz,                                        &
+                          this%latitude,  this%smap_size, sten_len,         &
+                          this%smap,                                        &
+                          this%longitude, this%smap_size, sten_len,         &
+                          this%smap,                                        &
+                          kp, planet_radius,                                &
+                          ndf, undf, this%map_pl,                           &
+                          ndf, undf, this%map_2d )
+
+  end subroutine run_kernel
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> With a uniform wind the horizontal shear vanishes and the predictor
+  !> depends on the vertical shear alone, through Dutton's knots at
+  !> indicator values 5.0, 7.5 and 65.0.
+  @test
+  subroutine test_knots( this )
+
+    implicit none
+
+    class(dutton_cat_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-12_r_def
+    integer(i_def), parameter :: ncase = 7_i_def
+    real(r_def), parameter :: empire(ncase) = (/ 4.0_r_def, 5.0_r_def,  &
+         6.25_r_def, 7.5_r_def, 36.25_r_def, 65.0_r_def, 70.0_r_def /)
+    real(r_def), parameter :: answer(ncase) = (/ 0.0_r_def, 0.0_r_def,  &
+         0.875_r_def, 1.75_r_def, 4.625_r_def, 7.5_r_def, 7.5_r_def /)
+
+    integer(i_def) :: i
+
+    this%u_plev(:) = 20.0_r_def
+    this%v_plev(:) = 10.0_r_def
+
+    do i = 1, ncase
+      ! empire = 10.5 + 1.5 * 1000 * dwdz
+      this%dwdz(:) = ( empire(i) - 10.5_r_def ) / 1500.0_r_def
+      call this%run_kernel()
+      @assertEqual( answer(i), this%cat(1), tol )
+    end do
+
+  end subroutine test_knots
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Winds linear in the local east-north tangent plane are differenced
+  !> exactly by the two-pair solve, and the horizontal shear changes sign
+  !> between hemispheres. This checks the kernel's own operator and the
+  !> Dutton formula, not agreement with the UM row/column differences,
+  !> which the operator matches to within the chord-to-arc factor
+  !> (5e-5 at this one degree spacing). The neighbour winds are
+  !> u = 20 + 1e-4 x - 2e-4 y and
+  !> v = 10 + 3e-4 x + 1e-4 y with (x, y) the tangent-plane displacement of
+  !> each neighbour, giving a horizontal shear of 22 (m/s)/(100 km) in the
+  !> north and -22 in the south.
+  @test
+  subroutine test_horizontal_shear( this )
+
+    implicit none
+
+    class(dutton_cat_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-9_r_def
+
+    ! Northern hemisphere, 45N: empire = 10.5 + 1.5 * (22 + 10) = 58.5
+    this%u_plev(1) = 20.0_r_def
+    this%v_plev(1) = 10.0_r_def
+    this%u_plev(2:5) = (/ 12.040411005820102_r_def, 42.23865560260141_r_def, &
+                          27.765515186891815_r_def, -2.23865560260149_r_def /)
+    this%v_plev(2:5) = (/ -13.53913781978555_r_def, -1.1193278013007077_r_def, &
+                          33.63617472342959_r_def, 21.119327801300745_r_def /)
+    this%dwdz(:) = 0.01_r_def
+    call this%run_kernel()
+    @assertEqual( 6.85_r_def, this%cat(1), tol )
+
+    ! Southern hemisphere, 45S: empire = 10.5 + 1.5 * (-22 + 30) = 22.5
+    call this%set_grid( -45.0_r_def )
+    this%u_plev(2:5) = (/ 12.234484813108184_r_def, 42.23865560260149_r_def, &
+                          27.9595889941799_r_def, -2.2386556026014155_r_def /)
+    this%v_plev(2:5) = (/ -13.636174723429592_r_def, -1.119327801300745_r_def, &
+                          33.53913781978555_r_def, 21.119327801300706_r_def /)
+    this%dwdz(:) = 0.03_r_def
+    call this%run_kernel()
+    @assertEqual( 3.25_r_def, this%cat(1), tol )
+
+  end subroutine test_horizontal_shear
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> A cell without one of its four neighbours, or without a vertical
+  !> shear, gets missing data.
+  @test
+  subroutine test_missing_neighbour( this )
+
+    implicit none
+
+    class(dutton_cat_test_type), intent(inout) :: this
+
+    this%u_plev(:) = 20.0_r_def
+    this%v_plev(:) = 10.0_r_def
+    this%dwdz(:) = 0.03_r_def
+    this%smap_size(1) = 1_i_def
+
+    call this%run_kernel()
+    @assertEqual( rmdi, this%cat(1) )
+
+    this%smap_size(1) = sten_len
+    this%dwdz(1) = rmdi
+    call this%run_kernel()
+    @assertEqual( rmdi, this%cat(1) )
+
+  end subroutine test_missing_neighbour
+
+end module dutton_cat_kernel_mod_test

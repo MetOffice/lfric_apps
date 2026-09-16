@@ -1,0 +1,147 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test the max_cat kernel
+!>
+module max_cat_kernel_mod_test
+
+  use funit
+  use constants_mod, only : r_def, i_def, rmdi
+
+  implicit none
+
+  private
+  public :: test_first_level_wins_ties, test_missing_levels
+
+  @TestCase
+  type, extends(TestCase), public :: max_cat_test_type
+    private
+    real(kind=r_def), allocatable :: cat(:), max_cat(:), max_press(:)
+    integer(i_def), allocatable :: map_pl(:), map_2d(:)
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure run_levels
+    procedure test_first_level_wins_ties
+    procedure test_missing_levels
+  end type max_cat_test_type
+
+  integer(i_def), parameter :: nplev = 3_i_def
+  integer(i_def), parameter :: ndf_2d = 1_i_def
+  integer(i_def), parameter :: undf_2d = 1_i_def
+  integer(i_def), parameter :: ndf_pl = nplev
+  integer(i_def), parameter :: undf_pl = nplev
+
+  real(r_def), parameter :: plevs(nplev) = (/ 30000.0_r_def, &
+                                              25000.0_r_def, &
+                                              20000.0_r_def /)
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(max_cat_test_type), intent(inout) :: this
+
+    integer(i_def) :: k
+
+    allocate( this%cat(undf_pl) )
+    allocate( this%max_cat(undf_2d) )
+    allocate( this%max_press(undf_2d) )
+    allocate( this%map_pl(ndf_pl) )
+    allocate( this%map_2d(ndf_2d) )
+
+    do k = 1, ndf_pl
+      this%map_pl(k) = k
+    end do
+    this%map_2d(1) = 1_i_def
+
+    ! As the algorithm initialises them before the first level
+    this%max_cat(1)   = rmdi
+    this%max_press(1) = rmdi
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(max_cat_test_type), intent(inout) :: this
+
+    deallocate( this%cat, this%max_cat, this%max_press, &
+                this%map_pl, this%map_2d )
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine run_levels( this )
+
+    use max_cat_kernel_mod, only : max_cat_code
+
+    implicit none
+
+    class(max_cat_test_type), intent(inout) :: this
+
+    integer(i_def) :: kp
+
+    do kp = 1, nplev
+      call max_cat_code( 1_i_def, this%max_cat, this%max_press, this%cat, &
+                         kp, plevs(kp),                                   &
+                         ndf_2d, undf_2d, this%map_2d,                    &
+                         ndf_pl, undf_pl, this%map_pl )
+    end do
+
+  end subroutine run_levels
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> The strict comparison keeps the first level at which the maximum is
+  !> reached, so a saturated predictor at 250 and 200 hPa reports 250 hPa.
+  @test
+  subroutine test_first_level_wins_ties( this )
+
+    implicit none
+
+    class(max_cat_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-12_r_def
+
+    this%cat(:) = (/ 2.0_r_def, 7.5_r_def, 7.5_r_def /)
+    call this%run_levels()
+
+    @assertEqual( 7.5_r_def, this%max_cat(1), tol )
+    @assertEqual( 25000.0_r_def, this%max_press(1), tol )
+
+  end subroutine test_first_level_wins_ties
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Missing levels never win; a column missing on every level stays
+  !> missing in both outputs.
+  @test
+  subroutine test_missing_levels( this )
+
+    implicit none
+
+    class(max_cat_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-12_r_def
+
+    this%cat(:) = (/ rmdi, 3.0_r_def, rmdi /)
+    call this%run_levels()
+    @assertEqual( 3.0_r_def, this%max_cat(1), tol )
+    @assertEqual( 25000.0_r_def, this%max_press(1), tol )
+
+    this%cat(:) = rmdi
+    this%max_cat(1)   = rmdi
+    this%max_press(1) = rmdi
+    call this%run_levels()
+    @assertEqual( rmdi, this%max_cat(1) )
+    @assertEqual( rmdi, this%max_press(1) )
+
+  end subroutine test_missing_levels
+
+end module max_cat_kernel_mod_test

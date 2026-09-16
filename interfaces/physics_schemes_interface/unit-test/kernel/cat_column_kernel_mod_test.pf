@@ -1,0 +1,246 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test the cat_column kernel
+!>
+module cat_column_kernel_mod_test
+
+  use funit
+  use constants_mod, only : r_def, i_def, rmdi
+
+  implicit none
+
+  private
+  public :: test_quadratic_profile, test_clamped_windows, &
+            test_linear_profile, test_too_few_layers
+
+  @TestCase
+  type, extends(TestCase), public :: cat_column_test_type
+    private
+    real(kind=r_def), allocatable :: u(:), v(:), exner(:), height(:), &
+         u_plev(:), v_plev(:), dwdz(:)
+    integer(i_def), allocatable :: map_w3(:), map_2d(:)
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_quadratic_profile
+    procedure test_clamped_windows
+    procedure test_linear_profile
+    procedure test_too_few_layers
+  end type cat_column_test_type
+
+  integer(i_def), parameter :: nlayers = 10_i_def
+  integer(i_def), parameter :: nplev = 3_i_def
+  integer(i_def), parameter :: ndf_w3 = 1_i_def
+  integer(i_def), parameter :: ndf_2d = nplev
+  integer(i_def), parameter :: undf_w3 = nlayers
+  integer(i_def), parameter :: undf_2d = nplev
+  ! Slot of the pressure-level fields filled by every test
+  integer(i_def), parameter :: kp = 2_i_def
+
+  real(r_def), parameter :: p_zero = 100000.0_r_def
+  real(r_def), parameter :: kappa = 0.285714285714_r_def
+  ! Pressure spacing of the ten levels, level 1 at p_zero
+  real(r_def), parameter :: dp = 9000.0_r_def
+  ! Height is linear in pressure with this slope
+  real(r_def), parameter :: dzdp = -0.15_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(cat_column_test_type), intent(inout) :: this
+
+    integer(i_def) :: k
+    real(r_def) :: p
+
+    allocate( this%u(undf_w3) )
+    allocate( this%v(undf_w3) )
+    allocate( this%exner(undf_w3) )
+    allocate( this%height(undf_w3) )
+    allocate( this%u_plev(undf_2d) )
+    allocate( this%v_plev(undf_2d) )
+    allocate( this%dwdz(undf_2d) )
+    allocate( this%map_w3(ndf_w3) )
+    allocate( this%map_2d(ndf_2d) )
+
+    this%map_w3(1) = 1_i_def
+    do k = 1, ndf_2d
+      this%map_2d(k) = k
+    end do
+
+    ! Pressure decreasing with level; height linear in pressure;
+    ! zonal wind quadratic in pressure; no meridional wind
+    do k = 1, nlayers
+      p = p_zero - dp * real(k - 1, r_def)
+      this%exner(k)  = ( p / p_zero )**kappa
+      this%height(k) = 16000.0_r_def + dzdp * p
+      this%u(k)      = 2.0e-9_r_def * p * p - 0.1_r_def
+      this%v(k)      = 0.0_r_def
+    end do
+
+    this%u_plev(:) = 0.0_r_def
+    this%v_plev(:) = 0.0_r_def
+    this%dwdz(:)   = 0.0_r_def
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(cat_column_test_type), intent(inout) :: this
+
+    deallocate( this%u, this%v, this%exner, this%height, &
+                this%u_plev, this%v_plev, this%dwdz,     &
+                this%map_w3, this%map_2d )
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Quadratic wind profile at a level inside the spline search window.
+  !> The expected shear is that of the UM DiffP spline (levels 4 to 9 for a
+  !> level between levels 6 and 7), not the analytic derivative.
+  @test
+  subroutine test_quadratic_profile( this )
+
+    use cat_column_kernel_mod, only : cat_column_code
+
+    implicit none
+
+    class(cat_column_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-9_r_def
+    real(r_def), parameter :: press_lev = 50000.0_r_def
+    ! d(u)/dp from the six-point spline: 1.68e-4 (analytic 2.0e-4)
+    real(r_def), parameter :: ans_dwdz = 1.68e-4_r_def / 0.15_r_def
+    ! Linear-in-Exner interpolation of u between levels 6 and 7
+    real(r_def), parameter :: ans_u_plev = 4.9687763868391706_r_def
+
+    call cat_column_code( nlayers, this%u, this%v, this%exner, this%height, &
+                          this%u_plev, this%v_plev, this%dwdz,              &
+                          press_lev, kp, p_zero, kappa,                     &
+                          ndf_w3, undf_w3, this%map_w3,                     &
+                          ndf_2d, undf_2d, this%map_2d )
+
+    @assertEqual( ans_dwdz, this%dwdz(kp), tol )
+    @assertEqual( ans_u_plev, this%u_plev(kp), tol )
+    @assertEqual( 0.0_r_def, this%v_plev(kp), tol )
+    ! Other slots untouched
+    @assertEqual( 0.0_r_def, this%dwdz(1), tol )
+    @assertEqual( 0.0_r_def, this%dwdz(3), tol )
+
+    ! With both components equal the shear grows by sqrt(2)
+    this%v(:) = this%u(:)
+    call cat_column_code( nlayers, this%u, this%v, this%exner, this%height, &
+                          this%u_plev, this%v_plev, this%dwdz,              &
+                          press_lev, kp, p_zero, kappa,                     &
+                          ndf_w3, undf_w3, this%map_w3,                     &
+                          ndf_2d, undf_2d, this%map_2d )
+    @assertEqual( sqrt(2.0_r_def) * ans_dwdz, this%dwdz(kp), tol )
+    @assertEqual( ans_u_plev, this%v_plev(kp), tol )
+
+  end subroutine test_quadratic_profile
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Levels outside the spline search window (levels 3 to 8 of 10) use the
+  !> end segments of the spline, as in the UM, rather than being special
+  !> cased. Expected values are from a transcription of UM DiffP.
+  @test
+  subroutine test_clamped_windows( this )
+
+    use cat_column_kernel_mod, only : cat_column_code
+
+    implicit none
+
+    class(cat_column_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-9_r_def
+    ! Between levels 8 and 9: window clamps to levels 5 to 10
+    real(r_def), parameter :: press_high = 30000.0_r_def
+    real(r_def), parameter :: ans_high = 1.76e-4_r_def / 0.15_r_def
+    ! Between levels 1 and 2: window clamps to levels 1 to 6
+    real(r_def), parameter :: press_low = 98000.0_r_def
+    real(r_def), parameter :: ans_low = 1.92e-4_r_def / 0.15_r_def
+
+    call cat_column_code( nlayers, this%u, this%v, this%exner, this%height, &
+                          this%u_plev, this%v_plev, this%dwdz,              &
+                          press_high, kp, p_zero, kappa,                    &
+                          ndf_w3, undf_w3, this%map_w3,                     &
+                          ndf_2d, undf_2d, this%map_2d )
+    @assertEqual( ans_high, this%dwdz(kp), tol )
+
+    call cat_column_code( nlayers, this%u, this%v, this%exner, this%height, &
+                          this%u_plev, this%v_plev, this%dwdz,              &
+                          press_low, kp, p_zero, kappa,                     &
+                          ndf_w3, undf_w3, this%map_w3,                     &
+                          ndf_2d, undf_2d, this%map_2d )
+    @assertEqual( ans_low, this%dwdz(kp), tol )
+
+  end subroutine test_clamped_windows
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> A wind linear in pressure is differentiated exactly by the spline.
+  @test
+  subroutine test_linear_profile( this )
+
+    use cat_column_kernel_mod, only : cat_column_code
+
+    implicit none
+
+    class(cat_column_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-12_r_def
+    real(r_def), parameter :: press_lev = 50000.0_r_def
+    real(r_def), parameter :: dudp = -3.0e-4_r_def
+
+    integer(i_def) :: k
+    real(r_def) :: p
+
+    do k = 1, nlayers
+      p = p_zero - dp * real(k - 1, r_def)
+      this%u(k) = 5.0_r_def + dudp * p
+    end do
+
+    call cat_column_code( nlayers, this%u, this%v, this%exner, this%height, &
+                          this%u_plev, this%v_plev, this%dwdz,              &
+                          press_lev, kp, p_zero, kappa,                     &
+                          ndf_w3, undf_w3, this%map_w3,                     &
+                          ndf_2d, undf_2d, this%map_2d )
+
+    @assertEqual( abs(dudp) / abs(dzdp), this%dwdz(kp), tol )
+
+  end subroutine test_linear_profile
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Fewer than six layers cannot support the spline: missing data.
+  @test
+  subroutine test_too_few_layers( this )
+
+    use cat_column_kernel_mod, only : cat_column_code
+
+    implicit none
+
+    class(cat_column_test_type), intent(inout) :: this
+
+    integer(i_def), parameter :: few = 5_i_def
+    real(r_def), parameter :: press_lev = 90000.0_r_def
+
+    call cat_column_code( few, this%u(1:few), this%v(1:few),              &
+                          this%exner(1:few), this%height(1:few),          &
+                          this%u_plev, this%v_plev, this%dwdz,            &
+                          press_lev, kp, p_zero, kappa,                   &
+                          ndf_w3, few, this%map_w3,                       &
+                          ndf_2d, undf_2d, this%map_2d )
+
+    @assertEqual( rmdi, this%dwdz(kp) )
+
+  end subroutine test_too_few_layers
+
+end module cat_column_kernel_mod_test
