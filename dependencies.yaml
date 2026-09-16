@@ -32,7 +32,7 @@ lfric_apps:
 lfric_core:
   #source: git@github.com:MetOffice/lfric_core.git
   #ref: 3e965e8cea0211728a6bd1e793b4018d782a19d3
-    source: cazld00002U:/var/tmp/persistent/lfric_core_allynt
+    source: git@github.com:allynt/lfric_core.git
     ref: refactor-io_value_type
 
 moci:
