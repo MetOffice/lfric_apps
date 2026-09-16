@@ -88,8 +88,6 @@ contains
     integer( kind=i_def )          :: init_option
     logical( kind=l_def )          :: nodal_output_on_w3
 
-!!    type( io_value_type ) :: temp_corr_io_value
-!!    type( io_value_type ) :: random_seed_io_value
     class( io_value_type ), pointer :: temp_corr_io_value
     class( io_value_type ), pointer :: random_seed_io_value
     type( field_collection_type ), pointer :: depository
@@ -106,9 +104,6 @@ contains
     depository => modeldb%fields%get_field_collection("depository")
     fd_fields => modeldb%fields%get_field_collection("fd_fields")
 
-!!    call temp_corr_io_value%init('temperature_correction_rate', [0.0_r_def])
-!!    call modeldb%values%add_key_value( 'temperature_correction_io_value', &
-!!                                       temp_corr_io_value )
     temp_corr_io_value => io_value_type('temperature_correction_rate', [0.0_r_def])
     call modeldb%values%add_key_value( temp_corr_io_value )
     call modeldb%values%add_key_value( 'total_dry_mass', 0.0_r_def )
@@ -118,9 +113,6 @@ contains
       call random_seed(size = random_seed_size)
       allocate(real_array(random_seed_size))
       real_array(1:random_seed_size) = 0.0_r_def
-!!      call random_seed_io_value%init("random_seed", real_array)
-!!      call modeldb%values%add_key_value( 'random_seed_io_value', &
-!!                                         random_seed_io_value )
       random_seed_io_value => io_value_type("random_seed", real_array)
       call modeldb%values%add_key_value( random_seed_io_value )
       deallocate(real_array)

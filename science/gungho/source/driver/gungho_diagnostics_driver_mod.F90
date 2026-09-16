@@ -30,7 +30,6 @@ module gungho_diagnostics_driver_mod
   use field_collection_mod,      only : field_collection_type
   use field_mod,                 only : field_type
   use field_parent_mod,          only : field_parent_type, write_interface
-!!  use io_value_mod,              only : io_value_type, get_io_value
   use io_value_mod,              only : io_value_type
   use key_value_collection_iterator_mod, &
                                  only : get_io_value
@@ -135,7 +134,6 @@ contains
     ! when iterating over them
     class(field_parent_type),   pointer :: field_ptr
     procedure(write_interface), pointer :: tmp_write_ptr
-!!    type(io_value_type),        pointer :: temp_corr_io_value
     real(kind=r_def),           pointer :: temp_corr_rate(:)
 
     integer(kind=i_def)    :: i, fs
@@ -350,12 +348,10 @@ contains
       call aviation_diags_alg(plev_geopot)
 #endif
 
-!!      temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')
       call modeldb%values%get_value( 'temperature_correction_rate', temp_corr_rate )
       call column_total_diagnostics_alg(modeldb%config, rho, mr, &
                                         derived_fields, exner,   &
                                         mesh, twod_mesh,         &
-!!                                        temp_corr_io_value%data(1))
                                         temp_corr_rate(1))
 
     end if

@@ -18,22 +18,12 @@ module gungho_init_fields_mod
   use field_parent_mod,                   only : write_interface
   use field_collection_mod,               only : field_collection_type
   use io_value_mod,                       only : io_value_type,            &
-                                                 int32_io_value_type, &
-                                                 int64_io_value_type, &
-                                                 real32_io_value_type, &
-                                                 real64_io_value_type, &
                                                  int32_arr_io_value_type,  &
                                                  int64_arr_io_value_type,  &
                                                  real32_arr_io_value_type, &
                                                  real64_arr_io_value_type, &
                                                  io_write_interface,       &
                                                  io_read_interface
-  !!                                               io_read_interface,  &
-  !!                                               get_io_value
-  !!use integer_io_value_mod,                       only : integer_io_value_type, &
-  !!                                               integer_io_write_interface,    &
-  !!                                               integer_io_read_interface,     &
-  !!                                               get_integer_io_value
   use key_value_mod,                      only : key_value_type,            &
                                                  int32_arr_key_value_type,  &
                                                  int64_arr_key_value_type,  &
@@ -91,12 +81,8 @@ module gungho_init_fields_mod
   use lfric_xios_read_mod,                only : read_checkpoint,  &
                                                  read_state,       &
                                                  checkpoint_read_value
-!!                                                 checkpoint_read_r_def_value, &
-!!                                                 checkpoint_read_integer_value
   use lfric_xios_write_mod,               only : write_checkpoint, &
                                                  checkpoint_time, &
-!!                                                 checkpoint_write_r_def_value, &
-!!                                                 checkpoint_write_integer_value, &
                                                  checkpoint_write_value, &
                                                  create_checkpoint_list, &
                                                  write_state
@@ -645,18 +631,13 @@ subroutine create_model_data( modeldb,           &
     type( field_type ), pointer :: accumulated_fluxes  => null()
     type( field_type ), pointer :: ageofair => null()
 
-!!    type( io_value_type ),               pointer :: temp_corr_io_value
-!!    type( integer_io_value_type ),       pointer :: random_seed_io_value
     class( io_value_type ),                  pointer :: temp_corr_io_value
     class( io_value_type ),                  pointer :: random_seed_io_value
     procedure( io_read_interface ),          pointer :: io_op_read_ptr
     procedure( io_write_interface ),         pointer :: io_op_write_ptr
-!!    procedure( integer_io_read_interface ),  pointer :: integer_io_op_read_ptr
-!!    procedure( integer_io_write_interface ), pointer :: integer_io_op_write_ptr
 
     ! Dust fields
 #ifdef UM_PHYSICS
-!!    type(io_value_type), pointer :: stph_io_value
     class( io_value_type ), pointer :: stph_io_value
 
     type( field_type ), pointer :: dust1_mmr
@@ -741,15 +722,10 @@ subroutine create_model_data( modeldb,           &
     ! Get model_axes out of modeldb
     model_axes => get_time_axes_from_collection(modeldb%values, "model_axes" )
 
-!!    temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value' )
     temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_rate' )
     nullify(random_seed_io_value)
     if ( stochastic_physics == stochastic_physics_um ) then
-!!      random_seed_io_value => get_integer_io_value( modeldb%values, 'random_seed_io_value' )
       random_seed_io_value => get_io_value(modeldb%values, 'random_seed' )
-      write(*,*) "RAMA LAMA FA FA FA - START"
-      write(*,*) random_seed_io_value%get_key()
-      write(*,*) "RAMA LAMA FA FA FA - END"
     end if
     call modeldb%values%get_value( 'total_dry_mass', total_dry_mass )
     call modeldb%values%get_value( 'total_energy_previous', &
@@ -788,10 +764,6 @@ subroutine create_model_data( modeldb,           &
 
     ! Ideally, setting IO behaviour should be part of the initialisation
     ! like with the fields but currently there is no support for this so they are placed here
-!!    io_op_read_ptr => checkpoint_read_r_def_value
-!!    io_op_write_ptr => checkpoint_write_r_def_value
-!!    integer_io_op_read_ptr => checkpoint_read_integer_value
-!!    integer_io_op_write_ptr => checkpoint_write_integer_value
     io_op_read_ptr => checkpoint_read_value
     io_op_write_ptr => checkpoint_write_value
     if ( encorr_usage /= encorr_usage_none ) then
@@ -799,8 +771,6 @@ subroutine create_model_data( modeldb,           &
       call temp_corr_io_value%set_checkpoint_write_behaviour(io_op_write_ptr)
     end if
     if ( stochastic_physics == stochastic_physics_um ) then
-!!      call random_seed_io_value%set_checkpoint_read_behaviour(integer_io_op_read_ptr)
-!!      call random_seed_io_value%set_checkpoint_write_behaviour(integer_io_op_write_ptr)
       call random_seed_io_value%set_checkpoint_read_behaviour(io_op_read_ptr)
       call random_seed_io_value%set_checkpoint_write_behaviour(io_op_write_ptr)
 
@@ -1124,16 +1094,6 @@ subroutine create_model_data( modeldb,           &
         ! Initialise flux sum to zero
         call invoke( setval_c(accumulated_fluxes, 0.0_r_def) )
 
-!!        if ( checkpoint_read ) then
-!!          ! Read the checkpointed temperature correction rate
-!!          call temp_corr_io_value%read_checkpoint()
-!!          write( log_scratch_space,                                     &
-!!                 '("restart_temperature_correction_rate = ", e30.22)' ) &
-!!            temp_corr_io_value%data(1)
-!!          call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
-!!        else
-!!          temp_corr_io_value%data(1) = 0.0_r_def
-!!        end if
         select type(concrete_temp_corr_io_value => temp_corr_io_value)
           type is (real32_arr_io_value_type)
             if ( checkpoint_read ) then
@@ -1188,8 +1148,6 @@ subroutine create_model_data( modeldb,           &
         if ( checkpoint_read ) then
           ! Read the checkpointed random seed
           call random_seed_io_value%read_checkpoint()
-!!          ranseed = random_seed_io_value%data
-          ! io_value_type%value might not match the kind of i_def, so need to cast the result
           select type(concrete_random_seed_io_value => random_seed_io_value)
             type is (int32_arr_io_value_type)
               ranseed = int(concrete_random_seed_io_value%value, i_def)
@@ -1215,63 +1173,35 @@ subroutine create_model_data( modeldb,           &
           end if
         else
           if (use_spt) then
-            call log_event( "calling get_io_value w/ key " // trim(spt_array_names(3)), log_level_info )
             stph_io_value => get_io_value(modeldb%values, trim(spt_array_names(3)))
-!!            allocate(power_law, source = stph_io_value%data)
-!!            call spt_init_power_law(power_law, modeldb%clock)
-!!            stph_io_value%data = power_law
-!!            deallocate(power_law)
             select type(concrete_stph_io_value => stph_io_value)
               type is (real32_arr_io_value_type)
-                call log_event( "stph_io_value is real32_arr_io_value_type", log_level_info )
                 allocate(power_law, source = real(concrete_stph_io_value%value, r_def))
                 call spt_init_power_law(power_law, modeldb%clock)
                 concrete_stph_io_value%value = real(power_law, r_def)
                 deallocate(power_law)
               type is (real64_arr_io_value_type)
-                call log_event( "stph_io_value is real64_arr_io_value_type", log_level_info )
                 allocate(power_law, source = real(concrete_stph_io_value%value, r_def))
                 call spt_init_power_law(power_law, modeldb%clock)
                 concrete_stph_io_value%value = real(power_law, r_def)
                 deallocate(power_law)
               type is (int32_arr_io_value_type)
-                call log_event( "stph_io_value is int32_arr_io_value_type", log_level_info )
                 allocate(power_law, source = real(concrete_stph_io_value%value, r_def))
                 call spt_init_power_law(power_law, modeldb%clock)
                 concrete_stph_io_value%value = real(power_law, r_def)
                 deallocate(power_law)
               type is (int64_arr_io_value_type)
-                call log_event( "stph_io_value is int64_arr_io_value_type", log_level_info )
                 allocate(power_law, source = real(concrete_stph_io_value%value, r_def))
                 call spt_init_power_law(power_law, modeldb%clock)
                 concrete_stph_io_value%value = real(power_law, r_def)
-                deallocate(power_law)   
-              type is (int32_io_value_type)
-                call log_event( "stph_io_value is int32_io_value_type", log_level_info )
-              type is (int64_io_value_type)
-                call log_event( "stph_io_value is int64_io_value_type", log_level_info )
-              type is (real32_io_value_type)
-                call log_event( "stph_io_value is real32_io_value_type", log_level_info )
-              type is (real64_io_value_type)
-                call log_event( "stph_io_value is real64_io_value_type", log_level_info )
-!!              type is (io_value_type)    
-!!                call log_event( "stph_io_value is IO_VALUE_TYPE", log_level_info )
+                deallocate(power_law)
               class default
-! TODO: ERROR IS HERE
-                call log_event( "stph_io_value is something else", log_level_info )
-                call log_event( "it should be called " // trim(spt_array_names(3)) // &
-                                " and is actually called " // concrete_stph_io_value%get_key(), &
-                                log_level_info )
                 call log_event("Unsupported io_value_type for " // &
                                spt_array_names(3), LOG_LEVEL_ERROR)
             end select
           end if
           if (use_skeb) then
             stph_io_value => get_io_value(modeldb%values, trim(skeb_array_names(3)))
-!!            allocate(power_law, source = stph_io_value%data)
-!!            call skeb_init_power_law(power_law, modeldb%clock)
-!!            stph_io_value%data = power_law
-!!            deallocate(power_law)
             select type(concrete_stph_io_value => stph_io_value)
               type is (real32_arr_io_value_type)
                 allocate(power_law, source = real(concrete_stph_io_value%value, r_def))
@@ -1349,7 +1279,6 @@ subroutine create_model_data( modeldb,           &
     type( field_collection_type ), pointer :: fd_fields
     type( field_collection_type ), pointer :: prognostic_fields
 
-!!    type( integer_io_value_type ), pointer :: random_seed_io_value
     class( io_value_type ), pointer :: random_seed_io_value
     integer(i_def) :: random_seed_size
     integer(i_def), allocatable :: ranseed(:)
@@ -1383,8 +1312,6 @@ subroutine create_model_data( modeldb,           &
         allocate(ranseed(random_seed_size))
         call random_seed(get = ranseed(1:random_seed_size))
 
-!!        random_seed_io_value => get_integer_io_value(modeldb%values, 'random_seed_io_value')
-!!        random_seed_io_value%data = ranseed
         random_seed_io_value => get_io_value(modeldb%values, 'random_seed')
         select type(concrete_random_seed_io_value => random_seed_io_value)
           type is (int32_arr_io_value_type)

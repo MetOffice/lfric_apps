@@ -19,8 +19,6 @@ module gungho_step_mod
   use field_array_mod,                only : field_array_type
   use field_collection_mod,           only : field_collection_type
   use field_mod,                      only : field_type
-!!  use io_value_mod,                   only : io_value_type, &
-!!                                             get_io_value
   use io_value_mod,                   only : io_value_type
   use key_value_collection_iterator_mod, &
                                       only : get_io_value
@@ -104,7 +102,6 @@ module gungho_step_mod
     type( field_type), pointer :: dA => null()  ! Areas of faces
     type( field_type), pointer :: accumulated_fluxes => null()
 
-!!    type( io_value_type ), pointer :: temp_corr_io_value
     real(r_def), pointer :: temp_corr_rate(:)
 
 
@@ -127,7 +124,6 @@ module gungho_step_mod
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
     if ( encorr_usage /= encorr_usage_none .or. write_conservation_diag ) then
-!!      temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')
       call modeldb%values%get_value( 'temperature_correction_rate', &
            temp_corr_rate )
       call modeldb%values%get_value( 'total_dry_mass', total_dry_mass )
@@ -186,7 +182,6 @@ module gungho_step_mod
                                        twod_mesh )
 
         call update_energy_correction_alg(modeldb%config,   &
-!!                               temp_corr_io_value%data(1),  &
                                temp_corr_rate(1),           &
                                accumulated_fluxes,          &
                                total_dry_mass, dt,          &

@@ -33,11 +33,6 @@ program gungho_model
                                     log_level_trace, &
                                     log_scratch_space
   use timing_mod,             only: init_timing, final_timing
-!!  use key_value_mod,                     only: key_value_type, &
-!!                                               real32_arr_key_value_type, real64_arr_key_value_type
-!!  use io_value_mod,                      only: io_value_type, &
-!!                                               real32_arr_io_value_type, real64_arr_io_value_type
-!!  use key_value_collection_iterator_mod, only: key_value_collection_iterator_type
 
   implicit none
 
@@ -49,10 +44,6 @@ program gungho_model
 
   logical(l_def)              :: subroutine_timers
   character(str_max_filename) :: timer_output_path
-
-!!  type(key_value_collection_iterator_type) :: iterator
-!!  class(key_value_type), pointer :: kv
-!!  character(:), allocatable :: key
 
   call parse_command_line( filename )
 
@@ -102,31 +93,6 @@ program gungho_model
   write( log_scratch_space, '("Initialise ", A, " ...")' ) application_name
   call log_event( log_scratch_space, log_level_trace )
   call initialise( application_name, modeldb )
-
-  !! call log_event( "RAMA LAMA FA FA FA", LOG_LEVEL_INFO )
-  !! call iterator%initialise(modeldb%values)
-  !! do
-  !!   if (.not. iterator%has_next()) exit
-  !!   kv => iterator%next()
-  !!   key = kv%get_key()
-  !!   write(log_scratch_space,'("Key: ", A)') key
-  !!   call log_event( log_scratch_space, LOG_LEVEL_INFO )
-  !!   if ( key .eq. "temperature_correction_rate" ) then
-  !!     select type(concrete_kv => kv)
-  !!       type is (real32_arr_key_value_type)
-  !!         call log_event( "kv is real32_arr_key_value_type", LOG_LEVEL_INFO )
-  !!       type is (real64_arr_key_value_type)
-  !!         call log_event( "kv is real64_arr_key_value_type", LOG_LEVEL_INFO )
-  !!       type is (real32_arr_io_value_type)
-  !!         call log_event( "kv is real32_arr_io_value_type", LOG_LEVEL_INFO )
-  !!       type is (real64_arr_io_value_type)
-  !!         call log_event( "kv is real64_arr_io_value_type", LOG_LEVEL_INFO )
-  !!       class default
-  !!         call log_event( "kv is unknown type", LOG_LEVEL_INFO )
-  !!     end select      
-  !!   end if
-  !! end do
-  !! call log_event( "RAMA LAMA FA FA FA", LOG_LEVEL_INFO )
 
   if (l_esm_couple) then
     write(log_scratch_space,'(A)') "Configuration is coupled to one or more components"
