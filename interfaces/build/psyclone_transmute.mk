@@ -30,7 +30,12 @@ PSYCLONE_TRANSMUTE_EXTRAS ?= -l all
 # soon as that process does, so no server survives the build that started it.
 # Should that variable be unset the client determines the owner itself, by
 # finding the outermost make process in its own ancestry.
-PSYCLONE ?= $(LFRIC_BUILD)/psyclone/psyclone_client.py
+PSYCLONE_MODE ?= standard
+ifeq ($(PSYCLONE_MODE),server)
+    PSYCLONE ?= $(LFRIC_BUILD)/psyclone/psyclone_client.py
+else
+	PSYCLONE = psyclone
+endif
 
 # Find the specific files we wish to pre-processed and PSyclone from physics source
 # Set our target dependency to the version of the file we are to generate after
@@ -43,9 +48,9 @@ ifeq ("$(TRANSMUTE_INCLUDE_METHOD)", "specify_include")
 	SOURCE_F_FILES := $(filter-out $(SOURCE_F_FILES_PASS), $(SOURCE_F_FILES_ALL))
 else ifeq ("$(TRANSMUTE_INCLUDE_METHOD)", "specify_exclude")
 # For the offload method, we want to filter out specific files, and do the rest.
-# We don't want to wildcard the whole working directory, this will cause problems. 
+# We don't want to wildcard the whole working directory, this will cause problems.
 # We want to specifically choose directories we want to pass to the PSyclone transmute method.
-# Therefore if nothing is present in the PSYCLONE_DIRECTORIES variable, then nothing will be 
+# Therefore if nothing is present in the PSYCLONE_DIRECTORIES variable, then nothing will be
 # passed to PSyclone.
 	ifneq ($(strip $(PSYCLONE_DIRECTORIES)),)
 		EXTEND_DIR_FULL_PATH := $(foreach THE_DIRECTORY, $(PSYCLONE_DIRECTORIES), $(shell find $(SOURCE_DIR) -name $(THE_DIRECTORY) -print))
