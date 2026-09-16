@@ -8,6 +8,8 @@
 !!        3D equations.
 module semi_implicit_timestep_alg_mod
 
+  use, intrinsic :: iso_fortran_env, only: real32, real64
+
   use config_mod,                only: config_type
   use constants_mod,             only: i_def, r_def, l_def, str_def, r_tran
   use fs_continuity_mod,         only: Wtheta, W2
@@ -83,8 +85,11 @@ module semi_implicit_timestep_alg_mod
   use field_parent_mod,           only: field_parent_type
   use field_collection_mod,       only: field_collection_type
   use r_tran_field_mod,           only: r_tran_field_type
-  use io_value_mod,               only: io_value_type, &
-                                        get_io_value
+  use io_value_mod,               only: io_value_type,            &
+                                        real32_arr_io_value_type, &
+                                        real64_arr_io_value_type
+  use key_value_collection_iterator_mod, &
+                                  only: get_io_value
   use driver_modeldb_mod,         only: modeldb_type
   use mesh_mod,                   only: mesh_type
   use mesh_collection_mod,        only: mesh_collection
@@ -308,9 +313,9 @@ contains
     real(r_def), allocatable :: skeb_spectral_coeffs(:)
     real(r_def), allocatable :: skeb_power_law(:)
 
-    type( io_value_type ), pointer :: temp_corr_io_value
-    real( r_def )    :: dt
-    real( r_def )    :: dtemp_encorr
+    real( r_def ), pointer :: temp_corr_rate(:)
+    real( r_def )          :: dt
+    real( r_def )          :: dtemp_encorr
 
     ! Get pointers to field collections for use downstream
     prognostic_fields => modeldb%fields%get_field_collection("prognostic_fields")
@@ -355,9 +360,9 @@ contains
     electric_fields => modeldb%fields%get_field_collection("electric_fields")
     orography_fields => modeldb%fields%get_field_collection("orography_fields")
 
-    temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')
+  call modeldb%values%get_value( 'temperature_correction_rate', temp_corr_rate)
     ! Get temperature increment for energy correction
-    dtemp_encorr = dt * temp_corr_io_value%data(1)
+  dtemp_encorr = dt * temp_corr_rate(1)
 
 #ifdef UM_PHYSICS
     if (use_spt) then
@@ -418,7 +423,6 @@ contains
                   cloud_fields, surface_fields, soil_fields,  &
                   snow_fields, chemistry_fields,              &
                   aerosol_fields, stph_fields, lbc_fields,    &
-                  temp_corr_io_value,                         &
                   mr_array, moist_dyn_array)
 
   end subroutine semi_implicit_alg_step
@@ -1409,22 +1413,27 @@ contains
     type(modeldb_type),       intent(in)  :: modeldb
     character(*),             intent(in)  :: array_names(:)
 
+    real(r_def), pointer :: spectral_coeffc_ptr(:)
+    real(r_def), pointer :: spectral_coeffs_ptr(:)
+    real(r_def), pointer :: power_law_ptr(:)
     real(r_def), allocatable, intent(out) :: spectral_coeffc(:)
     real(r_def), allocatable, intent(out) :: spectral_coeffs(:)
     real(r_def), allocatable, intent(out) :: power_law(:)
-
-    type(io_value_type), pointer :: stph_io_value_type
 
     allocate(spectral_coeffc(stph_spectral_dim))
     allocate(spectral_coeffs(stph_spectral_dim))
     allocate(power_law(stph_spectral_dim))
 
-    stph_io_value_type => get_io_value(modeldb%values, array_names(1))
-    spectral_coeffc = stph_io_value_type%data
-    stph_io_value_type => get_io_value(modeldb%values, array_names(2))
-    spectral_coeffs = stph_io_value_type%data
-    stph_io_value_type => get_io_value(modeldb%values, array_names(3))
-    power_law = stph_io_value_type%data
+    call modeldb%values%get_value(array_names(1), spectral_coeffc_ptr)
+    call modeldb%values%get_value(array_names(2), spectral_coeffs_ptr)
+    call modeldb%values%get_value(array_names(3), power_law_ptr)
+
+    ! get_value() returned a ptr to the value;
+    ! here I copy that value into the allocatable intent(out) arrays
+    spectral_coeffc = spectral_coeffc_ptr
+    spectral_coeffs = spectral_coeffs_ptr
+    power_law = power_law_ptr
+
   end subroutine get_stph_values
 
   !> Put some stochastic physics values into modeldb and deallocate
@@ -1445,14 +1454,37 @@ contains
     real(r_def), allocatable, intent(inout) :: spectral_coeffs(:)
     real(r_def), allocatable, intent(inout) :: power_law(:)
 
-    type(io_value_type), pointer :: stph_io_value_type
+    class(io_value_type), pointer :: stph_io_value
 
-    stph_io_value_type => get_io_value(modeldb%values, array_names(1))
-    stph_io_value_type%data = spectral_coeffc
-    stph_io_value_type => get_io_value(modeldb%values, array_names(2))
-    stph_io_value_type%data = spectral_coeffs
-    stph_io_value_type => get_io_value(modeldb%values, array_names(3))
-    stph_io_value_type%data = power_law
+    stph_io_value => get_io_value(modeldb%values, array_names(1))
+    select type(concrete_stph_io_value => stph_io_value)
+      type is (real32_arr_io_value_type)
+        concrete_stph_io_value%value = real(spectral_coeffc, real32)
+      type is (real64_arr_io_value_type)
+        concrete_stph_io_value%value = real(spectral_coeffc, real64)
+      class default
+        call log_event("Unsupported io_value_type for" // array_names(1), LOG_LEVEL_ERROR)
+    end select
+
+    stph_io_value => get_io_value(modeldb%values, array_names(2))
+    select type(concrete_stph_io_value => stph_io_value)
+      type is (real32_arr_io_value_type)
+        concrete_stph_io_value%value = real(spectral_coeffs, real32)
+      type is (real64_arr_io_value_type)
+        concrete_stph_io_value%value = real(spectral_coeffs, real64)
+      class default
+        call log_event("Unsupported io_value_type for" // array_names(2), LOG_LEVEL_ERROR)
+    end select
+
+    stph_io_value => get_io_value(modeldb%values, array_names(3))
+    select type(concrete_stph_io_value => stph_io_value)
+      type is (real32_arr_io_value_type)
+        concrete_stph_io_value%value = real(power_law, real32)
+      type is (real64_arr_io_value_type)
+        concrete_stph_io_value%value = real(power_law, real64)
+      class default
+        call log_event("Unsupported io_value_type for" // array_names(3), LOG_LEVEL_ERROR)
+    end select
 
     deallocate(spectral_coeffc)
     deallocate(spectral_coeffs)

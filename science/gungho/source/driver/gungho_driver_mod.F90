@@ -66,7 +66,6 @@ module gungho_driver_mod
                                           stochastic_physics,    &
                                           stochastic_physics_um
   use io_value_mod,                only : io_value_type
-  use integer_io_value_mod,        only : integer_io_value_type
   use time_config_mod,             only : timestep_start
   use timing_mod,                  only : start_timing, stop_timing, &
                                           tik, LPROF
@@ -142,8 +141,8 @@ contains
     type(mesh_type),        pointer :: nudging_mesh      => null()
     type(mesh_type),        pointer :: nudging_twod_mesh => null()
 
-    type(io_value_type) :: temp_corr_io_value
-    type(integer_io_value_type) :: random_seed_io_value
+    class(io_value_type), pointer :: temp_corr_io_value => null()
+    class(io_value_type), pointer :: random_seed_io_value => null()
 
     character(len=*), parameter :: io_context_name = "gungho_atm"
     integer(i_def) :: random_seed_size
@@ -158,8 +157,8 @@ contains
 #ifdef UM_PHYSICS
     integer(i_def) :: i
     real(r_def),    allocatable :: real_array(:)
-    type(io_value_type) :: spt_arrays(spt_array_count)
-    type(io_value_type) :: skeb_arrays(skeb_array_count)
+
+    class(io_value_type), pointer :: io_value_ptr
 
     type( field_collection_type ), pointer :: field_collection_ptr
     type( field_collection_type ), pointer :: soil_fields
@@ -167,6 +166,7 @@ contains
     type( field_collection_type ), pointer :: surface_fields
 
     nullify( field_collection_ptr, soil_fields, snow_fields, surface_fields )
+
 #endif
 
     call log_event('Initialising gungho', LOG_LEVEL_INFO)
@@ -209,9 +209,8 @@ contains
     end if
 
     ! Rate of temperature adjustment for energy correction
-    call temp_corr_io_value%init("temperature_correction_rate", [0.0_r_def])
-    call modeldb%values%add_key_value( 'temperature_correction_io_value', &
-                                       temp_corr_io_value)
+    temp_corr_io_value => io_value_type("temperature_correction_rate", [0.0_r_def])
+    call modeldb%values%add_key_value(temp_corr_io_value)
     ! Total mass of dry atmosphere used for energy correction
     call modeldb%values%add_key_value( 'total_dry_mass', 0.0_r_def )
     ! Total energy of moist atmosphere for calculating energy correction
@@ -223,18 +222,16 @@ contains
       call random_seed(size = random_seed_size)
       allocate(integer_array(random_seed_size))
       integer_array = 0
-      call random_seed_io_value%init("random_seed", integer_array)
-      call modeldb%values%add_key_value( 'random_seed_io_value', &
-                                         random_seed_io_value )
+      random_seed_io_value => io_value_type("random_seed", integer_array)
+      call modeldb%values%add_key_value(random_seed_io_value)
       deallocate(integer_array)
 #ifdef UM_PHYSICS
       if (use_spt) then
         allocate(real_array(stph_spectral_dim))
         real_array = 0.0_r_def
         do i = 1, spt_array_count
-          call spt_arrays(i)%init(trim(spt_array_names(i)),real_array)
-          call modeldb%values%add_key_value(trim(spt_array_names(i)), &
-                                            spt_arrays(i))
+          io_value_ptr => io_value_type(trim(spt_array_names(i)), real_array)
+          call modeldb%values%add_key_value(io_value_ptr)
         end do
         deallocate(real_array)
       end if
@@ -242,9 +239,8 @@ contains
         allocate(real_array(stph_spectral_dim))
         real_array = 0.0_r_def
         do i = 1, skeb_array_count
-          call skeb_arrays(i)%init(trim(skeb_array_names(i)),real_array)
-          call modeldb%values%add_key_value(trim(skeb_array_names(i)), &
-                                            skeb_arrays(i))
+          io_value_ptr => io_value_type(trim(skeb_array_names(i)), real_array)
+          call modeldb%values%add_key_value(io_value_ptr)
         end do
         deallocate(real_array)
       end if

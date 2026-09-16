@@ -8,7 +8,7 @@
 
 module linear_diagnostics_driver_mod
 
-  use constants_mod,             only : i_def, str_def, l_def
+  use constants_mod,             only : i_def, r_def, str_def, l_def
   use diagnostic_alg_mod,        only : column_total_diagnostics_alg,          &
                                         calc_wbig_diagnostic_alg,              &
                                         pressure_diag_alg
@@ -31,7 +31,9 @@ module linear_diagnostics_driver_mod
                                         ls_option_file
   use initialise_diagnostics_mod, &
                                  only : diagnostic_to_be_sampled
-  use io_value_mod,              only : io_value_type, get_io_value
+  use io_value_mod,              only : io_value_type
+  use key_value_collection_iterator_mod, &
+                                 only : get_io_value
   use io_config_mod,             only : use_xios_io, write_fluxes, &
                                         write_diag
   use log_mod,                   only : log_event, &
@@ -147,7 +149,7 @@ contains
     ! when iterating over them
     class(field_parent_type),   pointer :: field_ptr
     procedure(write_interface), pointer :: tmp_write_ptr
-    type(io_value_type),        pointer :: temp_corr_io_value
+    real(r_def),                pointer :: temp_corr_rate(:)
 
     integer :: i, fs
     character(len=str_def) :: name
@@ -280,11 +282,11 @@ contains
       call derived_fields%get_field('exner_in_wth', exner_in_wth)
       call pressure_diag_alg(exner_in_wth)
 
-      temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')
+      call modeldb%values%get_value( 'temperature_correction_rate', temp_corr_rate )
       call column_total_diagnostics_alg(modeldb%config, rho, mr, &
                                         derived_fields, exner,   &
                                         mesh, twod_mesh,         &
-                                        temp_corr_io_value%data(1))
+                                        temp_corr_rate(1))
 
     end if
 
