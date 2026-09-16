@@ -105,6 +105,9 @@ output-format = "grouped"                #group results by file
 "atlt_derive_exner_from_eos_alg_mod.x90" = ["C132"]
 "adjt_compute_vorticity_alg_mod.x90" = ["C132"]
 
+# applications/lfric2lfric:
+"lfric2lfric_vert_lin_interp_lin_extrap_kernel_mod_test.pf" = ["E001"]
+"lfric2lfric_vert_lin_interp_no_extrap_kernel_mod_test.pf" = ["E001"]
 
 # Rules that pass for whole Lfric repo with no exceptions:
 # E000, C031, C032, C043, C051, C091, C082, C141,
