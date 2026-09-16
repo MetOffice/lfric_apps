@@ -71,6 +71,9 @@ if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 select case (switch)
 case (1)
           ! For top of KSURF
+  !$OMP  PARALLEL DEFAULT(SHARED)                                                &
+  !$OMP  private(n, l, j1, i1)
+  !$OMP do SCHEDULE(STATIC)
   do n = 1, c_len_i
     l = ind_todo_i(n)
     j1=(l-1)/pdims%i_end+1
@@ -83,9 +86,15 @@ case (1)
               ! keep working down while wb_ratio gt thres
 
   end do
+  !$OMP end do
+  !$OMP end parallel
+
 
 case (2)
           ! For base of KTOP
+  !$OMP  PARALLEL DEFAULT(SHARED)                                                &
+  !$OMP  private(n, l, j1, i1)
+  !$OMP do SCHEDULE(STATIC)
   do n = 1, c_len_i
     l = ind_todo_i(n)
     j1=(l-1)/pdims%i_end+1
@@ -98,6 +107,8 @@ case (2)
               ! keep working down while wb_ratio lt thres
 
   end do
+  !$OMP end do
+  !$OMP end parallel
 
 end select
 
