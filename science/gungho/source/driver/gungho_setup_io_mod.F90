@@ -216,8 +216,6 @@ module gungho_setup_io_mod
     integer(i_def)                  :: rc
     integer(i_def)                  :: i
     integer(i_def)                  :: time_point
-    logical                          :: have_sst_ancil_fields
-    logical                          :: have_aerosol_ancil_fields
 
     type(field_collection_type), pointer :: sst_ancil_fields
     type(field_collection_type), pointer :: aerosol_ancil_fields
@@ -227,27 +225,29 @@ module gungho_setup_io_mod
     ! Only proceed if XIOS is being used for I/O
     if (.not. use_xios_io) return
 
-    have_sst_ancil_fields = .false.
-    have_aerosol_ancil_fields = .false.
     nullify(sst_ancil_fields)
     nullify(aerosol_ancil_fields)
-    if (present(modeldb)) then
-      have_sst_ancil_fields = modeldb%fields%field_collection_exists("sst_ancil_fields")
-      if (have_sst_ancil_fields) then
-        sst_ancil_fields => modeldb%fields%get_field_collection("sst_ancil_fields")
-      else
-        call log_event("sst_ancil_fields not yet available during init_io; " // &
-                       "using default SST ancillary file setup",             &
-                       log_level_info)
+    if (ancil_option == ancil_option_updating) then
+      if (.not. present(modeldb)) then
+        call log_event("init_gungho_files requires modeldb in updating ancillary mode", &
+                       log_level_error)
       end if
 
-      have_aerosol_ancil_fields = modeldb%fields%field_collection_exists("aerosol_ancil_fields")
-      if (have_aerosol_ancil_fields) then
+      if (sst_source /= sst_source_start_dump) then
+        if (.not. modeldb%fields%field_collection_exists("sst_ancil_fields")) then
+          call log_event("Missing required field collection: sst_ancil_fields", &
+                         log_level_error)
+        end if
+        sst_ancil_fields => modeldb%fields%get_field_collection("sst_ancil_fields")
+      end if
+
+      if ( ( glomap_mode == glomap_mode_dust_and_clim ) .or.    &
+           ( glomap_mode == glomap_mode_climatology   ) ) then
+        if (.not. modeldb%fields%field_collection_exists("aerosol_ancil_fields")) then
+          call log_event("Missing required field collection: aerosol_ancil_fields", &
+                         log_level_error)
+        end if
         aerosol_ancil_fields => modeldb%fields%get_field_collection("aerosol_ancil_fields")
-      else
-        call log_event("aerosol_ancil_fields not yet available during init_io; " // &
-                       "using default aerosol ancillary file setup",             &
-                       log_level_info)
       end if
     end if
 
@@ -409,23 +409,13 @@ module gungho_setup_io_mod
             write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                     trim(sst_ancil_path)
           end if
-          if (present(modeldb) .and. ancil_option == ancil_option_updating) then
-            if (have_sst_ancil_fields) then
-              call files_list%insert_item( lfric_xios_file_type( ancil_fname,      &
-                                                             xios_id="sst_ancil", &
-                                                             io_mode=FILE_MODE_READ, &
-                                                             operation=OPERATION_TIMESERIES, &
-                                                             update_freq=merge(0, 1*lx_day, sst_source == sst_source_surf), &
-                                                             fields_in_file=sst_ancil_fields &
-                                                             ! freq=1 - Don't set this in the model 
-                                                             ) )
-            else
-              call files_list%insert_item( lfric_xios_file_type( ancil_fname,      &
-                                                             xios_id="sst_ancil", &
-                                                             io_mode=FILE_MODE_READ, &
-                                                             operation=OPERATION_TIMESERIES, &
-                                                             update_freq=merge(0, 1*lx_day, sst_source == sst_source_surf) ) )
-            end if
+          if (ancil_option == ancil_option_updating) then
+            call files_list%insert_item( lfric_xios_file_type( ancil_fname,      &
+                                                           xios_id="sst_ancil", &
+                                                           io_mode=FILE_MODE_READ, &
+                                                           operation=OPERATION_TIMESERIES, &
+                                                           update_freq=merge(0, 1*lx_day, sst_source == sst_source_surf), &
+                                                           fields_in_file=sst_ancil_fields ) )
           else
             call files_list%insert_item( lfric_xios_file_type( ancil_fname,      &
                                                            xios_id="sst_ancil", &
@@ -521,23 +511,13 @@ module gungho_setup_io_mod
           end if
           write(ancil_fname,'(A)') trim(aerosol_ancil_directory)//'/'// &
                                    trim(aerosols_ancil_path)
-          if (present(modeldb) .and. ancil_option == ancil_option_updating) then
-            if (have_aerosol_ancil_fields) then
-              call files_list%insert_item( lfric_xios_file_type( ancil_fname,      &
-                                                             xios_id="aerosols_ancil", &
-                                                             io_mode=FILE_MODE_READ, &
-                                                             operation=OPERATION_TIMESERIES, &
-                                                             update_freq=1*lx_day, &
-                                                             fields_in_file=aerosol_ancil_fields, &
-                                                             freq=1 ) )
-            else
-              call files_list%insert_item( lfric_xios_file_type( ancil_fname,      &
-                                                             xios_id="aerosols_ancil", &
-                                                             io_mode=FILE_MODE_READ, &
-                                                             operation=OPERATION_TIMESERIES, &
-                                                             update_freq=1*lx_day, &
-                                                             freq=1 ) )
-            end if
+          if (ancil_option == ancil_option_updating) then
+            call files_list%insert_item( lfric_xios_file_type( ancil_fname,      &
+                                                           xios_id="aerosols_ancil", &
+                                                           io_mode=FILE_MODE_READ, &
+                                                           operation=OPERATION_TIMESERIES, &
+                                                           update_freq=1*lx_day, &
+                                                           fields_in_file=aerosol_ancil_fields ) )
           else
             call files_list%insert_item( lfric_xios_file_type( ancil_fname,      &
                                                            xios_id="aerosols_ancil", &

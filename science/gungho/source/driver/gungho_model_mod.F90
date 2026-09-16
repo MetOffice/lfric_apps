@@ -995,19 +995,6 @@ contains
     !=======================================================================
     call basic_initialisations( mesh, modeldb%clock, modeldb%config )
 
-#ifdef UM_PHYSICS
-    if (use_physics) then
-      ! Time-varying SST/aerosol ancils can be bound to file-owned temporal
-      ! handling during init_io, so make sure these collections are available.
-      if (.not. modeldb%fields%field_collection_exists("sst_ancil_fields")) then
-        call modeldb%fields%add_empty_field_collection("sst_ancil_fields", table_len=10)
-      end if
-      if (.not. modeldb%fields%field_collection_exists("aerosol_ancil_fields")) then
-        call modeldb%fields%add_empty_field_collection("aerosol_ancil_fields", table_len=40)
-      end if
-    end if
-#endif
-
     call log_event("Initialising I/O context", LOG_LEVEL_INFO)
 
     files_init_ptr => init_gungho_files
