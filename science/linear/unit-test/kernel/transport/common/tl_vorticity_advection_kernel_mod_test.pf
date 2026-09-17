@@ -7,15 +7,13 @@
 !>@brief Test the tangent linear of the vorticity advection.
 module tl_vorticity_advection_kernel_mod_test
 
-  use constants_mod,         only: i_def, r_def, imdi
+  use constants_mod,         only: i_def, r_def
   use funit
 
   use finite_element_config_mod, &
                              only : cellshape_quadrilateral, &
                                     coord_system_xyz, coord_space_wchi
   use feign_config_mod,      only : feign_finite_element_config
-  use sci_chi_transform_mod, only : init_chi_transforms, &
-                                    final_chi_transforms
 
   use tl_vorticity_advection_kernel_mod, &
                              only: tl_vorticity_advection_code
@@ -135,8 +133,6 @@ contains
              element_order_v=0_i_def,           &
              rehabilitate=.true.,               &
              vorticity_in_w1=.false. )
-
-    call init_chi_transforms(imdi, imdi)
 
     ! Get infrastructure support data
     !=====================================
@@ -265,7 +261,6 @@ contains
     deallocate( this%map_w2 )
 
     call final_configuration()
-    call final_chi_transforms()
 
   end subroutine tearDown
 

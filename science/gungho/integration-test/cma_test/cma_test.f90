@@ -29,8 +29,8 @@ program cma_test
                                              test_cma_apply_inv,             &
                                              test_cma_diag_DhMDhT
   use config_mod,                     only : config_type
-  use constants_mod,                  only : i_def, r_def, i_def, l_def, imdi, &
-                                             r_solver, pi, str_def,            &
+  use constants_mod,                  only : i_def, r_def, i_def, l_def, &
+                                             r_solver, pi, str_def,      &
                                              str_max_filename
   use derived_config_mod,             only : set_derived_config
   use extrusion_mod,                  only : extrusion_type, &
@@ -60,8 +60,6 @@ program cma_test
   use base_mesh_config_mod,           only : GEOMETRY_SPHERICAL
   use create_mesh_mod,                only : create_mesh
   use add_mesh_map_mod,               only : assign_mesh_maps
-  use sci_chi_transform_mod,          only : init_chi_transforms, &
-                                             final_chi_transforms
 
   implicit none
 
@@ -321,9 +319,6 @@ program cma_test
                     alt_name=twod_names )
   call assign_mesh_maps(twod_names)
 
-  call init_chi_transforms(geometry_spherical, imdi, &
-                           mesh_collection=mesh_collection)
-
   ! Work out grid spacing, which should be of order 1
   mesh => mesh_collection%get_mesh(prime_mesh_name)
   ncells_2d_local = mesh%get_ncells_2d()
@@ -378,7 +373,6 @@ program cma_test
   call log_event( ' CMA functional testing completed ...', LOG_LEVEL_INFO )
 
   call final_collections ()
-  call final_chi_transforms()
 
   ! Finalise halo functionality
   call finalise_halo_comms()
