@@ -15,6 +15,7 @@
 module predictors_alg_mod
 
   ! Constants and types
+  use config_mod,                 only: config_type
   use constants_mod,              only: r_def
   use sci_fem_constants_mod,      only: get_im3_div_fe, &
                                         get_im3_div_fv
@@ -54,18 +55,22 @@ contains
   !!          used in the density predictor, can be capped to lie between
   !!          two given values.
   !!
+  !> @param[in]     config         Application configuration object
   !> @param[in,out] advected_state The state variables that will be transported
   !> @param[in]     wind           The wind at time n
   !> @param[in]     rhs_n          The RHS terms for u at time n
   !> @param[in]     beta           The time n centring parameter
   !> @param[in]     model_clock    Time within the model
-  subroutine predictors_alg( advected_state, &
+  subroutine predictors_alg( config,         &
+                             advected_state, &
                              wind,           &
                              rhs_n,          &
                              beta,           &
                              model_clock )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Arguments
     type( field_type ),        intent(inout) :: advected_state(bundle_size)
@@ -92,9 +97,10 @@ contains
     ! Predictor of the wind field (u-beta*dt*rhs)
     if ( .not. si_momentum_equation ) then
       if (horizontal_transport_predictor) then
-        call hori_mass_matrix_solver_alg(advected_state(igh_u), rhs_n, advected_state(igh_u))
+        call hori_mass_matrix_solver_alg(config, advected_state(igh_u), &
+                                         rhs_n, advected_state(igh_u))
       else
-        call mass_matrix_solver_alg(advected_state(igh_u), rhs_n)
+        call mass_matrix_solver_alg(config, advected_state(igh_u), rhs_n)
       end if
     end if
 
@@ -110,9 +116,9 @@ contains
       ! Get div operator and beta*dt
       if (advected_state(igh_d)%get_element_order_h() > 0 .or. &
           advected_state(igh_d)%get_element_order_v() > 0) then
-        im3_div  => get_im3_div_fe(advected_state(igh_d)%get_mesh_id())
+        im3_div  => get_im3_div_fe(config, advected_state(igh_d)%get_mesh())
       else
-        im3_div  => get_im3_div_fe(advected_state(igh_d)%get_mesh_id())
+        im3_div  => get_im3_div_fe(config, advected_state(igh_d)%get_mesh())
       end if
       beta_dt = beta*cast_dt
 

@@ -55,9 +55,8 @@ program cma_test
                                              finalise_logging,   &
                                              LOG_LEVEL_ERROR,    &
                                              LOG_LEVEL_INFO
-  use mesh_mod,                       only : mesh_type
+  use mesh_mod,                       only : mesh_type, geometry_spherical
   use mesh_collection_mod,            only : mesh_collection
-  use base_mesh_config_mod,           only : GEOMETRY_SPHERICAL
   use create_mesh_mod,                only : create_mesh
   use add_mesh_map_mod,               only : assign_mesh_maps
   use sci_chi_transform_mod,          only : init_chi_transforms, &
@@ -329,7 +328,7 @@ program cma_test
   ncells_2d_local = mesh%get_ncells_2d()
 
   ! Ensure that a spherical geometry is used (otherwise tests are too simple)
-  if (geometry /= GEOMETRY_SPHERICAL) then
+  if (geometry /= geometry_spherical) then
      call log_event( "Geometry has to be spherical", &
                      LOG_LEVEL_ERROR )
   end if
@@ -363,14 +362,14 @@ program cma_test
   call cma_test_init(config,  mesh)
 
   ! Run all requested tests
-  if (do_test_apply_mass_p)             call test_cma_apply_mass_p(tolerance)
-  if (do_test_apply_mass_v)             call test_cma_apply_mass_v(tolerance)
-  if (do_test_apply_div_v)              call test_cma_apply_div_v(tolerance)
-  if (do_test_multiply_div_v_mass_v)    call test_cma_multiply_div_v_mass_v(tolerance)
-  if (do_test_multiply_grad_v_div_v)    call test_cma_multiply_grad_v_div_v(tolerance)
-  if (do_test_add)                      call test_cma_add(tolerance)
-  if (do_test_apply_inv)                call test_cma_apply_inv(tolerance)
-  if (do_test_diag_dhmdht)              call test_cma_diag_DhMDhT(tolerance)
+  if (do_test_apply_mass_p)             call test_cma_apply_mass_p(config, tolerance)
+  if (do_test_apply_mass_v)             call test_cma_apply_mass_v(config, tolerance)
+  if (do_test_apply_div_v)              call test_cma_apply_div_v(config, tolerance)
+  if (do_test_multiply_div_v_mass_v)    call test_cma_multiply_div_v_mass_v(config, tolerance)
+  if (do_test_multiply_grad_v_div_v)    call test_cma_multiply_grad_v_div_v(config, tolerance)
+  if (do_test_add)                      call test_cma_add(config, tolerance)
+  if (do_test_apply_inv)                call test_cma_apply_inv(config, tolerance)
+  if (do_test_diag_dhmdht)              call test_cma_diag_DhMDhT(config, tolerance)
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Finalise and close down

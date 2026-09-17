@@ -349,9 +349,9 @@ module tl_test_semi_imp_alg_mod
       ! gives p_x=L(gamma r_x)
       call final_si_operators()
       call tl_semi_implicit_alg_final()
-      call tl_semi_implicit_alg_init(mesh, p_u, p_rho, p_theta, p_exner,     &
-                                     p_mr, ls_u, ls_rho, ls_theta, ls_exner, &
-                                     ls_mr, ls_moist_dyn)
+      call tl_semi_implicit_alg_init(modeldb%config, mesh, p_u, p_rho, p_theta, &
+                                     p_exner, p_mr, ls_u, ls_rho, ls_theta,     &
+                                     ls_exner, ls_mr, ls_moist_dyn)
 
       call tl_semi_implicit_alg_step(modeldb, p_u, p_rho, p_theta,   &
                                      p_exner, p_mr, p_moist_dyn,     &

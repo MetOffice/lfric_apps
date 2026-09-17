@@ -77,13 +77,14 @@ module lfric2lfric_infrastructure_mod
   use coupler_exchange_2d_mod,     only: coupler_exchange_2d_type
 #endif
 
+  use mesh_mod, only: geometry_planar,    &
+                      geometry_spherical, &
+                      topology_periodic,  &
+                      topology_non_periodic
+
   !------------------------------------
   ! Configuration modules
   !------------------------------------
-  use base_mesh_config_mod, only: geometry_planar,         &
-                                  geometry_spherical,      &
-                                  topology_fully_periodic, &
-                                  topology_non_periodic
   use extrusion_config_mod,       only: key_from_method,              &
                                         method_uniform,               &
                                         method_geometric,             &
@@ -273,7 +274,7 @@ contains
     select case (source_topology)
 
       case (source_topology_fully_periodic)
-        topology = topology_fully_periodic
+        topology = topology_periodic
 
       case (source_topology_non_periodic)
         topology = topology_non_periodic
