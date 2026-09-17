@@ -199,10 +199,6 @@ int_constants(ih_land_points) = 0
 int_constants(ih_ozone_levels) = int_constants(ih_model_levels)
 int_constants(ih_convect_levels) = 0
 
-! Set pseudo-level information
-! um_output_file%num_snow_layers = um_grid%num_snow_layers
-! um_output_file%num_surface_types = um_grid%num_surface_types
-
 call shumlib(routinename//'::set_integer_constants', &
      um_output_file%set_integer_constants(int_constants))
 
