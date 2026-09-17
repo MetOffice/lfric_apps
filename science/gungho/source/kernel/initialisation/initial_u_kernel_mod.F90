@@ -21,8 +21,7 @@ module initial_u_kernel_mod
   use constants_mod,           only : r_def, i_def, PI
   use fs_continuity_mod,       only : W2
   use kernel_mod,              only : kernel_type
-
-  use mesh_mod, only: geometry_spherical
+  use mesh_mod,                only : geometry_spherical
 
   ! Configuration modules
   use base_mesh_config_mod,      only: geometry, topology

@@ -25,7 +25,7 @@ module compute_geopotential_kernel_mod
   use fs_continuity_mod,         only: W3
   use kernel_mod,                only: kernel_type
 
-  use mesh_mod, only: geometry_spherical
+  use mesh_mod,                  only: geometry_spherical
 
   ! Configuration modules
   use finite_element_config_mod, only: COORD_SYSTEM_XYZ
