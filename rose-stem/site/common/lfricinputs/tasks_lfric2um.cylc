@@ -51,7 +51,7 @@
         "target_grid_res": "N48",
         "target_grid_levs": "70",
         "target_grid_type": "global",
-        "source_dump": "$BIG_DATA_DIR/start_dumps/basic-gal/yak/basic-gal_N96L70_C48L70.nc",
+        "source_dump": "$BIG_DATA_DIR/lfric2um/apps3.2/nwp-gal9_N320L70_C224L70.nc",
         "namelist_src": "um_grid.nml",
     }) %}
 
