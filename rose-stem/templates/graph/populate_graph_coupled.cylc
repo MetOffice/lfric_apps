@@ -79,15 +79,26 @@
     export_source_task, build_river_task
     ]) %}
 {% if application_run_task %}
-    {% do graph_sections.append([
-        "fcm_make2_drivers", application_run_task
-        ]) %}
-    {% do graph_sections.append([
-        build2_ocean_task, application_run_task
-        ]) %}
-    {% do graph_sections.append([
-        build_river_task, application_run_task
-        ]) %}
+    {% set application_run_tasks = [] %}
+    {% if task_values["crun"] > 1 %}
+        {% do application_run_tasks.append(application_run_task~"-crun0") %}
+        {% if task_values["crun_compare"] %}
+            {% do application_run_tasks.append(application_run_task) %}
+        {% endif %}
+    {% else %}
+        {% do application_run_tasks.append(application_run_task) %}
+    {% endif %}
+    {% for run_task in application_run_tasks %}
+        {% do graph_sections.append([
+            "fcm_make2_drivers", run_task
+            ]) %}
+        {% do graph_sections.append([
+            build2_ocean_task, run_task
+            ]) %}
+        {% do graph_sections.append([
+            build_river_task, run_task
+            ]) %}
+    {% endfor %}
 {% endif %}
 
 
