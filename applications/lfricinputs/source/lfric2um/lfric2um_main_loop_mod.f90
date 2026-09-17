@@ -160,8 +160,6 @@ do i_stash = 1, lfric2um_config%num_fields
       call lfricinp_add_um_field_to_file(um_output_file, stashcode, &
            level, um_grid, lfric2um_config%lbtim_list(i_stash),     &
            lfric2um_config%lbproc_list(i_stash))
-      ! I think this + loop it's in is what is causing the pseudolevel fields to
-      ! be added as 9 individual fields rather than a field with 9 pseudolevels
 
       !-------------------------------------------------------------------------
       ! Adding a 2D UM field to the file increments num_fields by 1 each time
