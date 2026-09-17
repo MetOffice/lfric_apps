@@ -213,6 +213,8 @@ lookup_int(lbsrce) = fixed_length_header(model_version) * 10000 &
 lookup_int(lbuser1) = get_stashmaster_item(stashcode, datat)
 ! Stashcode
 lookup_int(lbuser4) = stashcode
+! Pseudo-level number - IMDI if field is not on pseudo-levels
+lookup_int(lbuser5) = um_imdi
 ! Internal model number: atmosphere
 lookup_int(lbuser7) = 1
 
