@@ -55,8 +55,8 @@ module flux_precomputations_alg_mod
                                             LOG_LEVEL_INFO,                    &
                                             LOG_LEVEL_WARNING,                 &
                                             log_at_level
-  use mesh_mod,                       only: mesh_type, &
-                                            topology_non_periodic, &
+  use mesh_mod,                       only: mesh_type,                         &
+                                            topology_non_periodic,             &
                                             geometry_spherical
   use mesh_collection_mod,            only: mesh_collection
   use psykal_lite_transport_mod,      only: invoke_deep_shift_mass,            &
