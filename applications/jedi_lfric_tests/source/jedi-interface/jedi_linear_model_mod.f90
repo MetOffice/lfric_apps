@@ -380,7 +380,7 @@ subroutine model_finalAD(self, increment)
   call adj_init_moist_fields( moisture_fields )
   prognostic_fields => self%modeldb%fields%get_field_collection("prognostic_fields")
   call copy_moist_fields_to_prognostic( moisture_fields, prognostic_fields )
-  call self%wind_transform%adj_scalar_to_vector( prognostic_fields )
+  call self%wind_transform%adj_scalar_to_vector(self%modeldb%config, prognostic_fields )
   call increment%get_to_field_collection_ad(variable_names, prognostic_fields)
 
   ! Finalise clock and calendar

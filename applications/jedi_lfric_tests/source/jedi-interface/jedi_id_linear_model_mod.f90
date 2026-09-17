@@ -393,7 +393,7 @@ subroutine model_finalAD(self, increment)
   call copy_moist_fields_to_prognostic( moisture_fields, prognostic_fields )
 
   ! Cell-centred winds to Edge based winds
-  call self%wind_transform%adj_scalar_to_vector( prognostic_fields )
+  call self%wind_transform%adj_scalar_to_vector( self%modeldb%config, prognostic_fields )
 
   ! Get Atlas field emulators to the model_prognostics
   call increment%get_to_field_collection_ad( variable_names, prognostic_fields )
