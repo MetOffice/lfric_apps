@@ -21,9 +21,9 @@ module ffsl_hori_alg_mod
   use integer_field_mod,                only: integer_field_type
   use lfric_mpi_mod,                    only: global_mpi
   use log_mod,                          only: log_event, LOG_LEVEL_ERROR
-  use mesh_mod,                         only: mesh_type, &
-                                              topology_non_periodic, &
-                                              topology_periodic, &
+  use mesh_mod,                         only: mesh_type,                 &
+                                              topology_non_periodic,     &
+                                              topology_periodic,         &
                                               geometry_spherical
   use r_tran_field_mod,                 only: r_tran_field_type
   use timing_mod,                       only: start_timing, stop_timing, &
