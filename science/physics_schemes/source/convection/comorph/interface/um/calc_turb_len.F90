@@ -177,7 +177,7 @@ end do
 ! however, the BL scheme often predicts entirely non-turbulent
 ! conditions (and hence zero length-scale) even when there
 ! is liquid cloud present in a moist unstable environment.
-! I think this is because it calculates a grid-mean Nsq
+! This is likely because it calculates a grid-mean Nsq
 ! (weighting dry and moist values by cloud-fraction), and then
 ! uses that to calculate a single Ri and stability function for
 ! the whole grid-box.  This usually comes out stable unless
@@ -186,7 +186,7 @@ end do
 ! calculate separate Ri and stability function values in the
 ! cloudy and non-cloudy regions, and only do the grid-box
 ! averaging after calculating the stability functions.
-! Anyhow, for now we need to make up some minimum
+! Anyhow, for now we need to estimate some minimum
 ! length-scale to be applied wherever the atmosphere is
 ! moist unstable (and hence triggers convection), but the
 ! BL scheme hasn't given us any turbulence to trigger from.
@@ -197,7 +197,7 @@ do k = 1, bl_levels
 
       ! Scale turb_len by the appropriate tuning constants first.
       turb_len(i,j,k) = max( turb_len_fac * turb_len(i,j,k),                   &
-      ! Impose arbitrary linear ramp from the surface as a min limit.
+      ! Impose linear ramp from the surface as a min limit.
                              min( min_radius_fac * z_theta(i,j,k),             &
                                   ass_min_radius ) )
     end do
