@@ -51,8 +51,8 @@ contains
                                         feign_initial_density_config,     &
                                         feign_initial_pressure_config
 
-    use base_mesh_config_mod, only : geometry_planar, &
-                                     topology_fully_periodic
+    use mesh_mod,             only : geometry_planar, &
+                                     topology_periodic
     use extrusion_config_mod,         only : method_uniform, &
                                              stretching_method_linear
     use idealised_config_mod,  only: test_cold_bubble_x
@@ -98,7 +98,7 @@ contains
                prime_mesh_name='unit_test',      &
                geometry=geometry_planar,         &
                prepartitioned=.false.,           &
-               topology=topology_fully_periodic, &
+               topology=topology_periodic,       &
                fplane=.false., f_lat_deg=0.0_r_def )
 
     call feign_initial_wind_config( profile=profile_none,                 &

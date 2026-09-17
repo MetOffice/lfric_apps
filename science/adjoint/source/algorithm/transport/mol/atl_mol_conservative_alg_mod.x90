@@ -14,7 +14,7 @@ module atl_mol_conservative_alg_mod
   use log_mod,                         only: log_event,         &
                                              LOG_LEVEL_ERROR,   &
                                              LOG_LEVEL_INFO
-  use mesh_mod,                        only: mesh_type
+  use mesh_mod,                        only: mesh_type, topology_non_periodic
   use operator_mod,                    only: operator_type
   use timing_mod,                      only: start_timing, stop_timing, &
                                              tik, LPROF
@@ -42,7 +42,7 @@ module atl_mol_conservative_alg_mod
 
   ! Configuration
   use boundaries_config_mod,           only: limited_area
-  use base_mesh_config_mod,            only: topology, topology_non_periodic
+  use base_mesh_config_mod,            only: topology
   use linear_config_mod,               only: transport_efficiency
   use transport_config_mod,            only: runge_kutta_method, &
                                              dry_field_name,     &

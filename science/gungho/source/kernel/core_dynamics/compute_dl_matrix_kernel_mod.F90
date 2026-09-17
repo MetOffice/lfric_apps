@@ -26,10 +26,10 @@ module compute_dl_matrix_kernel_mod
   use fs_continuity_mod,         only: W2
   use kernel_mod,                only: kernel_type
   use sci_coordinate_jacobian_mod, only: coordinate_jacobian
+  use mesh_mod,                  only: geometry_spherical
 
   ! Configuration modules
-  use base_mesh_config_mod,      only: geometry, topology, &
-                                       geometry_spherical
+  use base_mesh_config_mod,      only: geometry, topology
   use damping_layer_config_mod,  only: dl_type, dl_type_latitude
   use finite_element_config_mod, only: coord_system
   use planet_config_mod,         only: scaled_radius

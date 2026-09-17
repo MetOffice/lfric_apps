@@ -15,10 +15,10 @@ module analytic_swe_wind_profiles_mod
   use log_mod,                only: log_event,         &
                                     log_scratch_space, &
                                     LOG_LEVEL_ERROR
+  use mesh_mod,               only: geometry_spherical
 
   ! Configuration
-  use base_mesh_config_mod,   only: geometry, &
-                                    geometry_spherical
+  use base_mesh_config_mod,   only: geometry
   use planet_config_mod,      only: scaled_radius, scaled_omega
   use shallow_water_settings_config_mod,                           &
                               only: ref_gp,                        &
