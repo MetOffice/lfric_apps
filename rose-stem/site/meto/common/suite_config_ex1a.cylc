@@ -45,9 +45,6 @@
         platform = {{site_vars.host_ex}}
         [[[environment]]]
             BUILD_ROOT = ${TMPDIR}
-            HYPERTHREADS    = 1
-            CORES_PER_NODE  = {{site_vars.node_cores}}
-            NUMA_REGIONS_PER_NODE = 2
             LUSTRE_FILESYSTEM = true
             ROSE_LAUNCHER = 'mpiexec'
             OMP_STACKSIZE=1g
