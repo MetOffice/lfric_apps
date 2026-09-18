@@ -14,7 +14,6 @@ module check_configuration_mod
   use transport_config_mod, only: operators,                                   &
                                   operators_fv,                                &
                                   operators_fem,                               &
-                                  consistent_metric,                           &
                                   fv_horizontal_order,                         &
                                   fv_vertical_order,                           &
                                   cheap_update,                                &
@@ -276,10 +275,6 @@ contains
       end if
 
       ! Check the transport namelist
-      if ( geometry == geometry_spherical .and.  consistent_metric) then
-        write( log_scratch_space, '(A)' ) 'Consistent metric option only valid for planar geometries'
-        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-      end if
       any_scheme_mol = check_any_scheme_mol()
       if (any_scheme_mol) then
         ! Check that flux orders are even
