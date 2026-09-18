@@ -56,7 +56,7 @@ use cloudfracs_type_mod, only: n_cloudfracs,                                   &
                                i_frac_bulk, i_frac_precip
 use cmpr_type_mod, only: cmpr_type
 use check_bad_values_mod, only: check_bad_values_cmpr
-use fields_type_mod, only: field_names, n_fields,                              &
+use fields_type_mod, only: field_names, field_min, field_max, n_fields,        &
                            i_temperature, i_q_vap, i_qc_first
 use genesis_diags_type_mod, only: genesis_diags_type
 
@@ -165,7 +165,6 @@ integer :: index_ic(n_points)
 ! Description of where we are in the code, for error messages
 character(len=name_length) :: where_string
 character(len=name_length) :: field_name
-logical :: field_positive
 
 ! Loop counter
 integer :: ic, ic2, i_cond, i_region, i_field, i_super
@@ -446,36 +445,34 @@ end do  ! i_region = 1, n_regions
 if ( i_check_bad_values_cmpr > i_check_bad_none ) then
 
   where_string = "calc_env_regions call for " // trim(adjustl(call_string))
-  field_positive = .true.
 
   do i_region = 1, n_regions
     ! Check area fractions
     field_name = trim(adjustl(region_names(i_region))) // "_frac"
-    call check_bad_values_cmpr( cmpr, k,                                       &
-                                frac_r(:,i_region),                            &
+    call check_bad_values_cmpr( cmpr, k, frac_r(:,i_region),                   &
                                 where_string, field_name,                      &
-                                field_positive )
+                                field_min=zero, field_max=one )
     ! Check temperatures
     field_name = trim(adjustl(region_names(i_region))) // "_temperature"
-    call check_bad_values_cmpr( cmpr, k,                                       &
-                                temperature_r(:,i_region),                     &
+    call check_bad_values_cmpr( cmpr, k, temperature_r(:,i_region),            &
                                 where_string, field_name,                      &
-                                field_positive )
+                                field_min=field_min(i_temperature),            &
+                                field_max=field_max(i_temperature) )
     ! Check water-vapour mixing-ratio
     field_name = trim(adjustl(region_names(i_region))) // "_q_vap"
-    call check_bad_values_cmpr( cmpr, k,                                       &
-                                q_vap_r(:,i_region),                           &
+    call check_bad_values_cmpr( cmpr, k, q_vap_r(:,i_region),                  &
                                 where_string, field_name,                      &
-                                field_positive )
+                                field_min=field_min(i_q_vap),                  &
+                                field_max=field_max(i_q_vap) )
   end do
 
   ! Check condensed water species
   do i_cond = 1, n_cond_species
     field_name = "loc_" // trim(adjustl(field_names(i_qc_first-1+i_cond)))
-    call check_bad_values_cmpr( cmpr, k,                                       &
-                                q_cond_loc(:,i_cond),                          &
+    call check_bad_values_cmpr( cmpr, k, q_cond_loc(:,i_cond),                 &
                                 where_string, field_name,                      &
-                                field_positive )
+                                field_min=field_min(i_qc_first-1+i_cond),      &
+                                field_max=field_max(i_qc_first-1+i_cond) )
   end do
 
 end if  ! ( i_check_bad_values_cmpr > i_check_bad_none )

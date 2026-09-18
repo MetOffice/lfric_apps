@@ -17,11 +17,13 @@ contains
 ! Subroutine to set the in-parcel cloud fraction fields.
 ! Just sets them based on the presence of non-zero liquid and
 ! ice cloud mixing-ratios.
-subroutine set_par_cloudfrac( n_points, n_points_super,                        &
-                              q_cl, q_cf, cloudfracs )
+subroutine set_par_cloudfrac( n_points, n_points_cond, n_points_cf,            &
+                              q_cond_super, cloudfracs )
 
 use comorph_constants_mod, only: real_cvprec, zero, one,                       &
-                                 l_cv_cf, i_par_cloudfrac,                     &
+                                 n_cond_species, cond_params,                  &
+                                 i_sg_frac_liq, i_sg_frac_ice,                 &
+                                 i_par_cloudfrac,                              &
                                  i_par_cloudfrac_hom, i_par_cloudfrac_mph,     &
                                  overlap_power
 use cloudfracs_type_mod, only: i_frac_liq, i_frac_ice, i_frac_bulk
@@ -31,23 +33,24 @@ implicit none
 
 ! Number of points
 integer, intent(in) :: n_points
-! Number of points in the cloud-fractions super-array
+! Number of points in the condensate and cloud-fractions super-arrays
 ! (maybe larger than needed here, to save having to reallocate)
-integer, intent(in) :: n_points_super
+integer, intent(in) :: n_points_cond
+integer, intent(in) :: n_points_cf
 
-! Liquid and ice cloud mixing-ratios
-real(kind=real_cvprec), intent(in) :: q_cl(n_points)
-real(kind=real_cvprec), intent(in) :: q_cf(n_points)
+! Super-array containing all condensed water mixing ratios
+real(kind=real_cvprec), intent(in) :: q_cond_super                             &
+                                      ( n_points_cond, n_cond_species )
 
 ! Cloud-fractions super-array
 real(kind=real_cvprec), intent(out) :: cloudfracs                              &
-                        ( n_points_super, i_frac_liq:i_frac_bulk )
+                                       ( n_points_cf, i_frac_liq:i_frac_bulk )
 
 ! Sum of liquid and ice cloud mixing-ratio
 real(kind=real_cvprec) :: qc
 
-! Loop counter
-integer :: ic
+! Loop counters
+integer :: ic, i_cond
 
 do ic = 1, n_points
   ! Initialise cloud fractions to zero
@@ -63,32 +66,50 @@ case (i_par_cloudfrac_hom)
   ! associated with each is just 0 if none present,
   ! 1 if any is present.
 
-  ! Set liquid cloud fraction to 1 if any liquid cloud present
-  do ic = 1, n_points
-    if ( q_cl(ic) > zero ) then
-      cloudfracs(ic,i_frac_liq) = one
-      cloudfracs(ic,i_frac_bulk) = one
+  do i_cond = 1, n_cond_species
+    ! Set liquid cloud fraction to 1 if any liquid cloud present
+    if ( cond_params(i_cond)%pt % i_sg == i_sg_frac_liq ) then
+      do ic = 1, n_points
+        if ( q_cond_super(ic,i_cond) > zero ) then
+          cloudfracs(ic,i_frac_liq) = one
+          cloudfracs(ic,i_frac_bulk) = one
+        end if
+      end do
+    end if
+    ! Set ice cloud fraction to 1 if any ice cloud present
+    if ( cond_params(i_cond)%pt % i_sg == i_sg_frac_ice ) then
+      do ic = 1, n_points
+        if ( q_cond_super(ic,i_cond) > zero ) then
+          cloudfracs(ic,i_frac_ice) = one
+          cloudfracs(ic,i_frac_bulk) = one
+        end if
+      end do
     end if
   end do
-
-  if ( l_cv_cf ) then
-    ! Set ice cloud fraction to 1 if any ice cloud present
-    do ic = 1, n_points
-      if ( q_cf(ic) > zero ) then
-        cloudfracs(ic,i_frac_ice) = one
-        cloudfracs(ic,i_frac_bulk) = one
-      end if
-    end do
-  end if
 
 case (i_par_cloudfrac_mph)
   ! Alternative option; when liquid and ice both present,
   ! they may not be fully overlapped.
-  ! Note: not allowed to use this option if l_cv_cf is false
-  ! (ice-cloud mass not in use).
+
+  ! Accumulate total liquid and ice cloud mixing-ratios
+  ! (temporarily storing in the cloud-fraction fields)
+  do i_cond = 1, n_cond_species
+    if ( cond_params(i_cond)%pt % i_sg == i_sg_frac_liq ) then
+      do ic = 1, n_points
+        cloudfracs(ic,i_frac_liq) = cloudfracs(ic,i_frac_liq)                  &
+                                  + q_cond_super(ic,i_cond)
+      end do
+    end if
+    if ( cond_params(i_cond)%pt % i_sg == i_sg_frac_ice ) then
+      do ic = 1, n_points
+        cloudfracs(ic,i_frac_ice) = cloudfracs(ic,i_frac_ice)                  &
+                                  + q_cond_super(ic,i_cond)
+      end do
+    end if
+  end do
 
   do ic = 1, n_points
-    qc = q_cl(ic) + q_cf(ic)
+    qc = cloudfracs(ic,i_frac_liq) + cloudfracs(ic,i_frac_ice)
     ! If any condensed water
     if ( qc > zero ) then
 
@@ -97,8 +118,8 @@ case (i_par_cloudfrac_mph)
 
       ! Set liquid and ice cloud fractions to their respective
       ! fractions of total condensate
-      cloudfracs(ic,i_frac_liq) = q_cl(ic) / qc
-      cloudfracs(ic,i_frac_ice) = q_cf(ic) / qc
+      cloudfracs(ic,i_frac_liq) = cloudfracs(ic,i_frac_liq) / qc
+      cloudfracs(ic,i_frac_ice) = cloudfracs(ic,i_frac_ice) / qc
 
       ! This yields zero overlap between liquid and ice.
       ! Parameterise some overlap by raising both fractions
