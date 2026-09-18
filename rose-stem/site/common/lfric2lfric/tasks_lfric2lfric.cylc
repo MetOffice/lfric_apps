@@ -61,6 +61,20 @@
         "src_mesh": "",
         "src_name": "",
         "src_type": "",
+	"mpi_parts": 4,
+    }) %}
+
+{% elif task_ns.conf_name == "map_C24_to_C12_1cpu" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["src_C12_L70","dst_C24"],
+        "resolution": "C24_C12",
+        "dst_mesh": "",
+        "dst_name": "",
+        "dst_type": "",
+        "src_mesh": "",
+        "src_name": "",
+        "src_type": "",
     }) %}
 
 {% elif task_ns.conf_name == "oasis_C24_to_C12" %}
