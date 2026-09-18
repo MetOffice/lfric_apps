@@ -129,6 +129,61 @@ contains
     @assertEqual(-2.0_r_tran, increment(1), use_tol)
     @assertEqual(-2.0_r_tran, increment(2), use_tol)
 
+    z(:) = 0.0_r_tran
+    ! x-like profile that is linear along S/N and constant along E/W.
+    z(idx_n2:idx_n2+1) = -2.0_r_tran
+    z(idx_n1:idx_n1+1) = -1.0_r_tran
+    z(idx_c:idx_c+1) = 0.0_r_tran
+    z(idx_s1:idx_s1+1) = 1.0_r_tran
+    z(idx_s2:idx_s2+1) = 2.0_r_tran
+    z(idx_w1:idx_w1+1) = 0.0_r_tran
+    z(idx_w2:idx_w2+1) = 0.0_r_tran
+    z(idx_e1:idx_e1+1) = 0.0_r_tran
+    z(idx_e2:idx_e2+1) = 0.0_r_tran
+
+    ! TEST 3: Positive meridional wind => positive increment on both levels.
+    increment(:) = 0.0_r_tran
+    wind(:) = (/ 0.0_r_tran, 2.0_r_tran, 0.0_r_tran, 2.0_r_tran /)
+
+    call horizontal_cubic_sl_metric_code( nlayers,       &
+                                          increment,     &
+                                          z,             &
+                                          stencil_sizes, &
+                                          stencil_max,   &
+                                          stencil_map,   &
+                                          wind,          &
+                                          ndf_wf,        &
+                                          undf_wf,       &
+                                          map_wf,        &
+                                          ndf_w2h,       &
+                                          undf_w2h,      &
+                                          map_w2h )
+
+    @assertEqual(2.0_r_tran, increment(1), use_tol)
+    @assertEqual(2.0_r_tran, increment(2), use_tol)
+
+    ! TEST 4: Negative meridional wind => negative increment on both levels.
+    increment(:) = 0.0_r_tran
+    wind(:) = (/ 0.0_r_tran, -2.0_r_tran, 0.0_r_tran, -2.0_r_tran /)
+
+    call horizontal_cubic_sl_metric_code( nlayers,       &
+                                          increment,     &
+                                          z,             &
+                                          stencil_sizes, &
+                                          stencil_max,   &
+                                          stencil_map,   &
+                                          wind,          &
+                                          ndf_wf,        &
+                                          undf_wf,       &
+                                          map_wf,        &
+                                          ndf_w2h,       &
+                                          undf_w2h,      &
+                                          map_w2h )
+
+    @assertEqual(-2.0_r_tran, increment(1), use_tol)
+    @assertEqual(-2.0_r_tran, increment(2), use_tol)
+
+
   end subroutine horizontal_cubic_sl_metric_kernel_test
 
 end module horizontal_cubic_sl_metric_kernel_mod_test
