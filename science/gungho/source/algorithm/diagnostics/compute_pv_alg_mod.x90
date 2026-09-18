@@ -74,8 +74,8 @@ contains
     use_fe = element_order_h > 0 .or. u%get_element_order_v() > 0
 
     ! get chi and panel id fields
-    chi      => get_coordinates( mesh%get_id() )
-    panel_id => get_panel_id( mesh%get_id() )
+    chi      => get_coordinates(mesh)
+    panel_id => get_panel_id(mesh)
     if (use_fe) then
       qr => get_qr_fe( )
       m3_inv => get_inverse_mass_matrix_fe(W3, mesh%get_id())

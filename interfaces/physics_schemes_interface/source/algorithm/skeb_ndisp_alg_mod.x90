@@ -7,10 +7,11 @@
 !> @brief Interface to the compute the numerical dissipation for SKEB
 
 module skeb_ndisp_alg_mod
+
     ! Use intrinsic data types and spaces
     use constants_mod,        only: r_def, i_def
     use fs_continuity_mod,    only: W1, W2H, W2, W3
-    ! USE types
+    ! use types
     use field_mod,            only: field_type
     use field_collection_mod, only: field_collection_type
     use function_space_mod,   only: function_space_type
@@ -141,8 +142,8 @@ module skeb_ndisp_alg_mod
   w2_fs => function_space_collection%get_fs( mesh, 0, 0, W2 )
   w3_fs => function_space_collection%get_fs( mesh, 0, 0, W3 )
   ! other variables from operators
-  chi      => get_coordinates( mesh%get_id() )
-  panel_id => get_panel_id( mesh%get_id() )
+  chi      => get_coordinates( mesh )
+  panel_id => get_panel_id( mesh )
 
   ! Initialise fields
   call u_h%initialise( vector_space = w2h_fs )
@@ -166,8 +167,8 @@ module skeb_ndisp_alg_mod
   div_h            => get_div_h(mesh%get_id())
   m3_inv           => get_inverse_mass_matrix_fv(W3, mesh%get_id())
   curl             => get_curl_fv(mesh%get_id())
-  face_selector_ew => get_face_selector_ew(mesh%get_id())
-  face_selector_ns => get_face_selector_ns(mesh%get_id())
+  face_selector_ew => get_face_selector_ew(mesh)
+  face_selector_ns => get_face_selector_ns(mesh)
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!  2)  calculate horizontal divergence & vertical component of vorticity  !!

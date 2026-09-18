@@ -256,43 +256,45 @@ Simplified call tree for setting up I/O in LFRic_atm
     │ │
     │ └─init_io                                        (components/driver/driver_io_mod.F90)
     │   │
-    │   └─init_xios_io_context                         (components/driver/driver_io_mod.F90)
-    │     │
-    │     ├─populate_filelist (=> init_gungho_files)   (gungho/driver/gungho_setup_io_mod.F90)
-    │     │
-    │     └─io_context%initialise_xios_context         (components/lfric_xios/lfric_xios_context_mod.f90)
+    │   ├─init_xios_io_context                         (components/driver/driver_io_mod.F90)
+    │   │ │
+    │   │ ├─populate_filelist (=> init_gungho_files)   (gungho/driver/gungho_setup_io_mod.F90)
+    │   │ │
+    │   │ └─io_context%initialise_xios_context         (components/lfric_xios/lfric_xios_context_mod.f90)
+    │   │   │
+    │   │   ├─xios_context_initialise                  xios
+    │   │   │
+    │   │   ├─xios_get_handle                          xios
+    │   │   │
+    │   │   ├─xios_set_current_context                 xios
+    │   │   │
+    │   │   ├─init_xios_calendar                       (components/lfric_xios/lfric_xios_setup_mod.x90)
+    │   │   │
+    │   │   ├─init_xios_dimensions                     (components/lfric_xios/lfric_xios_setup_mod.x90)
+    │   │   │
+    │   │   └─setup_xios_files                         (components/lfric_xios/lfric_xios_setup_mod.x90)
+    │   │
+    │   ├─before_close (=> before_context_close)       (gungho/driver/gungho_model_mod.F90)
+    │   │ │
+    │   │ ├─persistor%init                             (gungho/driver/gungho_model_mod.F90)
+    │   │ │
+    │   │ ├─process_gungho_prognostics(persistor)      (gungho/driver/create_gungho_prognostics_mod.F90)
+    │   │ │ │
+    │   │ │ └─persistor%apply(makespec())              (gungho/driver/gungho_model_mod.F90)
+    │   │ │   │
+    │   │ │   └─add_field                              (components/lfric-xios/lfric_xios_metafile_mod.F90)
+    │   │ │      │
+    │   │ │      ├─(various xios calls...)             xios
+    │   │ │      │
+    │   │ │      └─handle_legacy_field                 (components/lfric-xios/lfric_xios_metafile_mod.F90)
+    │   │ │
+    │   │ └─process_physics_prognostics(persistor)     (gungho/driver/create_physics_prognostics_mod.F90)
+    │   │    │
+    │   │    └─(…)
+    │   │
+    │   └─io_context%close_context_definition          (components/lfric_xios/lfric_xios_context_mod.f90)
     │       │
-    │       ├─xios_context_initialise                  xios
-    │       │
-    │       ├─xios_get_handle                          xios
-    │       │
-    │       ├─xios_set_current_context                 xios
-    │       │
-    │       ├─init_xios_calendar                       (components/lfric_xios/lfric_xios_setup_mod.x90)
-    │       │
-    │       ├─init_xios_dimensions                     (components/lfric_xios/lfric_xios_setup_mod.x90)
-    │       │
-    │       ├─setup_xios_files                         (components/lfric_xios/lfric_xios_setup_mod.x90)
-    │       │
-    │       ├─before_close (=> before_context_close)   (gungho/driver/gungho_model_mod.F90)
-    │       │ │
-    │       │ ├─persistor%init                         (gungho/driver/gungho_model_mod.F90)
-    │       │ │
-    │       │ ├─process_gungho_prognostics(persistor)  (gungho/driver/create_gungho_prognostics_mod.F90)
-    │       │ │ │
-    │       │ │ └─persistor%apply(makespec())          (gungho/driver/gungho_model_mod.F90)
-    │       │ │   │
-    │       │ │   └─add_field                          (components/lfric-xios/lfric_xios_metafile_mod.F90)
-    │       │ │      │
-    │       │ │      ├─(various xios calls...)         xios
-    │       │ │      │
-    │       │ │      └─handle_legacy_field             (components/lfric-xios/lfric_xios_metafile_mod.F90)
-    │       │ │
-    │       │ └─process_physics_prognostics(persistor) (gungho/driver/create_physics_prognostics_mod.F90)
-    │       │    │
-    │       │    └─(…)
-    │       │
-    │       └─xios_close_context_definitions           xios
+    │       └─xios_close_context_definition            xios
     │
     │
     └─create_model_data                                (gungho/driver/gungho_init_fields_mod.X90)

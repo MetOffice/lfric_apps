@@ -11,6 +11,7 @@ module time_dimensions_mod
   use log_mod,                   only: log_event,                             &
                                        log_scratch_space,                     &
                                        log_level_error
+  use lfric_xios_time_axis_mod,  only: read_time_dim
 #ifdef UM_PHYSICS
   ! This import split to support fparser which gets confused by FPP directives
   ! in the middle of a syntactic unit.
@@ -42,7 +43,14 @@ module time_dimensions_mod
                                        emiss_so2_high_ancil_path
 #endif
   use files_config_mod,          only: lbc_dir => lbc_directory,              &
-                                       lbc_filename
+                                       lbc_filename,                          &
+                                       nudging_filename,                      &
+                                       nudging_directory
+  use external_forcing_config_mod,  only : theta_forcing,                     &
+                                           theta_forcing_nudging,             &
+                                           wind_forcing,                      &
+                                           wind_forcing_nudging
+
 #ifdef UM_PHYSICS
   use aerosol_config_mod,        only: glomap_mode,                           &
                                        glomap_mode_ukca
@@ -55,63 +63,6 @@ module time_dimensions_mod
   public :: sync_time_dimensions
 
   contains
-
-  !> @brief Source time dimension from netcdf file
-  !> @param[in] path Fully qualified name of netcdf file
-  !> @result    Time dimension
-  function get_netcdf_time_dim(path) result(time_dim)
-    use netcdf, only: nf90_open, nf90_close, nf90_nowrite,                    &
-                      nf90_inq_dimid, nf90_inquire_dimension
-    implicit none
-
-    character(*), intent(in) :: path
-    integer(i_def) :: ncid
-    integer(i_def) :: dimid
-    integer(i_def) :: ierr
-    character(str_def) :: time_name
-    integer(i_def) :: time_dim
-
-    ierr = nf90_open(path, NF90_NOWRITE, ncid)
-    if (ierr /= 0) then
-      write(log_scratch_space,'(A, A, A, I3)')                                &
-        'error opening file ', trim(path),                                    &
-        ' for input, error code: ', ierr
-      call log_event(log_scratch_space, log_level_error)
-    end if
-
-    ierr = nf90_inq_dimid(ncid, 'time', dimid)
-    if (ierr /= 0) then
-      write(log_scratch_space, '(A, A, A, I3)')                               &
-        'error inquiring time dimension id in file ',                         &
-        trim(path),                                                           &
-        ', error code: ', ierr
-      call log_event(log_scratch_space, log_level_error)
-    end if
-
-    ierr = nf90_inquire_dimension(ncid, dimid, time_name, time_dim)
-    if (ierr /= 0) then
-      write(log_scratch_space, '(A, A, I3)')                                  &
-        'error inquiring time dimension, ',                                   &
-        'error code: ', ierr
-      call log_event(log_scratch_space, log_level_error)
-    end if
-
-    if (time_name /= 'time') then
-      write(log_scratch_space, '(A, A)')                                      &
-        'unexpected time dimension name, ',                                   &
-        time_name
-      call log_event(log_scratch_space, log_level_error)
-    end if
-
-    ierr = nf90_close(ncid)
-    if (ierr /= 0) then
-      write(log_scratch_space, '(A, A, A, I3)')                               &
-        'error closing file, ', trim(path),                                   &
-        ', error code: ', ierr
-      call log_event(log_scratch_space, log_level_error)
-    end if
-
-  end function get_netcdf_time_dim
 
   !> @brief Get time dimension of ancil file
   !> @param[in]  dir  Ancil file directory
@@ -129,10 +80,10 @@ module time_dimensions_mod
     if (file == cmdi) then
       status = .false.
     else if (file(1:1) == '/') then
-      tdim = get_netcdf_time_dim(trim(file) // '.nc')
+      tdim = read_time_dim(trim(file))
       status = .true.
     else
-      tdim = get_netcdf_time_dim(trim(dir) // '/' // trim(file) // '.nc')
+      tdim = read_time_dim(trim(dir) // '/' // trim(file))
       status = .true.
     end if
   end function get_ancil_dim
@@ -157,6 +108,9 @@ module time_dimensions_mod
     tdim = get_emiss_dim()
     if (tdim /= 0) &
       call set_axis_dimension('emiss_axis', tdim, tolerate_missing_axes)
+    tdim = get_nudging_dim()
+    if (tdim /= 0) &
+      call set_axis_dimension('nudging_time_axis', tdim, tolerate_missing_axes)
   end subroutine sync_time_dimensions
 
   !> @brief Source the dimension of the lbc_axis from the lbc file.
@@ -229,4 +183,23 @@ module time_dimensions_mod
 #endif
   end function get_emiss_dim
 
+  !> @brief Source the dimension of the nudging_time_axis from the
+  !> ancil file being read.
+  !>
+  !> @result The dimension of the nudging_time_axis
+  !>         or zero if there is no enabled nudging file.
+  !>
+  function get_nudging_dim() result(tdim)
+    implicit none
+    integer(i_def) :: tdim
+    tdim = 0
+
+    if (theta_forcing == theta_forcing_nudging .or.                   &
+        wind_forcing == wind_forcing_nudging) then
+
+      if (.not. get_ancil_dim(nudging_directory, nudging_filename, tdim)) return
+
+    end if
+
+  end function get_nudging_dim
 end module time_dimensions_mod

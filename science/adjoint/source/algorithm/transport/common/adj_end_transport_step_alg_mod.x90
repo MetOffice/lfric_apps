@@ -86,8 +86,8 @@ contains
     w2_fs => function_space_collection%get_fs(mesh, 0, 0, W2)
     w2h_fs => function_space_collection%get_fs(mesh, 0, 0, W2H)
     w2v_fs => function_space_collection%get_fs(mesh, 0, 0, W2V)
-    face_selector_ew => get_face_selector_ew(mesh_id)
-    face_selector_ns => get_face_selector_ns(mesh_id)
+    face_selector_ew => get_face_selector_ew(mesh)
+    face_selector_ns => get_face_selector_ns(mesh)
 
     ! Make specific routine for our most common splitting to slightly optimise
     ! for it

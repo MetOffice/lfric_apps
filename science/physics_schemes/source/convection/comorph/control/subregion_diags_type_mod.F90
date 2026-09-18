@@ -33,6 +33,10 @@ type :: subregion_diags_type
   ! Primary fields
   type(fields_diags_type) :: fields
 
+  ! Static stability for test ascents up and down
+  type(diag_type) :: Nsq_up
+  type(diag_type) :: Nsq_dn
+
 end type subregion_diags_type
 
 
@@ -44,14 +48,14 @@ contains
 ! subregion_diags structure and store a list of pointers to them
 !----------------------------------------------------------------
 ! Note: this routine gets called twice
-!   1st call (l_count_diags = .true.):
+!   1st call (l_count_diags = .TRUE.):
 !     Check whether each diag is requested and count how many
-!   2nd call (l_count_diags = .false.):
+!   2nd call (l_count_diags = .FALSE.):
 !     Set other properties for requested diags, and assign
 !     pointers from active diags list.
 subroutine subregion_diags_assign( region_name, l_count_diags,                 &
                                    subregion_diags,                            &
-                                   parent_list, parent_i_diag )
+                                   parent_list, parent_i_diag, i_super )
 
 use comorph_constants_mod, only: name_length
 use diag_type_mod, only: diag_list_type, diag_assign, dom_type
@@ -77,6 +81,9 @@ type(diag_list_type), target, intent(in out) :: parent_list(:)
 ! Counter for active diagnostics in the parent structure
 integer, intent(in out) :: parent_i_diag
 
+! Counter for addresses of fields in compressed diags super-array
+integer, intent(in out) :: i_super
+
 ! Name for each diagnostic
 character(len=name_length) :: diag_name
 
@@ -84,7 +91,7 @@ character(len=name_length) :: diag_name
 type(dom_type) :: doms
 
 ! Counters
-integer :: i_diag, i_super
+integer :: i_diag
 
 
 ! Set subregion_diags list to point at a section of parent list
@@ -102,9 +109,6 @@ end if
 ! Initialise active 3-D diagnostic counter to zero
 i_diag = 0
 
-! Initialise super-array address for diagnostics
-i_super = 0
-
 ! Allowed domain profile for the following diags is 3-D only.
 doms % x_y_z = .true.
 
@@ -120,6 +124,16 @@ call fields_diags_assign( region_name, l_count_diags, doms,                    &
                           subregion_diags % fields,                            &
                           subregion_diags % list,                              &
                           i_diag, i_super )
+
+! Static stability for test ascents up and down
+diag_name = trim(adjustl(region_name)) // "_Nsq_up"
+call diag_assign( diag_name, l_count_diags, doms,                              &
+                  subregion_diags % Nsq_up,                                    &
+                  subregion_diags % list, i_diag, i_super )
+diag_name = trim(adjustl(region_name)) // "_Nsq_dn"
+call diag_assign( diag_name, l_count_diags, doms,                              &
+                  subregion_diags % Nsq_dn,                                    &
+                  subregion_diags % list, i_diag, i_super )
 
 
 ! Increment parent active diagnostics counter

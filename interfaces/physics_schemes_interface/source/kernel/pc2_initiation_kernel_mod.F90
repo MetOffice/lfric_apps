@@ -188,7 +188,7 @@ subroutine pc2_initiation_code( nlayers, seg_len,                  &
                                 ndf_bl,  undf_bl,  map_bl)
 
     use constants_mod,    only: r_def, i_def, r_um, i_um
-    use cloud_config_mod, only: i_bm_ez_opt, i_bm_ez_opt_entpar
+    use cloud_config_mod, only: bm_ez_opt, bm_ez_opt_entpar
 
     !---------------------------------------
     ! UM modules
@@ -369,7 +369,7 @@ subroutine pc2_initiation_code( nlayers, seg_len,                  &
       end do     ! k
     end do
 
-    if (i_bm_ez_opt == i_bm_ez_opt_entpar) then
+    if (bm_ez_opt == bm_ez_opt_entpar) then
       ! Length-scale used for entraining parcel mode construction method
       do i = 1, seg_len
         do k = 1, nlayers

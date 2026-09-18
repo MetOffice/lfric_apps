@@ -201,8 +201,16 @@ The table below shows a list of possible entries for ``task_dict`` in the task d
      - Controls the level of information that XIOS logs. Used to set the ``info_level`` within xml files. When ``xios_info_level`` is  greater than 1, logging is directed to ``xios_<client/server>_<rank>.out`` and ``xios_<client/server>_<rank>.err``, otherwise it is output to stdout and stderr (see ``xios_print_file`` for more details).
    * - xios_print_file
      - Str
-     - "false"
-     - Controls whether XIOS creates ``xios_<client/server>_<rank>.out`` and ``xios_<client/server>_<rank>.err`` files. When set to "false", logging is directed to stdout and stderr. If ``xios_info_level`` is greater than 1, ``xios_print_file`` will be set to "true".
+     - ".false."
+     - Controls whether XIOS creates ``xios_<client/server>_<rank>.out`` and ``xios_<client/server>_<rank>.err`` files. When set to ".false.", logging is directed to stdout and stderr. If ``xios_info_level`` is greater than 1, ``xios_print_file`` will be set to ".true.", overriding any task_dict setting.  This string must be a Fortran logical.
+   * - xios_min_buffer_size
+     - Int
+     - 8192
+     - The minimum buffer size to allocate to each XIOS client and server, given in bytes. The value is used to set the ``min_buffer_size`` setting within XML files, see the `Link XIOS documentation <https://ipsl.pages.in2p3.fr/projets/xios-projects/xios/XIOS_user_guide/#buffer-related-options/>`__ for more information.. The default value within XIOS is 8192 (8Kb).
+   * - xios_buffer_size_factor
+     - Float
+     - 1.0
+     - A multiplier for the ``detected_size`` of XIOS buffers, see the `Link XIOS documentation <https://ipsl.pages.in2p3.fr/projets/xios-projects/xios/XIOS_user_guide/#buffer-related-options/>`__ for more information. Allows scaling of buffers that are automatically calculated by XIOS. Default value is 1.0.
    * - example_dir
      - Str
      - "example"

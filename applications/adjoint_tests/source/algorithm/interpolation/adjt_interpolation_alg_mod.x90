@@ -7,6 +7,7 @@
 !> @brief Module containing standard adjoint tests for the w3/wth to/from w2 interpolations
 module adjt_interpolation_alg_mod
 
+  use base_mesh_config_mod,          only : geometry, topology
   use field_mod,                     only : field_type
   use function_space_mod,            only : function_space_type
   use mesh_mod,                      only : mesh_type
@@ -253,7 +254,8 @@ module adjt_interpolation_alg_mod
                  setval_random(v_in_w3), setval_x(v_in_w3_inp, v_in_w3), &
                  setval_random(w_in_wth), setval_x(w_in_wth_inp, w_in_wth) )
 
-    call interp_w3wth_to_w2_alg( u_in_w2, u_in_w3, v_in_w3, w_in_wth )
+    call interp_w3wth_to_w2_alg( u_in_w2, u_in_w3, v_in_w3, w_in_wth, &
+                                 geometry, topology )
 
     call invoke( x_innerproduct_x(u2_inner_prod, u_in_w2), &
                  x_innerproduct_x(u3_inner_prod, u_in_w3), &
@@ -293,7 +295,8 @@ module adjt_interpolation_alg_mod
     v3_v3_inp_inner_prod = 0.0_r_def
     wt_wt_inp_inner_prod = 0.0_r_def
 
-    call adj_interp_w3wth_to_w2_alg( u_in_w2, u_in_w3, v_in_w3, w_in_wth )
+    call adj_interp_w3wth_to_w2_alg( u_in_w2, u_in_w3, v_in_w3, w_in_wth, &
+                                     geometry, topology )
 
     call invoke( x_innerproduct_y( u2_u2_inp_inner_prod, u_in_w2, u_in_w2_inp ), &
                  x_innerproduct_y( u3_u3_inp_inner_prod, u_in_w3, u_in_w3_inp ), &

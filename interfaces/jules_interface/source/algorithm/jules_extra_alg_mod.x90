@@ -7,6 +7,7 @@
 
 module jules_extra_alg_mod
 
+  use config_mod,                    only: config_type
   use constants_mod,                 only: i_def, r_def
   use field_mod,                     only: field_type
   use integer_field_mod,             only: integer_field_type
@@ -41,6 +42,7 @@ contains
   !> modules) and Carbon (via triffid and inferno/fire modules). Note: only the
   !> hydrol and snow components are implemented so far.
   !>
+  !> @param[in]     config              Application namelist configuration object
   !> @param[in]     microphysics_fields Fields for mphys scheme
   !> @param[in]     convection_fields   Fields for convection scheme
   !> @param[in,out] surface_fields      Fields for surface scheme
@@ -51,7 +53,8 @@ contains
   !> @param[in]     water_extraction    Extraction of water from each soil layer (kg m-2 s-1)
   !> @param[in]     lake_evap           Evaporation from lakes GBM
   !> @param[in]     dt                  Timestep length (s)
-  subroutine jules_extra_alg(microphysics_fields, convection_fields,      &
+  subroutine jules_extra_alg(config,                                      &
+                             microphysics_fields, convection_fields,      &
                              surface_fields, soil_fields, snow_fields,    &
                              surf_heat_flux,                              &
                              canopy_evap, water_extraction, lake_evap, dt)
@@ -60,6 +63,8 @@ contains
     use um_sizes_init_mod,      only: um_sizes_init
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type( field_collection_type ), intent(in)    :: microphysics_fields
     type( field_collection_type ), intent(in)    :: convection_fields
@@ -91,6 +96,7 @@ contains
     type( field_type ), pointer :: snowice_melt           => null()
     type( field_type ), pointer :: snowice_sublimation    => null()
     type( field_type ), pointer :: urbztm                 => null()
+    type( field_type ), pointer :: inland_basin_flow      => null()
 
     ! Sea ice fields
     type( field_type ), pointer :: sea_ice_thickness      => null()
@@ -205,6 +211,7 @@ contains
     call soil_fields%get_field('wetness_under_soil', wetness_under_soil)
     call soil_fields%get_field('surface_runoff', surface_runoff)
     call soil_fields%get_field('sub_surface_runoff', sub_surface_runoff)
+    call soil_fields%get_field('inland_basin_flow', inland_basin_flow)
 
     ! Snow fields
     call snow_fields%get_field('tile_snow_mass', tile_snow_mass)
@@ -247,6 +254,7 @@ contains
                            mean_topog_index, a_sat_frac, c_sat_frac,           &
                            a_wet_frac, c_wet_frac, tile_temperature,           &
                            net_prim_prod, snowice_sublimation, surf_heat_flux, &
+                           inland_basin_flow,                                  &
                            canopy_evap, water_extraction,                      &
                            thermal_cond_wet_soil, urbztm,                      &
                            soil_temperature, soil_moisture,                    &
@@ -262,7 +270,7 @@ contains
                            throughfall) )
 
     if ( lake_water_conservation ) then
-      call lake_water_correction(lake_evap, soil_moisture,                     &
+      call lake_water_correction(config, lake_evap, soil_moisture,             &
                                  unfrozen_soil_moisture, soil_moist_sat,       &
                                  soil_moist_wilt, tile_fraction, dt)
     end if
@@ -290,7 +298,8 @@ contains
                                      surface_runoff, sub_surface_runoff,       &
                                      water_table, soil_moist_wilt,             &
                                      soil_moist_crit, soil_moist_sat,          &
-                                     grid_canopy_water,grid_throughfall)
+                                     grid_canopy_water,grid_throughfall,       &
+                                     inland_basin_flow)
 
       ! Output sea ice diagnostics
       call output_diags_for_jules_seaice(tile_fraction, sea_ice_thickness,     &

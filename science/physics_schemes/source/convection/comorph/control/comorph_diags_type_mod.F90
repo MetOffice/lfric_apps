@@ -13,8 +13,7 @@ use diag_type_mod, only: diag_type, diag_list_type
 use fields_diags_type_mod, only: fields_diags_type
 use draft_diags_type_mod, only: draft_diags_type
 use diags_2d_type_mod, only: diags_2d_type
-use subregion_diags_type_mod, only: subregion_diags_type
-use subregion_mod, only: n_regions
+use genesis_diags_type_mod, only: genesis_diags_type
 
 implicit none
 
@@ -39,10 +38,12 @@ type :: comorph_diags_type
   ! and pointers to the output fields...
 
 
+  ! Primary field values input to comorph
+  type(fields_diags_type) :: fields_inp
+  ! Primary field values output from comorph
+  type(fields_diags_type) :: fields_out
   ! Increments to primary fields:
-
   type(fields_diags_type) :: fields_incr
-
 
   ! Miscellanious diagnostics:
 
@@ -80,14 +81,8 @@ type :: comorph_diags_type
   ! Turbulence-based parcel radius
   type(diag_type) :: turb_radius
 
-  ! Properties of each of the grid sub-regions;
-  ! dry (no cloud or precep)
-  ! liq (liquid-only cloud)
-  ! mph (mixed-phased cloud)
-  ! icr (ice and/or rain but no liquid cloud)
-  type(subregion_diags_type) :: subregion_diags(n_regions)
-  ! Number of requested diagnostics over all subregions
-  integer :: n_diags_subregions = 0
+  ! Diagnostics from the initiation mass-source calculation
+  type(genesis_diags_type) :: genesis_diags
 
 
   ! Diagnostics from the convective updrafts and downdrafts
@@ -138,9 +133,9 @@ contains
 ! store a list of pointers to them
 !----------------------------------------------------------------
 ! Note: this routine gets called twice
-!   1st call (l_count_diags = .true.):
+!   1st call (l_count_diags = .TRUE.):
 !     Check whether each diag is requested and count how many
-!   2nd call (l_count_diags = .false.):
+!   2nd call (l_count_diags = .FALSE.):
 !     Set other properties for requested diags, and assign
 !     pointers from active diags list.
 subroutine comorph_diags_assign( l_count_diags, comorph_diags )
@@ -151,8 +146,7 @@ use comorph_constants_mod, only: n_updraft_types, n_dndraft_types,             &
 use fields_diags_type_mod, only: fields_diags_assign
 use draft_diags_type_mod, only: draft_diags_assign
 use diags_2d_type_mod, only: diags_2d_assign
-use subregion_mod, only: n_regions, region_names
-use subregion_diags_type_mod, only: subregion_diags_assign
+use genesis_diags_type_mod, only: genesis_diags_assign
 use diag_type_mod, only: diag_assign, dom_type
 use init_diag_array_mod, only: init_diag_array
 
@@ -173,7 +167,7 @@ type(dom_type) :: doms
 character(len=name_length) :: diag_name
 
 ! Counters
-integer :: i_diag, i_super, i_region
+integer :: i_diag, i_super
 
 
 if ( l_count_diags ) then
@@ -196,9 +190,25 @@ i_super = 0
 doms % x_y_z = .true.
 
 
-! If any primary field increment diagnostics requested
+! If any primary field input / output / increment diagnostics requested
 ! (or this is the initialisation call, in which case we
 !  need to check whether any are requested)
+if ( comorph_diags%fields_inp%n_diags > 0 .or. l_count_diags ) then
+  ! Call routine to count number of active diags in fields_inp
+  diag_name = "conv_inp"
+  call fields_diags_assign( diag_name, l_count_diags, doms,                    &
+                            comorph_diags % fields_inp,                        &
+                            comorph_diags % list,                              &
+                            i_diag, i_super )
+end if
+if ( comorph_diags%fields_out%n_diags > 0 .or. l_count_diags ) then
+  ! Call routine to count number of active diags in fields_out
+  diag_name = "conv_out"
+  call fields_diags_assign( diag_name, l_count_diags, doms,                    &
+                            comorph_diags % fields_out,                        &
+                            comorph_diags % list,                              &
+                            i_diag, i_super )
+end if
 if ( comorph_diags%fields_incr%n_diags > 0 .or. l_count_diags ) then
   ! Call routine to count number of active diags in fields_incr
   diag_name = "conv_incr"
@@ -256,7 +266,7 @@ call diag_assign( diag_name, l_count_diags, doms,                              &
 !  need to check whether any are requested)
 if ( comorph_diags%turb_fields_pert%n_diags > 0                                &
      .or. l_count_diags ) then
-  ! Call routine to count number of active diags in fields_incr
+  ! Call routine to count number of active diags in turb_fields_pert
   diag_name = "turb_pert"
   call fields_diags_assign( diag_name, l_count_diags, doms,                    &
                             comorph_diags % turb_fields_pert,                  &
@@ -270,19 +280,10 @@ call diag_assign( diag_name, l_count_diags, doms,                              &
                   comorph_diags % turb_radius,                                 &
                   comorph_diags % list, i_diag, i_super )
 
-
-! Fractions and fields for sub-regions of the grid-box
-do i_region = 1, n_regions
-  call subregion_diags_assign( region_names(i_region), l_count_diags,          &
-         comorph_diags % subregion_diags(i_region),                            &
-         comorph_diags % list,  i_diag )
-  if ( l_count_diags ) then
-    ! Sum requested diags over all subregions
-    comorph_diags % n_diags_subregions                                         &
-       = comorph_diags % n_diags_subregions                                    &
-       + comorph_diags % subregion_diags(i_region) % n_diags
-  end if
-end do
+! Diagnostics from the initiation mass-source calculations
+call genesis_diags_assign( l_count_diags,                                      &
+                           comorph_diags % genesis_diags,                      &
+                           comorph_diags % list, i_diag )
 
 
 ! If any updraft or downdraft diagnostics are requested,

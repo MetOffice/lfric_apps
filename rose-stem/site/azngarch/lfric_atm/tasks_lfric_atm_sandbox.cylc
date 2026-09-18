@@ -1,6 +1,6 @@
 {% do LOG.debug("Started in site/azngarch/lfric_atm/tasks_lfric_atm_sandbox.cylc") %}
 
-{% if task_ns.conf_name == "nwp_gal9_short-C12_12x1" %}
+{% if task_ns.conf_name == "nwp_gal10_short-C12_12x1" %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump","no_diags"],
@@ -12,7 +12,7 @@
         "threads": 1,
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_short-C12_6x2" %}
+{% elif task_ns.conf_name == "nwp_gal10_short-C12_6x2" %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump","no_diags"],
@@ -24,7 +24,7 @@
         "threads": 2,
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9-C48_MG_24x1" %}
+{% elif task_ns.conf_name == "nwp_gal10-C48_MG_24x1" %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump","no_diags"],
@@ -37,7 +37,7 @@
         "memory": [2, "GB"]
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9-C48_MG_12x2" %}
+{% elif task_ns.conf_name == "nwp_gal10-C48_MG_12x2" %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump","no_diags"],
@@ -50,7 +50,7 @@
         "memory": [2, "GB"]
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9-C48_MG_6x4" %}
+{% elif task_ns.conf_name == "nwp_gal10-C48_MG_6x4" %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump","no_diags"],
@@ -63,7 +63,7 @@
         "memory": [2, "GB"]
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9-C192_MG_72x4" %}
+{% elif task_ns.conf_name == "nwp_gal10-C192_MG_72x4" %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump","no_diags"],
@@ -76,7 +76,7 @@
         "memory": [2, "GB"]
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9-C192_MG_144x2" %}
+{% elif task_ns.conf_name == "nwp_gal10-C192_MG_144x2" %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump","no_diags"],
@@ -89,7 +89,7 @@
         "memory": [2, "GB"]
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9-C192_MG_288x1" %}
+{% elif task_ns.conf_name == "nwp_gal10-C192_MG_288x1" %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump","no_diags"],
@@ -102,7 +102,7 @@
         "memory": [2, "GB"]
     }) %}
 
-{% elif task_ns.conf_name == "clim_gal9_short-C12_12x1" %}
+{% elif task_ns.conf_name == "clim_gal10_short-C12_12x1" %}
 
     {% do task_dict.update({
         "opt_confs": ["climate","um_dump","no_diags"],
@@ -114,7 +114,7 @@
         "threads": 1,
     }) %}
 
-{% elif task_ns.conf_name == "clim_gal9_short-C12_6x2" %}
+{% elif task_ns.conf_name == "clim_gal10_short-C12_6x2" %}
 
     {% do task_dict.update({
         "opt_confs": ["climate","um_dump","no_diags"],
@@ -126,7 +126,7 @@
         "threads": 2,
     }) %}
 
-{% elif task_ns.conf_name == "clim_gal9-C48_MG_24x1" %}
+{% elif task_ns.conf_name == "clim_gal10-C48_MG_24x1" %}
 
     {% do task_dict.update({
         "opt_confs": ["climate","um_dump","no_diags"],
@@ -139,7 +139,7 @@
         "memory": [8, "GB"]
     }) %}
 
-{% elif task_ns.conf_name == "clim_gal9-C48_MG_12x2" %}
+{% elif task_ns.conf_name == "clim_gal10-C48_MG_12x2" %}
 
     {% do task_dict.update({
         "opt_confs": ["climate","um_dump","no_diags"],
@@ -152,7 +152,7 @@
         "memory": [8, "GB"]
     }) %}
 
-{% elif task_ns.conf_name == "clim_gal9-C48_MG_6x4" %}
+{% elif task_ns.conf_name == "clim_gal10-C48_MG_6x4" %}
 
     {% do task_dict.update({
         "opt_confs": ["climate","um_dump","no_diags"],
@@ -165,7 +165,7 @@
         "memory": [8, "GB"]
     }) %}
 
-{% elif task_ns.conf_name == "clim_gal9_chem-C12_12x1" %}
+{% elif task_ns.conf_name == "clim_gal10_chem-C12_12x1" %}
 
     {% do task_dict.update({
         "opt_confs": ["climate","chemistry","um_dump","no_diags"],
@@ -177,7 +177,7 @@
         "threads": 1,
     }) %}
 
-{% elif task_ns.conf_name == "clim_gal9_chem-C12_6x2" %}
+{% elif task_ns.conf_name == "clim_gal10_chem-C12_6x2" %}
 
     {% do task_dict.update({
         "opt_confs": ["climate","chemistry","um_dump","no_diags"],
