@@ -43,9 +43,9 @@
 
     {% do task_dict.update({
         "opt_confs": ["pseudolevels"],
-        "resolution": "C48",
+        "resolution": "C224",
         "mesh_name": "dynamics",
-        "source_grid_res": "C48",
+        "source_grid_res": "C224",
         "source_grid_levs": "70",
         "source_grid_type": "global",
         "target_grid_res": "N48",

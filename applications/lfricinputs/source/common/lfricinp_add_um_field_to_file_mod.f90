@@ -17,7 +17,7 @@ use lfricinp_stashmaster_mod,          only: get_stashmaster_item, grid,     &
                                              ppfc, p_points_values_over_sea, &
                                              sm_lbvc => lbvc,                &
                                              cfff,                           &
-                                             levelt, pseudt,                 &
+                                             levelt, pseudl, pseudt,         &
                                              rho_levels, theta_levels,       &
                                              single_level,                   &
                                              cfll,                           &
@@ -89,7 +89,7 @@ character(len=*), parameter :: routinename = 'lfricinp_add_um_field_to_file'
 integer(kind=int64) :: grid_type_code ! Stashmaster grid type code
 integer(kind=int64) :: level_code     ! Stashmaster level code
 
-integer(kind=int64) :: level_number, i_field
+integer(kind=int64) :: level_number, i_field, snow_level_number
 
 integer(kind=int64) :: lookup_int(len_int_lookup) = um_imdi
 real(kind=real64)   :: lookup_real_tmp(len_real_lookup+len_int_lookup) = um_rmdi
@@ -232,12 +232,23 @@ if (lookup_int(lbvc) >= 126 .and. lookup_int(lbvc) <= 139 &
   write(log_scratch_space, '(A,I0,A)') &
      "Vertical coord type ", lookup_int(lbvc), " treated as single layer"
   call log_event(log_scratch_space, LOG_LEVEL_INFO)
+
   ! Pseudo-level number
   if ( get_stashmaster_item(stashcode, pseudt) /= 0 ) then
-    lookup_int(lbuser5) = level_number
-    write(log_scratch_space, '(A,I0)')                                     &
-       "Pseudo-level number set as  ", level_number
-    call log_event(log_scratch_space, LOG_LEVEL_INFO)
+
+    if ( get_stashmaster_item(stashcode, pseudl) == 11 ) then
+      snow_level_number = ( (level_number + 2)/3 )*1000 + (level_number - ((level_number + 2)/3 - 1)*3)
+      lookup_int(lbuser5) = snow_level_number
+      write(log_scratch_space, '(A,I0)')                                     &
+        "Pseudo-level number set as  ", snow_level_number
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+    else
+      lookup_int(lbuser5) = level_number
+      write(log_scratch_space, '(A,I0)')                                     &
+        "Pseudo-level number set as  ", level_number
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+    end if
+
   end if
 
   ! Special codes inc single level, set to 0.0
