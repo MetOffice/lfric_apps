@@ -19,7 +19,7 @@
     <field_group operation="instant" freq_op="1h" prec="4">
       <field field_ref="cloud__cloud_amount_maxrnd" />            <!-- s09i207 -->
       <field field_ref="cloud__ceilometer_cloud_amount_maxrnd" /> <!-- s09i233 -->
-      <field field_ref="cloud__cloud_base_altitude" />            <!-- s09i210 -->
+      <field field_ref="cloud__cloud_base_2p5_okta" />            <!-- s09i210 -->
       <field field_ref="cloud__very_low_type_cloud_amount" />     <!-- s09i202 -->
       <field field_ref="cloud__low_type_cloud_amount" />          <!-- s09i203 -->
       <field field_ref="cloud__medium_type_cloud_amount" />       <!-- s09i204 -->
