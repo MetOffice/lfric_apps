@@ -94,12 +94,10 @@ contains
   type( field_type )          :: dv_relax
   type( field_type )          :: dw_relax
 
-  type( field_type ), target  :: u_horiz_mean
-  type( field_type ), target  :: v_horiz_mean
+  type( field_type )          :: u_horiz_mean
+  type( field_type )          :: v_horiz_mean
 
-  type( field_type ), pointer :: height_w3 => null()
-  type( field_type ), pointer :: u_relax_target => null()
-  type( field_type ), pointer :: v_relax_target => null()
+  type( field_type ), pointer :: height_w3
   type( mesh_type ),  pointer :: mesh
 
   ! Only apply relaxation between the specified times, unless only
@@ -155,35 +153,15 @@ contains
   ! Calculate the horizontal mean of the wind components
   call horiz_mean_alg( u_horiz_mean, nlayers, twod_mesh, u_in_w3 )
   call horiz_mean_alg( v_horiz_mean, nlayers, twod_mesh, v_in_w3 )
-  u_relax_target => u_horiz_mean
-  v_relax_target => v_horiz_mean
-
-  ! Removed ability to do local relaxation; split off to a different module.
-  ! if ( relax_by_domain_mean ) then
-    ! Initialize the temporary fields to hold the horizontal means
-    ! call u_horiz_mean%initialise( vector_space = u_in_w3%get_function_space() )
-    ! all v_horiz_mean%initialise( vector_space = v_in_w3%get_function_space() )
-    ! Calculate the horizontal mean of the wind components
-    ! call horiz_mean_alg( u_horiz_mean, nlayers, twod_mesh, u_in_w3 )
-    ! call horiz_mean_alg( v_horiz_mean, nlayers, twod_mesh, v_in_w3 )
-    ! Set the targeted relaxation field to be the horizontal mean
-    ! u_relax_target => u_horiz_mean
-    ! v_relax_target => v_horiz_mean
-  ! else
-    ! Set the targeted relaxation field to be the physical winds
-    ! This imposes strict local relaxation
-  !  u_relax_target => u_in_w3
-  !  v_relax_target => v_in_w3
-  !end if
 
   if ( number_heights == 1 ) then
     ! Constant relaxation with height
     ! Calculate the relaxation increments
     call invoke( setval_c( du_relax, u_wind_relax_now(1) ), &
-                 inc_X_minus_Y( du_relax, u_relax_target ), &
+                 inc_X_minus_Y( du_relax, u_horiz_mean ), &
                  inc_a_times_X( relaxation_coeff, du_relax ) )
     call invoke( setval_c( dv_relax, v_wind_relax_now(1) ), &
-                 inc_X_minus_Y( dv_relax, v_relax_target ), &
+                 inc_X_minus_Y( dv_relax, v_horiz_mean ), &
                  inc_a_times_X( relaxation_coeff, dv_relax ) )
     ! Transform the relaxation increments back to w2 space
     call set_wind( config, du_relaxation_forcing, du_relax, dv_relax, dw_relax)
@@ -213,22 +191,22 @@ contains
       height_w3 => get_height_fv( config, mesh, W3 )
     end if
     profile_extrap = .false.
-    call invoke( setval_X( du_relax, u_relax_target),             &
+    call invoke( setval_X( du_relax, u_horiz_mean),               &
                  ! Write interpolated profile to du_relax
                  profile_interp_kernel_type( du_relax, height_w3, &
                                              profile_extrap ),    &
                  ! Find the difference; this is zero for levels outside of profile range
-                 inc_X_minus_Y( du_relax, u_relax_target ),       &
+                 inc_X_minus_Y( du_relax, u_horiz_mean ),         &
                  inc_a_times_X( relaxation_coeff, du_relax ) )
     ! Now repeat for v-wind
     profile_data( 1:profile_size ) = v_wind_relax_now( 1:profile_size )
     ! Reuse the same profile_heights
     ! Not sure if profile_extrap is changed; just to be safe
     profile_extrap = .false.
-    call invoke( setval_X( dv_relax, v_relax_target),             &
+    call invoke( setval_X( dv_relax, v_horiz_mean),               &
                  profile_interp_kernel_type( dv_relax, height_w3, &
                                              profile_extrap ),    &
-                 inc_X_minus_Y( dv_relax, v_relax_target ),       &
+                 inc_X_minus_Y( dv_relax, v_horiz_mean ),         &
                  inc_a_times_X( relaxation_coeff, dv_relax ) )
     ! Transform the relaxation increments back to w2 space
     call set_wind( config, du_relaxation_forcing, du_relax, dv_relax, dw_relax)
