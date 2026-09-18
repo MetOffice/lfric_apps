@@ -363,8 +363,8 @@ if ( i_check_bad_values_cmpr > i_check_bad_none ) then
   do i_field = 1, n_fields_tot
     call check_bad_values_cmpr( cmpr, k, par_next_fields(:,i_field),           &
                                 where_string, field_names(i_field),            &
-                                field_min = field_min(i_field),                &
-                                field_max = field_max(i_field) )
+                                field_min=field_min(i_field),                  &
+                                field_max=field_max(i_field) )
   end do
   if ( present( res_source_fields ) ) then
     ! Check resolved-scale source-terms
@@ -765,8 +765,8 @@ if ( i_check_bad_values_cmpr > i_check_bad_none ) then
   do i_field = 1, n_fields_tot
     call check_bad_values_cmpr( cmpr, k, par_next_fields(:,i_field),           &
                                 where_string, field_names(i_field),            &
-                                field_min = field_min(i_field),                &
-                                field_max = field_max(i_field) )
+                                field_min=field_min(i_field),                  &
+                                field_max=field_max(i_field) )
   end do
   if ( present( res_source_fields ) ) then
     ! Check resolved-scale source-terms
