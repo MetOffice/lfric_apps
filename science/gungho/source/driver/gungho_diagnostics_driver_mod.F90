@@ -342,8 +342,7 @@ contains
                               mr, moist_dyn, plev_geopot)
       ! Wet bulb freezing level
       call freeze_lev_alg(modeldb%config,theta, mr, moist_dyn, exner_in_wth)
-      ! Aviation diagnostics (tropopause height, temperature, pressure,
-      ! ICAO height, geopotential thickness, and snow probability)
+      ! Aviation diagnostics
       call aviation_diags_alg(modeldb%config, theta, exner_in_wth, plev_geopot)
 #endif
 
