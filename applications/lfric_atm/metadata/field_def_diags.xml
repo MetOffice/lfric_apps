@@ -198,6 +198,11 @@
   <field id="aerosol__acc_ins_du" name="acc_ins_du" long_name="accumulation_insoluble_mode_dust_mmr" unit="kg kg-1" grid_ref="full_level_face_grid" />
   <field id="aerosol__n_cor_ins" name="n_cor_ins" long_name="coarse_insoluble_mode_number" unit="1" grid_ref="full_level_face_grid" />
   <field id="aerosol__cor_ins_du" name="cor_ins_du" long_name="coarse_insoluble_mode_dust_mmr" unit="kg kg-1" grid_ref="full_level_face_grid" />
+  <field id="aerosol__mconc_du_acc_ins" name="mconc_du_acc_ins" long_name="mass_concentration_of_dust_in_accumulation_insoluble_mode" unit="kg m-3" grid_ref="full_level_face_grid" />
+  <field id="aerosol__mconc_du_cor_ins" name="mconc_du_cor_ins" long_name="mass_concentration_of_dust_in_coarse_insoluble_mode" unit="kg m-3" grid_ref="full_level_face_grid" />
+  <field id="aerosol__cn_number_conc" name="cn_number_conc" long_name="condensation_nuclei_number_concentration_for_dry_diameter_greater_than_3nm_excluding_nucleation_mode" unit="cm-3" grid_ref="full_level_face_grid" />
+  <field id="aerosol__ccn_number_conc_30nm" name="ccn_number_conc_30nm" long_name="cloud_condensation_nuclei_number_concentration_for_dry_diameter_greater_than_30nm" unit="cm-3" grid_ref="full_level_face_grid" />
+  <field id="aerosol__ccn_number_conc_50nm" name="ccn_number_conc_50nm" long_name="cloud_condensation_nuclei_number_concentration_for_dry_diameter_greater_than_50nm" unit="cm-3" grid_ref="full_level_face_grid" />
   <field id="aerosol__cloud_drop_no_conc" name="cloud_drop_no_conc" long_name="cloud_droplet_number_concentration" unit="m-3" grid_ref="full_level_face_grid" />
   <field id="aerosol__drydp_ait_sol" name="drydp_ait_sol" long_name="dry_modal_diameter_of_aitken_soluble_mode" unit="m" grid_ref="full_level_face_grid" />
   <field id="aerosol__drydp_acc_sol" name="drydp_acc_sol" long_name="dry_modal_diameter_of_accumulation_soluble_mode" unit="m" grid_ref="full_level_face_grid" />
