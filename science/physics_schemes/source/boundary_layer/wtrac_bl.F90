@@ -27,40 +27,40 @@ type :: bl_wtrac_type
 
   ! WATER TRACER fields used in both the explicit and implicit sections:
 
-  real(r_bl), allocatable :: qcf_use(:,:,:) ! qcf used in bl scheme
+  real(r_bl), allocatable :: qcf_use(:,:)   ! qcf used in bl scheme
                                             ! (depends on l_noice_in_turb)
-  real(r_bl), allocatable :: qw(:,:,:)      ! Total water content (q+qcl+qcf)
-  real(r_bl), allocatable :: fqw(:,:,:)     ! Water tracer flux between layers
+  real(r_bl), allocatable :: qw(:,:)        ! Total water content (q+qcl+qcf)
+  real(r_bl), allocatable :: fqw(:,:)       ! Water tracer flux between layers
                                             ! (kg per square metre per sec).
                                             !  FQW(,1) is total water flux
                                             !  from surface, 'E'.
   real(r_bl), allocatable :: fqw_surft(:,:)       ! Surface fqw for land tiles
                                             ! (Not used in model at present)
-  real(r_bl), allocatable :: fqw_sicat(:,:,:)     ! Surface fqw over sea ice
+  real(r_bl), allocatable :: fqw_sicat(:,:)       ! Surface fqw over sea ice
                                             ! (Not used in model at present)
 
   ! WATER TRACER fields used in explicit section only:
 
-  real(r_bl), allocatable :: grad_q_adj(:,:)! Humidity gradient adjustment
+  real(r_bl), allocatable :: grad_q_adj(:)  ! Humidity gradient adjustment
                                             ! for non-local mixing in unstable
                                             ! turbulent boundary layer.
-  real(r_bl), allocatable :: fq_nt(:,:,:)   ! Non-turubulent moisture flux
-  real(r_bl), allocatable :: fq_nt_dscb(:,:)! Non-turbulent moisture flux at
+  real(r_bl), allocatable :: fq_nt(:,:)     ! Non-turubulent moisture flux
+  real(r_bl), allocatable :: fq_nt_dscb(:)  ! Non-turbulent moisture flux at
                                             ! base of the DSC layer
-  real(r_bl), allocatable :: totqf_zh(:,:)  ! Total moisture fluxes at
-  real(r_bl), allocatable :: totqf_zhsc(:,:)! inversions
+  real(r_bl), allocatable :: totqf_zh(:)    ! Total moisture fluxes at
+  real(r_bl), allocatable :: totqf_zhsc(:)  ! inversions
 
   ! WATER TRACER fields used in implicit section only:
 
-  real(r_bl), allocatable :: dqw(:,:,:)     ! BL increment to q field
-  real(r_bl), allocatable :: dqw_nt(:,:,:)  ! Non-turbulent increment to qw
-  real(r_bl), allocatable :: dqw1_1(:,:)    ! Coefficient neede for implicit
+  real(r_bl), allocatable :: dqw(:,:)       ! BL increment to q field
+  real(r_bl), allocatable :: dqw_nt(:,:)    ! Non-turbulent increment to qw
+  real(r_bl), allocatable :: dqw1_1(:)      ! Coefficient neede for implicit
                                             ! coupling at level k_blend_tq
 
-  real(r_bl), allocatable :: qcf_latest_use(:,:,:)
-  real(r_bl), allocatable :: q_earliest(:,:,:)    ! Fields used for storage in
-  real(r_bl), allocatable :: qcl_earliest(:,:,:)  ! ni_imp_ctl
-  real(r_bl), allocatable :: qcf_earliest(:,:,:)
+  real(r_bl), allocatable :: qcf_latest_use(:,:)
+  real(r_bl), allocatable :: q_earliest(:,:)      ! Fields used for storage in
+  real(r_bl), allocatable :: qcl_earliest(:,:)    ! ni_imp_ctl
+  real(r_bl), allocatable :: qcf_earliest(:,:)
 
 end type
 
@@ -115,27 +115,27 @@ if (l_wtrac) then
   do i_wt = 1, n_wtrac
 
     allocate(wtrac_bl(i_wt)%qcf_use(tdims_l%i_start:tdims_l%i_end,             &
-             tdims_l%j_start:tdims_l%j_end, tdims_l%k_start:bl_levels))
+         tdims_l%k_start:bl_levels))
 
     allocate(wtrac_bl(i_wt)%qw(tdims%i_start:tdims%i_end,                      &
-             tdims%j_start:tdims%j_end, bl_levels))
+         bl_levels))
 
     allocate(wtrac_bl(i_wt)%fqw(pdims%i_start:pdims%i_end,                     &
-             pdims%j_start:pdims%j_end, bl_levels))
+         bl_levels))
 
     allocate(wtrac_bl(i_wt)%fqw_surft(land_pts,ntiles))
 
     allocate(wtrac_bl(i_wt)%fqw_sicat(pdims%i_start:pdims%i_end,               &
-             pdims%j_start:pdims%j_end, nice_use))
+             nice_use))
 
   end do
 else
   do i_wt = 1, n_wtrac
-    allocate(wtrac_bl(i_wt)%qcf_use(1,1,1))
-    allocate(wtrac_bl(i_wt)%qw(1,1,1))
-    allocate(wtrac_bl(i_wt)%fqw(1,1,1))
+    allocate(wtrac_bl(i_wt)%qcf_use(1,1))
+    allocate(wtrac_bl(i_wt)%qw(1,1))
+    allocate(wtrac_bl(i_wt)%fqw(1,1))
     allocate(wtrac_bl(i_wt)%fqw_surft(1,1))
-    allocate(wtrac_bl(i_wt)%fqw_sicat(1,1,1))
+    allocate(wtrac_bl(i_wt)%fqw_sicat(1,1))
   end do
 end if
 
@@ -224,26 +224,22 @@ if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 if (l_wtrac) then
   do i_wt = 1, n_wtrac
-    allocate(wtrac_bl(i_wt)%grad_q_adj(pdims%i_start:pdims%i_end,              &
-                                       pdims%j_start:pdims%j_end))
+    allocate(wtrac_bl(i_wt)%grad_q_adj(pdims%i_start:pdims%i_end))
     allocate(wtrac_bl(i_wt)%fq_nt(pdims%i_start:pdims%i_end,                   &
-                                  pdims%j_start:pdims%j_end,bl_levels+1))
-    allocate(wtrac_bl(i_wt)%fq_nt_dscb(pdims%i_start:pdims%i_end,              &
-                                       pdims%j_start:pdims%j_end))
-    allocate(wtrac_bl(i_wt)%totqf_zh(pdims%i_start:pdims%i_end,                &
-                                     pdims%j_start:pdims%j_end))
-    allocate(wtrac_bl(i_wt)%totqf_zhsc(pdims%i_start:pdims%i_end,              &
-                                       pdims%j_start:pdims%j_end))
+                                  bl_levels+1))
+    allocate(wtrac_bl(i_wt)%fq_nt_dscb(pdims%i_start:pdims%i_end))
+    allocate(wtrac_bl(i_wt)%totqf_zh(pdims%i_start:pdims%i_end))
+    allocate(wtrac_bl(i_wt)%totqf_zhsc(pdims%i_start:pdims%i_end))
   end do
 
 else
 
   do i_wt = 1, n_wtrac
-    allocate(wtrac_bl(i_wt)%grad_q_adj(1,1))
-    allocate(wtrac_bl(i_wt)%fq_nt(1,1,1))
-    allocate(wtrac_bl(i_wt)%fq_nt_dscb(1,1))
-    allocate(wtrac_bl(i_wt)%totqf_zh(1,1))
-    allocate(wtrac_bl(i_wt)%totqf_zhsc(1,1))
+    allocate(wtrac_bl(i_wt)%grad_q_adj(1))
+    allocate(wtrac_bl(i_wt)%fq_nt(1,1))
+    allocate(wtrac_bl(i_wt)%fq_nt_dscb(1))
+    allocate(wtrac_bl(i_wt)%totqf_zh(1))
+    allocate(wtrac_bl(i_wt)%totqf_zhsc(1))
   end do
 
 end if
@@ -331,38 +327,37 @@ if (l_wtrac_bl) then
   do i_wt = 1, n_wtrac
 
     allocate(wtrac_bl(i_wt)%dqw(tdims%i_start:tdims%i_end,                     &
-             tdims%j_start:tdims%j_end,bl_levels))
+             bl_levels))
 
     allocate(wtrac_bl(i_wt)%dqw_nt(tdims%i_start:tdims%i_end,                  &
-             tdims%j_start:tdims%j_end,bl_levels))
+             bl_levels))
 
-    allocate(wtrac_bl(i_wt)%dqw1_1(tdims%i_start:tdims%i_end,                  &
-             tdims%j_start:tdims%j_end))
+    allocate(wtrac_bl(i_wt)%dqw1_1(tdims%i_start:tdims%i_end))
 
     allocate(wtrac_bl(i_wt)%qcf_latest_use(tdims%i_start:tdims%i_end,          &
-             tdims%j_start:tdims%j_end,bl_levels))
+             bl_levels))
 
     allocate(wtrac_bl(i_wt)%q_earliest(tdims%i_start:tdims%i_end,              &
-             tdims%j_start:tdims%j_end,tdims%k_end))
+             tdims%k_end))
 
     allocate(wtrac_bl(i_wt)%qcl_earliest(tdims%i_start:tdims%i_end,            &
-             tdims%j_start:tdims%j_end,tdims%k_end))
+             tdims%k_end))
 
     allocate(wtrac_bl(i_wt)%qcf_earliest(tdims%i_start:tdims%i_end,            &
-             tdims%j_start:tdims%j_end,tdims%k_end))
+             tdims%k_end))
 
   end do
 
 else
 
   do i_wt = 1, n_wtrac
-    allocate(wtrac_bl(i_wt)%dqw(1,1,1))
-    allocate(wtrac_bl(i_wt)%dqw_nt(1,1,1))
-    allocate(wtrac_bl(i_wt)%dqw1_1(1,1))
-    allocate(wtrac_bl(i_wt)%qcf_latest_use(1,1,1))
-    allocate(wtrac_bl(i_wt)%q_earliest(1,1,1))
-    allocate(wtrac_bl(i_wt)%qcl_earliest(1,1,1))
-    allocate(wtrac_bl(i_wt)%qcf_earliest(1,1,1))
+    allocate(wtrac_bl(i_wt)%dqw(1,1))
+    allocate(wtrac_bl(i_wt)%dqw_nt(1,1))
+    allocate(wtrac_bl(i_wt)%dqw1_1(1))
+    allocate(wtrac_bl(i_wt)%qcf_latest_use(1,1))
+    allocate(wtrac_bl(i_wt)%q_earliest(1,1))
+    allocate(wtrac_bl(i_wt)%qcl_earliest(1,1))
+    allocate(wtrac_bl(i_wt)%qcf_earliest(1,1))
   end do
 end if
 

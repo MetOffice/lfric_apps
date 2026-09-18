@@ -1,8 +1,8 @@
-##############################################################################
-# (c) Crown copyright 2025 Met Office. All rights reserved.
+# -----------------------------------------------------------------------------
+# (C) 2025 Crown copyright Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
-##############################################################################
+# -----------------------------------------------------------------------------
 
 # Summary
 # =======
@@ -67,6 +67,10 @@ match_rhs = "tot_n_pnts"
 
 
 def trans(psyir):
+    """
+    :param psyir: the PSyIR of the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+    """
     chunk_size = os.getenv("UKCA_FULL_CHUNK_SIZE")
     if chunk_size is None:
         # Do nothing if the chunk size is not set

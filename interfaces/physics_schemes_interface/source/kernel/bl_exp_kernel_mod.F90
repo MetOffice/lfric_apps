@@ -6,15 +6,15 @@
 !> @brief Interface to the explicit UM boundary layer scheme.
 module bl_exp_kernel_mod
 
-  use argument_mod,           only : arg_type,                   &
-                                     GH_FIELD, GH_REAL,          &
-                                     GH_INTEGER,                 &
-                                     GH_READ, GH_WRITE,          &
-                                     GH_READWRITE, DOMAIN,       &
-                                     ANY_DISCONTINUOUS_SPACE_1,  &
-                                     ANY_DISCONTINUOUS_SPACE_2,  &
-                                     ANY_DISCONTINUOUS_SPACE_3,  &
-                                     ANY_DISCONTINUOUS_SPACE_4,  &
+  use argument_mod,           only : arg_type,                                 &
+                                     GH_FIELD, GH_REAL,                        &
+                                     GH_INTEGER,                               &
+                                     GH_READ, GH_WRITE,                        &
+                                     GH_READWRITE, DOMAIN,                     &
+                                     ANY_DISCONTINUOUS_SPACE_1,                &
+                                     ANY_DISCONTINUOUS_SPACE_2,                &
+                                     ANY_DISCONTINUOUS_SPACE_3,                &
+                                     ANY_DISCONTINUOUS_SPACE_4,                &
                                      ANY_DISCONTINUOUS_SPACE_5
   use constants_mod,          only : i_def, i_um, r_def, r_um, r_bl
   use empty_data_mod,         only : empty_real_data
@@ -263,106 +263,106 @@ contains
   !> @param[in]     ndf_ent                Number of DOFs per cell for entrainment levels
   !> @param[in]     undf_ent               Number of total DOFs for entrainment levels
   !> @param[in]     map_ent                Dofmap for cell for entrainment levels
-  subroutine bl_exp_code(nlayers, seg_len,                      &
-                         theta_in_wth,                          &
-                         rho_in_w3,                             &
-                         rho_in_wth,                            &
-                         wetrho_in_wth,                         &
-                         exner_in_w3,                           &
-                         exner_in_wth,                          &
-                         u_in_w3,                               &
-                         v_in_w3,                               &
-                         w_in_wth,                              &
-                         velocity_w2v,                          &
-                         m_v_n,                                 &
-                         m_cl_n,                                &
-                         m_ci_n,                                &
-                         height_w3,                             &
-                         height_wth,                            &
-                         dz_wth,                                &
-                         rdz_w3,                                &
-                         dtrdz_wth,                             &
-                         shear,                                 &
-                         delta,                                 &
-                         max_diff_smag,                         &
-                         zh_2d,                                 &
-                         ntml_2d,                               &
-                         cumulus_2d,                            &
-                         tile_fraction,                         &
-                         sd_orog_2d,                            &
-                         peak_to_trough_orog,                   &
-                         silhouette_area_orog,                  &
-                         tile_temperature,                      &
-                         rhostar_2d,                            &
-                         recip_l_mo_sea_2d,                     &
-                         t1_sd_2d,                              &
-                         q1_sd_2d,                              &
-                         dtl_mphys,                             &
-                         dmt_mphys,                             &
-                         sw_heating_rate,                       &
-                         lw_heating_rate,                       &
-                         cf_bulk,                               &
-                         cf_liquid,                             &
-                         rh_crit,                               &
-                         tnuc,                                  &
-                         tnuc_nlcl,                             &
-                         dsldzm,                                &
-                         mix_len_bm,                            &
-                         wvar,                                  &
-                         visc_m_blend,                          &
-                         visc_h_blend,                          &
-                         dw_bl,                                 &
-                         rhokm_bl,                              &
-                         surf_interp,                           &
-                         rhokh_bl,                              &
-                         tke_bl,                                &
-                         ngstress_bl,                           &
-                         bq_bl,                                 &
-                         bt_bl,                                 &
-                         moist_flux_bl,                         &
-                         heat_flux_bl,                          &
-                         dtrdz_tq_bl,                           &
-                         fd_taux,                               &
-                         fd_tauy,                               &
-                         sea_u_current,                         &
-                         sea_v_current,                         &
-                         lmix_bl,                               &
-                         gradrinr,                              &
-                         z0m_eff,                               &
-                         ustar,                                 &
-                         zh_nonloc,                             &
-                         zhsc_2d,                               &
-                         z_lcl,                                 &
-                         inv_depth,                             &
-                         qcl_at_inv_top,                        &
-                         shallow_flag,                          &
-                         uw0_flux,                              &
-                         vw0_flux,                              &
-                         lcl_height,                            &
-                         parcel_top,                            &
-                         level_parcel_top,                      &
-                         wstar_2d,                              &
-                         thv_flux,                              &
-                         parcel_buoyancy,                       &
-                         qsat_at_lcl,                           &
-                         bl_weight_1dbl,                        &
-                         bl_type_ind,                           &
-                         level_ent,                             &
-                         level_ent_dsc,                         &
-                         ent_we_lim,                            &
-                         ent_t_frac,                            &
-                         ent_zrzi,                              &
-                         ent_we_lim_dsc,                        &
-                         ent_t_frac_dsc,                        &
-                         ent_zrzi_dsc,                          &
-                         zht,                                   &
-                         oblen,                                 &
-                         ndf_wth, undf_wth, map_wth,            &
-                         ndf_w3, undf_w3, map_w3,               &
-                         ndf_2d, undf_2d, map_2d,               &
-                         ndf_tile, undf_tile, map_tile,         &
-                         ndf_surf, undf_surf, map_surf,         &
-                         ndf_bl, undf_bl, map_bl,               &
+  subroutine bl_exp_code(nlayers, seg_len,                                     &
+                         theta_in_wth,                                         &
+                         rho_in_w3,                                            &
+                         rho_in_wth,                                           &
+                         wetrho_in_wth,                                        &
+                         exner_in_w3,                                          &
+                         exner_in_wth,                                         &
+                         u_in_w3,                                              &
+                         v_in_w3,                                              &
+                         w_in_wth,                                             &
+                         velocity_w2v,                                         &
+                         m_v_n,                                                &
+                         m_cl_n,                                               &
+                         m_ci_n,                                               &
+                         height_w3,                                            &
+                         height_wth,                                           &
+                         dz_wth,                                               &
+                         rdz_w3,                                               &
+                         dtrdz_wth,                                            &
+                         shear,                                                &
+                         delta,                                                &
+                         max_diff_smag,                                        &
+                         zh_2d,                                                &
+                         ntml_2d,                                              &
+                         cumulus_2d,                                           &
+                         tile_fraction,                                        &
+                         sd_orog_2d,                                           &
+                         peak_to_trough_orog,                                  &
+                         silhouette_area_orog,                                 &
+                         tile_temperature,                                     &
+                         rhostar_2d,                                           &
+                         recip_l_mo_sea_2d,                                    &
+                         t1_sd_2d,                                             &
+                         q1_sd_2d,                                             &
+                         dtl_mphys,                                            &
+                         dmt_mphys,                                            &
+                         sw_heating_rate,                                      &
+                         lw_heating_rate,                                      &
+                         cf_bulk,                                              &
+                         cf_liquid,                                            &
+                         rh_crit,                                              &
+                         tnuc,                                                 &
+                         tnuc_nlcl,                                            &
+                         dsldzm,                                               &
+                         mix_len_bm,                                           &
+                         wvar,                                                 &
+                         visc_m_blend,                                         &
+                         visc_h_blend,                                         &
+                         dw_bl,                                                &
+                         rhokm_bl,                                             &
+                         surf_interp,                                          &
+                         rhokh_bl,                                             &
+                         tke_bl,                                               &
+                         ngstress_bl,                                          &
+                         bq_bl,                                                &
+                         bt_bl,                                                &
+                         moist_flux_bl,                                        &
+                         heat_flux_bl,                                         &
+                         dtrdz_tq_bl,                                          &
+                         fd_taux,                                              &
+                         fd_tauy,                                              &
+                         sea_u_current,                                        &
+                         sea_v_current,                                        &
+                         lmix_bl,                                              &
+                         gradrinr,                                             &
+                         z0m_eff,                                              &
+                         ustar,                                                &
+                         zh_nonloc,                                            &
+                         zhsc_2d,                                              &
+                         z_lcl,                                                &
+                         inv_depth,                                            &
+                         qcl_at_inv_top,                                       &
+                         shallow_flag,                                         &
+                         uw0_flux,                                             &
+                         vw0_flux,                                             &
+                         lcl_height,                                           &
+                         parcel_top,                                           &
+                         level_parcel_top,                                     &
+                         wstar_2d,                                             &
+                         thv_flux,                                             &
+                         parcel_buoyancy,                                      &
+                         qsat_at_lcl,                                          &
+                         bl_weight_1dbl,                                       &
+                         bl_type_ind,                                          &
+                         level_ent,                                            &
+                         level_ent_dsc,                                        &
+                         ent_we_lim,                                           &
+                         ent_t_frac,                                           &
+                         ent_zrzi,                                             &
+                         ent_we_lim_dsc,                                       &
+                         ent_t_frac_dsc,                                       &
+                         ent_zrzi_dsc,                                         &
+                         zht,                                                  &
+                         oblen,                                                &
+                         ndf_wth, undf_wth, map_wth,                           &
+                         ndf_w3, undf_w3, map_w3,                              &
+                         ndf_2d, undf_2d, map_2d,                              &
+                         ndf_tile, undf_tile, map_tile,                        &
+                         ndf_surf, undf_surf, map_surf,                        &
+                         ndf_bl, undf_bl, map_bl,                              &
                          ndf_ent, undf_ent, map_ent)
 
     !---------------------------------------
@@ -375,10 +375,10 @@ contains
     !---------------------------------------
     use atm_fields_bounds_mod, only: pdims
     use bl_option_mod, only: alpha_cd, l_noice_in_turb, l_use_surf_in_ri
-    use cv_run_mod, only: i_convection_vn, i_convection_vn_6a,               &
+    use cv_run_mod, only: i_convection_vn, i_convection_vn_6a,                 &
                           cldbase_opt_dp, cldbase_opt_md
     use nlsizes_namelist_mod, only: bl_levels
-    use planet_constants_mod, only: p_zero, kappa, planet_radius, &
+    use planet_constants_mod, only: p_zero, kappa, planet_radius,              &
                                     lcrcp => lcrcp_bl, lsrcp => lsrcp_bl
     use timestep_mod, only: timestep
 
@@ -388,7 +388,7 @@ contains
 
     ! subroutines used
     use atmos_physics2_save_restore_mod, only: ap2_init_conv_diag
-    use bl_diags_mod, only: BL_diag, dealloc_bl_imp, dealloc_bl_expl, &
+    use bl_diags_mod, only: BL_diag, dealloc_bl_imp, dealloc_bl_expl,          &
                             alloc_bl_expl
     use conv_diag_6a_mod, only: conv_diag_6a
     use buoy_tq_mod, only: buoy_tq
@@ -513,57 +513,57 @@ contains
     logical, parameter :: l_extra_call = .false.
 
     ! profile fields from level 1 upwards
-    real(r_bl), dimension(seg_len,1,nlayers) :: rho_dry, z_rho, z_theta,     &
-         bulk_cloud_fraction, rho_wet_tq, u_p, v_p, rhcpt, theta,            &
-         p_rho_levels, exner_rho_levels, tgrad_bm, mix_len_tmp,              &
-         exner_theta_levels,                                                 &
+    real(r_bl), dimension(seg_len,nlayers) :: rho_dry, z_rho, z_theta,         &
+         bulk_cloud_fraction, rho_wet_tq, u_p, v_p, rhcpt, theta,              &
+         p_rho_levels, exner_rho_levels, tgrad_bm, mix_len_tmp,                &
+         exner_theta_levels,                                                   &
          bulk_cf_conv, qcf_conv, visc_h, visc_m, rneutml_sq, tnuc_new
     ! Single precision is not accurate enough for distance from centre of planet
-    real(r_um), dimension(seg_len,1,nlayers) :: r_rho_levels
+    real(r_um), dimension(seg_len,nlayers) :: r_rho_levels
 
     ! profile field on boundary layer levels
-    real(r_bl), dimension(seg_len,1,bl_levels) :: fqw, ftl, rhokh, bq_gb,    &
-         bt_gb, dtrdz_charney_grid, rdz_charney_grid, rhokm_mix,             &
-         temperature, rho_mix_tq, dzl_charney, qw, tl, bt, bq,               &
+    real(r_bl), dimension(seg_len,bl_levels) :: fqw, ftl, rhokh, bq_gb,        &
+         bt_gb, dtrdz_charney_grid, rdz_charney_grid, rhokm_mix,               &
+         temperature, rho_mix_tq, dzl_charney, qw, tl, bt, bq,                 &
          bt_cld, bq_cld, a_qs, a_dqsdt, dqsdt, rhokm, tau_fd_x, tau_fd_y, rdz
 
-    real(r_um), dimension(seg_len,1,bl_levels) :: w_mixed, w_flux
+    real(r_um), dimension(seg_len,bl_levels) :: w_mixed, w_flux
 
     ! profile fields from level 2 upwards
-    real(r_bl), dimension(seg_len,1,2:nlayers+1) :: bl_w_var
+    real(r_bl), dimension(seg_len,2:nlayers+1) :: bl_w_var
 
-    real(r_bl), dimension(seg_len,1,2:bl_levels) :: f_ngstress
+    real(r_bl), dimension(seg_len,2:bl_levels) :: f_ngstress
 
     ! profile fields from level 0 upwards
-    real(r_bl), dimension(seg_len,1,0:nlayers) :: p_theta_levels, etadot, w, &
+    real(r_bl), dimension(seg_len,0:nlayers) :: p_theta_levels, etadot, w,     &
          q, qcl, qcf
     ! Single precision is not accurate enough for distance from centre of planet
-    real(r_um), dimension(seg_len,1,0:nlayers) :: r_theta_levels
+    real(r_um), dimension(seg_len,0:nlayers) :: r_theta_levels
 
     ! profile fields with a hard-wired 2
-    real(r_bl), dimension(seg_len,1,2,bl_levels) :: rad_hr, micro_tends
+    real(r_bl), dimension(seg_len,2,bl_levels) :: rad_hr, micro_tends
 
     ! single level real fields
-    real(r_bl), dimension(seg_len,1) :: p_star, tstar, zh_prev, zlcl, zhpar, &
-         zh, dzh, wstar, wthvs, u_0_p, v_0_p, zlcl_uv, qsat_lcl, delthvu,    &
-         bl_type_1, bl_type_2, bl_type_3, bl_type_4, bl_type_5, bl_type_6,   &
-         bl_type_7, uw0, vw0, zhnl, rhostar,                                 &
-         recip_l_mo_sea, flandg, t1_sd, q1_sd, qcl_inv_top,                  &
-         fb_surf, rib_gb, z0m_eff_gb, zhsc, ustargbm,                        &
+    real(r_bl), dimension(seg_len) :: p_star, tstar, zh_prev, zlcl, zhpar,     &
+         zh, dzh, wstar, wthvs, u_0_p, v_0_p, zlcl_uv, qsat_lcl, delthvu,      &
+         bl_type_1, bl_type_2, bl_type_3, bl_type_4, bl_type_5, bl_type_6,     &
+         bl_type_7, uw0, vw0, zhnl, rhostar,                                   &
+         recip_l_mo_sea, flandg, t1_sd, q1_sd, qcl_inv_top,                    &
+         fb_surf, rib_gb, z0m_eff_gb, zhsc, ustargbm,                          &
          max_diff, delta_smag, tnuc_nlcl_um
-    real(r_um), dimension(seg_len,1) :: surf_dep_flux, zeroes
+    real(r_um), dimension(seg_len) :: surf_dep_flux, zeroes
 
-    real(r_bl), dimension(seg_len,1,3) :: t_frac, t_frac_dsc, we_lim, &
+    real(r_bl), dimension(seg_len,3) :: t_frac, t_frac_dsc, we_lim,            &
          we_lim_dsc, zrzi, zrzi_dsc
 
     ! single level integer fields
-    integer(i_um), dimension(seg_len,1) :: ntml, ntpar, kent, kent_dsc
+    integer(i_um), dimension(seg_len) :: ntml, ntpar, kent, kent_dsc
 
     ! single level logical fields
-    logical, dimension(seg_len,1) :: land_sea_mask, cumulus, l_shallow
+    logical, dimension(seg_len) :: land_sea_mask, cumulus, l_shallow
 
     ! fields on land points
-    real(r_bl), dimension(:), allocatable :: sil_orog_land_gb, ho2r2_orog_gb, &
+    real(r_bl), dimension(:), allocatable :: sil_orog_land_gb, ho2r2_orog_gb,  &
          sd_orog
 
     ! integer fields on land points
@@ -575,18 +575,18 @@ contains
     integer(i_um), parameter :: nscmdpkgs=15
     logical,       parameter :: l_scmdiags(nscmdpkgs)=.false.
 
-    real(r_bl), dimension(seg_len,1,nlayers) :: rho_wet
+    real(r_bl), dimension(seg_len,nlayers) :: rho_wet
 
-    real(r_bl), dimension(seg_len,1,0:nlayers) :: conv_prog_precip
+    real(r_bl), dimension(seg_len,0:nlayers) :: conv_prog_precip
 
-    real(r_bl), dimension(seg_len,1) :: z0h_scm, z0m_scm, w_max, ql_ad,      &
-         cin_undilute, cape_undilute, entrain_coef, ustar_in, g_ccp, h_ccp,  &
-         ccp_strength, cu_over_orog, shallowc, flux_e, flux_h,               &
+    real(r_bl), dimension(seg_len) :: z0h_scm, z0m_scm, w_max, ql_ad,          &
+         cin_undilute, cape_undilute, entrain_coef, ustar_in, g_ccp, h_ccp,    &
+         ccp_strength, cu_over_orog, shallowc, flux_e, flux_h,                 &
          z0msea, tstar_sea, tstar_land, ice_fract, tstar_sice
 
-    integer(i_um), dimension(seg_len,1) :: nlcl, conv_type, nbdsc, ntdsc
+    integer(i_um), dimension(seg_len) :: nlcl, conv_type, nbdsc, ntdsc
 
-    logical, dimension(seg_len,1) :: no_cumulus, l_congestus, l_congestus2,  &
+    logical, dimension(seg_len) :: no_cumulus, l_congestus, l_congestus2,      &
          l_mid
 
     ! Water tracer fields which are not currently used but are required
@@ -607,17 +607,17 @@ contains
     ! Land fraction
     land_field = 0
     do i = 1, seg_len
-      flandg(i,1) = surf_interp(map_surf(1,i)+0)
-      if (flandg(i,1) > 0.0_r_bl) then
+      flandg(i) = surf_interp(map_surf(1,i)+0)
+      if (flandg(i) > 0.0_r_bl) then
         land_field = land_field + 1
       end if
-      fb_surf(i,1) = surf_interp(map_surf(1,i)+6)
+      fb_surf(i) = surf_interp(map_surf(1,i)+6)
     end do
 
     allocate(land_index(land_field))
     l = 0
     do i = 1, seg_len
-      if (flandg(i,1) > 0.0_r_bl) then
+      if (flandg(i) > 0.0_r_bl) then
         l = l+1
         land_index(l) = i
       end if
@@ -625,10 +625,10 @@ contains
 
     if (l_use_surf_in_ri) then
       do i = 1, seg_len
-        tstar(i,1) = 0.0_r_bl
+        tstar(i) = 0.0_r_bl
         do n = 1, n_surf_tile
           if (tile_fraction(map_tile(1,i)+n-1) > 0.0_r_bl) then
-            tstar(i,1) = tstar(i,1) + tile_temperature(map_tile(1,i)+n-1) * tile_fraction(map_tile(1,i)+n-1)
+            tstar(i) = tstar(i) + tile_temperature(map_tile(1,i)+n-1) * tile_fraction(map_tile(1,i)+n-1)
           end if
         end do
       end do
@@ -648,24 +648,24 @@ contains
 
     ! Information passed from Jules explicit
     do i = 1, seg_len
-      ustargbm(i,1) = ustar(map_2d(1,i))
-      rhostar(i,1) = rhostar_2d(map_2d(1,i))
-      recip_l_mo_sea(i,1) = recip_l_mo_sea_2d(map_2d(1,i))
-      rib_gb(i,1) = gradrinr(map_wth(1,i))
-      z0m_eff_gb(i,1) = z0m_eff(map_2d(1,i))
-      ftl(i,1,1) = heat_flux_bl(map_w3(1,i))
-      fqw(i,1,1) = moist_flux_bl(map_w3(1,i))
-      rhokh(i,1,1) = rhokh_bl(map_w3(1,i))
-      rhokm(i,1,1) = rhokm_bl(map_wth(1,i))
-      t1_sd(i,1) = t1_sd_2d(map_2d(1,i))
-      q1_sd(i,1) = q1_sd_2d(map_2d(1,i))
+      ustargbm(i) = ustar(map_2d(1,i))
+      rhostar(i) = rhostar_2d(map_2d(1,i))
+      recip_l_mo_sea(i) = recip_l_mo_sea_2d(map_2d(1,i))
+      rib_gb(i) = gradrinr(map_wth(1,i))
+      z0m_eff_gb(i) = z0m_eff(map_2d(1,i))
+      ftl(i,1) = heat_flux_bl(map_w3(1,i))
+      fqw(i,1) = moist_flux_bl(map_w3(1,i))
+      rhokh(i,1) = rhokh_bl(map_w3(1,i))
+      rhokm(i,1) = rhokm_bl(map_wth(1,i))
+      t1_sd(i) = t1_sd_2d(map_2d(1,i))
+      q1_sd(i) = q1_sd_2d(map_2d(1,i))
     end do
 
     if (prog_tnuc) then
       ! Use tnuc from LFRic and map onto tnuc_new for UM to be passed to conv_diag_6a
       do k = 1, nlayers
         do i = 1, seg_len
-          tnuc_new(i,1,k) = real(tnuc(map_wth(1,i) + k),kind=r_bl)
+          tnuc_new(i,k) = real(tnuc(map_wth(1,i) + k),kind=r_bl)
         end do ! i
       end do ! k
     end if
@@ -677,81 +677,81 @@ contains
     do i = 1, seg_len
       do k = 0, nlayers
         ! w wind on theta levels
-        w(i,1,k) = w_in_wth(map_wth(1,i) + k)
+        w(i,k) = w_in_wth(map_wth(1,i) + k)
         ! height of theta levels from centre of planet
-        r_theta_levels(i,1,k) = height_wth(map_wth(1,i) + k) + planet_radius
-        p_theta_levels(i,1,k) = p_zero*(exner_in_wth(map_wth(1,i) + k))**(1.0_r_def/kappa)
+        r_theta_levels(i,k) = height_wth(map_wth(1,i) + k) + planet_radius
+        p_theta_levels(i,k) = p_zero*(exner_in_wth(map_wth(1,i) + k))**(1.0_r_def/kappa)
       end do
       do k = 1, nlayers
-        exner_theta_levels(i,1,k) = exner_in_wth(map_wth(1,i) + k)
+        exner_theta_levels(i,k) = exner_in_wth(map_wth(1,i) + k)
         ! potential temperature on theta levels
-        theta(i,1,k) = theta_in_wth(map_wth(1,i) + k)
+        theta(i,k) = theta_in_wth(map_wth(1,i) + k)
         ! wet density on theta and rho levels
-        rho_wet_tq(i,1,k) = wetrho_in_wth(map_wth(1,i) + k)
+        rho_wet_tq(i,k) = wetrho_in_wth(map_wth(1,i) + k)
         ! dry density on rho levels
-        rho_dry(i,1,k) = rho_in_w3(map_w3(1,i) + k-1)
+        rho_dry(i,k) = rho_in_w3(map_w3(1,i) + k-1)
         ! pressure on rho levels
-        p_rho_levels(i,1,k) = p_zero*(exner_in_w3(map_w3(1,i) + k-1))**(1.0_r_def/kappa)
+        p_rho_levels(i,k) = p_zero*(exner_in_w3(map_w3(1,i) + k-1))**(1.0_r_def/kappa)
         ! exner pressure on rho levels
-        exner_rho_levels(i,1,k) = exner_in_w3(map_w3(1,i) + k-1)
+        exner_rho_levels(i,k) = exner_in_w3(map_w3(1,i) + k-1)
         ! u wind on rho levels
-        u_p(i,1,k) = u_in_w3(map_w3(1,i) + k-1)
+        u_p(i,k) = u_in_w3(map_w3(1,i) + k-1)
         ! v wind on rho levels
-        v_p(i,1,k) = v_in_w3(map_w3(1,i) + k-1)
+        v_p(i,k) = v_in_w3(map_w3(1,i) + k-1)
         ! height of rho levels from centre of planet
-        r_rho_levels(i,1,k) = height_w3(map_w3(1,i) + k-1) + planet_radius
+        r_rho_levels(i,k) = height_w3(map_w3(1,i) + k-1) + planet_radius
         ! height of levels above surface
-        z_rho(i,1,k) = height_w3(map_w3(1,i) + k-1) - height_wth(map_wth(1,i))
-        z_theta(i,1,k) = height_wth(map_wth(1,i) + k) - height_wth(map_wth(1,i))
+        z_rho(i,k) = height_w3(map_w3(1,i) + k-1) - height_wth(map_wth(1,i))
+        z_theta(i,k) = height_wth(map_wth(1,i) + k) - height_wth(map_wth(1,i))
         ! water vapour mixing ratio
-        q(i,1,k) = m_v_n(map_wth(1,i) + k)
+        q(i,k) = m_v_n(map_wth(1,i) + k)
         ! cloud liquid mixing ratio
-        qcl(i,1,k) = m_cl_n(map_wth(1,i) + k)
+        qcl(i,k) = m_cl_n(map_wth(1,i) + k)
         ! cloud ice mixing ratio
-        qcf_conv(i,1,k) = m_ci_n(map_wth(1,i) + k)
-        bulk_cf_conv(i,1,k) = cf_bulk(map_wth(1,i) + k)
+        qcf_conv(i,k) = m_ci_n(map_wth(1,i) + k)
+        bulk_cf_conv(i,k) = cf_bulk(map_wth(1,i) + k)
       end do
     end do
     if (l_noice_in_turb) then
       do i = 1, seg_len
         do k = 1, nlayers
-          qcf(i,1,k) = 0.0_r_bl
-          bulk_cloud_fraction(i,1,k) = cf_liquid(map_wth(1,i) + k)
+          qcf(i,k) = 0.0_r_bl
+          bulk_cloud_fraction(i,k) = cf_liquid(map_wth(1,i) + k)
         end do
       end do
     else
       do i = 1, seg_len
         do k = 1, nlayers
-          qcf(i,1,k) = m_ci_n(map_wth(1,i) + k)
-          bulk_cloud_fraction(i,1,k) = cf_bulk(map_wth(1,i) + k)
+          qcf(i,k) = m_ci_n(map_wth(1,i) + k)
+          bulk_cloud_fraction(i,k) = cf_bulk(map_wth(1,i) + k)
         end do
       end do
     end if
 
     if ( smagorinsky ) then
       do i = 1, seg_len
-        delta_smag(i,1) = delta(map_wth(1,i))
-        max_diff(i,1) = max_diff_smag(map_wth(1,i))
+        delta_smag(i) = delta(map_wth(1,i))
+        max_diff(i) = max_diff_smag(map_wth(1,i))
         do k = 1, nlayers
-          visc_m(i,1,k) = shear(map_wth(1,i) + k)
-          visc_h(i,1,k) = shear(map_wth(1,i) + k)
+          visc_m(i,k) = shear(map_wth(1,i) + k)
+          visc_h(i,k) = shear(map_wth(1,i) + k)
         end do
       end do
     end if
 
     do i = 1, seg_len
       ! surface pressure
-      p_star(i,1) = p_theta_levels(i,1,0)
+      p_star(i) = p_theta_levels(i,0)
       do k = 1, nlayers
         ! computational vertical velocity
-        etadot(i,1,k) = velocity_w2v(map_wth(1,i) + k) / z_theta(i,1,nlayers)
+        etadot(i,k) = velocity_w2v(map_wth(1,i) + k) / z_theta(i,nlayers)
       end do
     end do
 
     do i = 1, seg_len
       ! surface currents
-      u_0_p(i,1) = sea_u_current(map_2d(1,i))
-      v_0_p(i,1) = sea_v_current(map_2d(1,i))
+      u_0_p(i) = sea_u_current(map_2d(1,i))
+      v_0_p(i) = sea_v_current(map_2d(1,i))
     end do
 
     !-----------------------------------------------------------------------
@@ -759,8 +759,8 @@ contains
     !-----------------------------------------------------------------------
     ! previous BL height
     do i = 1, seg_len
-      zh(i,1) = zh_2d(map_2d(1,i))
-      zh_prev(i,1) = zh(i,1)
+      zh(i) = zh_2d(map_2d(1,i))
+      zh_prev(i) = zh(i)
     end do
 
     !-----------------------------------------------------------------------
@@ -769,15 +769,15 @@ contains
     do i = 1, seg_len
       do k = 1, bl_levels
         ! microphysics tendancy terms
-        micro_tends(i,1,1,k) = dtl_mphys(map_wth(1,i)+k)/timestep
-        micro_tends(i,1,2,k) = dmt_mphys(map_wth(1,i)+k)/timestep
+        micro_tends(i,1,k) = dtl_mphys(map_wth(1,i)+k)/timestep
+        micro_tends(i,2,k) = dmt_mphys(map_wth(1,i)+k)/timestep
         ! radiation tendancy terms
-        rad_hr(i,1,1,k) = lw_heating_rate(map_wth(1,i)+k)
-        rad_hr(i,1,2,k) = sw_heating_rate(map_wth(1,i)+k)
+        rad_hr(i,1,k) = lw_heating_rate(map_wth(1,i)+k)
+        rad_hr(i,2,k) = sw_heating_rate(map_wth(1,i)+k)
         ! temperature
-        temperature(i,1,k) = theta(i,1,k) * exner_theta_levels(i,1,k)
-        tl(i,1,k) = temperature(i,1,k) - lcrcp*qcl(i,1,k) - lsrcp*qcf(i,1,k)
-        qw(i,1,k) = q(i,1,k) + qcl(i,1,k) + qcf(i,1,k)
+        temperature(i,k) = theta(i,k) * exner_theta_levels(i,k)
+        tl(i,k) = temperature(i,k) - lcrcp*qcl(i,k) - lsrcp*qcf(i,k)
+        qw(i,k) = q(i,k) + qcl(i,k) + qcf(i,k)
       end do
     end do
 
@@ -794,28 +794,28 @@ contains
     bl_diag%l_tke      = .true.
     bl_diag%l_elm3d    = .true.
     bl_diag%l_gradrich = .true.
-    allocate(BL_diag%tke(seg_len,1,bl_levels))
-    allocate(BL_diag%elm3d(seg_len,1,bl_levels))
-    allocate(BL_diag%gradrich(seg_len,1,bl_levels))
+    allocate(BL_diag%tke(seg_len,bl_levels))
+    allocate(BL_diag%elm3d(seg_len,bl_levels))
+    allocate(BL_diag%gradrich(seg_len,bl_levels))
     do k = 1, bl_levels
       do i = 1, seg_len
-        bl_diag%tke(i,1,k) = 0.0_r_bl
-        bl_diag%elm3d(i,1,k) = 0.0_r_bl
-        bl_diag%gradrich(i,1,k) = 0.0_r_bl
+        bl_diag%tke(i,k) = 0.0_r_bl
+        bl_diag%elm3d(i,k) = 0.0_r_bl
+        bl_diag%gradrich(i,k) = 0.0_r_bl
       end do
     end do
 
     ! Calculate vertical differences
     do i = 1, seg_len
-      dzl_charney(i,1,1) = 2.0_r_bl * z_theta(i,1,1)
+      dzl_charney(i,1) = 2.0_r_bl * z_theta(i,1)
       do k = 2, bl_levels
-        dzl_charney(i,1,k) = dz_wth(map_wth(1,i) + k)
-        rdz(i,1,k) = 1.0_r_bl/dz_wth(map_wth(1,i) + k-1)
+        dzl_charney(i,k) = dz_wth(map_wth(1,i) + k)
+        rdz(i,k) = 1.0_r_bl/dz_wth(map_wth(1,i) + k-1)
       end do
       do k = 1, bl_levels
-        rdz_charney_grid(i,1,k) = rdz_w3(map_w3(1,i) + k-1)
-        rho_mix_tq(i,1,k) = rho_in_wth(map_wth(1,i) + k)
-        dtrdz_charney_grid(i,1,k) = dtrdz_wth(map_wth(1,i) + k) / rho_mix_tq(i,1,k)
+        rdz_charney_grid(i,k) = rdz_w3(map_w3(1,i) + k-1)
+        rho_mix_tq(i,k) = rho_in_wth(map_wth(1,i) + k)
+        dtrdz_charney_grid(i,k) = dtrdz_wth(map_wth(1,i) + k) / rho_mix_tq(i,k)
       end do
     end do
 
@@ -830,46 +830,46 @@ contains
 
     ! Use  convection switches to decide the value of  L_cape_opt
     if (i_convection_vn == i_convection_vn_6a ) then
-      L_cape_opt = ( (cldbase_opt_dp == 3) .or. (cldbase_opt_md == 3) .or. &
-                     (cldbase_opt_dp == 4) .or. (cldbase_opt_md == 4) .or. &
-                     (cldbase_opt_dp == 5) .or. (cldbase_opt_md == 5) .or. &
+      L_cape_opt = ( (cldbase_opt_dp == 3) .or. (cldbase_opt_md == 3) .or.     &
+                     (cldbase_opt_dp == 4) .or. (cldbase_opt_md == 4) .or.     &
+                     (cldbase_opt_dp == 5) .or. (cldbase_opt_md == 5) .or.     &
                      (cldbase_opt_dp == 6) .or. (cldbase_opt_md == 6) )
     else
       L_cape_opt = .false.
     end if
 
-    call ap2_init_conv_diag( 1, seg_len, ntml, ntpar, nlcl, cumulus,        &
-        l_shallow, l_mid, delthvu, ql_ad, zhpar, dzh, qcl_inv_top,          &
+    call ap2_init_conv_diag( 1, seg_len, ntml, ntpar, nlcl, cumulus,           &
+        l_shallow, l_mid, delthvu, ql_ad, zhpar, dzh, qcl_inv_top,             &
         zlcl, zlcl_uv, conv_type, no_cumulus, w_max, w, L_cape_opt)
 
     do i = 1, seg_len
-      qsat_lcl(i,1) = 0.0_r_bl
+      qsat_lcl(i) = 0.0_r_bl
     end do
-    call conv_diag_6a(                                                  &
+    call conv_diag_6a(                                                         &
     !     IN Parallel variables
-            seg_len, 1                                                  &
+            seg_len, 1                                                         &
     !     IN model dimensions.
-          , bl_levels, p_rho_levels, p_theta_levels(1,1,1)              &
-          , exner_rho_levels, rho_wet, rho_wet_tq, z_theta, z_rho       &
-          , r_theta_levels                                              &
+          , bl_levels, p_rho_levels, p_theta_levels(1,1)                       &
+          , exner_rho_levels, rho_wet, rho_wet_tq, z_theta, z_rho              &
+          , r_theta_levels                                                     &
     !     IN Model switches
-          , l_extra_call, no_cumulus                                    &
+          , l_extra_call, no_cumulus                                           &
     !     IN cloud data
-          , qcf_conv, qcl(1,1,1), bulk_cf_conv                          &
+          , qcf_conv, qcl(1,1), bulk_cf_conv                                   &
     !     IN everything not covered so far :
-          , p_star, q(1,1,1), theta, exner_theta_levels, u_p, v_p       &
-          , u_0_p, v_0_p, tstar_land, tstar_sea, tstar_sice, z0msea     &
-          , flux_e, flux_h, ustar_in, L_spec_z0, z0m_scm, z0h_scm       &
-          , tstar, land_sea_mask, flandg, ice_fract, w, w_max           &
-          , conv_prog_precip, g_ccp, h_ccp, ccp_strength                &
+          , p_star, q(1,1), theta, exner_theta_levels, u_p, v_p                &
+          , u_0_p, v_0_p, tstar_land, tstar_sea, tstar_sice, z0msea            &
+          , flux_e, flux_h, ustar_in, L_spec_z0, z0m_scm, z0h_scm              &
+          , tstar, land_sea_mask, flandg, ice_fract, w, w_max                  &
+          , conv_prog_precip, g_ccp, h_ccp, ccp_strength                       &
     !     IN surface fluxes
-          , fb_surf, ustargbm                                           &
+          , fb_surf, ustargbm                                                  &
     !     SCM Diagnostics (dummy values in full UM)
-          , nSCMDpkgs,L_SCMDiags                                        &
+          , nSCMDpkgs,L_SCMDiags                                               &
     !     OUT data required elsewhere in UM system :
-          , zh,zhpar,dzh,qcl_inv_top,zlcl,zlcl_uv,delthvu,ql_ad, ntml   &
-          , ntpar,nlcl, cumulus,l_shallow,l_congestus,l_congestus2      &
-          , conv_type, CIN_undilute,CAPE_undilute, wstar, wthvs         &
+          , zh,zhpar,dzh,qcl_inv_top,zlcl,zlcl_uv,delthvu,ql_ad, ntml          &
+          , ntpar,nlcl, cumulus,l_shallow,l_congestus,l_congestus2             &
+          , conv_type, CIN_undilute,CAPE_undilute, wstar, wthvs                &
           , entrain_coef, qsat_lcl, Error_code, tnuc_new, tnuc_nlcl_um )
 
     call bdy_expl2 (                                                           &
@@ -889,7 +889,7 @@ contains
       zh_prev, zhpar,zlcl,ho2r2_orog_gb,sd_orog,wtrac_as,                      &
     ! 2 IN 3 INOUT for Smagorinsky
       delta_smag, max_diff, rneutml_sq, visc_m, visc_h,                        &
-    ! SCM Diagnostics (dummy values in full UM) & stash diag
+    ! SCM Diagnostics (dummy values in full UM)                                & stash diag
       nSCMDpkgs,L_SCMDiags,BL_diag,                                            &
     ! INOUT variables
       zh,dzh,ntml,ntpar,l_shallow,cumulus,fqw,ftl,rhokh,rhokm,w,etadot,        &
@@ -911,7 +911,7 @@ contains
       ! Use tnuc_nlcl_um from conv_diag_6a (UM) and map onto tnuc_nlcl for
       ! LFRic to then be passed out to
       do i = 1, seg_len
-        tnuc_nlcl(map_2d(1,i)) = real(tnuc_nlcl_um(i,1),kind=r_def)
+        tnuc_nlcl(map_2d(1,i)) = real(tnuc_nlcl_um(i),kind=r_def)
       end do
     end if
 
@@ -925,45 +925,45 @@ contains
       ! Bottom model-level is surface in both arrays, so no interp needed
       ! (for rhokh_mix, this is done in the JULES routine sf_impl2_jls).
       do i = 1, seg_len
-        rhokm_mix(i,1,1) = rhokm(i,1,1)
+        rhokm_mix(i,1) = rhokm(i,1)
       end do
       do k = 2, bl_levels-1
         do i = 1, seg_len
-          weight1 = z_theta(i,1,k) - z_theta(i,1,k-1)
-          weight2 = z_theta(i,1,k) - z_rho(i,1,k)
-          weight3 = z_rho(i,1,k)   - z_theta(i,1,k-1)
-          rhokm_mix(i,1,k) = (weight3/weight1) * rhokm(i,1,k+1) &
-                           + (weight2/weight1) * rhokm(i,1,k)
+          weight1 = z_theta(i,k) - z_theta(i,k-1)
+          weight2 = z_theta(i,k) - z_rho(i,k)
+          weight3 = z_rho(i,k)   - z_theta(i,k-1)
+          rhokm_mix(i,k) = (weight3/weight1) * rhokm(i,k+1)                    &
+                           + (weight2/weight1) * rhokm(i,k)
           ! Scale exchange coefficients by 1/dz factor, as is done for
           ! rhokh_mix in bdy_impl4
           ! (note this doesn't need to be done for the surface exchange coef)
-          rhokm_mix(i,1,k) = rhokm_mix(i,1,k) * rdz_charney_grid(i,1,k)
+          rhokm_mix(i,k) = rhokm_mix(i,k) * rdz_charney_grid(i,k)
         end do
       end do
       k = bl_levels
       do i = 1, seg_len
-        weight1 = z_theta(i,1,k) - z_theta(i,1,k-1)
-        weight2 = z_theta(i,1,k) - z_rho(i,1,k)
+        weight1 = z_theta(i,k) - z_theta(i,k-1)
+        weight2 = z_theta(i,k) - z_rho(i,k)
         ! Assume rhokm(BL_LEVELS+1) is zero
-        rhokm_mix(i,1,k) = (weight2/weight1) * rhokm(i,1,k)
+        rhokm_mix(i,k) = (weight2/weight1) * rhokm(i,k)
         ! Scale exchange coefficients by 1/dz factor, as is done for
         ! rhokh_mix in bdy_impl4
-        rhokm_mix(i,1,k) = rhokm_mix(i,1,k) * rdz_charney_grid(i,1,k)
-        zeroes(i,1) = 0.0_r_um
+        rhokm_mix(i,k) = rhokm_mix(i,k) * rdz_charney_grid(i,k)
+        zeroes(i) = 0.0_r_um
       end do
 
       ! If full stress term is used, diagonal terms are doubled.
       if (fullstress) then
         do k = 1, bl_levels
           do i = 1, seg_len
-            rhokm_mix(i,1,k) = 2.0 * rhokm_mix(i,1,k)
+            rhokm_mix(i,k) = 2.0 * rhokm_mix(i,k)
           end do
         end do
       end if
 
       do k = 1, bl_levels
         do i = 1, seg_len
-          w_mixed(i,1,k) = w(i,1,k)
+          w_mixed(i,k) = w(i,k)
         end do
       end do
 
@@ -971,8 +971,8 @@ contains
            ! IN fields
            r_theta_levels, r_rho_levels, pdims,                                &
            bl_levels, alpha_cd,                                                &
-           real(rhokm_mix(1:seg_len,1:1,2:bl_levels),r_um),                    &
-           real(rhokm_mix(1:seg_len,1:1,1),r_um),                              &
+           real(rhokm_mix(1:seg_len,2:bl_levels),r_um),                        &
+           real(rhokm_mix(1:seg_len,1),r_um),                                  &
            real(dtrdz_charney_grid,r_um), zeroes, zeroes, kent,                &
            real(we_lim,r_um), real(t_frac,r_um), real(zrzi,r_um), kent_dsc,    &
            real(we_lim_dsc,r_um), real(t_frac_dsc,r_um), real(zrzi_dsc,r_um),  &
@@ -983,7 +983,7 @@ contains
 
       do k = 1, bl_levels
         do i = 1, seg_len
-          dw_bl(map_wth(1,i)+k) = w_mixed(i,1,k) - w(i,1,k)
+          dw_bl(map_wth(1,i)+k) = w_mixed(i,k) - w(i,k)
         end do
       end do
 
@@ -991,29 +991,29 @@ contains
 
     ! 2D variables that need interpolating to cell faces
     do i = 1, seg_len
-      surf_interp(map_surf(1,i)+5) = zhnl(i,1)
+      surf_interp(map_surf(1,i)+5) = zhnl(i)
     end do
 
     do k=1,bl_levels
       do i = 1, seg_len
-        bq_bl(map_wth(1,i) + k-1) = bq_gb(i,1,k)
-        bt_bl(map_wth(1,i) + k-1) = bt_gb(i,1,k)
-        dtrdz_tq_bl(map_wth(1,i) + k) = dtrdz_charney_grid(i,1,k)
+        bq_bl(map_wth(1,i) + k-1) = bq_gb(i,k)
+        bt_bl(map_wth(1,i) + k-1) = bt_gb(i,k)
+        dtrdz_tq_bl(map_wth(1,i) + k) = dtrdz_charney_grid(i,k)
       end do
     end do
 
     do i = 1, seg_len
-      level_ent(map_2d(1,i)) = int( kent(i,1), i_def )
-      level_ent_dsc(map_2d(1,i)) = int( kent_dsc(i,1), i_def )
+      level_ent(map_2d(1,i)) = int( kent(i), i_def )
+      level_ent_dsc(map_2d(1,i)) = int( kent_dsc(i), i_def )
     end do
     do k = 1, 3
       do i = 1, seg_len
-        ent_we_lim(map_ent(1,i) + k - 1) = real( we_lim(i,1,k), r_def )
-        ent_t_frac(map_ent(1,i) + k - 1) = real( t_frac(i,1,k), r_def )
-        ent_zrzi(map_ent(1,i) + k - 1) = real( zrzi(i,1,k), r_def )
-        ent_we_lim_dsc(map_ent(1,i) + k - 1) = real( we_lim_dsc(i,1,k), r_def )
-        ent_t_frac_dsc(map_ent(1,i) + k - 1) = real( t_frac_dsc(i,1,k), r_def )
-        ent_zrzi_dsc(map_ent(1,i) + k - 1) = real( zrzi_dsc(i,1,k), r_def )
+        ent_we_lim(map_ent(1,i) + k - 1) = real( we_lim(i,k), r_def )
+        ent_t_frac(map_ent(1,i) + k - 1) = real( t_frac(i,k), r_def )
+        ent_zrzi(map_ent(1,i) + k - 1) = real( zrzi(i,k), r_def )
+        ent_we_lim_dsc(map_ent(1,i) + k - 1) = real( we_lim_dsc(i,k), r_def )
+        ent_t_frac_dsc(map_ent(1,i) + k - 1) = real( t_frac_dsc(i,k), r_def )
+        ent_zrzi_dsc(map_ent(1,i) + k - 1) = real( zrzi_dsc(i,k), r_def )
       end do
     end do
 
@@ -1024,9 +1024,9 @@ contains
           ! to w2 (cell face) vectors. However, they are actually defined in
           ! wtheta (cell top centre) and need mapping to fd1 (cell top edge).
           ! Set wind will therefore work correctly, but the indexing is shifted
-          ! by half a level in the vertical for the input & output
-          fd_taux(map_w3(1,i) + k-1) = tau_fd_x(i,1,k)
-          fd_tauy(map_w3(1,i) + k-1) = tau_fd_y(i,1,k)
+          ! by half a level in the vertical for the input                      & output
+          fd_taux(map_w3(1,i) + k-1) = tau_fd_x(i,k)
+          fd_tauy(map_w3(1,i) + k-1) = tau_fd_y(i,k)
         end do
       end do
       do i = 1, seg_len
@@ -1038,66 +1038,66 @@ contains
     end if
 
     do i = 1, seg_len
-      gradrinr(map_wth(1,i)) = rib_gb(i,1)
+      gradrinr(map_wth(1,i)) = rib_gb(i)
     end do
     do k = 2, bl_levels
       do i = 1, seg_len
-        rhokm_bl(map_wth(1,i) + k-1) = rhokm(i,1,k)
-        rhokh_bl(map_w3(1,i) + k-1) = rhokh(i,1,k)
-        moist_flux_bl(map_w3(1,i) + k-1) = fqw(i,1,k)
-        heat_flux_bl(map_w3(1,i) + k-1) = ftl(i,1,k)
-        gradrinr(map_wth(1,i) + k-1) = BL_diag%gradrich(i,1,k)
-        lmix_bl(map_wth(1,i) + k-1)  = BL_diag%elm3d(i,1,k)
-        ngstress_bl(map_wth(1,i) + k-1) = f_ngstress(i,1,k)
-        tke_bl(map_wth(1,i) + k-1) = BL_diag%tke(i,1,k)
+        rhokm_bl(map_wth(1,i) + k-1) = rhokm(i,k)
+        rhokh_bl(map_w3(1,i) + k-1) = rhokh(i,k)
+        moist_flux_bl(map_w3(1,i) + k-1) = fqw(i,k)
+        heat_flux_bl(map_w3(1,i) + k-1) = ftl(i,k)
+        gradrinr(map_wth(1,i) + k-1) = BL_diag%gradrich(i,k)
+        lmix_bl(map_wth(1,i) + k-1)  = BL_diag%elm3d(i,k)
+        ngstress_bl(map_wth(1,i) + k-1) = f_ngstress(i,k)
+        tke_bl(map_wth(1,i) + k-1) = BL_diag%tke(i,k)
       end do
     end do
 
     do i = 1, seg_len
-      bl_weight_1dbl(map_2d(1,i)) = BL_diag%weight1d(i,1,2)
-      zh_nonloc(map_2d(1,i)) = zhnl(i,1)
-      z_lcl(map_2d(1,i)) = real(zlcl(i,1), r_def)
-      inv_depth(map_2d(1,i)) = real(dzh(i,1), r_def)
-      qcl_at_inv_top(map_2d(1,i)) = real(qcl_inv_top(i,1), r_def)
-      if ( l_shallow(i,1) ) then
+      bl_weight_1dbl(map_2d(1,i)) = BL_diag%weight1d(i,2)
+      zh_nonloc(map_2d(1,i)) = zhnl(i)
+      z_lcl(map_2d(1,i)) = real(zlcl(i), r_def)
+      inv_depth(map_2d(1,i)) = real(dzh(i), r_def)
+      qcl_at_inv_top(map_2d(1,i)) = real(qcl_inv_top(i), r_def)
+      if ( l_shallow(i) ) then
         shallow_flag(map_2d(1,i)) = 1_i_def
       else
         shallow_flag(map_2d(1,i)) = 0_i_def
       end if
-      uw0_flux(map_2d(1,i)) = uw0(i,1)
-      vw0_flux(map_2d(1,i)) = vw0(i,1)
-      lcl_height(map_2d(1,i)) = zlcl_uv(i,1)
-      parcel_top(map_2d(1,i)) = zhpar(i,1)
-      level_parcel_top(map_2d(1,i)) = ntpar(i,1)
-      wstar_2d(map_2d(1,i)) = wstar(i,1)
-      thv_flux(map_2d(1,i)) = wthvs(i,1)
-      parcel_buoyancy(map_2d(1,i)) = delthvu(i,1)
-      qsat_at_lcl(map_2d(1,i)) = qsat_lcl(i,1)
+      uw0_flux(map_2d(1,i)) = uw0(i)
+      vw0_flux(map_2d(1,i)) = vw0(i)
+      lcl_height(map_2d(1,i)) = zlcl_uv(i)
+      parcel_top(map_2d(1,i)) = zhpar(i)
+      level_parcel_top(map_2d(1,i)) = ntpar(i)
+      wstar_2d(map_2d(1,i)) = wstar(i)
+      thv_flux(map_2d(1,i)) = wthvs(i)
+      parcel_buoyancy(map_2d(1,i)) = delthvu(i)
+      qsat_at_lcl(map_2d(1,i)) = qsat_lcl(i)
 
-      bl_type_ind(map_bl(1,i)+0) = bl_type_1(i,1)
-      bl_type_ind(map_bl(1,i)+1) = bl_type_2(i,1)
-      bl_type_ind(map_bl(1,i)+2) = bl_type_3(i,1)
-      bl_type_ind(map_bl(1,i)+3) = bl_type_4(i,1)
-      bl_type_ind(map_bl(1,i)+4) = bl_type_5(i,1)
-      bl_type_ind(map_bl(1,i)+5) = bl_type_6(i,1)
-      bl_type_ind(map_bl(1,i)+6) = bl_type_7(i,1)
+      bl_type_ind(map_bl(1,i)+0) = bl_type_1(i)
+      bl_type_ind(map_bl(1,i)+1) = bl_type_2(i)
+      bl_type_ind(map_bl(1,i)+2) = bl_type_3(i)
+      bl_type_ind(map_bl(1,i)+3) = bl_type_4(i)
+      bl_type_ind(map_bl(1,i)+4) = bl_type_5(i)
+      bl_type_ind(map_bl(1,i)+5) = bl_type_6(i)
+      bl_type_ind(map_bl(1,i)+6) = bl_type_7(i)
     end do
 
     ! update blended Smagorinsky diffusion coefficients only if using Smagorinsky scheme
     if ( smagorinsky ) then
       do i = 1, seg_len
-        visc_m_blend(map_wth(1,i)) = visc_m(i,1,1)
-        visc_h_blend(map_wth(1,i)) = visc_h(i,1,1)
+        visc_m_blend(map_wth(1,i)) = visc_m(i,1)
+        visc_h_blend(map_wth(1,i)) = visc_h(i,1)
       end do
       do k = 1, bl_levels-1
         do i = 1, seg_len
-          visc_m_blend(map_wth(1,i) + k) = visc_m(i,1,k)
-          visc_h_blend(map_wth(1,i) + k) = visc_h(i,1,k)
+          visc_m_blend(map_wth(1,i) + k) = visc_m(i,k)
+          visc_h_blend(map_wth(1,i) + k) = visc_h(i,k)
         end do
       end do
       do i = 1, seg_len
-        visc_m_blend(map_wth(1,i) + bl_levels) = visc_m(i,1,bl_levels-1)
-        visc_h_blend(map_wth(1,i) + bl_levels) = visc_h(i,1,bl_levels-1)
+        visc_m_blend(map_wth(1,i) + bl_levels) = visc_m(i,bl_levels-1)
+        visc_h_blend(map_wth(1,i) + bl_levels) = visc_h(i,bl_levels-1)
       end do
       do k = bl_levels+1, nlayers
         do i = 1, seg_len
@@ -1109,10 +1109,10 @@ contains
 
     ! update BL prognostics
     do i = 1, seg_len
-      zh_2d(map_2d(1,i))     = zh(i,1)
-      zhsc_2d(map_2d(1,i))   = zhsc(i,1)
-      ntml_2d(map_2d(1,i))   = ntml(i,1)
-      if (cumulus(i,1)) then
+      zh_2d(map_2d(1,i))     = zh(i)
+      zhsc_2d(map_2d(1,i))   = zhsc(i)
+      ntml_2d(map_2d(1,i))   = ntml(i)
+      if (cumulus(i)) then
         cumulus_2d(map_2d(1,i)) = 1_i_def
       else
         cumulus_2d(map_2d(1,i)) = 0_i_def
@@ -1121,11 +1121,11 @@ contains
 
     if (rh_crit_opt == rh_crit_opt_tke) then
       do i = 1, seg_len
-        rh_crit(map_wth(1,i)) = real(rhcpt(i,1,1), r_def)
+        rh_crit(map_wth(1,i)) = real(rhcpt(i,1), r_def)
       end do
       do k = 1, nlayers
         do i = 1, seg_len
-          rh_crit(map_wth(1,i)+k) = real(rhcpt(i,1,k), r_def)
+          rh_crit(map_wth(1,i)+k) = real(rhcpt(i,k), r_def)
         end do
       end do
     end if
@@ -1139,14 +1139,14 @@ contains
         ! Length-scale used for entraining parcel mode construction method
         do k = 1, nlayers
           do i = 1, seg_len
-            mix_len_bm(map_wth(1,i)+k) = mix_len_tmp(i,1,k)
+            mix_len_bm(map_wth(1,i)+k) = mix_len_tmp(i,k)
           end do
         end do
       else
         ! SL-gradient used for stable-layer mode construction method
         do k = 1, nlayers
           do i = 1, seg_len
-            dsldzm(map_wth(1,i)+k) = tgrad_bm(i,1,k)
+            dsldzm(map_wth(1,i)+k) = tgrad_bm(i,k)
           end do
         end do
       end if
@@ -1156,19 +1156,19 @@ contains
           pc2_init_method == pc2_init_method_bimodal ) ) then
       do k = 2, nlayers+1
         do i = 1, seg_len
-          wvar(map_wth(1,i)+k-1) = bl_w_var(i,1,k)
+          wvar(map_wth(1,i)+k-1) = bl_w_var(i,k)
         end do
       end do
     end if
 
     if (.not. associated(zht, empty_real_data) ) then
       do i = 1, seg_len
-        zht(map_2d(1,i)) = BL_diag%zht(i,1)
+        zht(map_2d(1,i)) = BL_diag%zht(i)
       end do
     end if
     if (.not. associated(oblen, empty_real_data) ) then
       do i = 1, seg_len
-        oblen(map_2d(1,i)) = BL_diag%oblen(i,1)
+        oblen(map_2d(1,i)) = BL_diag%oblen(i)
       end do
     end if
 
