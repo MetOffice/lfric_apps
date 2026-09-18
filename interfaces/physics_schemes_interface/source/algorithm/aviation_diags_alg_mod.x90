@@ -1,14 +1,17 @@
-! -----------------------------------------------------------------------------
-! (C) Crown copyright Met Office. All rights reserved.
+!-------------------------------------------------------------------------------
+! (C) Crown copyright 2026 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
-! -----------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
 !> @brief Calculate aviation diagnostics.
-!>
+
 module aviation_diags_alg_mod
 
+  use config_mod,                only: config_type
+  use field_mod,                 only: field_type
+  use tropopause_diags_alg_mod,  only: tropopause_diags_alg
+
   use constants_mod,              only: r_def, i_def, l_def, str_long, RMDI
-  use field_mod,                  only: field_type
   use field_collection_mod,       only: field_collection_type
   use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
 
@@ -19,27 +22,36 @@ module aviation_diags_alg_mod
                                   only: aviation_thickness_snow_kernel_type
 
   implicit none
+  private
 
-private
-public :: aviation_diags_alg
+  public :: aviation_diags_alg
 
 contains
 
-  !> @brief Calculate aviation diagnostics.
-  !> @param[in]     plev_geopot        Geopotential height at pressure levels in m.
-  !>                                   including cloud base and top pressures.
-  subroutine aviation_diags_alg(plev_geopot)
+  !> @brief   Calculate aviation diagnostics.
+  !> @details Umbrella for aviation-related diagnostics, calling both
+  !>          tropopause calculations (from theta/exner) and thickness/snow
+  !>          calculations (from pressure-level geopotential).
+  !> @param[in] config        Application namelist configuration object.
+  !> @param[in] theta         Potential temperature.
+  !> @param[in] exner_in_wth  Exner pressure on Wtheta space.
+  !> @param[in] plev_geopot   Geopotential height at pressure levels in m.
+  subroutine aviation_diags_alg(config, theta, exner_in_wth, plev_geopot)
+
     implicit none
 
-    ! Arguments
-    type(field_type), intent(in)               :: plev_geopot
+    type(config_type), intent(in) :: config
+    type(field_type),  intent(in) :: theta, exner_in_wth, plev_geopot
 
-    ! Calculate geopotential thickness and snow probbability.
+    ! Tropopause height, temperature, pressure and ICAO height.
+    call tropopause_diags_alg(config, theta, exner_in_wth)
+
+    ! Geopotential thickness (1000-850hPa, 1000-500hPa) and snow probability.
     call from_plev_geopot(plev_geopot)
 
   end subroutine aviation_diags_alg
 
-  !> @brief Calculate geopotential thickness and snow probabbility
+  !> @brief Calculate geopotential thickness and snow probability
   !>        from geopotential height at pressure levels.
   !> @param[in]    plev_geopot    Geopotential height at pressure levels in m.
   subroutine from_plev_geopot(plev_geopot)
@@ -157,6 +169,4 @@ contains
     end if
 
   end subroutine from_plev_geopot
-
-
 end module aviation_diags_alg_mod
