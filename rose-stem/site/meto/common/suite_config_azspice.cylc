@@ -7,7 +7,6 @@
 
 {% set azspice_base = 'umask 0022 ; '~
                       'module purge ; '~
-                      'export PYTHONNOUSERSITE=1 ; '~
                       'module use /home/users/lfricadmin/lmod' %}
 
 {% set azspice_compiler_gnu = 'module load lfric/vn3.2' %}
@@ -17,8 +16,7 @@
 
 {% set azspice_run = 'ulimit -s unlimited' %}
 
-{% set azspice_scitools = 'export PYTHONNOUSERSITE=1 ; '~
-                          'module load scitools/production-os47-1' %}
+{% set azspice_scitools = 'module load scitools/production-os47-1' %}
 
 {% set azspice_tech = 'module load lfric/vn3.2' %}
 
@@ -119,7 +117,6 @@
         inherit = AZSPICE_BASE
         pre-script = """
                      module purge
-                     export PYTHONNOUSERSITE=1
                      module load scitools/production-os47-1
                      module load um_tools/2025.10.1/openmp
                      module load csc/2025.3.20
