@@ -133,7 +133,7 @@ contains
     dest_top_df =  nlayers - 2 + ndf_dest
     multidata = undf_dest/((dest_top_df+1)*ncell) - 1
 
-    do k=1, dest_top_df
+    do k=0, dest_top_df
       do m=0, multidata
         expected = expected_field(map_dest(1,cell) + m * (dest_top_df +1) +k)
         answer = destination_field(map_dest(1,cell) + m * (dest_top_df +1) +k)
@@ -256,7 +256,7 @@ contains
     dest_top_df =  nlayers - 2 + ndf_dest
     multidata = undf_dest/((dest_top_df+1)*ncell) - 1
 
-    do k=1, dest_top_df
+    do k=0, dest_top_df
       do m=0, multidata
         expected= expected_field(map_dest(1,cell) + m *(dest_top_df +1) +k)
         answer = destination_field(map_dest(1,cell) + m *(dest_top_df +1) +k)
@@ -379,7 +379,7 @@ contains
     dest_top_df =  nlayers - 2 + ndf_dest
     multidata = undf_dest / ((dest_top_df + 1) * ncell) - 1
 
-    do k=1, dest_top_df
+    do k=0, dest_top_df
       do m=0, multidata
         expected = expected_field(map_dest(1,cell) + m *(dest_top_df +1) +k)
         answer = destination_field(map_dest(1,cell) + m *(dest_top_df +1) +k)
@@ -502,7 +502,7 @@ contains
     dest_top_df =  nlayers - 2 + ndf_dest
     multidata = undf_dest / ((dest_top_df +1) * ncell) - 1
 
-    do k=1, dest_top_df
+    do k=0, dest_top_df
       do m=0, multidata
         expected = expected_field(map_dest(1,cell) + m * (dest_top_df +1) +k)
         answer = destination_field(map_dest(1,cell) + m * (dest_top_df +1) +k)

@@ -97,7 +97,7 @@ subroutine lfric2lfric_vert_lin_interp_no_extrap_code_r_single(    &
   real(kind=r_single), intent(in),    dimension(ndf_dest)   :: dest_heights(undf_dest)
   real(kind=r_single), intent(in),    dimension(ndf_source) :: source_heights(undf_source)
 
-  integer(kind=i_def) :: multidata, df, k, m, kk, level_below(nlayers)
+  integer(kind=i_def) :: multidata, df, k, m, kk, level_below(0:nlayers)
   integer(kind=i_def) :: source_top_df, dest_top_df
   integer(kind=i_def) :: d_h, s_h_top, s_h_bottom, s_h_below
 
@@ -111,11 +111,11 @@ subroutine lfric2lfric_vert_lin_interp_no_extrap_code_r_single(    &
   ! Number of multidata values per grid cell
   multidata = undf_dest/((dest_top_df + 1) * ncell) - 1
 
-  do kk = 1, dest_top_df
+  do kk = 0, dest_top_df
     level_below(kk) = source_layers
 
     do k = 1, source_top_df
-      if ( (source_heights(k) > dest_heights(kk)) .and. &
+      if ( (source_heights(map_source(df) + k) > dest_heights(map_dest(df) + kk)) .and. &
            (level_below(kk) == source_layers) ) then
 
         level_below(kk) = k-1
@@ -125,7 +125,7 @@ subroutine lfric2lfric_vert_lin_interp_no_extrap_code_r_single(    &
   end do
 
   do m = 0, multidata
-     do kk = 1, dest_top_df
+     do kk = 0, dest_top_df
 
       ! EXTRAPOLATION METHOD - ! No linear extrapolation at top or bottom
 
@@ -153,9 +153,9 @@ subroutine lfric2lfric_vert_lin_interp_no_extrap_code_r_single(    &
         ! dk(kk) =  ( (dh(kk) - sh(lb(kk))) * sf(lb(kk)+1) - (dh(kk) - sh(lb(kk)+1)) * sf(lb(kk)) )
         !          / (sh(lb(kk)+1) - sh(lb(kk)))
 
-        destination_field(d_h) = &
-                  ( (dest_heights(d_h) - source_heights(s_h_below )) * source_field(s_h_below + 1)    &
-                  - (dest_heights(d_h) - source_heights(s_h_below + 1)) * source_field(s_h_below) )   &
+        destination_field(d_h) =                                                                    &
+                  ( (dest_heights(d_h) - source_heights(s_h_below )) * source_field(s_h_below + 1)  &
+                  - (dest_heights(d_h) - source_heights(s_h_below + 1)) * source_field(s_h_below) ) &
                   / ( source_heights(s_h_below + 1)  - source_heights(s_h_below) )
 
       end if
@@ -195,7 +195,7 @@ subroutine lfric2lfric_vert_lin_interp_no_extrap_code_r_double(    &
   real(kind=r_double), intent(in),    dimension(ndf_dest)   :: dest_heights(undf_dest)
   real(kind=r_double), intent(in),    dimension(ndf_source) :: source_heights(undf_source)
 
-  integer(kind=i_def) :: multidata, df, k, m, kk, level_below(nlayers)
+  integer(kind=i_def) :: multidata, df, k, m, kk, level_below(0:nlayers)
   integer(kind=i_def) :: source_top_df, dest_top_df
   integer(kind=i_def) :: d_h, s_h_top, s_h_bottom, s_h_below
 
@@ -209,11 +209,11 @@ subroutine lfric2lfric_vert_lin_interp_no_extrap_code_r_double(    &
   ! Number of multidata values per grid cell
   multidata = undf_dest/((dest_top_df + 1) * ncell) - 1
 
-  do kk = 1, dest_top_df
+  do kk = 0, dest_top_df
      level_below(kk) = source_layers
 
     do k = 1, source_top_df
-      if ( (source_heights(k) > dest_heights(kk)) .and. &
+      if ( (source_heights(map_source(df) +k) > dest_heights(map_dest(df) +kk)) .and. &
            (level_below(kk) == source_layers) ) then
 
         level_below(kk) = k-1
@@ -223,7 +223,7 @@ subroutine lfric2lfric_vert_lin_interp_no_extrap_code_r_double(    &
   end do
 
   do m = 0, multidata
-     do kk = 1, dest_top_df
+     do kk = 0, dest_top_df
 
       ! EXTRAPOLATION METHOD - ! No linear extrapolation at top or bottom
 
@@ -251,9 +251,9 @@ subroutine lfric2lfric_vert_lin_interp_no_extrap_code_r_double(    &
         ! dk(kk) =  ( (dh(kk) - sh(lb(kk))) * sf(lb(kk)+1) - (dh(kk) - sh(lb(kk)+1)) * sf(lb(kk)) )
         !          / (sh(lb(kk)+1) - sh(lb(kk)))
 
-        destination_field(d_h) = &
-                  ( (dest_heights(d_h) - source_heights(s_h_below )) * source_field(s_h_below + 1)    &
-                  - (dest_heights(d_h) - source_heights(s_h_below + 1)) * source_field(s_h_below) )   &
+        destination_field(d_h) =                                                                    &
+                  ( (dest_heights(d_h) - source_heights(s_h_below )) * source_field(s_h_below + 1)  &
+                  - (dest_heights(d_h) - source_heights(s_h_below + 1)) * source_field(s_h_below) ) &
                   / ( source_heights(s_h_below + 1)  - source_heights(s_h_below) )
 
       end if
