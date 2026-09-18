@@ -210,8 +210,8 @@ if ( i_check_bad_values_cmpr > i_check_bad_none ) then
   do i_field = 1, n_fields_tot
     call check_bad_values_cmpr( cmpr, k, par_next_mean_fields(:,i_field),      &
                                 where_string, field_names(i_field),            &
-                                field_min = field_min_cons(i_field),           &
-                                field_max = field_max_cons(i_field) )
+                                field_min=field_min_cons(i_field),             &
+                                field_max=field_max_cons(i_field) )
   end do
 end if
 
@@ -259,8 +259,8 @@ if ( l_par_core ) then
     do i_field = 1, n_fields_tot
       call check_bad_values_cmpr( cmpr, k, par_next_core_fields(:,i_field),    &
                                   where_string, field_names(i_field),          &
-                                  field_min = field_min_cons(i_field),         &
-                                  field_max = field_max_cons(i_field) )
+                                  field_min=field_min_cons(i_field),           &
+                                  field_max=field_max_cons(i_field) )
     end do
 
     where_string = "On input to set_det call for "            //               &
@@ -896,8 +896,8 @@ if ( i_check_bad_values_cmpr > i_check_bad_none ) then
   do i_field = 1, n_fields_tot
     call check_bad_values_cmpr( cmpr, k, par_next_mean_fields(:,i_field),      &
                                 where_string, field_names(i_field),            &
-                                field_min = field_min_cons(i_field),           &
-                                field_max = field_max_cons(i_field) )
+                                field_min=field_min_cons(i_field),             &
+                                field_max=field_max_cons(i_field) )
   end do
 
   ! Check detrained properties
@@ -907,22 +907,22 @@ if ( i_check_bad_values_cmpr > i_check_bad_none ) then
   do i_field = 1, n_fields_tot
     call check_bad_values_cmpr( cmpr, k, det_fields(:,i_field),                &
                                 where_string, field_names(i_field),            &
-                                field_min = field_min_cons(i_field),           &
-                                field_max = field_max_cons(i_field) )
+                                field_min=field_min_cons(i_field),             &
+                                field_max=field_max_cons(i_field) )
   end do
 
   ! Check detrained mass
   field_name = "det_mass_d"
   call check_bad_values_cmpr( cmpr, k, det_mass_d,                             &
                               where_string, field_name,                        &
-                              field_min = par_min(i_massflux_d),               &
-                              field_max = par_max(i_massflux_d) )
+                              field_min=par_min(i_massflux_d),                 &
+                              field_max=par_max(i_massflux_d) )
   ! Check mass-flux
   field_name = "next_massflux_d"
   call check_bad_values_cmpr( cmpr, k, par_conv_super(:,i_massflux_d),         &
                               where_string, field_name,                        &
-                              field_min = par_min(i_massflux_d),               &
-                              field_max = par_max(i_massflux_d) )
+                              field_min=par_min(i_massflux_d),                 &
+                              field_max=par_max(i_massflux_d) )
 
 end if
 
