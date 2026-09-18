@@ -61,7 +61,7 @@
         "src_mesh": "",
         "src_name": "",
         "src_type": "",
-        "mpi_parts": 4,
+        "mpi_parts": 6,
     }) %}
 
 {% elif task_ns.conf_name == "map_C24_to_C12_1cpu" %}
