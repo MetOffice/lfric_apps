@@ -40,10 +40,12 @@ module normal_wind_transform_mod
   contains
 
   !> @brief Do-nothing initialiser.
+  !> @param[in] config Application configuration object
   !> @param[in] fields Field collection containing wind fields.
-  subroutine initialise( self, fields )
+  subroutine initialise( self, config, fields )
     implicit none
     class(normal_wind_transform_type), intent(inout) :: self
+    type(config_type),                 intent(in)    :: config
     type(field_collection_type),       intent(in)    :: fields
   end subroutine initialise
 
@@ -70,6 +72,7 @@ module normal_wind_transform_mod
   end subroutine adj_process
 
   !> @brief Transform JEDI analysis wind variables to LFRic prognostic wind variables.
+  !> @param[in] config Application configuration object
   !> @param[in] fields Field collection containing wind fields.
   subroutine scalar_to_vector( self, config, fields )
 
@@ -96,6 +99,7 @@ module normal_wind_transform_mod
   end subroutine scalar_to_vector
 
   !> @brief (Adjoint of) transform JEDI analysis wind variables to LFRic prognostic wind variables.
+  !> @param[in] config Application configuration object
   !> @param[in] fields Field collection containing wind fields.
   subroutine adj_scalar_to_vector( self, config, fields )
 
@@ -123,6 +127,7 @@ module normal_wind_transform_mod
   end subroutine adj_scalar_to_vector
 
   !> @brief Transform LFRic prognostic wind variables to JEDI analysis wind variables.
+  !> @param[in] config Application configuration object
   !> @param[in] fields Field collection containing wind fields.
   subroutine vector_to_scalar( self, config, fields )
 
@@ -148,6 +153,7 @@ module normal_wind_transform_mod
   end subroutine vector_to_scalar
 
   !> @brief (Adjoint of) transform LFRic prognostic wind variables to JEDI analysis wind variables.
+  !> @param[in] config Application configuration object
   !> @param[in] fields Field collection containing wind fields.
   subroutine adj_vector_to_scalar( self, config, fields )
 
