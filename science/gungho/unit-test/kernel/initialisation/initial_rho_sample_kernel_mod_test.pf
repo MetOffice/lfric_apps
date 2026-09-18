@@ -35,8 +35,8 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine setUp( this )
 
-    use base_mesh_config_mod,       only : geometry_planar, &
-                                           topology_fully_periodic
+    use mesh_mod,                   only : geometry_planar, &
+                                           topology_periodic
     use sci_chi_transform_mod,      only : init_chi_transforms
     use feign_config_mod,           only : feign_base_mesh_config,      &
                                            feign_finite_element_config, &
@@ -60,7 +60,7 @@ contains
                                  prime_mesh_name='unit_test',      &
                                  geometry=geometry_planar,         &
                                  prepartitioned=.false.,           &
-                                 topology=topology_fully_periodic, &
+                                 topology=topology_periodic,       &
                                  fplane=.false., f_lat_deg=45.0_r_def )
 
     call feign_finite_element_config(      &
@@ -84,7 +84,7 @@ contains
                                  perturb_init=.false., perturb_magnitude=0,    &
                                  perturb_seed=0 )
 
-    call init_chi_transforms(geometry_planar, topology_fully_periodic)
+    call init_chi_transforms(geometry_planar, topology_periodic)
 
   end subroutine setUp
 

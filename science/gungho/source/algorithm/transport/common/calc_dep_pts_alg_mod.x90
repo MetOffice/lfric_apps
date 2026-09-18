@@ -27,14 +27,15 @@ module calc_dep_pts_alg_mod
   use log_mod,                           only: log_event,               &
                                                LOG_LEVEL_DEBUG,         &
                                                LOG_LEVEL_ERROR
-  use mesh_mod,                          only: mesh_type
+  use mesh_mod,                          only: mesh_type, &
+                                               geometry_spherical, &
+                                               topology_periodic
   use r_tran_field_mod,                  only: r_tran_field_type
   use timing_mod,                        only: start_timing, stop_timing, &
                                                tik, LPROF
 
   ! Configs
-  use base_mesh_config_mod,              only: geometry, geometry_spherical,   &
-                                               topology, topology_fully_periodic
+  use base_mesh_config_mod,              only: geometry, topology
   use departure_points_config_mod,       only: horizontal_method,              &
                                                horizontal_method_euler,        &
                                                horizontal_method_timeaverage,  &
@@ -367,7 +368,7 @@ contains
     cap_dep_points = (horizontal_limit == horizontal_limit_cap)
 
     is_cubed_sphere = (                                                        &
-      geometry == geometry_spherical .and. topology == topology_fully_periodic &
+      geometry == geometry_spherical .and. topology == topology_periodic       &
     )
 
     if (is_cubed_sphere) then
@@ -622,7 +623,7 @@ contains
     ! Get Det(J) at W2 using averaged Det(J)
     if (element_order_h == 0 .and. element_order_v == 0) then
       ! Lowest order elements, use finite volume
-      detj_at_w2_ave_rdef => get_detj_at_w2_fv(mesh)
+      detj_at_w2_ave_rdef => get_detj_at_w2_fv(config, mesh)
     else
       ! Higher order elements, use finite element
       detj_at_w2_ave_rdef => get_detj_at_w2_fe(config, mesh)

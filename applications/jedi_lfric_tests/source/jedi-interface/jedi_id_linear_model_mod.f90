@@ -152,7 +152,7 @@ subroutine initialise( self, jedi_geometry, config_filename )
   else
     allocate (normal_wind_transform_type :: self%wind_transform)
   end if
-  call self%wind_transform%initialise(prognostic_fields)
+  call self%wind_transform%initialise(self%modeldb%config, prognostic_fields)
 
   ! 2. Setup time
   self%time_step = get_configuration_timestep( self%modeldb%config )
@@ -188,7 +188,7 @@ subroutine set_trajectory( self, jedi_state )
 
   ! Create W2 wind, interpolate from scaler winds (W3/Wtheta) then
   ! remove the scaler winds
-  call setup_vector_wind(next_linear_state)
+  call setup_vector_wind(self%modeldb%config, next_linear_state)
 
   ! Add the new linear state to the trajectory (prepends fieldnames with "ls_")
   call self%linear_state_trajectory%add_linear_state( &
@@ -218,7 +218,7 @@ subroutine model_initTL(self, increment)
   call increment%get_to_field_collection( variable_names, prognostic_fields )
 
   ! Cell-centred winds to Edge based winds
-  call self%wind_transform%scalar_to_vector(prognostic_fields)
+  call self%wind_transform%scalar_to_vector(self%modeldb%config, prognostic_fields)
 
   ! Update the missing mixing ratio and moist_dynamics fields. These fields are
   ! computed analytically as outlined in jedi_lfric_linear_fields_mod
@@ -266,7 +266,7 @@ subroutine model_stepTL(self, increment)
 
   ! 3. Update the Atlas fields from the LFRic prognostic fields
   ! Interpolate W2 vector to W3/Wtheta scalar winds
-  call self%wind_transform%vector_to_scalar(prognostic_fields)
+  call self%wind_transform%vector_to_scalar(self%modeldb%config, prognostic_fields)
 
   call copy_moist_fields_to_prognostic( moisture_fields, prognostic_fields )
 
@@ -362,7 +362,7 @@ subroutine model_stepAD(self, increment)
   call copy_moist_fields_from_prognostic( moisture_fields, prognostic_fields )
 
   ! Adjoint of ... Interpolate W2 vector to W3/Wtheta scalar winds
-  call self%wind_transform%adj_vector_to_scalar(prognostic_fields)
+  call self%wind_transform%adj_vector_to_scalar(self%modeldb%config, prognostic_fields)
 
   !>@todo: in ticket #267
   !> add identity_step_ad when reversable clock is available
@@ -393,7 +393,7 @@ subroutine model_finalAD(self, increment)
   call copy_moist_fields_to_prognostic( moisture_fields, prognostic_fields )
 
   ! Cell-centred winds to Edge based winds
-  call self%wind_transform%adj_scalar_to_vector( prognostic_fields )
+  call self%wind_transform%adj_scalar_to_vector( self%modeldb%config, prognostic_fields )
 
   ! Get Atlas field emulators to the model_prognostics
   call increment%get_to_field_collection_ad( variable_names, prognostic_fields )

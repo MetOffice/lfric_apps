@@ -82,7 +82,7 @@ contains
   !>         \f[ R_\theta = \theta + d_{adv}\alpha\Delta t\mathbf{u}.\nabla\theta \f]
   !>         This can be given either timelevel n or n+1 fields to compute
   !>         the appropriate part of the full right hand side
-  !> @param[in]     config          Configuration object
+  !> @param[in]     config          Application configuration object
   !> @param[in,out] rhs             The state vector to compute
   !> @param[in]     alpha_dt        The offcentering parameter times the timestep
   !> @param[in]     base_state      The model prognostic state to which increments are added
@@ -99,6 +99,8 @@ contains
 
     implicit none
 
+    type(config_type), intent(in) :: config
+
     real(kind=r_def),             intent(in)    :: alpha_dt
     logical(kind=l_def),          intent(in)    :: dlayer_rhs
 
@@ -110,7 +112,6 @@ contains
     logical(kind=l_def),          intent(in)    :: compute_eos
     logical(kind=l_def),          intent(in)    :: compute_rhs_t_d
     class(model_clock_type),      intent(in)    :: model_clock
-    type(config_type),            intent(in)    :: config
 
     if (   (rhs(igh_u)%get_element_order_h() == 0) &
      .and. (rhs(igh_u)%get_element_order_v() == 0) &
@@ -132,8 +133,9 @@ contains
 
     implicit none
 
-    real(kind=r_def),             intent(in)    :: alpha_dt
-    logical(kind=l_def),          intent(in)    :: dlayer_rhs
+    type(config_type),   intent(in) :: config
+    real(kind=r_def),    intent(in) :: alpha_dt
+    logical(kind=l_def), intent(in) :: dlayer_rhs
 
     ! Form of state and rhs is [u,theta,rho,exner]
     type(field_type), target,     intent(in)    :: base_state(bundle_size)
@@ -143,9 +145,7 @@ contains
     logical(kind=l_def),          intent(in)    :: compute_eos
     logical(kind=l_def),          intent(in)    :: compute_rhs_t_d
     class(model_clock_type),      intent(in)    :: model_clock
-    type(config_type),            intent(in)    :: config
 
-    type(mesh_type),     pointer :: mesh
     type(operator_type), pointer :: mm_vel    => null(), &
                                     mm_wtheta => null(), &
                                     coriolis  => null()
@@ -157,10 +157,12 @@ contains
                                  theta_base   => null(), &
                                  rho_base     => null(), &
                                  exner        => null()
-    type(field_type)    :: rhs_u
-    integer(kind=i_def) :: mesh_id
-    type(field_type)    :: theta_v
-    integer(tik)        :: id
+
+    type(mesh_type), pointer :: mesh
+
+    type(field_type) :: rhs_u
+    type(field_type) :: theta_v
+    integer(tik)     :: id
 
 
     ! For continuous fields the default looping depth is to the depth 1 halo
@@ -171,17 +173,16 @@ contains
 
     if ( LPROF ) call start_timing( id, 'dynamics.rhs_alg' )
 
-    mesh_id = base_state(igh_u)%get_mesh_id()
     mesh => base_state(igh_u)%get_mesh()
 
     geopotential => get_geopotential(config, mesh)
-    mm_wtheta    => get_mass_matrix_fv(Wtheta, mesh_id)
+    mm_wtheta    => get_mass_matrix_fv(config, mesh, Wtheta)
 
     ! Using modified velocity mass matrix if needing damping layer
     if (dlayer_rhs) then
-      mm_vel => get_w2_mass_matrix(w2_damping_layer_matrix, mesh_id, model_clock)
+      mm_vel => get_w2_mass_matrix(config, mesh, w2_damping_layer_matrix, model_clock)
     else
-      mm_vel => get_mass_matrix_fv(W2, mesh_id)
+      mm_vel => get_mass_matrix_fv(config, mesh, W2)
     end if
 
     u     => state(igh_u)
@@ -202,7 +203,7 @@ contains
 
     ! Compute rhs_u
     if ( rotating ) then
-      coriolis => get_coriolis(mesh_id)
+      coriolis => get_coriolis(config, mesh)
       call invoke( matrix_vector_kernel_type( rhs_u, u, coriolis ) )
     end if
     call theta_v%initialise( theta%get_function_space(), halo_depth = req_halo_depth )
@@ -250,6 +251,8 @@ contains
 
     implicit none
 
+    type(config_type), intent(in) :: config
+
     real(kind=r_def),             intent(in)    :: alpha_dt
     logical(kind=l_def),          intent(in)    :: dlayer_rhs
 
@@ -261,7 +264,6 @@ contains
     logical(kind=l_def),          intent(in)    :: compute_eos
     logical(kind=l_def),          intent(in)    :: compute_rhs_t_d
     class(model_clock_type),      intent(in)    :: model_clock
-    type(config_type),            intent(in)    :: config
 
     type(operator_type), pointer :: mm_vel    => null(), &
                                     mm_wtheta => null(), &
@@ -285,7 +287,6 @@ contains
     type(quadrature_rule_gaussian_type)    :: gaussian_quadrature
     class(reference_element_type), pointer :: reference_element => null()
     type (mesh_type),              pointer :: mesh
-    integer(kind=i_def)                    :: mesh_id
     integer(kind=i_def)                    :: vorticity_fs
     integer(kind=i_def)                    :: element_order_h
     integer(kind=i_def)                    :: element_order_v
@@ -301,20 +302,19 @@ contains
 
     if ( LPROF ) call start_timing( id, 'dynamics.rhs_alg' )
 
-    mesh_id = base_state(igh_u)%get_mesh_id()
     mesh => base_state(igh_u)%get_mesh()
 
     geopotential => get_geopotential(config, mesh)
-    mm_wtheta    => get_mass_matrix_fe( Wtheta, mesh%get_id())
+    mm_wtheta    => get_mass_matrix_fe(config, mesh, Wtheta)
     chi          => get_coordinates(mesh)
     panel_id     => get_panel_id(mesh)
-    mm_w3_inv    => get_inverse_mass_matrix_fe(W3, mesh%get_id())
+    mm_w3_inv    => get_inverse_mass_matrix_fe(config, mesh, W3)
 
     ! Using modified velocity mass matrix if needing damping layer
     if (dlayer_rhs) then
-      mm_vel => get_w2_mass_matrix(w2_damping_layer_matrix, mesh_id, model_clock)
+      mm_vel => get_w2_mass_matrix(config, mesh, w2_damping_layer_matrix, model_clock)
     else
-      mm_vel => get_mass_matrix_fe(w2, mesh%get_id())
+      mm_vel => get_mass_matrix_fe(config, mesh, W2)
     end if
 
     u     => state(igh_u)
@@ -373,7 +373,7 @@ contains
                     function_space_collection%get_fs(mesh, element_order_h, &
                                                      element_order_v,       &
                                                      vorticity_fs) )
-        call compute_vorticity_alg(vorticity, u, .false.)
+        call compute_vorticity_alg(config, vorticity, u, .false.)
         if ( vorticity_in_w1 ) then
           call invoke( vorticity_advection_kernel_type(rhs_tmp, u, vorticity, &
                                                        chi, panel_id, qr_exact) )
@@ -390,7 +390,7 @@ contains
     end if
 
     if ( rotating ) then
-      coriolis => get_coriolis(mesh_id)
+      coriolis => get_coriolis(config, mesh)
       call invoke( matrix_vector_kernel_type( rhs_tmp, u, coriolis ) )
     end if
 

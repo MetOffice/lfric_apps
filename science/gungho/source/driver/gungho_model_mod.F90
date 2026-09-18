@@ -70,7 +70,9 @@ module gungho_model_mod
   use minmax_tseries_mod,         only : minmax_tseries,      &
                                          minmax_tseries_init, &
                                          minmax_tseries_final
-  use mesh_mod,                   only : mesh_type
+  use mesh_mod,                   only : mesh_type, &
+                                         geometry_planar, &
+                                         geometry_spherical
   use mesh_collection_mod,        only : mesh_collection
   use clock_mod,                  only : clock_type
   use model_clock_mod,            only : model_clock_type
@@ -107,7 +109,6 @@ module gungho_model_mod
   use illuminate_alg_mod,          only : illuminate_alg
   use um_clock_init_mod,           only : um_clock_init
   use um_control_init_mod,         only : um_control_init
-  use um_domain_init_mod,          only : um_domain_init
   use um_domain_init_mod,          only : um_domain_init
   use um_sizes_init_mod,           only : um_sizes_init
   use um_physics_init_mod,         only : um_physics_init
@@ -519,9 +520,6 @@ contains
   !> @param [in,out] modeldb   The full model database for the model run
   !>
   subroutine initialise_infrastructure( io_context_name, modeldb )
-
-    use base_mesh_config_mod, only: geometry_planar, &
-                                    geometry_spherical
 
 #ifdef UM_PHYSICS
     use formulation_config_mod,    only: use_physics
@@ -1085,7 +1083,7 @@ contains
                              dt)
       end if
       ! Initialisation of UM variables related to the mesh
-      call um_domain_init(mesh)
+      call um_domain_init(modeldb%config, mesh)
     end if
 #endif
 
@@ -1189,7 +1187,7 @@ contains
 
     if (write_minmax_tseries) then
       call minmax_tseries_init('u')
-      call minmax_tseries(u, 'u', mesh)
+      call minmax_tseries(modeldb%config, mesh, u, 'u')
     end if
 
     select case( method )

@@ -127,8 +127,6 @@ character(str_def) :: prime_mesh_name
 
 integer(i_def) :: stencil_depth(1)
 integer(i_def) :: geometry
-integer(i_def) :: topology
-integer(i_def) :: coord_system
 real(r_def)    :: domain_bottom
 real(r_def)    :: scaled_radius
 logical(l_def) :: check_partitions
@@ -186,12 +184,10 @@ call log_event('Initialising mesh', LOG_LEVEL_INFO)
 ! -------------------------------
 prime_mesh_name  = config%base_mesh%prime_mesh_name()
 geometry         = config%base_mesh%geometry()
-topology         = config%base_mesh%topology()
 scaled_radius    = config%planet%scaled_radius()
 extrusion_method = config%extrusion%method()
 number_of_layers = config%extrusion%number_of_layers()
 domain_height    = config%extrusion%domain_height()
-coord_system     = config%finite_element%coord_system()
 
 tile_size_x = 1
 tile_size_y = 1
@@ -272,10 +268,8 @@ model_clock = model_clock_type( first_step, last_step, seconds_per_step, &
 file_list => io_context%get_filelist()
 call io_config%init_lfricinp_files(file_list)
 call io_context%initialise( xios_ctx )
-call io_context%initialise_xios_context( comm, chi, panel_id, &
-                                         model_clock, model_calendar, &
-                                         geometry, topology, &
-                                         coord_system, scaled_radius )
+call io_context%initialise_xios_context( config, comm, chi, panel_id, &
+                                         model_clock, model_calendar )
 
 ! Attach context advancement to the model's clock
 context_advance => advance
