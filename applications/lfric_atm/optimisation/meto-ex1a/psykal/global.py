@@ -19,10 +19,10 @@ print("sys.path:", sys.path)
 print("sys.executable:", sys.executable)
 print("sys.flags.ignore_environment (-E):", sys.flags.ignore_environment)
 _transformation_lib = os.getenv("PYTHONPATH", "").split(":")[0]
-print("psyclone_tools.py present at expected location:",
-      os.path.isfile(os.path.join(_transformation_lib, "psyclone_tools.py")))
+print("psyclone_tools_apps.py present at expected location:",
+      os.path.isfile(os.path.join(_transformation_lib, "psyclone_tools_apps.py")))
 
-from psyclone_tools import (redundant_computation_setval, colour_loops,
+from psyclone_tools_apps import (redundant_computation_setval, colour_loops,
                             openmp_parallelise_loops,
                             view_transformed_schedule)
 

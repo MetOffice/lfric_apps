@@ -16,7 +16,7 @@ same. Therefore, we do not apply the OpenMP transform to the
 algorithm.
 
 '''
-from psyclone_tools import (redundant_computation_setval, colour_loops,
+from psyclone_tools_apps import (redundant_computation_setval, colour_loops,
                             view_transformed_schedule)
 
 

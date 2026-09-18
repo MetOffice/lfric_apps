@@ -9,7 +9,7 @@ colouring and redundant computation to the level-1 halo for
 the initialisation built-ins generically.
 """
 
-from psyclone_tools import redundant_computation_setval, colour_loops, view_transformed_schedule
+from psyclone_tools_apps import redundant_computation_setval, colour_loops, view_transformed_schedule
 
 
 def trans(psyir):

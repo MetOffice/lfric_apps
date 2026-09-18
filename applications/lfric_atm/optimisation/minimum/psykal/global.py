@@ -14,7 +14,7 @@ Applying the 'redundant_computation_setval' transformation for the
 initialisation built-ins permits developers to set safe values in halos.
 
 '''
-from psyclone_tools import (redundant_computation_setval,
+from psyclone_tools_apps import (redundant_computation_setval,
                             view_transformed_schedule)
 
 

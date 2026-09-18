@@ -35,12 +35,14 @@ export EXTRA_ROSE_META = jules
 export META_DIR = $(WORKING_DIR)/../rose-meta
 export ROSE_META_DIRS = $(APPS_ROOT_DIR)/rose-meta $(META_DIR)
 
+APPS_CORE_INTERFACE := $(abspath ../../interfaces/core_interface)
+
 # Note - socrates_interface must come before jules_interface as there are dependencies on each other.
-export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
+export INTERNAL_DEPENDENCIES = $(APPS_CORE_INTERFACE)/infrastructure \
                                $(CORE_ROOT_DIR)/components/driver \
-                               $(CORE_ROOT_DIR)/components/science \
-                               $(CORE_ROOT_DIR)/components/inventory \
-                               $(CORE_ROOT_DIR)/components/lfric-xios \
+                               $(APPS_CORE_INTERFACE)/comp_science \
+                               $(APPS_CORE_INTERFACE)/comp_inventory \
+                               $(APPS_CORE_INTERFACE)/comp_lfric_xios \
                                $(APPS_ROOT_DIR)/science/shared \
                                $(APPS_ROOT_DIR)/interfaces/socrates_interface \
                                $(APPS_ROOT_DIR)/interfaces/jules_interface \
