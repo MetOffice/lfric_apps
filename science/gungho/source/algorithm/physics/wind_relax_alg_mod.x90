@@ -6,15 +6,14 @@
 !> @brief Newtonian relaxation of horizontal wind
 !> @details This is intended for use in cloud resolving model simulations in a
 !>          Cartesian domain. Newtonian relaxation is applied to the horizontal
-!>          mean wind components,\f$\mathbf{u}(t,\mathbf{x},z)\f$,
-!>          \f[
-!>             \frac{\partial\mathbf{u}}{\partial t} =
-!>             -\frac{\overline{\mathbf{u}}(t,z)-\mathbf{u}_{\mathrm target}(t,z)}
-!>                   {\tau},
-!>          \f]
-!>          where \f$\mathbf{u}_{\mathrm target}(t,z)\f$ is the target profile,
-!>          which may be time-varying, and \f$\tau\f$ is the timescale for
-!>          the relaxation.
+!>          wind components, u and v. At each model level, the relaxation
+!>          increment is calculated from the difference between the horizontally
+!>          averaged wind and the specified target wind:
+!>            delta_u = - dt * ( u_ave - u_tar ) / tau,
+!>          where dt is the timestep, u_ave is the average value of u on the
+!>          current model level at the current time, u_tar is the target
+!>          value of u at that level and time, and tau is the timescale.
+!>          A similar equation applies for delta_v.
 module wind_relax_alg_mod
 
   use config_mod,                    only: config_type
