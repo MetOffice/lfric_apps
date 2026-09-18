@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5 (Claude Code).
+!-------------------------------------------------------------------------------
 !> @brief Interface to the orographic drag parametrization scheme
 
 module orographic_drag_alg_mod
@@ -191,7 +194,8 @@ contains
                      du_orographic_drag, dv_orographic_drag, dtemp_orographic_drag,&
                      dtheta_orographic_drag, du_orog_blk, dv_orog_blk,             &
                      dtemp_orog_blk, du_orog_gwd, dv_orog_gwd, dtemp_orog_gwd,     &
-                     taux_orog_blk, tauy_orog_blk, taux_orog_gwd, tauy_orog_gwd)
+                     taux_orog_blk, tauy_orog_blk, taux_orog_gwd, tauy_orog_gwd,   &
+                     sd_orog)
 
     end if
 

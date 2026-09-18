@@ -9,9 +9,8 @@
 
 {# Set the family inheritance for this task #}
 {% set inherit = namespace(str="") %}
-{% set inherit.str = "MESH_"~task_ns.platform|upper %}
 {% for family in task_values["mesh_families"] %}
-    {% set inherit.str = inherit.str~","~family|upper %}
+    {% set inherit.str = inherit.str~family|upper~"," %}
 {% endfor %}
 
 {% set partition_parts = task_values.get("mpi_parts", task_values["mesh_cpus"]) %}
@@ -20,10 +19,19 @@
 {% endif %}
 {% set script_str = "rose task-run --app-key=mesh --opt-conf-key="~task_ns.conf_name %}
 
+{# Generate a resource family for the task #}
+{% set resource_family = task~"_resources" %}
+{{ set_task_resources(
+    resource_family,
+    inherit.str,
+    task_values["mesh_wallclock"],
+    task_values["mesh_cpus"],
+    task_values["mesh_memory"]
+    ) }}
+
     [[{{task}}]]
-        inherit={{inherit.str|upper}}
+        inherit = MESH_{{task_ns.platform|upper}}, {{resource_family|upper}}
         script = {{script_str}}
-        execution time limit = PT{{task_values["mesh_wallclock"]}}M
         [[[environment]]]
             DESTINATION_DIRECTORY = {{destination_dir}}
             BIN_DIR               = {{bin_dir}}
@@ -44,8 +52,5 @@
             XPROC                 = {{task_values["mesh_xproc"]}}
             YPROC                 = {{task_values["mesh_yproc"]}}
 {% endif %}
-
-        [[[directives]]]
-{{ set_task_resources(task_values["mesh_cpus"], task_values["mesh_memory"]) }}
 
 {% do LOG.debug("Finished in templates/runtime/generate_runtime_mesh.cylc") %}

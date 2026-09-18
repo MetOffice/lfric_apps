@@ -763,7 +763,7 @@ def get_children(node, node_type=Node, exclude=()):
     return children
 
 
-def get_all_children(node, node_type=Node):
+def get_all_children(node, node_type=Node, exclude=()):
     """
     A version of get_children, which instead recurses all the way down.
     Get all immediate descendents of a Node with a given type, i.e., those at
@@ -797,3 +797,31 @@ def get_all_children(node, node_type=Node):
             for child in returned_children:
                 local_children.append(child)
     return local_children
+
+
+def are_variables_present(node, check_list=[]):
+    """
+    Call get_all_children with an Assignment, and work through them,
+    checking whether the lhs of the returned list in present in our
+    check list. If it is, return true.
+
+    :arg node: the node to search for descendants of.
+    :type node: :py:class:`Node`
+    :arg check_list: list of items to check against the descendants
+    :type list: :py:class:`list`
+
+    :returns: skip_over bool
+    :rtype: :py:class:`list`
+    """
+    skip_over = False
+    all_children = get_all_children(node, node_type=Assignment)
+    skip_over = False
+    for child in all_children:
+        child_lhs_str = str(child.lhs).split("\n")
+        for item in check_list:
+            if str(item) in child_lhs_str[0]:
+                skip_over = True
+                break
+        if skip_over:
+            break
+    return skip_over
