@@ -22,8 +22,8 @@ casim:
     ref: 2026.07.1
 
 jules:
-    source: git@github.com:MetOffice/jules.git
-    ref: c22aeead61fd96a956464064dc48c26fb9a4132f
+    source: git@github.com:nicgedney/jules.git
+    ref: separate_irrigated_bare_soil_evap_new
 
 lfric_apps:
     source:
