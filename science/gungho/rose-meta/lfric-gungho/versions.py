@@ -19,11 +19,11 @@ class UpgradeError(Exception):
     __str__ = __repr__
 
 
-class vn32_t986(MacroUpgrade):
-    """Upgrade macro for PR #986 by Chris Smith."""
+class vn32_t800(MacroUpgrade):
+    """Upgrade macro for PR #800 by Chris Smith."""
 
     BEFORE_TAG = "vn3.2"
-    AFTER_TAG = "vn3.2_t986"
+    AFTER_TAG = "vn3.2_t800"
 
     def upgrade(self, config, meta_config=None):
         """Add vapour_relax namelist to configuration source list"""
