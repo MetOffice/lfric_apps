@@ -19,6 +19,7 @@ module external_forcing_alg_mod
                                              vapour_forcing,                     &
                                              vapour_forcing_none,                &
                                              vapour_forcing_profile,             &
+                                             vapour_relaxation,                  &
                                              wind_forcing,                       &
                                              wind_forcing_none,                  &
                                              wind_forcing_held_suarez,           &
@@ -63,7 +64,7 @@ module external_forcing_alg_mod
                                              get_face_selector_ew, &
                                              get_face_selector_ns
   use mesh_mod,                        only: mesh_type
-  use mr_indices_mod,                  only: nummr
+  use mr_indices_mod,                  only: nummr, imr_v
   use planet_config_mod,               only: kappa
   use io_config_mod,                   only: write_diag, use_xios_io
   use section_choice_config_mod,       only: cloud, cloud_um
@@ -75,6 +76,7 @@ module external_forcing_alg_mod
   use vertadvect_forcing_alg_mod,      only: vertadvect_forcing_alg
   use temp_tend_profile_alg_mod,       only: temp_tend_profile_alg
   use theta_relax_alg_mod,             only: theta_relax_alg
+  use vapour_relax_alg_mod,            only: vapour_relax_alg
   use geostrophic_forcing_alg_mod,     only: geostrophic_forcing_alg
   use vapour_forcing_profile_alg_mod,  only: vapour_forcing_profile_alg
   use wind_forcing_profile_alg_mod,    only: wind_forcing_profile_alg
@@ -435,7 +437,8 @@ contains
       call invoke( setval_c(dmcl_forcing, 0.0_r_def) )
     end if
 #else
-    if (vapour_forcing /= vapour_forcing_none .and. .not. vapour_forcing_done ) then
+    if ( ( vapour_relaxation .or. vapour_forcing /= vapour_forcing_none ) &
+         .and. .not. vapour_forcing_done ) then
       call dmv_forcing%initialise( vector_space = theta%get_function_space() )
       call invoke( setval_c(dmv_forcing, 0.0_r_def) )
       call dmcl_forcing%initialise( vector_space = theta%get_function_space() )
@@ -461,6 +464,14 @@ contains
 
       vapour_forcing_done = .true. ! Collect this increment later on
 
+    end if
+
+    if ( vapour_relaxation ) then
+      nlayers = mesh%get_nlayers()
+      call vapour_relax_alg( config, dmv_forcing, mr_n(imr_v), &
+                             theta, exner_in_wth,              &
+                             twod_mesh, time_now, nlayers )
+      vapour_forcing_done = .true.
     end if
 
 #ifdef UM_PHYSICS
