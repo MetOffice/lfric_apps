@@ -1,0 +1,156 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test the rh_to_mr_kernel
+module rh_to_mr_kernel_mod_test
+
+  use constants_mod,                       only : i_def, r_def
+  use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_wtheta_m3x3_q3x3x3_size
+  use get_unit_test_m3x3_dofmap_mod,       only : get_wtheta_m3x3_dofmap
+  use funit
+
+  implicit none
+
+  private
+  public :: rh_to_mr_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: rh_to_mr_test_type
+    private
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type rh_to_mr_test_type
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(rh_to_mr_test_type), intent(inout) :: this
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(rh_to_mr_test_type), intent(inout) :: this
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use rh_to_mr_kernel_mod, only : rh_to_mr_code
+
+   implicit none
+
+    class(rh_to_mr_test_type), intent(inout) :: this
+
+    real(kind=r_def), parameter :: tol = 1.0e-10_r_def
+    real(kind=r_def), parameter :: tk0c = 273.15_r_def ! Temperature of freezing in Kelvin
+    real(kind=r_def), parameter :: qsa1 = 3.8_r_def   ! Constant in qsat equation
+    real(kind=r_def), parameter :: qsa4 = 6.109_r_def  ! Constant in qsat equation in mbar
+    real(kind=r_def), parameter :: p_zero = 100000.0_r_def
+    real(kind=r_def), parameter :: recip_epsilon = 0.60_r_def
+    real(kind=r_def), parameter :: rd = 300.0_r_def
+    real(kind=r_def), parameter :: cp = 1000.0_r_def
+    real(kind=r_def), parameter :: kappa = rd / cp
+
+    ! Fields
+    real(kind=r_def)                 :: mr_sat
+    real(kind=r_def),    allocatable :: rh(:)
+    real(kind=r_def),    allocatable :: theta_d(:)
+    real(kind=r_def),    allocatable :: exner_at_wt(:)
+    real(kind=r_def),    allocatable :: mr_v(:)
+    real(kind=r_def),    allocatable :: mr_v_from_rh(:)
+
+    integer(kind=i_def)              :: k, cell
+    integer(kind=i_def)              :: nlayers, ncells
+    integer(kind=i_def)              :: nqp_h, nqp_v
+    integer(kind=i_def)              :: ndf_wt
+    integer(kind=i_def)              :: dim_space, dim_space_diff
+    integer(kind=i_def)              :: undf_wt
+
+    ! Dofmaps
+    integer(kind=i_def), allocatable :: map_wt(:,:)
+
+    nlayers = 3
+    call get_wtheta_m3x3_q3x3x3_size( ndf_wt, undf_wt, ncells,   &
+                                      dim_space, dim_space_diff, &
+                                      nqp_h, nqp_v, nlayers      )
+
+
+    call get_wtheta_m3x3_dofmap(map_wt, nlayers)
+
+    ! Create the data
+    allocate( mr_v( undf_wt ) )
+    allocate( exner_at_wt( undf_wt ) )
+    allocate( theta_d( undf_wt ) )
+    allocate( rh( undf_wt ) )
+    allocate( mr_v_from_rh( undf_wt ) )
+
+
+    ! Strategy behind this test is to fix the temperature at 273.15
+    ! In this case, mr_sat from Tetens' formula simplifies to:
+    ! mr_sat = qsa1 / (p - qsa4)
+    mr_sat = qsa1 / ( 0.01_r_def * p_zero - qsa4 )
+
+    do cell = 1, ncells
+      ! Fill height values
+      do k = 0, nlayers
+
+        ! Have pressure equal to p_zero everywhere
+        exner_at_wt(map_wt(1, cell) + k) = 1.0_r_def
+
+        ! Then theta_d is equal to temperature
+        theta_d(map_wt(1, cell) + k) = tk0c
+
+        ! Have mr_v change with height
+        mr_v(map_wt(1, cell) + k) = real(k, r_def) / 100.0_r_def
+
+        ! Use simplified situation to calculate answer
+        rh(map_wt(1, cell) + k) = mr_v(map_wt(1, cell) + k) / mr_sat &
+          * ( 1.0_r_def + mr_sat * recip_epsilon ) &
+          / ( 1.0_r_def + mr_v(map_wt(1, cell) + k) * recip_epsilon )
+      end do
+    end do
+
+    ! Make mr_v_from_rh initially have wrong values
+    mr_v_from_rh(:) = 0.0_r_def
+
+    cell = 4
+    call rh_to_mr_code( nlayers,       &
+                        rh,            &
+                        mr_v_from_rh,  &
+                        theta_d,       &
+                        exner_at_wt,   &
+                        recip_epsilon, &
+                        kappa,         &
+                        p_zero,        &
+                        ndf_wt,        &
+                        undf_wt,       &
+                        map_wt(:,cell)  )
+
+    do k = 0, nlayers
+      @assertEqual(mr_v_from_rh(map_wt(1, cell)+k), mr_v(map_wt(1, cell)+k), tol)
+    end do
+
+    deallocate( mr_v_from_rh )
+    deallocate( rh )
+    deallocate( theta_d )
+    deallocate( mr_v )
+    deallocate( exner_at_wt )
+    deallocate( map_wt )
+
+  end subroutine test_all
+
+end module rh_to_mr_kernel_mod_test
