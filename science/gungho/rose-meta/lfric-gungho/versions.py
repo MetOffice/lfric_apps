@@ -32,8 +32,9 @@ class vnXX_txxx(MacroUpgrade):
         return config, self.reports
 """
 
+
 class vn32_t802(MacroUpgrade):
-    """ Upgrade macro for <TICKET> by thomas.melvin"""
+    """ Upgrade macro for #802 by thomas.melvin"""
 
     BEFORE_TAG = "vn3.2"
     AFTER_TAG = "vn3.2_t802"
