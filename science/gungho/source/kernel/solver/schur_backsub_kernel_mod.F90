@@ -10,7 +10,7 @@ module schur_backsub_kernel_mod
   use argument_mod,      only : arg_type,              &
                                 GH_FIELD, GH_OPERATOR, &
                                 GH_READ, GH_INC,       &
-                                GH_WRITE,              &
+                                GH_READWRITE,          &
                                 GH_REAL, CELL_COLUMN,  &
                                 GH_SCALAR, GH_LOGICAL
   use constants_mod,     only : r_solver, i_def, l_def
@@ -28,15 +28,15 @@ module schur_backsub_kernel_mod
   ! Kernel metadata for PSyclone
   type, public, extends(kernel_type) :: schur_backsub_kernel_type
     private
-    type(arg_type) :: meta_args(8) = (/                       &
-         arg_type(GH_FIELD,    GH_REAL,    GH_INC,   W2h),    & ! lhs_h
-         arg_type(GH_FIELD,    GH_REAL,    GH_WRITE, W2v),    & ! lhs_v
-         arg_type(GH_FIELD,    GH_REAL,    GH_READ,  W2),     & ! rhs
-         arg_type(GH_FIELD,    GH_REAL,    GH_READ,  W3),     & ! exner_inc
-         arg_type(GH_OPERATOR, GH_REAL,    GH_READ,  W2, W3), & ! div
-         arg_type(GH_FIELD,    GH_REAL,    GH_READ,  W2),     & ! norm
-         arg_type(GH_SCALAR,   GH_LOGICAL, GH_READ),          & ! lam
-         arg_type(GH_FIELD,    GH_REAL,    GH_READ,  W2)      & ! mask
+    type(arg_type) :: meta_args(8) = (/                           &
+         arg_type(GH_FIELD,    GH_REAL,    GH_INC,       W2h),    & ! lhs_h
+         arg_type(GH_FIELD,    GH_REAL,    GH_READWRITE, W2v),    & ! lhs_v
+         arg_type(GH_FIELD,    GH_REAL,    GH_READ,      W2),     & ! rhs
+         arg_type(GH_FIELD,    GH_REAL,    GH_READ,      W3),     & ! exner_inc
+         arg_type(GH_OPERATOR, GH_REAL,    GH_READ,      W2, W3), & ! div
+         arg_type(GH_FIELD,    GH_REAL,    GH_READ,      W2),     & ! norm
+         arg_type(GH_SCALAR,   GH_LOGICAL, GH_READ),              & ! lam
+         arg_type(GH_FIELD,    GH_REAL,    GH_READ,      W2)      & ! mask
          /)
     integer :: operates_on = CELL_COLUMN
   contains
