@@ -45,6 +45,9 @@ class vn32_t802(MacroUpgrade):
             config,
             ["namelist:mixed_solver", "chebyshev_lmax"],
             "2.5",
+        )
+        self.add_setting(
+            config,
             ["namelist:mixed_solver", "chebyshev_lmin"],
             "1.0",
         )
