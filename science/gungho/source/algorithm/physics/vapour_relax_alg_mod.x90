@@ -7,16 +7,12 @@
 !> @details This is intended for use in cloud resolving model simulations in a
 !>          Cartesian domain. Newtonian relaxation is applied to the horizontal
 !>          mean of either vapour mixing ratio or relative humidity.
-!>          Using \f$f_\mathrm{vap}(t,\mathbf{x},z)\f$, to represent
-!>          either of these fields, the relaxation forcing increment is
-!>          obtained by applyying the forward Euler discretisation to
-!>          \f[
-!>             \frac{\partial f_\mathrm{vap}}{\partial t} =
-!>             -\frac{\overline{f_\mathrm{vap}}(t,z)-f_{\mathrm vap_target}(t,z)}
-!>                   {\tau},
-!>          \f]
-!>          where \f$f_{\mathrm vap_target}(t,z)\f$ is the target profile,
-!>          which may be time-varying, and \f$\tau\f$ is the timescale for
+!>          Using f(t,x,y,z), to represent either of these fields, the
+!>          relaxation forcing increment is obtained by applying the forward
+!>          Euler discretisation to
+!>             df/dt = - ( f_ave(t,z) - f_targ(t,z) ) / tau
+!>          where f_ave is the horizontal average of f, f_targ is the target
+!>          profile (which may be time-varying) and tau is the timescale for
 !>          the relaxation.
 module vapour_relax_alg_mod
 
