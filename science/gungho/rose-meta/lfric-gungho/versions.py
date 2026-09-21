@@ -31,3 +31,20 @@ class vnXX_txxx(MacroUpgrade):
         # Add settings
         return config, self.reports
 """
+
+class vn32_txxx(MacroUpgrade):
+    """ Upgrade macro for <TICKET> by thomas.melvin"""
+
+    BEFORE_TAG = "vn3.2"
+    AFTER_TAG = "vn3.2_txxx"
+
+    def upgrade(self, config, meta_config=None):
+        # Add lmin and lmax settings for the mixed solver
+        self.add_setting(
+            config,
+            ["namelist:mixed_solver", "chebyshev_lmax"],
+            "2.5",
+            ["namelist:mixed_solver", "chebyshev_lmin"],
+            "1.0",
+        )
+        return config, self.reports

@@ -598,6 +598,8 @@ stomata_model='jacobs',
 run_log_level='info',
 /
 &mixed_solver
+chebyshev_lmax=2.5
+chebyshev_lmin=1.0
 eliminate_variables='discrete',
 gcrk=18,
 guess_np1=.false.,

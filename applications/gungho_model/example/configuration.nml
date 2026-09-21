@@ -179,8 +179,8 @@ write_minmax_tseries=.false.,
 run_log_level='info',
 /
 &mixed_solver
-chebyshev_lmin = 1.0
 chebyshev_lmax = 2.5
+chebyshev_lmin = 1.0
 eliminate_variables='discrete',
 fail_on_non_converged=.true.,
 gcrk=4,
