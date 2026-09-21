@@ -230,7 +230,7 @@ do i_cond1 = 1, n_cond_species_liq
           do ic2 = 1, nc_col(i_cond2)
             ic = index_ic_col(ic2,i_cond2)
             dq_col_cond(ic,i_cond1) = dq_col_cond(ic,i_cond1)                  &
-                                  + dq_col_cond(ic,i_cond2)
+                                    + dq_col_cond(ic,i_cond2)
           end do
 
           ! Set flag indicating some collection has been done
