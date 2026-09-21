@@ -333,8 +333,11 @@
   <field id="cloud__cloud_amount_rnd" name="cloud_amount_rnd" long_name="combined_cloud_amount_random_overlap" standard_name="cloud_area_fraction" unit="1" domain_ref="face" />
   <field id="cloud__cloud_amount_maxrnd" name="cloud_amount_maxrnd" long_name="combined_cloud_amount_maximum_random_overlap" standard_name="cloud_area_fraction" unit="1" domain_ref="face" />
   <field id="cloud__ceilometer_cloud_amount_maxrnd" name="ceilometer_cloud_amount_maxrnd" long_name="ceilometer_filtered_combined_cloud_amount_maximum_random_overlap" standard_name="cloud_area_fraction" unit="1" domain_ref="face" />
-  <field id="cloud__cloud_base_altitude" name="cloud_base_altitude" long_name="cloud_base_altitude_asl_combined_cloud_amount_greater_than_2p5_okta" standard_name="cloud_base_altitude" unit="kilofeet" domain_ref="face" />
-  <field id="cloud__cloud_top_altitude" name="cloud_top_altitude" long_name="cloud_top_altitude_asl_combined_cloud_amount_greater_than_2p5_okta" standard_name="cloud_top_altitude" unit="kilofeet" domain_ref="face" />
+  <field id="cloud__cloud_base_0p1_okta" name="cloud_base_0p1_okta" long_name="cloud_base_altitude_asl_combined_cloud_amount_greater_than_0p1_okta" standard_name="cloud_base_altitude" unit="kilofeet" domain_ref="face" />
+  <field id="cloud__cloud_base_2p5_okta" name="cloud_base_2p5_okta" long_name="cloud_base_altitude_asl_combined_cloud_amount_greater_than_2p5_okta" standard_name="cloud_base_altitude" unit="kilofeet" domain_ref="face" />
+  <field id="cloud__cloud_base_4p5_okta" name="cloud_base_4p5_okta" long_name="cloud_base_altitude_asl_combined_cloud_amount_greater_than_4p5_okta" standard_name="cloud_base_altitude" unit="kilofeet" domain_ref="face" />
+  <field id="cloud__cloud_base_7p9_okta" name="cloud_base_7p9_okta" long_name="cloud_base_altitude_asl_combined_cloud_amount_greater_than_7p9_okta" standard_name="cloud_base_altitude" unit="kilofeet" domain_ref="face" />
+  <field id="cloud__cloud_top_2p5_okta" name="cloud_top_2p5_okta" long_name="cloud_top_altitude_asl_combined_cloud_amount_greater_than_2p5_okta" standard_name="cloud_top_altitude" unit="kilofeet" domain_ref="face" />
   <field id="cloud__very_low_type_cloud_amount" name="very_low_type_cloud_amount" long_name="maximum_combined_cloud_amount_below_111m_asl" unit="1" domain_ref="face" />
   <field id="cloud__low_type_cloud_amount" name="low_type_cloud_amount" long_name="maximum_combined_cloud_amount_between_111_and_1949m_asl" standard_name="low_type_cloud_area_fraction" unit="1" domain_ref="face" />
   <field id="cloud__medium_type_cloud_amount" name="medium_type_cloud_amount" long_name="maximum_combined_cloud_amount_between_1949_and_5574m_asl" standard_name="medium_type_cloud_area_fraction" unit="1" domain_ref="face" />
@@ -499,6 +502,7 @@
   <field id="orographic_drag__tauy_orog_blk" name="tauy_orog_blk" long_name="orographic_blocking_drag_V_wind_stress" unit="Pa" grid_ref="full_level_face_grid" />
   <field id="orographic_drag__tauy_orog_gwd" name="tauy_orog_gwd" long_name="orographic_gravity_wave_drag_V_wind_stress" unit="Pa" grid_ref="full_level_face_grid" />
   <field id="orographic_drag__tauy_orographic_drag" name="tauy_orog" long_name="orographic_drag_V_wind_stress" unit="Pa" grid_ref="full_level_face_grid"> orographic_drag__tauy_orog_blk + orographic_drag__tauy_orog_gwd </field>
+  <field id="orographic_drag__sd_orog" name="sd_orog" long_name="standard_deviation_of_orography" unit="m" domain_ref="face" />
   <!-- Jules surface exchange diagnostics -->
   <field id="surface__tile_fraction" name="tile_fraction" long_name="surface_tile_fraction" unit="1" domain_ref="face" axis_ref="surface_tiles" />
   <!-- Extracts tile types for sea and sea-ice, removes pseudo-level coordinate, then calculate sea-ice fraction -->
@@ -539,9 +543,11 @@
   <field id="surface__t1p5m" name="t1p5m" long_name="temperature_at_screen_level" unit="K" domain_ref="face" />
   <field id="surface__t1p5m_ssi" name="t1p5m_ssi" long_name="temperature_at_screen_level_over_sea_and_sea_ice" unit="K" domain_ref="face" />
   <field id="surface__t1p5m_land" name="t1p5m_land" long_name="temperature_at_screen_level_over_land" unit="K" domain_ref="face" />
+  <field id="surface__t10m_ssi" name="t10m_ssi" long_name="temperature_at_10m_over_sea_and_sea_ice" unit="K" domain_ref="face" />
   <field id="surface__q1p5m_surft" name="q1p5m_surft" long_name="land_tile_screen_level_specific_humidity" unit="kg/kg" domain_ref="face" axis_ref="surface_tiles" />
   <field id="surface__q1p5m" name="q1p5m" long_name="specific_humidity_at_screen_level" unit="kg kg-1" domain_ref="face" />
   <field id="surface__q1p5m_ssi" name="q1p5m_ssi" long_name="specific_humidity_at_screen_level_over_sea_and_sea_ice" unit="kg kg-1" domain_ref="face" />
+  <field id="surface__q10m_ssi" name="q10m_ssi" long_name="specific_humidity_at_10m_over_sea_and_sea_ice" unit="kg kg-1" domain_ref="face" />
   <field id="surface__q1p5m_land" name="q1p5m_land" long_name="specific_humidity_at_screen_level_over_land" unit="kg kg-1" domain_ref="face" />
   <field id="surface__qcl1p5m" name="qcl1p5m" long_name="specific_cloud_water_at_screen_level" unit="kg kg-1" domain_ref="face" />
   <field id="surface__qcl1p5m_ssi" name="qcl1p5m_ssi" long_name="specific_cloud_water_at_screen_level_over_sea_and_sea_ice" unit="kg kg-1" domain_ref="face" />
@@ -559,6 +565,8 @@
   <field id="surface__vis_prob_5km" name="vis_prob_5km" long_name="probability_visibility_below_5km_at_screen_level" unit="1" domain_ref="face" />
   <field id="surface__visibility_no_precip" name="visibility_no_precip" long_name="visibility_excluding precipitation_at_screen_level" standard_name="visibility_in_air" unit="m" domain_ref="face" />
   <field id="surface__visibility_with_precip" name="visibility_with_precip" long_name="visibility_including_precipitation_at_screen_level" standard_name="visibility_in_air" unit="m" domain_ref="face" />
+  <field id="surface__visibility_with_precip_ssi" name="visibility_with_precip_ssi" long_name="visibility_including_precipitation_at_screen_level_over_sea_and_sea_ice" standard_name="visibility_in_air" unit="m" domain_ref="face" />
+  <field id="surface__visibility_with_precip_land" name="visibility_with_precip_land" long_name="visibility_including_precipitation_at_screen_level_over_land" standard_name="visibility_in_air" unit="m" domain_ref="face" />
   <field id="surface__visibility_with_dust" name="visibility_with_dust" long_name="visibility_including_dust_at_screen_level" standard_name="visibility_in_air" unit="m" domain_ref="face" />
   <field id="surface__visibility_with_precip_dust" name="visibility_with_precip_dust" long_name="visibility_including_precipitation_and_dust_at_screen_level" standard_name="visibility_in_air" unit="m" domain_ref="face" />
   <field id="surface__tile_heat_flux" name="tile_heat_flux" long_name="surface_sensible_heat_flux" unit="W m-2" domain_ref="face" axis_ref="surface_tiles" />
@@ -666,6 +674,7 @@
   <field id="turbulence__bl_weight_1dbl" name="bl_weight_1dbl" long_name="Blending_weight_in_boundary_layer" unit="1" domain_ref="face" />
   <field id="turbulence__tke" name="tke_bl" long_name="turbulent_kinetic_energy" unit="m2 s-2" grid_ref="full_level_face_grid" />
   <field id="turbulence__wvar" name="wvar" long_name="vertical_velocity_variance" unit="m2 s-2" grid_ref="full_level_face_grid" />
+  <field id="turbulence__thermal_speed" name="thermal_speed" long_name="bl_updraft_thermal_speed" unit="m s-1" domain_ref="face" />
   <field id="turbulence__dsldzm" name="dsldzm" long_name="liquid_temperature_gradient" unit="kg m-1" grid_ref="full_level_face_grid" />
   <field id="turbulence__mix_len_bm" name="mix_len_bm" long_name="Turb length-scale for bimodal" unit="m" grid_ref="full_level_face_grid" />
   <field id="turbulence__gradrinr" name="gradrinr" long_name="gradient_richardson_number" unit="1" grid_ref="full_level_face_grid" />
