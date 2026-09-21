@@ -134,7 +134,7 @@ module tr_bdf2_timestep_alg_mod
 
   private
 
-  ! State object for the semi-implicit time-stepping method
+  ! State object for the TR-BDF2 time-stepping method
   type, extends(timestep_method_type), public :: tr_bdf2_timestep_type
     private
 
@@ -1228,7 +1228,8 @@ contains
         ! -------------------------------------------------------------------- !
         ! Transport state_bdf & mr_bdf: put results in rhs_adv & mr
         ! Transporting wind is u^{n+1}
-        ! Here we also transport other fields using 0.5*(u^n + u^{n+1})
+        ! Here we also transport tracers over the whole timestep using
+        ! a transporting wind of 0.5*(u^n + u^{n+1})
         call gungho_transport_control_alg(                                     &
                 self%config, self%rhs_adv,                                     &
                 self%state_bdf, self%state(igh_u), self%state_n(igh_u),        &
@@ -1412,7 +1413,7 @@ contains
           end if
 
           !---------------------------------------------------------------------
-          ! Solve system: A*inc = rhs_m, and increment state by inc
+          ! Solve system: A*inc = rhs_np1, and increment state by inc
           !---------------------------------------------------------------------
           call semi_implicit_solver_alg_step(                                  &
               self%state, self%rhs_np1,                                        &

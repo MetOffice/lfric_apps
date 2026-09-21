@@ -103,6 +103,7 @@ The BDF2 stage appears to require two separate transport calls. However,
 these can be combined to develop a more efficient scheme.
 
 Introduce the intermediate variables:
+
 .. math::
 
    \boldsymbol{X}^\ast=\boldsymbol{X}^n - \gamma\Delta t \mathcal{F}(\boldsymbol{X}^n), \qquad
