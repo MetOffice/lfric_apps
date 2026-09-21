@@ -92,7 +92,9 @@ contains
     type(field_collection_type), pointer :: con_tracer_last_outer
     type(field_collection_type), pointer :: lbc_fields
     type(field_collection_type), pointer :: moisture_fields
+#ifdef UM_PHYSICS
     type(field_collection_type), pointer :: cloud_fields
+#endif
     type(field_type),            pointer :: mr(:)
     type(field_type),            pointer :: moist_dyn(:)
     type(field_collection_type), pointer :: derived_fields
