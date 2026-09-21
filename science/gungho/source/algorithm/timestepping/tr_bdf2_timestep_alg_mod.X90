@@ -581,6 +581,8 @@ contains
   !!          (TR) step and the Backward-Difference (BDF2) step, each of which
   !!          involves an implicit method that is solved with a Quasi-Newton
   !!          method.
+  !!          The TR step runs from time n*dt to (n+2*gamma)*dt, while
+  !!          the BDF2 step runs from (n+2*gamma)*dt to (n+1)*dt.
   !> @param[in]     modeldb                Holds the model state
   !> @param[in,out] u                      3D wind field
   !> @param[in,out] rho                    Density
