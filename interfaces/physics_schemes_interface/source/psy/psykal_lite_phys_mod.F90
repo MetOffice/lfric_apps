@@ -1152,4 +1152,80 @@ z0h_eff_proxy%data, ocn_cpl_point_proxy%data, ndf_wtheta, &
       !
       !
     END SUBROUTINE invoke_thetaw_kernel_type
+  !---------------------------------------------------------------------
+  !> Contains the PSy-layer for the icing-potential pressure-level
+  !> diagnostic. It follows the same hand-rolled pattern as the other
+  !> pressure-level kernels above, needed because looping over the
+  !> pressure levels is currently unsupported by PSyclone
+  !> (see https://github.com/stfc/PSyclone/issues/1312). This wrapper can
+  !> be removed once that PSyclone ticket is completed.
+    SUBROUTINE invoke_icing_pot_kernel_type(plev_icing_pot, plev_rh, &
+                                            plev_temp, plev_cf, nplev)
+      USE icing_pot_kernel_mod, ONLY: icing_pot_code
+      USE mesh_mod, ONLY: mesh_type
+      INTEGER(KIND=i_def), intent(in) :: nplev
+      TYPE(field_type), intent(in) :: plev_icing_pot, plev_rh, plev_temp, &
+&plev_cf
+      INTEGER(KIND=i_def) cell
+      INTEGER(KIND=i_def) loop0_start, loop0_stop
+      INTEGER(KIND=i_def) nlayers_plev_icing_pot
+      REAL(KIND=r_def), pointer, dimension(:) :: plev_icing_pot_data => null()
+      REAL(KIND=r_def), pointer, dimension(:) :: plev_rh_data => null()
+      REAL(KIND=r_def), pointer, dimension(:) :: plev_temp_data => null()
+      REAL(KIND=r_def), pointer, dimension(:) :: plev_cf_data => null()
+      TYPE(field_proxy_type) plev_icing_pot_proxy, plev_rh_proxy, &
+&plev_temp_proxy, plev_cf_proxy
+      INTEGER(KIND=i_def), pointer :: map_adspc1_plev_icing_pot(:,:) => null()
+      INTEGER(KIND=i_def) ndf_adspc1_plev_icing_pot, undf_adspc1_plev_icing_pot
+      INTEGER(KIND=i_def) max_halo_depth_mesh
+      TYPE(mesh_type), pointer :: mesh => null()
+      !
+      ! Initialise field and/or operator proxies
+      !
+      plev_rh_proxy = plev_rh%get_proxy()
+      plev_rh_data => plev_rh_proxy%data
+      plev_temp_proxy = plev_temp%get_proxy()
+      plev_temp_data => plev_temp_proxy%data
+      plev_cf_proxy = plev_cf%get_proxy()
+      plev_cf_data => plev_cf_proxy%data
+      plev_icing_pot_proxy = plev_icing_pot%get_proxy()
+      plev_icing_pot_data => plev_icing_pot_proxy%data
+      !
+      ! Initialise number of layers
+      !
+      nlayers_plev_icing_pot = plev_icing_pot_proxy%vspace%get_nlayers()
+      !
+      ! Create a mesh object
+      !
+      mesh => plev_icing_pot_proxy%vspace%get_mesh()
+      max_halo_depth_mesh = mesh%get_halo_depth()
+      !
+      ! Look-up dofmaps for each function space
+      !
+      map_adspc1_plev_icing_pot => plev_icing_pot_proxy%vspace%get_whole_dofmap()
+      !
+      ! Initialise number of DoFs for adspc1_plev_icing_pot
+      !
+      ndf_adspc1_plev_icing_pot = plev_icing_pot_proxy%vspace%get_ndf()
+      undf_adspc1_plev_icing_pot = plev_icing_pot_proxy%vspace%get_undf()
+      !
+      ! Set-up all of the loop bounds
+      !
+      loop0_start = 1
+      loop0_stop = mesh%get_last_edge_cell()
+      !
+      ! Call kernels and communication routines
+      !
+      DO cell = loop0_start, loop0_stop, 1
+        CALL icing_pot_code(nlayers_plev_icing_pot, plev_icing_pot_data, &
+&plev_rh_data, plev_temp_data, plev_cf_data, nplev, ndf_adspc1_plev_icing_pot, &
+&undf_adspc1_plev_icing_pot, map_adspc1_plev_icing_pot(:,cell))
+      END DO
+      !
+      ! Set halos dirty/clean for fields modified in the above loop
+      !
+      CALL plev_icing_pot_proxy%set_dirty()
+      !
+      !
+    END SUBROUTINE invoke_icing_pot_kernel_type
 end module psykal_lite_phys_mod

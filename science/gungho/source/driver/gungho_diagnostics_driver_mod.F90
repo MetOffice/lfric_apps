@@ -58,6 +58,7 @@ module gungho_diagnostics_driver_mod
   use pres_lev_diags_alg_mod,    only : pres_lev_diags_alg
   use pmsl_alg_mod,              only : pmsl_alg
   use rh_diag_alg_mod,           only : rh_diag_alg
+  use icing_pot_alg_mod,         only : icing_pot_alg
   use freeze_lev_alg_mod,        only : freeze_lev_alg
 #endif
 
@@ -91,6 +92,7 @@ contains
     type(field_collection_type), pointer :: con_tracer_last_outer
     type(field_collection_type), pointer :: lbc_fields
     type(field_collection_type), pointer :: moisture_fields
+    type(field_collection_type), pointer :: cloud_fields
     type(field_type),            pointer :: mr(:)
     type(field_type),            pointer :: moist_dyn(:)
     type(field_collection_type), pointer :: derived_fields
@@ -329,6 +331,9 @@ contains
 #ifdef UM_PHYSICS
       ! RH diagnostics
       call rh_diag_alg(exner_in_wth, theta, mr)
+      ! Icing-potential diagnostic (needs bulk cloud fraction)
+      cloud_fields => modeldb%fields%get_field_collection("cloud_fields")
+      call icing_pot_alg(exner_in_wth, theta, mr, cloud_fields)
       ! Call PMSL algorithm
       call pmsl_alg(modeldb%config, exner, derived_fields, theta, twod_mesh)
       ! Pressure level diagnostics
