@@ -1,3 +1,9 @@
+# -----------------------------------------------------------------------------
+# (C) Crown copyright Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+# -----------------------------------------------------------------------------
+
 name: Track Review Project
 
 on:
@@ -7,11 +13,14 @@ on:
       - completed
 
 permissions:
-  actions: read
-  contents: read
-  pull-requests: write
+  contents: read  # Required to evaluate the event trigger metadata safely
 
 jobs:
   track_review_project:
-    uses: MetOffice/growss/.github/workflows/track-review-project.yaml@main
-    secrets: inherit
+    permissions:
+      actions: read  # Required to check out code or parse files safely
+      contents: read  # Required to read the upstream triggered workflow run artifact status
+      pull-requests: write  # Required for the downstream engine to add comments or update metadata on the PR
+    uses: MetOffice/growss/.github/workflows/track-review-project.yaml@0f9ffe6a138ae9943053621916a850a075997db8 # v1.0.0
+    secrets:
+      PROJECT_ACTION_PAT: ${{ secrets.PROJECT_ACTION_PAT }}
