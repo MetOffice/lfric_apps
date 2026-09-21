@@ -91,13 +91,16 @@ contains
 !  real( kind=r_def )          :: vapour_field(number_heights)
   real( kind=r_def )          :: vapour_target(number_heights)
   real( kind=r_def )          :: relaxation_coeff
-  integer( kind=i_def )       :: k, mesh_id
+  integer( kind=i_def )       :: k
   logical( kind=l_def )       :: profile_extrap
   type( field_type )          :: dmv_relax
   type( field_type ), target  :: rel_humidity
   type( field_type ), target  :: horiz_mean
   type( field_type ), pointer :: height_wth
   type( field_type ), pointer :: vapour_field
+  type( mesh_type ),  pointer :: mesh
+
+  nullify (mesh, vapour_field, height_wth )
 
   select case( variable )
   case( variable_rh )
@@ -150,7 +153,7 @@ contains
       end do
       height_wth => exner_in_wth
     else
-      mesh_id = dmv_relax%get_mesh_id()
+      mesh => dmv_relax%get_mesh()
       height_wth => get_height_fv( config, mesh, Wtheta )
     end if
     profile_extrap = .false.

@@ -173,6 +173,7 @@ contains
 
     mesh => theta%get_mesh()
     height_wth => get_height_fv(config, mesh, Wtheta)
+    nlayers = mesh%get_nlayers()
 
     if ( theta_forcing /= theta_forcing_none .or. theta_relaxation .or.           &
          vertadvect_forcing ) then
@@ -259,7 +260,6 @@ contains
     end if
 
     if ( theta_relaxation ) then
-      nlayers = mesh%get_nlayers()
       call theta_relax_alg( config, dtheta_forcing, theta, exner_in_wth, &
                             twod_mesh, time_now, nlayers )
       theta_forcing_done = .true.
@@ -467,7 +467,6 @@ contains
     end if
 
     if ( vapour_relaxation ) then
-      nlayers = mesh%get_nlayers()
       call vapour_relax_alg( config, dmv_forcing, mr_n(imr_v), &
                              theta, exner_in_wth,              &
                              twod_mesh, time_now, nlayers )
