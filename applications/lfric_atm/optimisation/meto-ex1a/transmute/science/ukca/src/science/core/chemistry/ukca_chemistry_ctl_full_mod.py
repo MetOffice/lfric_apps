@@ -4,8 +4,10 @@
 # under which the code may be used.
 ##############################################################################
 
-# This transformation introduces OpenMP directives around loops inside
-# UKCA full-domain mode.
+"""
+This transformation introduces OpenMP directives around loops inside
+UKCA chemistry full-domain mode.
+"""
 
 from psyclone.psyir.symbols import (
     ArrayType,
@@ -27,14 +29,19 @@ psy_version = (__MAJOR__, __MINOR__, __MICRO__)
 
 
 def match_loop(loop: Loop, var_name: str, stop_name: str) -> bool:
-    # Return true only if loop's variable is named var_name
-    # and loop's stop expression is a reference named stop_name.
+    """
+    Return true only if loop's variable is named var_name
+    and loop's stop expression is a reference named stop_name.
+    """
     return (loop.variable.name == var_name and
             isinstance(loop.stop_expr, Reference) and
             loop.stop_expr.name == stop_name)
 
 
 def trans(psyir):
+    """
+    Add OpenMP directives to selected loops.
+    """
     # All loops are dynamically scheduled
     omp_trans = OMPLoopTrans(omp_directive="paralleldo",
                              omp_schedule="dynamic")
