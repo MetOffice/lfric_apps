@@ -1,14 +1,12 @@
-# -----------------------------------------------------------------------------
-# (C) Crown copyright Met Office. All rights reserved.
+##############################################################################
+# (c) Crown copyright 2025 Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
-# -----------------------------------------------------------------------------
+##############################################################################
 
 """
 This transformation introduces OpenMP directives around loops inside
-UKCA chemistry full-domain mode. The UKCA code already contains
-manual directives so this script is currently optional. It is provided
-in case PSyclone fully replaces manual directives in UKCA in future.
+UKCA chemistry full-domain mode.
 """
 
 from psyclone.psyir.symbols import (
