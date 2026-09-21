@@ -50,5 +50,5 @@ socrates-spectral:
     ref: 2026.07.1
 
 ukca:
-    source: git@github.com:mn416/ukca
+    source: git@github.com:mn416/ukca.git
     ref: mn416-3d-chunking
