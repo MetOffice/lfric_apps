@@ -1,4 +1,5 @@
 import sys
+import re
 
 from metomi.rose.upgrade import MacroUpgrade  # noqa: F401
 
@@ -18,16 +19,29 @@ class UpgradeError(Exception):
     __str__ = __repr__
 
 
-"""
-Copy this template and complete to add your macro
+class vn32_t986(MacroUpgrade):
+    """Upgrade macro for PR #986 by Chris Smith."""
 
-class vnXX_txxx(MacroUpgrade):
-    # Upgrade macro for <TICKET> by <Author>
-
-    BEFORE_TAG = "vnX.X"
-    AFTER_TAG = "vnX.X_txxx"
+    BEFORE_TAG = "vn3.2"
+    AFTER_TAG = "vn3.2_t986"
 
     def upgrade(self, config, meta_config=None):
-        # Add settings
+        """Add vapour_relax namelist to configuration source list"""
+        source = self.get_setting_value(config, ["file:configuration.nml","source"])
+        source = re.sub(r'\(namelist:vapour_forcing\)',
+                        r'(namelist:vapour_forcing)' + '\n' + ' (namelist:vapour_relax)',
+                        source)
+        self.change_setting_value(config, ["file:configuration.nml","source"], source)
+        """Add vapour_relaxation setting to external_forcing namelist"""
+        self.add_setting(config, ["namelist:external_forcing", "vapour_relaxation"], ".false.")
+        """Data for vapour_relax namelist"""
+        self.add_setting(config, ["namelist:vapour_relax"])
+        self.add_setting(config, ["namelist:vapour_relax", "coordinate"], "'height'")
+        self.add_setting(config, ["namelist:vapour_relax", "heights"], "0.0")
+        self.add_setting(config, ["namelist:vapour_relax", "number_heights"], "1")
+        self.add_setting(config, ["namelist:vapour_relax", "number_times"], "1")
+        self.add_setting(config, ["namelist:vapour_relax", "profile_data"], "0.0")
+        self.add_setting(config, ["namelist:vapour_relax", "times"], "0.0")
+        self.add_setting(config, ["namelist:vapour_relax", "timescale"], "1.0")
+        self.add_setting(config, ["namelist:vapour_relax", "variable"], "'mr'")
         return config, self.reports
-"""
