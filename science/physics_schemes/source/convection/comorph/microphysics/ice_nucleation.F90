@@ -31,7 +31,7 @@ subroutine ice_nucleation( n_points,                                           &
                            n_points_diag, n_diags, diags_super )
 
 use comorph_constants_mod, only: real_cvprec, zero,                            &
-                     homnuc_temp, hetnuc_temp, coef_hetnuc
+                                 homnuc_temp, hetnuc_temp, coef_hetnuc
 use moist_proc_diags_type_mod, only: moist_proc_diags_type
 
 use lat_heat_mod, only: lat_heat_incr, i_phase_change_frz
@@ -44,7 +44,7 @@ integer, intent(in) :: n_points
 ! Points where the liquid species exists
 integer, intent(in out) :: nc_liq
 integer, intent(in out) :: index_ic_liq(n_points)
-! (this list get altered if liquid is completely removed
+! (this list gets altered if liquid is completely removed
 !  from any points by freezing)
 
 ! Points where the ice species exists
@@ -190,7 +190,7 @@ if ( nc_frz > 0 ) then
   if ( l_added_where_none ) then
     nc_ice = 0
     do ic = 1, n_points
-      if ( q_ice(ic) > 0 ) then
+      if ( q_ice(ic) > zero ) then
         nc_ice = nc_ice + 1
         index_ic_ice(nc_ice) = ic
       end if
