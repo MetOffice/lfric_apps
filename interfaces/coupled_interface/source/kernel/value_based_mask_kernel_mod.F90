@@ -74,8 +74,8 @@ contains
     real(kind=r_def), intent(in) :: min_value, max_value
 
 
-    if ( (values(map_2d(1)) .ge. min_value) .and.                    &
-         (values(map_2d(1)) .le. max_value)) then
+    if ( (values(map_2d(1)) >= min_value) .and.                    &
+         (values(map_2d(1)) <= max_value)) then
       mask(map_2d(1)) = 1.0_r_def
     else
       mask(map_2d(1)) = 0.0_r_def

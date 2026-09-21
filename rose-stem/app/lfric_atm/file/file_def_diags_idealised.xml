@@ -34,7 +34,7 @@
       <field field_ref="cloud__area_fraction" />
       <field field_ref="cloud__combined_cloud_amount" />
       <field field_ref="cloud__cloud_amount_maxrnd" />
-      <field field_ref="cloud__cloud_base_altitude" />
+      <field field_ref="cloud__cloud_base_2p5_okta" />
       <field field_ref="convection__conv_rain" />
       <field field_ref="convection__massflux_up" />
       <field field_ref="convection__cv_top" />

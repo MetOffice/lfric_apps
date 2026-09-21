@@ -172,6 +172,7 @@ contains
                                    rho_data,           &
                                    theta_data,         &
                                    moist_dyn_gas_data, &
+                                   0, nlayers-1,       &
                                    ndf_w3,             &
                                    undf_w3,            &
                                    map_w3(:,cell),     &

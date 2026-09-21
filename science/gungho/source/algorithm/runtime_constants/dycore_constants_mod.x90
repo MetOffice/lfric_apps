@@ -15,10 +15,12 @@
 module dycore_constants_mod
 
   ! Infrastructure
+  use config_mod,                         only: config_type
   use constants_mod,                      only: i_def, r_def, l_def, str_def,  &
                                                 r_second, EPS
   use sci_geometric_constants_mod,        only: get_coordinates,               &
-                                                get_panel_id
+                                                get_panel_id,                  &
+                                                get_height_fe
   use sci_fem_constants_mod,              only: get_qr_fe
   use field_mod,                          only: field_type
   use fs_continuity_mod,                  only: W2, W3, Wtheta
@@ -194,23 +196,23 @@ contains
   end function get_vert_coriolis
 
   !> @brief Returns a pointer to the geopotential field
-  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @param[in] config The configuration object
+  !> @param[in] mesh   The ID of the mesh to get the object for
   !> @return The geopotential field
-  function get_geopotential(mesh_id) result(geopotential)
+  function get_geopotential(config, mesh) result(geopotential)
 
-    use base_mesh_config_mod,            only: geometry
     use compute_geopotential_kernel_mod, only: compute_geopotential_kernel_type
-    use finite_element_config_mod,       only: rehabilitate, coord_system
+    use finite_element_config_mod,       only: rehabilitate
     use formulation_config_mod,          only: shallow
     use planet_config_mod,               only: scaled_radius, gravity
 
     implicit none
 
-    integer(kind=i_def),       intent(in) :: mesh_id
-    type(mesh_type),              pointer :: mesh
+    type(config_type),         intent(in) :: config
+    type(mesh_type),           intent(in) :: mesh
     logical(kind=l_def)                   :: constant_exists
     type(field_type),             pointer :: geopotential
-    type(field_type),             pointer :: chi(:)
+    type(field_type),             pointer :: height_w3
     type(function_space_type),    pointer :: w3_fs
     integer(tik)                          :: id
 
@@ -219,14 +221,13 @@ contains
       call geopotential_inventory%initialise(name="geopotential")
     end if
 
-    mesh => mesh_collection%get_mesh(mesh_id)
-    constant_exists = geopotential_inventory%paired_object_exists(mesh_id)
+    constant_exists = geopotential_inventory%paired_object_exists(mesh%get_id())
 
     ! Create constant if it doesn't already exist
     if (.not. constant_exists) then
       w3_fs => function_space_collection%get_fs(mesh, element_order_h, &
                                                 element_order_v, W3)
-      chi => get_coordinates(mesh)
+      height_w3 => get_height_fe(config, mesh, W3)
 
       if ( LPROF ) call start_timing( id, 'runtime_constants.dycore' )
 
@@ -234,12 +235,10 @@ contains
 
       if ( rehabilitate ) then
         call invoke( compute_geopotential_kernel_type(geopotential,            &
-                                                      chi,                     &
+                                                      height_w3,               &
                                                       gravity,                 &
                                                       scaled_radius,           &
-                                                      coord_system,            &
-                                                      shallow,                 &
-                                                      geometry) )
+                                                      shallow) )
       else
         call log_event( "Geopotential computation needs modifying "// &
                         "for standard W3 mapping", LOG_LEVEL_ERROR )
