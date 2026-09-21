@@ -32,11 +32,11 @@ class vnXX_txxx(MacroUpgrade):
         return config, self.reports
 """
 
-class vn32_txxx(MacroUpgrade):
+class vn32_t802(MacroUpgrade):
     """ Upgrade macro for <TICKET> by thomas.melvin"""
 
     BEFORE_TAG = "vn3.2"
-    AFTER_TAG = "vn3.2_txxx"
+    AFTER_TAG = "vn3.2_t802"
 
     def upgrade(self, config, meta_config=None):
         # Add lmin and lmax settings for the mixed solver
