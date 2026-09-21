@@ -167,10 +167,10 @@ contains
     type(config_type), intent(in) :: config
     type(mesh_type),   intent(in) :: mesh
 
-    real(r_def), intent(inout)            :: l2
-    type(field_type), intent(in)          :: theta
-    type(field_type), intent(in)          :: moist_dyn(num_moist_factors)
-    type(field_type), intent(in)          :: exner
+    real(r_def),       intent(inout) :: l2
+    type(field_type),  intent(in)    :: theta
+    type(field_type),  intent(in)    :: moist_dyn(num_moist_factors)
+    type(field_type),  intent(in)    :: exner
 
     type(field_type), pointer    :: geopotential
     type(field_type)             :: hyd_imbal
@@ -202,7 +202,7 @@ contains
 
     ! Get geopotential field from runtime_constants
     theta_mesh   => theta%get_mesh()
-    geopotential => get_geopotential(theta_mesh%get_id())
+    geopotential => get_geopotential(config, theta_mesh)
 
     call invoke( setval_c(hyd_imbal, 0.0_r_def), &
                  hydrostatic_kernel_type( hyd_imbal, exner, theta, moist_dyn, &
@@ -804,7 +804,7 @@ contains
       ! Use geopotential to calculate potential energy from planet centre
       ! This requires the normalised geopotential (zero at the surface)
       ! and the surface geopotential
-      normalised_geopotential => get_geopotential( mesh%get_id() )
+      normalised_geopotential => get_geopotential(config, mesh)
       call geopotential%initialise( normalised_geopotential%get_function_space())
       surface_geopotential = planet_radius*gravity
       call invoke( a_plus_X(geopotential, surface_geopotential, normalised_geopotential), &

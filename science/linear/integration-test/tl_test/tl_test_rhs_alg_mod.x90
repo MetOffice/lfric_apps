@@ -201,13 +201,13 @@ module tl_test_rhs_alg_mod
       enddo
 
       call rhs_alg( modeldb%config, n2_rhs, dt, state, state, n_moist_dyn, &
-                    compute_eos=.true., compute_rhs_t_d=.true., &
+                    compute_eos=.true., compute_rhs_t_d=.true.,            &
                     dlayer_rhs=.true., model_clock=modeldb%clock )
 
-      call tl_rhs_alg(modeldb%config, p_rhs, dt, p_state, p_state, p_moist_dyn, &
-                      ls_state, ls_moist_dyn,                   &
-                      compute_eos=.true., dlayer_rhs=.true.,    &
-                      model_clock=modeldb%clock)
+      call tl_rhs_alg( modeldb%config, p_rhs, dt, p_state, p_state, &
+                       p_moist_dyn, ls_state, ls_moist_dyn,         &
+                       compute_eos=.true., dlayer_rhs=.true.,       &
+                       model_clock=modeldb%clock)
 
       ! diff = n2_rhs - n1_rhs
       call minus_bundle( n2_rhs, n1_rhs, diff, bundle_size )

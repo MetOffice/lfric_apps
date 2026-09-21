@@ -112,12 +112,13 @@ end subroutine write_divergence_diagnostic
 !-------------------------------------------------------------------------------
 !>  @brief    Handles hydrostatic balance diagnostic processing
 !!
-!!  @details  Handles hydrostatic balance diagnostic processing
+!>  @details  Handles hydrostatic balance diagnostic processing
 !!
-!!> @param[in] config        Application configuration object
-!!> @param[in] mesh          Mesh
-!!> @param[in] theta_field   The theta field
-!!> @param[in] exner_field   The exner field
+!> @param[in] config           Application configuration object
+!> @param[in] mesh             Mesh
+!> @param[in] theta_field      The theta field
+!> @param[in] moist_dyn_field  The moist dynamics factors
+!> @param[in] exner_field      The exner field
 !-------------------------------------------------------------------------------
 
 subroutine write_hydbal_diagnostic( config, mesh, theta_field, moist_dyn_field, &
@@ -130,9 +131,9 @@ subroutine write_hydbal_diagnostic( config, mesh, theta_field, moist_dyn_field, 
   type(config_type), intent(in) :: config
   type(mesh_type),   intent(in) :: mesh
 
-  type(field_type), intent(in)    :: theta_field
-  type(field_type), intent(in)    :: moist_dyn_field(num_moist_factors)
-  type(field_type), intent(in)    :: exner_field
+  type(field_type), intent(in) :: theta_field
+  type(field_type), intent(in) :: moist_dyn_field(num_moist_factors)
+  type(field_type), intent(in) :: exner_field
 
 
   real(r_def)                     :: l2_norm = 0.0_r_def
