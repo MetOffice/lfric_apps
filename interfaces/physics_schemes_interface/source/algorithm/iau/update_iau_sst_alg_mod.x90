@@ -25,7 +25,7 @@ module update_iau_sst_alg_mod
   contains
 
   !> @brief   Update the surface temperature field with IAU sst increments
-  !> @details Inputs are increments of sea surface temperature. 
+  !> @details Inputs are increments of sea surface temperature.
   !>          These are applied to the sea tile of the full prognostic tile
   !>          temperature field.
   !> @param[in]     iau_sst_fields The collection of iau sst fields
@@ -46,14 +46,14 @@ module update_iau_sst_alg_mod
     type( field_type ), pointer :: tstar_sea_inc
 
     ! local field
-    type( field_type ) :: tile_temp_inc 
+    type( field_type ) :: tile_temp_inc
 
     ! get fields needed for sst IAU
     call surface_fields%get_field( 'tile_temperature', tile_temperature )
     call surface_fields%get_field( 'sea_surf_temp_pert', sea_surf_temp_pert )
 
     ! get fields needed for sst IAU incs
-    call iau_sst_fields%get_field( 'tstar_sea_inc', tstar_sea_inc ) 
+    call iau_sst_fields%get_field( 'tstar_sea_inc', tstar_sea_inc )
 
     if ( l_esm_couple .or. l_esm_couple_test) then
       call invoke( setval_X( sea_surf_temp_pert, tstar_sea_inc ) )

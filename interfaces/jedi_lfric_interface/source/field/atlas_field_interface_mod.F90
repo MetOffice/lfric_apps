@@ -325,7 +325,7 @@ subroutine copy_from_lfric(self, return_code)
       "Unexpected field type in atlas_field_interface_type%copy_from_lfric", &
       log_level_error                                                        &
     )
-  end select  
+  end select
 
   ! Get indices for atlas and LFRic data
   atlas_kstart = self % atlas_kstart
@@ -377,7 +377,7 @@ subroutine copy_to_lfric( self, return_code )
       "Unexpected field type in atlas_field_interface_type%copy_to_lfric", &
       log_level_error                                                      &
     )
-  end select  
+  end select
 
   ! Get indices for atlas and LFRic data
   lfric_kstart = self%lfric_kstart
@@ -450,7 +450,7 @@ subroutine copy_from_lfric_ad(self)
       "Unexpected field type in atlas_field_interface_type%copy_from_lfric_ad", &
       log_level_error                                                           &
     )
-  end select  
+  end select
 
   ! Get indices for atlas and LFRic data
   atlas_kstart = self % atlas_kstart
@@ -504,7 +504,7 @@ subroutine copy_to_lfric_ad( self )
       "Unexpected field type in atlas_field_interface_type%copy_to_lfric_ad", &
       log_level_error                                                         &
     )
-  end select  
+  end select
 
   ! Get indices for atlas and LFRic data
   lfric_kstart = self%lfric_kstart
@@ -572,7 +572,7 @@ subroutine zero_lfric( self )
       "Unexpected field type in atlas_field_interface_type%zero_lfric", &
       log_level_error                                                   &
     )
-  end select  
+  end select
 
 end subroutine zero_lfric
 
