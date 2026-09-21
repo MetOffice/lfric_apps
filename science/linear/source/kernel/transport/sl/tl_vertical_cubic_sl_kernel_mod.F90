@@ -5,10 +5,10 @@
 !-----------------------------------------------------------------------------
 !
 !-------------------------------------------------------------------------------
-!> @brief Kernel to compute the vertical cubic semi-Lagragian advection of a field
+!> @brief Kernel to compute the vertical cubic semi-Lagrangian advection of a field
 !!        in the vertical direction for the linear model.
 !> @Details The 1D vertical advective transport equation for a W3/Wtheta variable
-!!          is solved using a cubic semi-Lagragian advection scheme. There are two
+!!          is solved using a cubic semi-Lagrangian advection scheme. There are two
 !!          parts to the TL advection equation, and the update has the form
 !!          f^{n+1} = f^{n} - ls_u dt grad f - u_pert dt grad ls_f
 !!          The first two terms on the RHS are solved using the SL scheme, and the
@@ -69,8 +69,8 @@ module tl_vertical_cubic_sl_kernel_mod
   !!          contribution from the gradient of the ls field in the
   !!          departure cell.
   !> @param[in]     nlayers         The number of layers
-  !> @param[in,out] field           The perturbation field to be advected
-  !> @param[in]     ls_field        The ls field
+  !> @param[in,out] field           ACTIVE  The perturbation field to be advected
+  !> @param[in]     ls_field        PASSIVE The ls field
   !> @param[in]     dep_dist_pert   The perturbation wind departure point
   !> @param[in]     cubic_coef      The cubic interpolation coefficients (1-4)
   !> @param[in]     cubic_indices   The cubic interpolation indices (1-4)
@@ -143,16 +143,39 @@ module tl_vertical_cubic_sl_kernel_mod
     w2_idx = map_w2(1)
     wc_idx = map_wc(1)
 
-    ! Create local arrays
+    ! Compute PASSIVE fields ---------------------------------------------------
+
+    ! Create local ls_field arrays
+    do k = 1, nl
+      ! Require indices 2 and 3 for ls_field as these lie around
+      ! the departure point
+      ls_field_local(k,1) = ls_field(wf_idx + cubic_indices_2(wc_idx+k-1) - 1)
+      ls_field_local(k,2) = ls_field(wf_idx + cubic_indices_3(wc_idx+k-1) - 1)
+    end do
+
+    ! Compute gradient of ls_field in departure cell
+    ! Note this will be multiplied by the perturbation departure distance
+    ! which acts as the Courant number and thus includes the division by dz
+    grad_ls_field(:) = ls_field_local(:,2)-ls_field_local(:,1)
+
+    ! Compute pert dist based on whether this is W3 or Wtheta field
+    if (ndf_wf == 1) then
+      ! W3 field so require pert dist averaged to W3 point
+      pert_dist(:) = ( dep_dist_pert(w2_idx : w2_idx + nlayers - 1)            &
+                             + dep_dist_pert(w2_idx + 1 : w2_idx + nlayers) ) / 2.0_r_tran
+    else
+      ! Wtheta field so can use pert dist at W2v point
+      pert_dist(:) = dep_dist_pert(w2_idx : w2_idx + nl - 1)
+    end if
+
+    ! Compute ACTIVE fields ----------------------------------------------------
+
+    ! Create local perturbation field arrays
     do k = 1, nl
       field_local(k,1) = field(wf_idx + cubic_indices_1(wc_idx+k-1) - 1)
       field_local(k,2) = field(wf_idx + cubic_indices_2(wc_idx+k-1) - 1)
       field_local(k,3) = field(wf_idx + cubic_indices_3(wc_idx+k-1) - 1)
       field_local(k,4) = field(wf_idx + cubic_indices_4(wc_idx+k-1) - 1)
-      ! Require indices 2 and 3 for ls_field as these lie around
-      ! the departure point
-      ls_field_local(k,1) = ls_field(wf_idx + cubic_indices_2(wc_idx+k-1) - 1)
-      ls_field_local(k,2) = ls_field(wf_idx + cubic_indices_3(wc_idx+k-1) - 1)
     end do
 
     ! Interpolate field
@@ -162,19 +185,6 @@ module tl_vertical_cubic_sl_kernel_mod
         + cubic_coef_3(wc_idx : wc_idx+nl-1)*field_local(:,3)                  &
         + cubic_coef_4(wc_idx : wc_idx+nl-1)*field_local(:,4)                  &
     )
-
-    ! Compute gradient of ls_field in departure cell
-    grad_ls_field(:) = ls_field_local(:,2)-ls_field_local(:,1)
-
-    ! Compute pert dist based on whether this is W3 or W3theta field
-    if (ndf_wf == 1) then
-      ! W3 field so require pert dist averaged to W3 point
-      pert_dist(1:nlayers) = ( dep_dist_pert(w2_idx : w2_idx + nlayers - 1)    &
-                             + dep_dist_pert(w2_idx + 1 : w2_idx + nlayers) ) / 2.0_r_tran
-    else
-      ! Wtheta field so can use pert dist at W2v point
-      pert_dist(1:nl) = dep_dist_pert(w2_idx : w2_idx + nl - 1)
-    end if
 
     ! Put answer back from local array into global field including
     ! the gradient of the ls_field
