@@ -19,18 +19,18 @@
 
 module ukca_diags_interface_mod
 
-use ukca_diag_setup_mod, only : n_ukca_diags_3d, idiag_status_3d,              &
-                                max_ukca_diags, diagnames_fullht_real,         &
-                                nm_rxnflux_oh_ch4_trop, nm_o3_column_du,       &
-                                diagnames_map, get_xios_diagname
+use ukca_diag_setup_mod,   only: nm_rxnflux_oh_ch4_trop,                       &
+                                 nm_o3_column_du
+use photol_diags_kernel_mod,  only: photol_diags_kernel_type
 
 use ukca_api_mod, only :   ukca_maxlen_diagname, ukca_maxlen_message,          &
                            ukca_update_diagnostic_requests,                    &
                            ukca_diag_status_inactive,                          &
                            ukca_diag_status_requested
 
-use initialise_diagnostics_mod,     only: init_diag => init_diagnostic_field
+use initialise_diagnostics_mod,  only: init_diag => init_diagnostic_field
 
+use key_value_collection_mod,    only: key_value_collection_type
 use constants_mod, only : i_def, r_def, l_def, str_def, i_um
 use field_mod,            only: field_type
 use log_mod,       only : log_scratch_space, log_event, LOG_LEVEL_ERROR,    & 
@@ -46,9 +46,11 @@ contains
 
 ! ----------------------------------------------------------------------
 subroutine initialise_ukca_diagnostics(                                        &
+                                        values,                                &
                                         l_chem_timestep,                       &
-                                        rxnflux_oh_ch4_trop,                   &
-                                        o3_column_du                           &
+                                        n_req_ukca_diags_3d,                   &
+                                        idiag_status_3d,                       &
+                                        ukca_req_diagnames_fullht              &                                        
                                       )
 ! ----------------------------------------------------------------------
 ! Description:
@@ -58,15 +60,16 @@ subroutine initialise_ukca_diagnostics(                                        &
 ! ----------------------------------------------------------------------
 implicit none
 
-logical(l_def),   intent(in)  :: l_chem_timestep
-type(field_type), intent(out) :: rxnflux_oh_ch4_trop
-type(field_type), intent(out) :: o3_column_du
+type(key_value_collection_type), intent(inout) :: values
+logical(l_def), intent(in)  :: l_chem_timestep
+integer(i_def), intent(out) :: n_req_ukca_diags_3d
+integer(i_def), allocatable, intent(out) :: idiag_status_3d(:)
+character(len=ukca_maxlen_diagname), allocatable, intent(out) ::               &
+                               ukca_req_diagnames_fullht(:)
 
 ! Local variables
 integer(i_def) :: n
 logical :: l_diag_requested
-
-character(len=ukca_maxlen_diagname) :: diagname
 
 ! Error handling variables
 integer(i_um) :: errcode
@@ -76,45 +79,60 @@ character(len=ukca_maxlen_message) :: ukca_errmsg
 
 errcode = 0_i_um
 
-! Determine if any UKCA diagnostics are active for this call.
-! Need to check all from max_ukca_diags since fields are passed to kernel
-! regardless so init_diag can initialise others with empty data
+! Extract key values and names from database
+! If main n_req key is not found, the ukca_diag_setup routine was not called
+! (or failed with warning), so allocate minimal size to arrays
+if ( .not. values%key_value_exists('n_req_ukca_diags_3d') ) then
+  n_req_ukca_diags_3d = 0
+  allocate(ukca_diagnames_req_fullht(0))
+  allocate(idiag_status_3d(0))
+  return
+end if
+call values%get_value('n_req_ukca_diags_3d', n_req_ukca_diags_3d)
+allocate(ukca_diagnames_req_fullht(n_req_ukca_diags_3d))
+call values%get_value('ukca_req_diagnames_fullht', ukca_req_diagnames_fullht)
+allocate(idiag_status_3d(n_req_ukca_diags_3d))
+call values%get_value('idiag_status_ukca_3d', idiag_status_3d)
+
+! Determine if any requested UKCA diagnostics are active for this call.
 !
 ! Some diagnostics will not be calculated on non-chemistry steps,
-! so deactivate automatically after init_diag (where it will be initialised)
-idiag_status_3d(:) = ukca_diag_status_inactive
-do n = 1, max_ukca_diags
+! so deactivate automatically
+do n = 1, n_req_ukca_diags_3d
   l_diag_requested = .false.
-  select case (trim(diagnames_map(n, 1)))
+  select case (trim(ukca_req_diagnames_fullht(n)))
     case (trim(nm_rxnflux_oh_ch4_trop))
       l_diag_requested = init_diag(rxnflux_oh_ch4_trop,           &
-                            'chemistry__rxnflux_oh_ch4_trop')  
+                            'chemistry__'//nm_rxnflux_oh_ch4_trop)  
       if ( .not. l_chem_timestep ) l_diag_requested = .false.
-    case (trim(nm_o3_column_du))      
-      l_diag_requested = init_diag(o3_column_du, 'chemistry__o3_column_du')
+    case (trim(nm_o3_column_du))
+      l_diag_requested = init_diag(o3_column_du,'chemistry__'//nm_o3_column_du)
     case default
       call log_event(                                                          &
-             'INIT_UKCA_DIAGS: Unrecognised field :'//trim(diagnames_map(n,1), &
-             LOG_LEVEL_ERROR )
+        'INIT_UKCA_DIAGS: Unrecognised :'//trim(ukca_req_diagnames_fullht(n)), &
+        LOG_LEVEL_ERROR )
   end select
   if (l_diag_requested) then
-    idiag_status_3d(get_idx(trim(diagnames_map(n, 2)))) =          &
-      ukca_diag_status_requested
+    idiag_status_3d(n) = ukca_diag_status_requested
     write(log_scratch_space, '(A,A)')'UKCA ACTIVE diagnostic : ', &
-          trim(diagnames_map(n, 2))
+          trim(ukca_req_diagnames_fullht(n))
     call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+  else
+    idiag_status_3d(n) = ukca_diag_status_inactive  
   end if  
 end do
 
 ! Update the diagnostic request information in UKCA via API call
-CALL ukca_update_diagnostic_requests(                                          &
-       errcode,                                                                &
-       dreq_status_fullht_real=idiag_status_3d,                                &
-       error_message=ukca_errmsg )
-if (errcode > 0_i_um)  then
-  write(log_scratch_space, '(A,I0,A,A)')'Error in UKCA_UPDATE_DIAG_REQUESTS: ',&
-     errcode, ': ', TRIM(ukca_errmsg)
-  call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+if ( n_req_ukca_diags_3d > 0 ) then
+  call ukca_update_diagnostic_requests(                                        &
+         errcode,                                                              &
+         dreq_status_fullht_real=idiag_status_3d,                              &
+         error_message=ukca_errmsg )
+  if (errcode > 0_i_um) then
+    write(log_scratch_space,'(A,I0,A)')'Error in UKCA_UPDATE_DIAG_REQUESTS: ', &
+      errcode, ': '//TRIM(ukca_errmsg)
+    call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+  end if
 end if
 
 end subroutine initialise_ukca_diagnostics
@@ -122,32 +140,45 @@ end subroutine initialise_ukca_diagnostics
 
 ! ----------------------------------------------------------------------
 subroutine output_ukca_diagnostics(                                            &
+                                    n_req_ukca_diags_3d,                       &
+                                    idiag_status_3d,                           &
+                                    ukca_req_diagnames_fullht,                 &
+                                    diagnostics_fullht_real,                   &
                                     rxnflux_oh_ch4_trop,                       &
                                     o3_column_du                               &
                                   )
                
 implicit none
 
-type(field_type), intent(in) :: rxnflux_oh_ch4_trop
-type(field_type), intent(in) :: o3_column_du
+integer(i_def), intent(in) :: n_req_ukca_diags_3d
+integer(i_def), allocatable, intent(in) :: idiag_status_3d(:)
+character(len=ukca_maxlen_diagname), allocatable, intent(in) ::                &
+                               ukca_req_diagnames_fullht(:)
+type(field_type), intent(in) :: diagnostics_fullht_real
+
+type(field_type), intent(inout) :: rxnflux_oh_ch4_trop
+type(field_type), intent(inout) :: o3_column_du
 
 integer(i_def) :: i
-character(str_def) :: xios_name
 
-do i = 1, n_ukca_diags_3d
-  xios_name = get_xios_diagname(diagnames_fullht_real(i))
-  select case (trim(xios_name))
+do i = 1, n_req_ukca_diags_3d
+  select case (trim(ukca_req_diagnames_fullht(i)))
     case (trim(nm_rxnflux_oh_ch4_trop))
       if (idiag_status_3d(i) == ukca_diag_status_requested)  then
+        call invoke (  photol_diags_kernel_type( rxnflux_oh_ch4_trop, i,       &
+                                                diagnostics_fullht_real ) )
         call rxnflux_oh_ch4_trop % write_field
       end if  
     case (trim(nm_o3_column_du))
-      if (idiag_status_3d(i) == ukca_diag_status_requested) then 
+      if (idiag_status_3d(i) == ukca_diag_status_requested) then
+        call invoke (  photol_diags_kernel_type( o3_column_du, i,              &
+                                                diagnostics_fullht_real ) )
         call o3_column_du % write_field
       end if  
     case default
       write(log_scratch_space, '(A,A,A)')'OUTPUT_UKCA_DIAGS, Unrecognised ',   &
-            trim(xios_name),'. Add new diagnostic write statements here.'
+            trim(ukca_req_diagnames_fullht(n)),                                &
+            '. Add new diagnostic write statements here.'
       call log_event(log_scratch_space, LOG_LEVEL_ERROR )
   end select
 end do
@@ -155,22 +186,4 @@ end do
 end subroutine output_ukca_diagnostics
 ! ----------------------------------------------------------------------
 
-! Function to find index of field in 'requested' diagnostics list using name
-! ---------------------------------------------------------------------
-function get_idx(diagname) result(idx)
-
-implicit none
-
-character(len=*), intent(in) :: diagname
-integer(i_def) :: idx
-
-do idx = 1, n_ukca_diags_3d
-  if ( trim(diagnames_fullht_real(idx)) == trim(diagname) ) return
-end do
-! If we are here, no matching name in list
-call log_event('GET_IDX: '//trim(diagname)//' not in diagnames_fullht_real', &
-                LOG_LEVEL_ERROR)
-
-end function get_idx
-! ---------------------------------------------------------------------
 end module ukca_diags_interface_mod

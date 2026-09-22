@@ -9,12 +9,14 @@
 
 module ukca_diag_setup_mod
 
-use ukca_api_mod, only :                                                       &    
-    ukca_maxlen_diagname, ukca_maxlen_message,                                 &
-    ukca_diag_status_requested, ukca_set_diagnostic_requests,                  &
-    ukca_diagname_rxnflux_oh_ch4_trop,                                         &
-    ukca_diagname_o3_column_du    
+use ukca_api_mod,         only : ukca_maxlen_diagname, ukca_maxlen_message,    &
+                                 ukca_diag_status_requested,                   &
+                                 ukca_diag_status_inactive,                    &
+                                 ukca_set_diagnostic_requests,                 &
+                                 ukca_diagname_rxnflux_oh_ch4_trop,            &
+                                 ukca_diagname_o3_column_du
 
+use driver_modeldb_mod,   only: modeldb_type
 use lfric_xios_diag_mod,  only: field_is_active
 use constants_mod,        only: imdi, i_def, l_def, str_def, i_um
 use log_mod,              only: log_scratch_space, log_event, LOG_LEVEL_ERROR, & 
@@ -24,17 +26,15 @@ implicit none
 
 private
 
-public :: ukca_diag_setup, get_xios_diagname
-
-integer(i_def), parameter, public :: n_diag_group = 2_i_def  ! Number of UKCA
+integer(i_def), parameter :: n_diag_group = 2_i_def  ! Number of UKCA
                                                      ! diagnostic groups used
 
-integer(i_def), parameter, public :: i_dgroup_2d = 1_i_def   ! Index used for
+integer(i_def), parameter :: i_dgroup_2d = 1_i_def   ! Index used for
                                                    ! 2D group (not active yet)
-integer(i_def), parameter, public :: i_dgroup_3d = 2_i_def   ! Index used for 
+integer(i_def), parameter :: i_dgroup_3d = 2_i_def   ! Index used for 
                                                      ! 3D group requests
 
-integer(i_def), parameter, public :: max_ukca_diags = 2_i_def  ! Maximum number
+integer(i_def), parameter :: max_ukca_diags = 2_i_def  ! Maximum number
                                                        ! of UKCA diagnostics
                                                        ! currently supported
 
@@ -47,24 +47,12 @@ character(len=ukca_maxlen_diagname), parameter, public ::   &
 character(len=ukca_maxlen_diagname), parameter, public ::   &
   nm_o3_column_du = 'o3_column_du'
 
-! Dictionary mapping the short/ XIOS id of diagnostic to full name in UKCA
-character(len=ukca_maxlen_diagname), public :: diagnames_map(max_ukca_diags, 2)
-  data diagnames_map(1,:) /nm_rxnflux_oh_ch4_trop,   &
-                                ukca_diagname_rxnflux_oh_ch4_trop/
-  data diagnames_map(2,:) /nm_o3_column_du, ukca_diagname_o3_column_du/
-
-integer(i_def), public :: n_ukca_diags_3d  ! Counter for active requests
-
-! Names of requested diagnostics -currently only 3D
-character(len=ukca_maxlen_diagname), allocatable, public :: diagnames_fullht_real(:)
-
-! Integer status flag for diagnostics to match API arguments
-integer(i_um), allocatable, public :: idiag_status_3d(:)
+public :: ukca_diag_setup
 
 contains
 
 ! ----------------------------------------------------------------------
-subroutine ukca_diag_setup( )
+subroutine ukca_diag_setup( modeldb )
 ! ----------------------------------------------------------------------
 ! Description:
 !   Set up the diagnostic request information be passed to UKCA
@@ -75,14 +63,29 @@ subroutine ukca_diag_setup( )
 ! ----------------------------------------------------------------------
 implicit none
 
+type(modeldb_type), intent(inout) :: modeldb
+
 ! Local variables
+
+! Dictionary mapping the short/ XIOS id of diagnostic to full name in UKCA
+character(len=ukca_maxlen_diagname) :: ukca_diagnames_map(max_ukca_diags, 2)
+  data ukca_diagnames_map(1,:) /nm_rxnflux_oh_ch4_trop,   &
+                                ukca_diagname_rxnflux_oh_ch4_trop/
+  data ukca_diagnames_map(2,:) /nm_o3_column_du, ukca_diagname_o3_column_du/
+
+integer(i_def) :: n_req_ukca_diags_3d  ! Requested UKCA diagnostics (3D)
+
+! Arrays to hold names and status flags of requested diagnostics, currently 3-D
+character(len=ukca_maxlen_diagname), allocatable :: diagnames_fullht_real(:)
+                                  ! In UKCA format (CF/ long-names), for API
+
+character(len=ukca_maxlen_diagname), allocatable ::  &   ! In XIOS id form
+                                    req_diagnames_fullht_real(:)
+integer(i_um), allocatable :: tmp_diag_status_3d(:)
+integer(i_um), allocatable :: idiag_status_3d(:)
+
 integer(i_def) :: i
 logical :: l_diag_requested
-character(len=ukca_maxlen_diagname) :: diagname
-
-! Array to temporarily hold names and status flags of requested diagnostics
-character(len=ukca_maxlen_diagname) :: tmp_diagnames_fullht_real(n_req_max(i_dgroup_3d))
-integer(i_um) :: tmp_diag_status_3d(n_req_max(i_dgroup_3d))
 
 ! Error handling variables
 integer(i_um) :: errcode
@@ -91,31 +94,35 @@ character(len=ukca_maxlen_message) :: ukca_errmsg
 ! End of header
 
 errcode = 0_i_um
-tmp_diagnames_fullht_real(:) = ''
-tmp_diag_status_3d(:) = 0_i_um
+allocate(req_diagnames_fullht_real(n_req_max(i_dgroup_3d)))
+allocate(tmp_diag_status_3d(n_req_max(i_dgroup_3d)))
+req_diagnames_fullht_real(:) = ''
+tmp_diag_status_3d(:) = ukca_diag_status_inactive
 
 ! Counter for active requests
-n_ukca_diags_3d = 0_i_def
+n_req_ukca_diags_3d = 0_i_def
 
 ! Check if field is requested via XIOS configuration, irrespective of whether
 ! it is active on this timestep
 do i = 1, n_req_max(i_dgroup_3d)
-  if ( field_is_active('chemistry__'//diagnames_map(i, 1),                     &
+  if ( field_is_active('chemistry__'//ukca_diagnames_map(i, 1),               &
                         at_current_timestep=.false.) ) then
-    n_ukca_diags_3d = n_ukca_diags_3d + 1
-    tmp_diagnames_fullht_real(n_ukca_diags_3d) = diagnames_map(i, 2)
-    tmp_diag_status_3d(n_ukca_diags_3d) = ukca_diag_status_requested
+    n_req_ukca_diags_3d = n_req_ukca_diags_3d + 1
+    req_diagnames_fullht_real(n_req_ukca_diags_3d) = ukca_diagnames_map(i, 2)
+    tmp_diag_status_3d(n_req_ukca_diags_3d) = ukca_diag_status_requested
   end if  
 end do
 
 ! Populate the allocatable arrays with the requested diagnostics
-allocate(diagnames_fullht_real(n_ukca_diags_3d))
-allocate(idiag_status_3d(n_ukca_diags_3d))
-diagnames_fullht_real(:) = tmp_diagnames_fullht_real(1:n_ukca_diags_3d)
-idiag_status_3d(:) = tmp_diag_status_3d(1:n_ukca_diags_3d)
+allocate(diagnames_fullht_real(n_req_ukca_diags_3d))
+allocate(idiag_status_3d(n_req_ukca_diags_3d))
+diagnames_fullht_real(:) = req_diagnames_fullht_real(1:n_req_ukca_diags_3d)
+idiag_status_3d(:) = tmp_diag_status_3d(1:n_req_ukca_diags_3d)
+
+deallocate(tmp_diag_status_3d)
 
 ! Pass on active diagnostic information to UKCA via API - if any requested
-if ( n_ukca_diags_3d > 0_i_def ) then
+if ( n_req_ukca_diags_3d > 0_i_def ) then
   CALL ukca_set_diagnostic_requests(                                           &
          errcode,                                                              &
          names_fullht_real=diagnames_fullht_real,                              &
@@ -128,31 +135,18 @@ if ( n_ukca_diags_3d > 0_i_def ) then
   end if
 end if
 
+! Upload the requested diagnostics information to the values dictionary
+! 0f modeldb for use by other modules
+call modeldb%values%add_key_value('n_req_diags_ukca_3d', n_req_ukca_diags_3d)
+call modeldb%values%add_key_value('idiag_status_ukca_3d', idiag_status_3d)
+call modeldb%values%add_key_value('ukca_req_diagnames_fullht',                 &
+                           req_diagnames_fullht_real(1:n_req_ukca_diags_3d))
+
+deallocate(idiag_status_3d)
+deallocate(diagnames_fullht_real)
+deallocate(req_diagnames_fullht_real)
+
 end subroutine ukca_diag_setup
 ! ----------------------------------------------------------------------
 
-! Function to obtain XIOS / short diagname corresponding to full/ CF-like
-! name, using the diagnames_map
-function get_xios_diagname(cfname_in) result(xios_id)
-
-implicit none
-
-character(len=*), intent(in) :: cfname_in
-character(str_def) :: xios_id
-
-integer(i_def) :: n
-
-do n = 1, max_ukca_diags
-  if ( trim(cfname_in) == trim(diagnames_map(n,2)) ) then
-     xios_id = trim(diagnames_map(n,1))
-     return
-  end if
-end do
-
-! If we are here, no matching name found
-call log_event('GET_XIOS_DIAGNAME: Unable to find '//trim(cfname_in),          &
-                LOG_LEVEL_ERROR)
-
-end function get_xios_diagname
-! ------------------------------------------------------------------
 end module ukca_diag_setup_mod

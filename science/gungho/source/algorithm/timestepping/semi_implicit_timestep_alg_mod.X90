@@ -1257,6 +1257,7 @@ contains
          ( glomap_mode == glomap_mode_ukca .or. &
            glomap_mode == glomap_mode_dust_and_clim ) ) then
       call aerosol_ukca_alg ( self%config,                               &
+                              modeldb%values,                            &
                               chemistry_fields, aerosol_fields,          &
                               radiation_fields, derived_fields,          &
                               microphysics_fields, turbulence_fields,    &
