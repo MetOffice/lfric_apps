@@ -61,6 +61,7 @@ contains
 
     type( mesh_type ),  pointer :: twod_mesh => null()
     type( field_type ), pointer :: latitude  => null()
+    logical :: update_sst
 
     ! Pointer to linked list - used for looping through the list
     type(linked_list_item_type), pointer :: loop => null()
@@ -76,7 +77,8 @@ contains
       if (.not. l_couple_sea_ice) then
         call ancil_fields%get_field('sea_ice_fraction', sea_ice_fraction)
       end if
-      if (.not. l_couple_ocean) then
+      update_sst = (.not. l_couple_ocean) .and. ancil_fields%field_exists('tstar_sea')
+      if (update_sst) then
         call ancil_fields%get_field('tstar_sea', tstar_sea)
       end if
 
@@ -107,10 +109,6 @@ contains
                                                    tile_fraction, latitude, &
                                                    amip_ice_thick,          &
                                                    l_couple_sea_ice))
-            else if (axis_name == 'sst_time' .and. .not. l_couple_ocean) then
-              call invoke(multi_insert_kernel_type(tile_temperature,         &
-                                                   tstar_sea, first_sea_tile,&
-                                                   n_sea_tile ) )
             end if
 
           end if
@@ -120,6 +118,12 @@ contains
         loop => loop%next
 
       end do
+
+      if (update_sst) then
+        call invoke(multi_insert_kernel_type(tile_temperature,         &
+                                             tstar_sea, first_sea_tile,&
+                                             n_sea_tile ) )
+      end if
 
     end if
 
