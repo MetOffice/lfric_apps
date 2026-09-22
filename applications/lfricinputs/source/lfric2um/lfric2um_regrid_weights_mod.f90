@@ -17,6 +17,7 @@ private
 ! Regridding Weights
 type(lfricinp_regrid_weights_type), public, target ::                          &
                                     mesh_face_centre_to_grid_p_bilinear,       &
+                                    mesh_face_centre_to_grid_p_neareststod,    &
                                     mesh_face_centre_to_grid_u_bilinear,       &
                                     mesh_face_centre_to_grid_v_bilinear
 
