@@ -7,7 +7,8 @@
 
 module jules_imp_alg_mod
 
-  use constants_mod,                 only: i_def
+  use config_mod,                    only: config_type
+  use constants_mod,                 only: i_def, r_def
   use model_clock_mod,               only: model_clock_type
   use field_mod,                     only: field_type
   use integer_field_mod,             only: integer_field_type
@@ -39,6 +40,7 @@ contains
   !>             vertical mixing of heat, momentum and moisture,
   !>             as documented in UMDP24
   !>         NB This version uses winds in w3 space (i.e. A-grid)
+  !>@param[in]     config            Application namelist configuration object
   !>@param[in,out] mr                Mixing ratios
   !>@param[in,out] surf_heat_flux    Net surface heat flux
   !>@param[in,out] canopy_evap       Canopy evaporation from land tiles
@@ -63,7 +65,8 @@ contains
   !>@param[in,out] fqw               total water flux
   !>@param[in,out] rhokh             Heat eddy diffusivity
   !>@param[in]     mr_ice            Mixing ratio for ice cloud
-  subroutine jules_imp_alg(mr, surf_heat_flux, canopy_evap,              &
+  subroutine jules_imp_alg(config,                                       &
+                           mr, surf_heat_flux, canopy_evap,              &
                            water_extraction, lake_evap,                  &
                            derived_fields, radiation_fields,             &
                            turbulence_fields, cloud_fields,              &
@@ -79,6 +82,7 @@ contains
 
     implicit none
 
+    type(config_type),  intent(in)      :: config
     type( field_type ), intent( inout ) :: qw, tl, ftl, fqw, rhokh,           &
                                            surf_heat_flux, canopy_evap,       &
                                            water_extraction, lake_evap,       &
@@ -143,6 +147,7 @@ contains
     type( field_type ), pointer :: canhc_tile          => null()
     type( field_type ), pointer :: ustar               => null()
     type( field_type ), pointer :: tile_water_extract  => null()
+    type( field_type ), pointer :: chr10m
     type( integer_field_type ), pointer :: ocn_cpl_point => null()
 
     type( field_type ), pointer :: soil_temperature   => null()
@@ -157,6 +162,7 @@ contains
 
     type( field_type ) :: rh1p5m, rh1p5m_ssi, rh1p5m_land
     type( field_type ) :: t1p5m_surft, q1p5m_surft
+    type( field_type ) :: t10m_ssi, q10m_ssi
     type( field_type ) :: snomlt_surf_htf
     type( field_type ) :: soil_evap
     type( field_type ) :: soil_surf_ht_flux
@@ -221,6 +227,7 @@ contains
     call surface_fields%get_field('canhc_tile', canhc_tile)
     call surface_fields%get_field('ustar', ustar)
     call surface_fields%get_field('tile_water_extract', tile_water_extract)
+    call surface_fields%get_field('chr10m', chr10m)
     call surface_fields%get_field('ocn_cpl_point', ocn_cpl_point)
 
     ! Soil fields
@@ -233,10 +240,9 @@ contains
     call snow_fields%get_field('snow_depth', snow_depth)
 
     mesh       => exner_in_wth%get_mesh()
-    height_wth => get_height_fv(Wtheta, mesh%get_id())
-
+    height_wth => get_height_fv(config, mesh, Wtheta)
     mesh       => ustar%get_mesh()
-    latitude   => get_latitude_fv(W3, mesh%get_id())
+    latitude   => get_latitude_fv(config, mesh, W3)
 
     if ( loop == 1 ) then
 
@@ -255,6 +261,7 @@ contains
                                         t1p5m, q1p5m, qcl1p5m, rh1p5m,  &
                                         t1p5m_ssi, q1p5m_ssi,           &
                                         qcl1p5m_ssi, rh1p5m_ssi,        &
+                                        t10m_ssi, q10m_ssi,             &
                                         t1p5m_land, q1p5m_land,         &
                                         qcl1p5m_land, rh1p5m_land,      &
                                         latent_heat,                    &
@@ -298,12 +305,18 @@ contains
                                        t1p5m_surft, q1p5m_surft, t1p5m,      &
                                        q1p5m, qcl1p5m, rh1p5m, t1p5m_ssi,    &
                                        q1p5m_ssi, qcl1p5m_ssi, rh1p5m_ssi,   &
+                                       chr10m, t10m_ssi, q10m_ssi,           &
                                        t1p5m_land, q1p5m_land, qcl1p5m_land, &
                                        rh1p5m_land, latent_heat,             &
                                        snomlt_surf_htf, soil_evap,           &
                                        soil_surf_ht_flux, surf_sw_net,       &
                                        surf_radnet, surf_lw_up, surf_lw_down,&
                                        ocn_cpl_point) )
+
+    ! Remove from field collection as we're done for this timestep
+    if (loop == 2 .and. outer == outer_iterations) then
+      call surface_fields%remove_field('chr10m')
+    end if
 
     if ( LPROF ) call stop_timing( id, 'jules.implicit' )
 
@@ -317,7 +330,8 @@ contains
                                  t1p5m_surft, q1p5m_surft,                   &
                                  t1p5m, q1p5m, qcl1p5m, rh1p5m,              &
                                  t1p5m_ssi, q1p5m_ssi, qcl1p5m_ssi,          &
-                                 rh1p5m_ssi, t1p5m_land, q1p5m_land,         &
+                                 rh1p5m_ssi, t10m_ssi, q10m_ssi,             &
+                                 t1p5m_land, q1p5m_land,                     &
                                  qcl1p5m_land, rh1p5m_land, latent_heat,     &
                                  snomlt_surf_htf,                            &
                                  soil_evap,                                  &

@@ -1,9 +1,8 @@
-import re
 import sys
 
 from metomi.rose.upgrade import MacroUpgrade  # noqa: F401
 
-from .version30_31 import *
+from .version31_32 import *
 
 
 class UpgradeError(Exception):
@@ -19,25 +18,25 @@ class UpgradeError(Exception):
     __str__ = __repr__
 
 
-class vn31_t360(MacroUpgrade):
-    """Upgrade macro for ticket #360 by Ian Boutle."""
+class vn32_t698(MacroUpgrade):
+    """Upgrade macro for ticket #698 by Alan J Hewitt."""
 
-    BEFORE_TAG = "vn3.1"
-    AFTER_TAG = "vn3.1_t360"
+    BEFORE_TAG = "vn3.2"
+    AFTER_TAG = "vn3.2_t698"
 
     def upgrade(self, config, meta_config=None):
         # Commands From: rose-meta/um-aerosol
+        # Add new settings with the default option SUBCOCSSDU_7mode
         self.add_setting(
-            config, ["namelist:aerosol", "ukca_scale_marine_pom_ems"], ".false."
+            config, ["namelist:aerosol", "mode_setup"], "'SUBCOCSSDU_7mode'"
         )
+        # Default to false since this is the setting in all existing tests
         self.add_setting(
-            config, ["namelist:aerosol", "marine_pom_ems_scaling"], "1.0"
+            config, ["namelist:aerosol", "l_dust_mp_ageing"], ".false."
         )
+        # Default to true since this is the setting in all existing tests
         self.add_setting(
-            config, ["namelist:aerosol", "ukca_scale_sea_salt_ems"], ".false."
-        )
-        self.add_setting(
-            config, ["namelist:aerosol", "sea_salt_ems_scaling"], "1.0"
+            config, ["namelist:aerosol", "l_ukca_radaer_sustrat"], ".true."
         )
 
         return config, self.reports

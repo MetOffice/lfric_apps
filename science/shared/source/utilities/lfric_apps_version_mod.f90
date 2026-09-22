@@ -16,10 +16,10 @@ module lfric_apps_version_mod
   private
   public lfric_apps_version_char
 
-  integer(i_def), public, parameter   :: lfric_apps_major_version = 3
-  integer(i_def), public, parameter   :: lfric_apps_minor_version = 1
-  integer(i_def), public, parameter   :: lfric_apps_patch_version = 1
-  logical(l_def), public, parameter   :: lfric_apps_release_version = .false.
+  integer(i_def), public, parameter   :: lfric_apps_major_version  = 3
+  integer(i_def), public, parameter   :: lfric_apps_minor_version  = 2
+  integer(i_def), public, parameter   :: lfric_apps_patch_version  = 0
+  logical(l_def), public, parameter   :: lfric_apps_release_version  = .false.
   character(2), parameter             :: prefix = 'vn'
   character(4), parameter             :: dev_suffix = '_dev'
 

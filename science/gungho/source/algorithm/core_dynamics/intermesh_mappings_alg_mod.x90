@@ -10,6 +10,7 @@
 module intermesh_mappings_alg_mod
 
   use check_configuration_mod,        only : check_moisture_advective
+  use config_mod,                     only : config_type
   use constants_mod,                  only : i_def, r_def, l_def
   use sci_enforce_lower_bound_kernel_mod, &
                                       only : enforce_lower_bound_kernel_type
@@ -27,16 +28,18 @@ module intermesh_mappings_alg_mod
   use mesh_collection_mod,            only : mesh_collection
   use mesh_mod,                       only : mesh_type
   use mr_indices_mod,                 only : nummr
-  use multires_coupling_config_mod,   only : recovery_order,                   &
-                                             recovery_order_constant,          &
-                                             recovery_order_linear,            &
-                                             reconstruction,                   &
-                                             reconstruction_reversible,        &
-                                             reconstruction_simple,            &
-                                             negative_correction,              &
-                                             negative_correction_none,         &
-                                             negative_correction_one_by_one,   &
-                                             negative_correction_consistent
+
+  ! Configuration modules
+  use multires_coupling_config_mod, only: recovery_order,                 &
+                                          recovery_order_constant,        &
+                                          recovery_order_linear,          &
+                                          reconstruction,                 &
+                                          reconstruction_reversible,      &
+                                          reconstruction_simple,          &
+                                          negative_correction,            &
+                                          negative_correction_none,       &
+                                          negative_correction_one_by_one, &
+                                          negative_correction_consistent
 
   implicit none
 
@@ -65,9 +68,10 @@ module intermesh_mappings_alg_mod
 contains
 
   !> @brief Converts rho field to the shifted mesh
+  !> @param[in]     config       Application namelist configuration object
   !> @param[in,out] shifted_rho  Rho in W3 on the shifted mesh
   !> @param[in]     primary_rho  Rho in W3 on the prime extrusion mesh
-  subroutine obtain_shifted_rho(shifted_rho, primary_rho)
+  subroutine obtain_shifted_rho(config, shifted_rho, primary_rho)
 
     use extrusion_mod,                    only: SHIFTED
     use sci_apply_w3_to_sh_w3_kernel_mod, only: apply_w3_to_sh_w3_kernel_type
@@ -75,6 +79,8 @@ contains
                                                 get_detj_at_w3_fv
 
     implicit none
+
+    type(config_type),intent(in) :: config
 
     type(field_type), intent(inout) :: shifted_rho
     type(field_type), intent(in)    :: primary_rho
@@ -94,11 +100,11 @@ contains
     prime_extrusion_mesh => primary_rho%get_mesh()
     shifted_mesh => mesh_collection%get_mesh(prime_extrusion_mesh, SHIFTED)
     if (element_order_h > 0 .or. element_order_v > 0) then
-      detj_primary => get_detj_at_w3_fe(prime_extrusion_mesh%get_id())
-      detj_shifted => get_detj_at_w3_fe(shifted_mesh%get_id())
+      detj_primary => get_detj_at_w3_fe(config, prime_extrusion_mesh)
+      detj_shifted => get_detj_at_w3_fe(config, shifted_mesh)
     else
-      detj_primary => get_detj_at_w3_fv(prime_extrusion_mesh%get_id())
-      detj_shifted => get_detj_at_w3_fv(shifted_mesh%get_id())
+      detj_primary => get_detj_at_w3_fv(prime_extrusion_mesh)
+      detj_shifted => get_detj_at_w3_fv(shifted_mesh)
     end if
 
     sh_w3_fs => function_space_collection%get_fs(shifted_mesh,    &
@@ -548,8 +554,8 @@ contains
 
     ! Map W2 vector field from source to target
     if ( source_ncells > target_ncells ) then
-      face_selector_ew => get_face_selector_ew(target_mesh%get_id())
-      face_selector_ns => get_face_selector_ns(target_mesh%get_id())
+      face_selector_ew => get_face_selector_ew(target_mesh)
+      face_selector_ns => get_face_selector_ns(target_mesh)
       call invoke( restrict_w2_kernel_type(target_field, source_field, &
                                            face_selector_ew, face_selector_ns) )
 
@@ -756,17 +762,21 @@ contains
   !!          of the new mixing ratios, dependent upon namelist options. If
   !!          reversible prolongation is used, then a correction to prevent
   !!          negative values will be applied.
+  !> @param[in]     config         Application namelist configuration object
   !> @param[in,out] target_bundle  Bundle of mixing ratios to be computed
   !> @param[in]     source_bundle  Input bundle of mixing ratios to be mapped
   !> @param[in]     target_rho     Target dry density in (primary) W3
   !> @param[in]     source_rho     Source dry density in (primary) W3
-  subroutine map_mr_bundle_intermesh( target_bundle, source_bundle, &
+  subroutine map_mr_bundle_intermesh( config,                       &
+                                      target_bundle, source_bundle, &
                                       target_rho, source_rho )
 
     use sci_adjust_lambda_kernel_mod, only: adjust_lambda_kernel_type
     use sci_apply_lambda_kernel_mod,  only: apply_lambda_kernel_type
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(field_type), intent(inout) :: target_bundle(:)
     type(field_type), intent(in)    :: source_bundle(:)
@@ -797,8 +807,8 @@ contains
         reconstruction == reconstruction_reversible .and. &
         negative_correction == negative_correction_consistent) then
         ! Reversible prolongation with consistent negative correction, needs special treatment
-        call obtain_shifted_rho(target_rho_sh_w3, target_rho)
-        call obtain_shifted_rho(source_rho_sh_w3, source_rho)
+        call obtain_shifted_rho(config, target_rho_sh_w3, target_rho)
+        call obtain_shifted_rho(config, source_rho_sh_w3, source_rho)
         ! Conservation is handled by prolongation routine so no if statement
         allocate(inject_bundle(bundle_size))
         call clone_bundle(target_bundle, inject_bundle, bundle_size)
@@ -822,8 +832,9 @@ contains
     else
       ! Fields can be mapped separately
       do imr = 1, bundle_size
-        call map_mr_intermesh(target_bundle(imr), source_bundle(imr), &
-                             target_rho, source_rho)
+        call map_mr_intermesh( config,                                 &
+                               target_bundle(imr), source_bundle(imr), &
+                               target_rho, source_rho )
       end do
 
       ! Ensure positivity by clipping
@@ -840,17 +851,20 @@ contains
   !!          of the new mixing ratio, dependent upon namelist options. If
   !!          reversible prolongation is used, then a correction to prevent
   !!          negative values will be applied.
+  !> @param[in]     config         Application namelist configuration object
   !> @param[in,out] target_mr      Mixing ratio to be computed
   !> @param[in]     source_mr      Input mixing ratio to be mapped
   !> @param[in]     target_rho     Target dry density in (primary) W3
   !> @param[in]     source_rho     Source dry density in (primary) W3
-  subroutine map_mr_intermesh( target_mr, source_mr, &
+  subroutine map_mr_intermesh( config, target_mr, source_mr, &
                                target_rho, source_rho )
 
     use sci_adjust_lambda_kernel_mod, only: adjust_lambda_kernel_type
     use sci_apply_lambda_kernel_mod,  only: apply_lambda_kernel_type
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(field_type), intent(inout) :: target_mr
     type(field_type), intent(in)    :: source_mr
@@ -881,8 +895,8 @@ contains
       moisture_advective = check_moisture_advective()
       if ( .not. moisture_advective ) then
         ! Pre-mapping calculations
-        call obtain_shifted_rho(target_rho_sh_w3, target_rho)
-        call obtain_shifted_rho(source_rho_sh_w3, source_rho)
+        call obtain_shifted_rho(config, target_rho_sh_w3, target_rho)
+        call obtain_shifted_rho(config, source_rho_sh_w3, source_rho)
       end if
 
       ! ---------------------------------------------------------------------- !
@@ -947,6 +961,7 @@ contains
   !!          used for physics parametrisations) and applies them to a mixing
   !!          ratio state on another mesh. A correction may be applied to ensure
   !!          that negative values have not been generated.
+  !> @param[in]     config        Application namelist configuration object
   !> @param[in,out] target_mr_np1 Updated mixing ratio bundle to be computed (on
   !!                              the target mesh)
   !> @param[in]     target_mr_n   Initial mixing ratio bundle (on target mesh)
@@ -956,7 +971,8 @@ contains
   !!                              been computed (on source mesh)
   !> @param[in]     target_rho    Dry density field (on target mesh)
   !> @param[in]     source_rho    Dry density field (on source mesh)
-  subroutine apply_mr_incs( target_mr_np1, target_mr_n, source_mr_inc, &
+  subroutine apply_mr_incs( config,                                    &
+                            target_mr_np1, target_mr_n, source_mr_inc, &
                             source_mr_np1, target_rho, source_rho )
 
     use sci_adjust_lambda_kernel_mod,  only: adjust_lambda_kernel_type
@@ -964,6 +980,8 @@ contains
     use sci_field_bundle_builtins_mod, only: add_bundle
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(field_type),    intent(inout) :: target_mr_np1(:)
     type(field_type),    intent(inout) :: target_mr_n(:)
@@ -1003,8 +1021,8 @@ contains
       moisture_advective = check_moisture_advective()
       if ( .not. moisture_advective ) then
         ! Pre-mapping calculations
-        call obtain_shifted_rho(target_rho_sh_w3, target_rho)
-        call obtain_shifted_rho(source_rho_sh_w3, source_rho)
+        call obtain_shifted_rho(config, target_rho_sh_w3, target_rho)
+        call obtain_shifted_rho(config, source_rho_sh_w3, source_rho)
       end if
 
       allocate(target_mr_inc(bundle_size))

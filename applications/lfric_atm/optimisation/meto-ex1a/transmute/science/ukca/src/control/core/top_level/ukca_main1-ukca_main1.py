@@ -1,8 +1,8 @@
-##############################################################################
-# (c) Crown copyright 2025 Met Office. All rights reserved.
+# -----------------------------------------------------------------------------
+# (C) Crown copyright Met Office. All rights reserved.
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
-##############################################################################
+# -----------------------------------------------------------------------------
 
 # Summary
 # =======
@@ -48,7 +48,7 @@ import os
 from psyclone.psyir.nodes import (
     Assignment, Reference, Literal, IfBlock, Call)
 from psyclone.psyir.symbols import (
-    INTEGER_TYPE, RoutineSymbol, CHARACTER_TYPE)
+    ScalarType, RoutineSymbol)
 
 # Transformation Parameters
 # =========================
@@ -67,6 +67,10 @@ match_rhs = "tot_n_pnts"
 
 
 def trans(psyir):
+    """
+    :param psyir: the PSyIR of the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
+    """
     chunk_size = os.getenv("UKCA_FULL_CHUNK_SIZE")
     if chunk_size is None:
         # Do nothing if the chunk size is not set
@@ -97,12 +101,13 @@ def trans(psyir):
                         if assign.rhs.name == match_rhs:
                             if chunk_size is not None:
                                 assign.rhs.replace_with(
-                                    Literal(str(chunk_size), INTEGER_TYPE))
+                                    Literal(str(chunk_size),
+                                            ScalarType.integer_type()))
                             found = assign
 
     # Insert print call
     if found:
         print_call = Call()
         print_call.addchild(Reference(RoutineSymbol("umPrint")))
-        print_call.addchild(Literal(message_text, CHARACTER_TYPE))
+        print_call.addchild(Literal(message_text, ScalarType.character_type()))
         found.parent.addchild(print_call, index=found.position+1)

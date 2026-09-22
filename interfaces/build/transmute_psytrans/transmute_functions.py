@@ -27,18 +27,16 @@ from psyclone.psyir.nodes import (
     Schedule,
 )
 from psyclone.psyir.symbols import (
-    DataSymbol,
     ContainerSymbol,
     RoutineSymbol,
     ImportInterface,
     UnsupportedFortranType,
-    INTEGER_TYPE,
-    CHARACTER_TYPE,
+    ScalarType
 )
+from psyclone.psyir.transformations import OMPParallelTrans
 from psyclone.transformations import (
     OMPLoopTrans,
     TransformationError,
-    OMPParallelTrans,
     OMPParallelLoopTrans,
 )
 
@@ -104,7 +102,10 @@ def get_outer_loops(node):
     return outer_loops
 
 
-def parallel_regions_for_clustered_loops(routine):
+def parallel_regions_for_clustered_loops(
+    routine, 
+    fortran_file_name,
+):
     """
     Enclose clusters of adjacent top-level loops in a single PARALLEL region.
 
@@ -113,11 +114,11 @@ def parallel_regions_for_clustered_loops(routine):
     - No schedule is specified at region level
       (loop-level directives handle it).
     """
-    logging.info("Processing Routine for regions: '%s'", routine.name)
+    logging.info(f"{fortran_file_name}: Processing Routine for regions: '{routine.name}'", )
 
     outer_loops = get_outer_loops(routine)
     if not outer_loops:
-        logging.info("No loops to regionize.")
+        logging.info(f"{fortran_file_name}: No loops to regionize.")
         return
 
     # Build sortable (parent, child-index, loop) tuples and sort once.
@@ -138,13 +139,14 @@ def parallel_regions_for_clustered_loops(routine):
             ):
                 positions = f"{cluster[0].position}-{cluster[-1].position}"
                 logging.info(
-                    "Inserting region over loops at positions %s", positions
+                    f"{fortran_file_name}: Inserting region over loops at \
+                    positions {positions}", 
                 )
                 try:
                     OMP_PARALLEL_REGION_TRANS.apply(cluster)
-                    logging.info("Region inserted.")
+                    logging.info(f"{fortran_file_name}: Region inserted.")
                 except TransformationError as err:
-                    logging.info("Region failed: %s", err)
+                    logging.info(f"{fortran_file_name}: Region failed: {err}")
             current_parent = parent
             cluster = [loop]
             prev_idx = idx
@@ -161,13 +163,14 @@ def parallel_regions_for_clustered_loops(routine):
         ):
             positions = f"{cluster[0].position}-{cluster[-1].position}"
             logging.info(
-                "Inserting region over loops at positions %s", positions
+                f"{fortran_file_name}: Inserting region over loops at \
+                positions {positions}", 
             )
             try:
                 OMP_PARALLEL_REGION_TRANS.apply(cluster)
-                logging.info("Region inserted.")
+                logging.info(f"{fortran_file_name}: Region inserted.")
             except TransformationError as err:
-                logging.info("Region failed: %s", err)
+                logging.info(f"{fortran_file_name}: Region failed: {err}")
 
         cluster = [loop]
         prev_idx = idx
@@ -177,12 +180,14 @@ def parallel_regions_for_clustered_loops(routine):
         lp.ancestor(OMPParallelDirective) for lp in cluster
     ):
         positions = f"{cluster[0].position}-{cluster[-1].position}"
-        logging.info("Inserting region over loops at positions %s", positions)
+        logging.info(
+            f"{fortran_file_name}: Inserting region over loops at \
+            positions {positions}")
         try:
             OMP_PARALLEL_REGION_TRANS.apply(cluster)
-            logging.info("Region inserted.")
+            logging.info(f"{fortran_file_name}: Region inserted.")
         except TransformationError as err:
-            logging.info("Region failed: %s", err)
+            logging.info(f"{fortran_file_name}: Region failed: {err}")
 
 
 def expr_contains_member(expr, container_name: str, member_name: str) -> bool:
@@ -215,6 +220,7 @@ def omp_do_for_heavy_loops(
     routine,
     loop_var: str,
     heavy_vars: Set[str],
+    fortran_file_name: str, 
     skip_member_count: Optional[Tuple[str, str, str]] = None,
 ):
     """
@@ -234,11 +240,9 @@ def omp_do_for_heavy_loops(
       add_parallel_do_over_meta_segments() with a DYNAMIC schedule.
     """
     logging.info(
-        "Processing Routine for heavy '%s'-loops: '%s'",
-        loop_var,
-        routine.name,
+        f"{fortran_file_name}: Processing Routine for heavy \
+        '{loop_var}'-loops: '{routine.name}'"
     )
-
     for loop in routine.walk(Loop):
         if not (loop.variable and loop.variable.name == loop_var):
             continue
@@ -261,71 +265,26 @@ def omp_do_for_heavy_loops(
         )
         if already_omp_do:
             logging.info(
-                "%s-loop at %s already inside OMP DO; skipping.",
-                loop_var,
-                loop.position,
+                f"{fortran_file_name}: {loop_var}-loop at {loop.position}  \
+                already inside OMP DO; skipping."
             )
             continue
 
         in_parallel_region = bool(loop.ancestor(OMPParallelDirective))
         logging.info(
-            "  %s-loop at %s: schedule=static (%s)",
-            loop_var,
-            loop.position,
-            "in-region" if in_parallel_region else "standalone",
+            f"{fortran_file_name}: {loop_var}-loop at {loop.position}: schedule=static"
         )
         try:
             if in_parallel_region:
                 OMP_DO_LOOP_TRANS_STATIC.apply(loop)
             else:
                 OMP_PARALLEL_LOOP_DO_TRANS_STATIC.apply(loop)
-            logging.warning("OMP applied to %s-loop (static).", loop_var)
-        except TransformationError as err:
-            logging.warning("Failed OMP on %s-loop: %s", loop_var, err)
-
-
-def mark_explicit_privates(node, names):
-    """
-    Add symbols named in `names` to `node.explicitly_private_symbols`.
-
-    Generic version of the original helper. Works with any PSyIR node that:
-      - has a `scope.symbol_table`, and
-      - provides an `explicitly_private_symbols` set-like attribute.
-
-    Warns if a requested symbol cannot be found or is not a DataSymbol.
-    """
-    # Be forgiving so this helper can be used beyond Loop nodes
-    scope = getattr(node, "scope", None)
-    symtab = getattr(scope, "symbol_table", None)
-    if symtab is None:
-        logging.warning(
-            "[warn] cannot set explicit privates:"
-            "node has no scope.symbol_table."
-        )
-        return
-
-    if not hasattr(node, "explicitly_private_symbols"):
-        logging.warning(
-            "[warn] cannot set explicit privates:"
-            " node has no 'explicitly_private_symbols'."
-        )
-        return
-
-    for name in names:
-        try:
-            sym = symtab.lookup(name)
-            if isinstance(sym, DataSymbol):
-                node.explicitly_private_symbols.add(sym)
-            else:
-                logging.warning(
-                    " [warn] private symbol '%s' is not a DataSymbol.",
-                    name,
-                )
-        except KeyError:
             logging.warning(
-                "[warn] private symbol '%s' not found in symbol table.",
-                name,
-            )
+                f"{fortran_file_name}: OMP applied to \
+                {loop_var}-loop (static).")
+        except TransformationError as err:
+            logging.warning(
+                f"{fortran_file_name}: Failed OMP on {loop_var}-loop: {err}")
 
 
 def get_compiler():
@@ -376,6 +335,7 @@ def add_parallel_do_over_meta_segments(
     container_name: str,
     member_name: str,
     privates: Sequence[str],
+    fortran_file_name: str,
     init_scalars: Sequence[str] = ("jdir", "k"),
 ):
     """
@@ -398,9 +358,8 @@ def add_parallel_do_over_meta_segments(
       scheduling is **dynamic** regardless of the default static policy.
     """
     logging.info(
-        "Processing Routine for meta_segments loop: '%s'",
-        routine.name,
-    )
+        f"{fortran_file_name}: Processing Routine for meta_segments loop: \
+        '{routine.name}'")
 
     # Locate the target loop: do i = 1, <container_name>%<member_name>
     target = None
@@ -415,7 +374,9 @@ def add_parallel_do_over_meta_segments(
             break
 
     if not target:
-        logging.info("  meta-segments style member-count loop not found.")
+        logging.info(
+            f"{fortran_file_name}: meta-segments style member-count \
+            loop not found.")
         return
 
     # Determine OpenMP context precisely:
@@ -429,7 +390,8 @@ def add_parallel_do_over_meta_segments(
     )
     if already_omp_do:
         logging.info(
-            "Target loop already has an OMP DO/Parallel DO ancestor; skipping."
+            f"{fortran_file_name}: Target loop already has an OMP DO/Parallel \
+            DO ancestor; skipping."
         )
         return
     in_parallel_region = bool(target.ancestor(OMPParallelDirective))
@@ -437,31 +399,31 @@ def add_parallel_do_over_meta_segments(
     # Ensure scalars that may be emitted as FIRSTPRIVATE have a value
     first_priv_red_init(target, init_scalars)
 
-    # Explicit privates per policy
-    mark_explicit_privates(target, privates)
-
     # Apply the dynamic-scheduled directive (forced)
     try:
         if in_parallel_region:
             logging.info(
-                "Found target loop at %s inside OMP parallel region: "
-                "applying OMP DO (forced, dynamic).",
-                target.position,
+                f"{fortran_file_name}: Found target loop at {target.position} \
+                inside OMP parallel region: applying OMP DO (forced, dynamic)."
             )
-            OMP_DO_LOOP_TRANS_DYNAMIC.apply(target, options={"force": True})
+            OMP_DO_LOOP_TRANS_DYNAMIC.apply(
+                target, force=True, force_private=privates)
         else:
             logging.info(
-                "Found target loop at %s:"
-                " applying OMP PARALLEL DO (forced, dynamic).",
-                target.position,
+                f"{fortran_file_name}: Found target loop at {target.position} \
+                : applying OMP PARALLEL DO (forced, dynamic)."
             )
             OMP_PARALLEL_LOOP_DO_TRANS_DYNAMIC.apply(
-                target, options={"force": True}
+                target, force_private=privates, force=True
             )
 
-        logging.info("Member-count PARALLEL DO inserted (dynamic).")
-    except TransformationError:
-        logging.warning("Failed to insert dynamic PARALLEL DO", exc_info=True)
+        logging.info(
+            f"{fortran_file_name}: Member-count PARALLEL DO inserted \
+            (dynamic).")
+    except TransformationError as err:
+        logging.warning(
+            f"{fortran_file_name}: Failed to insert dynamic PARALLEL DO \
+            as {err}")
 
 
 def first_priv_red_init(node_target, init_scalars, insert_at_start=False):
@@ -515,7 +477,7 @@ def first_priv_red_init(node_target, init_scalars, insert_at_start=False):
             # rather than UnsupportedFortranType
             if isinstance(sym.datatype, UnsupportedFortranType):
                 init = Assignment.create(
-                    Reference(sym), Literal("", CHARACTER_TYPE)
+                    Reference(sym), Literal("", ScalarType.character_type())
                 )
             else:
                 init = Assignment.create(
@@ -642,14 +604,14 @@ def loop_replacement_of(routine_itr,
     # Get the loops from the provided routine and walk
     for loop in routine_itr.walk(Loop):
         # if the loop is of the target type
-        if str(loop.loop_type) == target_name:
+        if str(loop.variable.name) == target_name:
 
             # Only init once in the routine at the start
             if not do_once and init_at_start:
                 parent = routine_itr
                 assign = Assignment.create(
                     Reference(loop.variable),
-                    Literal("1", INTEGER_TYPE))
+                    Literal("1", ScalarType.integer_type()))
                 parent.children.insert(0, assign)
                 do_once = True
 
@@ -670,7 +632,7 @@ def loop_replacement_of(routine_itr,
                 tmp = loop.detach()  # noqa: F841 #pylint: disable=W0612
 
 
-def add_omp_parallel_region( #pylint: disable=R0913
+def add_omp_parallel_region(  # pylint: disable=R0913
     start_node,
     end_node,
     *,
@@ -737,8 +699,8 @@ def add_omp_parallel_region( #pylint: disable=R0913
                 loop,
                 options=loop_trans_options,
             )
-        except TransformationError as e:
-            logging.warning(e)
+        except TransformationError as err:
+            logging.warning(f"{err}")
 
 
 def get_ancestors(
@@ -777,3 +739,99 @@ def get_ancestors(
     if depth is not None:
         ancestors = [a for a in ancestors if a.depth == depth]
     return ancestors
+
+
+def get_children(node, node_type=Node, exclude=()):
+    """
+    Lifted from PSyTran.
+    Get all immediate descendents of a Node with a given type, i.e., those at
+    the next depth level.
+
+    :arg node: the Node to search for descendents of.
+    :type node: :py:class:`Node`
+    :kwarg node_type: the type of node to search for.
+    :type node_type: :py:class:`type`
+    :kwarg exclude: type(s) of node to exclude.
+    :type exclude: :py:class:`bool`
+
+    :returns: list of children according to specifications.
+    :rtype: :py:class:`list`
+    """
+    # safety checks
+    assert isinstance(node, Node), f"Expected a Node, not '{type(node)}'."
+    if not isinstance(node_type, tuple):
+        issubclass(node_type, Node)
+        node_type = (node_type,)
+    # create the child list
+    children = [
+        grandchild
+        for child in node.children
+        for grandchild in child.children
+        if isinstance(grandchild, node_type)
+        and not isinstance(grandchild, exclude)
+    ]
+    return children
+
+
+def get_all_children(node, node_type=Node, exclude=()):
+    """
+    A version of get_children, which instead recurses all the way down.
+    Get all immediate descendents of a Node with a given type, i.e., those at
+    the next depth level.
+
+    :arg node: the Node to search for descendents of.
+    :type node: :py:class:`Node`
+    :kwarg node_type: the type of node to search for.
+    :type node_type: :py:class:`type`
+    :kwarg exclude: type(s) of node to exclude.
+    :type exclude: :py:class:`bool`
+
+    :returns: list of children according to specifications.
+    :rtype: :py:class:`list`
+    """
+    # safety checks
+    assert isinstance(node, Node), f"Expected a Node, not '{type(node)}'."
+    if not isinstance(node_type, tuple):
+        issubclass(node_type, Node)
+        node_type = (node_type,)
+
+    # create the local children list to be passed back up the stack
+    local_children = []
+    for child in node.children:
+        # work through the current children, do they match the node_type?
+        if isinstance(child, node_type):
+            local_children.append(child)
+        # if the child has grandchildren, recurse
+        if child.children:
+            returned_children = get_all_children(child, node_type=node_type)
+            for child in returned_children:
+                local_children.append(child)
+    return local_children
+
+
+def are_variables_present(node, check_list=[]):
+    """
+    Call get_all_children with an Assignment, and work through them,
+    checking whether the lhs of the returned list in present in our
+    check list. If it is, return true.
+
+    :arg node: the node to search for descendants of.
+    :type node: :py:class:`Node`
+    :arg check_list: list of items to check against the descendants
+    :type list: :py:class:`list`
+
+    :returns: skip_over bool
+    :rtype: :py:class:`list`
+    """
+    skip_over = False
+    all_children = get_all_children(node, node_type=Assignment)
+    skip_over = False
+    for child in all_children:
+        child_lhs_str = str(child.lhs).split("\n")
+        for item in check_list:
+            if str(item) in child_lhs_str[0]:
+                skip_over = True
+                break
+        if skip_over:
+            break
+    return skip_over

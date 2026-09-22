@@ -254,10 +254,11 @@ contains
 
     ls_option = modeldb%config%initialization%ls_option()
     if ( ls_option == ls_option_file ) then
-      call update_ls_file_alg( model_axes%ls_times_list,     &
-                               modeldb%clock,                &
-                               ls_fields,                    &
-                               ls_mr_array%bundle,           &
+      call update_ls_file_alg( modeldb%config,           &
+                               model_axes%ls_times_list, &
+                               modeldb%clock,            &
+                               ls_fields,                &
+                               ls_mr_array%bundle,       &
                                ls_moist_dyn_array%bundle )
     end if
 

@@ -6,8 +6,8 @@
 
 module check_configuration_mod
 
-  use constants_mod, only: i_def, l_def, str_def
   use config_mod,    only: config_type
+  use constants_mod, only: i_def, l_def, str_def
 
   use mixing_config_mod,    only: viscosity,                                   &
                                   viscosity_mu

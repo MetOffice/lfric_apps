@@ -202,8 +202,8 @@ subroutine write_vector_diagnostic( field_name, field, &
 
   procedure(write_interface), pointer  :: tmp_write_ptr => null()
 
-  chi      => get_coordinates( mesh%get_id() )
-  panel_id => get_panel_id( mesh%get_id() )
+  chi      => get_coordinates(mesh)
+  panel_id => get_panel_id(mesh)
 
   element_order_h = field%get_element_order_h()
   element_order_v = field%get_element_order_v()

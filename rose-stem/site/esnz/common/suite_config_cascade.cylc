@@ -10,13 +10,13 @@
                              'spack load fcm@2021.05.0 /qcebcci ; '~
                              'spack load intel-oneapi-compilers@2025.3.2 /qw6qnl6 ; '~
                              'spack load intel-oneapi-mpi@2021.15.0 %oneapi@2025.3.2 /bj5int7 ; '~
-                             'spack load py-psyclone@3.2.2 /iqx6uet ; '~
+                             'spack load py-psyclone@3.3.1 /xh3il7h ; '~
                              'spack load py-jinja2@3.1.4 /etihymc ; '~
                              'spack load rose-picker@2.1.0.dev0 /j6jwmly ; '~
                              'spack load py-pyyaml /dc2pxh2  ; ' %}
 
 {% set cascade_build_setup_ifx = 'export FC=mpif90 FPP="cpp -P -x f95-cpp-input" CXX=icpx LDMPI=mpif90 VERBOSE=1 PSYCLONE_TRANSFORMATION=minimum ; '~
-                                 'export PSYCLONE_CONFIG=$(spack location -i py-psyclone@3.2.2 /iqx6uet)/share/psyclone/psyclone.cfg ; '~
+                                 'export PSYCLONE_CONFIG=$(spack location -i py-psyclone@3.3.1 /xh3il7h)/share/psyclone/psyclone.cfg ; '~
                                  'export YAXT_ROOT=$(spack location -i yaxt@0.11.5.1 %intel@2021.10.0 /n4z2cmm) ; '~
                                  'export XIOS_ROOT=$(spack location -i xios@2701 %intel@2021.10.0 /ueycp26) ; '~
                                  'export OASIS_ROOT=$(spack location -i oasis@3-mct5.0 %intel@2021.10.0 /awot3pa) ; '~
