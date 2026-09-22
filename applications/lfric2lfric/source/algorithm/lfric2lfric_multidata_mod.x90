@@ -16,10 +16,8 @@ module lfric2lfric_multidata_mod
                                 only: field_collection_iterator_type
   use function_space_mod,       only: function_space_type
   use mesh_mod,                 only: mesh_type
-  use lfric2lfric_multidata_map_surface_kernel_mod, &
-                                only: lfric2lfric_multidata_map_surface_type
-  use lfric2lfric_multidata_snow_kernel_mod, &
-                                only: lfric2lfric_multidata_snow_type
+  use lfric2lfric_multidata_kernel_mod, &
+                                only: lfric2lfric_multidata_type
   use sci_field_minmax_alg_mod, only: get_field_minmax
   use log_mod,                  only: log_event,       &
                                       log_level_debug, &
@@ -239,16 +237,22 @@ contains
     type(field_type),    intent(in)    :: field_src
     integer(kind=i_def), intent(in)    :: n_data_dst
     integer(kind=i_def), intent(in)    :: n_data_src
+    integer(kind=i_def), parameter     :: dummy_layers_dst = 1
+    integer(kind=i_def), parameter     :: dummy_layers_src = 1
+    logical(l_def),      parameter     :: ndata_first = .false.
 
     write( log_scratch_space, '(A)' ) "Starting lfric2lfric_retile_surface_tiles"
     call log_event( log_scratch_space, log_level_debug )
 
     if ( n_data_src /= n_data_dst ) then
        ! Retile using the multidata map
-       call invoke( lfric2lfric_multidata_map_surface_type( field_dst,  &
-                                                            n_data_dst, &
-                                                            field_src,  &
-                                                            n_data_src ) )
+       call invoke( lfric2lfric_multidata_type( field_dst,        & 
+                                                field_src,        &
+                                                dummy_layers_dst, &
+                                                n_data_dst,       &
+                                                dummy_layers_src, &
+                                                n_data_src,       &
+                                                ndata_first ) )
     else
         ! Copy
         call invoke( setval_X( field_dst, field_src ) )
@@ -311,13 +315,13 @@ contains
 
     if ( ( n_tiles_src /= n_tiles_dst ) ) then
       ! Retile
-      call invoke( lfric2lfric_multidata_snow_type( field_dst, &
-                                                    field_src, &
-                                                    n_snow_layers_dst, &
-                                                    n_tiles_dst, &
-                                                    n_snow_layers_src, &
-                                                    n_tiles_src, &
-                                                    ndata_first ) )
+      call invoke( lfric2lfric_multidata_type( field_dst,         &
+                                               field_src,         &
+                                               n_snow_layers_dst, &
+                                               n_tiles_dst,       &
+                                               n_snow_layers_src, &
+                                               n_tiles_src,       &
+                                               ndata_first ) )
     else
       ! Copy
       call invoke( setval_X( field_dst, field_src ) )
