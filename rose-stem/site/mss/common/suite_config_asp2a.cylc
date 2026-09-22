@@ -1,0 +1,238 @@
+#{% set gadi_base = 'module load /g/data/access/ngm/modules/envs/lfric/202603/oneapi-openmpi' %}
+#{% set gadi_base_coupled = 'module load /g/data/access/ngm/modules/envs/lfric-coupled/202511/oneapi-openmpi' %}
+
+#{% set gadi_plot = 'module load /g/data/access/ngm/modules/analysis3/21.10' %}
+
+{% set COMPILER = "intel" %}
+{% set COMP_VER = "2025.1.3" %}
+{% set PROJECT = "17001770_R1" | default('17001770', true) %}
+{% set QUEUE = "R23268452" | default('normal', true) %}
+{% set PATCHES_ROOT = "$LFRICDIR/patches/rose-stem/vn3.2" | default ('', true) %}
+
+{% if SITE is not defined %}
+{%  set SITE ="mss" %}
+{% endif %}
+
+{% if USE_TOKENS is not defined %}
+{%   set USE_TOKENS = True %}
+{% endif %}
+
+{% macro LFRIC_ENV() %}
+                umask 0022
+                alias mpirun=mpiexec
+                module purge
+                module load craype-x86-milan
+                module load libfabric cray-dsmml
+                module load {{COMPILER}}/{{COMP_VER}}
+                module load ccrs_common/1.0.0
+                module load ccrs_openmpi/5.0.5-prod
+                module load ccrs_ucx/1.17.0-prod
+                module load ccrs_python/3.12.12-cylc8
+                module load ccrs_fcm/2021.05.0
+                module load lfric_env/3.2.0-cylc8
+                module load ccrs_svn
+                module load git/2.43.7
+{% endmacro %}
+
+[scheduler]
+    [[events]]
+        # Load newer python to run handlers
+        #shutdown handlers = "module load /g/data/access/ngm/modules/envs/lfric/202603/oneapi-openmpi; envrun suite_report_git.py -S $CYLC_WORKFLOW_RUN_DIR"
+        #stall handlers = "module load /g/data/access/ngm/modules/envs/lfric/202603/oneapi-openmpi; envrun suite_report_git.py -S $CYLC_WORKFLOW_RUN_DIR"
+
+[runtime]
+
+    [[CONTROL_TASK_RETRIES]]
+        execution retry delays = 
+
+    [[ASP2A_BASE]]
+        platform=localhost
+        pre-script = """
+                {{LFRIC_ENV()}}
+                module list 2>&1
+                     """
+        [[[environment]]]
+            BUILD_ROOT      = ${CYLC_TASK_WORK_DIR}
+            HYPERTHREADS    = 1
+            CORES_PER_NODE  = 128
+            NUMA_REGIONS_PER_NODE = 2
+            PROJECT         = {{PROJECT}}
+            SITE            = 'mss'
+            ROSE_LAUNCHER   = mpiexec
+
+        [[[directives]]]
+          -q = {{QUEUE}}
+          -W umask=0022
+          -P = {{PROJECT}}
+
+    [[ASP2A_BUILD_COMMON_INTEL]]
+        [[[directives]]]
+          -l select=1:ncpus=8:mpiprocs=8:ompthreads=1:mem=:32GB
+          -l walltime=06:00:00
+
+    [[ASP2A_BUILD_INTEL]]
+        platform = {{ROSE_ORIG_HOST}}
+        inherit=ASP2A_BASE, ASP2A_BUILD_COMMON_INTEL
+       {# {{ generate_script("pre-script", [gadi_base]) }} #}
+
+        [[[environment]]]
+           PSYCLONE_TRANSFORMATION = minimum
+           TARGET_PLATFORM = mss-asp2a
+           WORKING_DIR=${CYLC_TASK_WORK_DIR}
+
+    [[ASP2A_BUILD_COUPLED_INTEL]]
+        inherit=ASP2A_BASE, ASP2A_BUILD_COMMON_INTEL
+       {# {{ generate_script("pre-script", [gadi_base_coupled]) }} #}
+
+
+    [[ASP2A_RUN_COMMON_INTEL]]
+        platform={{ROSE_ORIG_HOST}}
+        [[[directives]]]
+          -l select=1:ncpus=32:mpiprocs=32:ompthreads=1:mem=128GB
+          -l walltime=02:00:00
+
+        [[[environment]]]
+            RUN_METHOD      = mpiexec
+            BIG_DATA_DIR    = '$LFRICDIR/data'
+            TARGET_PLATFORM = mss-asp2a
+
+    [[ASP2A_RUN_INTEL]]
+        platform={{ROSE_ORIG_HOST}}
+        inherit=ASP2A_BASE, ASP2A_RUN_COMMON_INTEL
+       {# {{ generate_script("pre-script", [gadi_base]) }} #}
+
+    [[ASP2A_RUN_COUPLED_INTEL]]
+        inherit=ASP2A_BASE, ASP2A_RUN_COMMON_INTEL
+       {# {{ generate_script("pre-script", [gadi_base_coupled]) }} #}
+
+    [[ASP2A_MESH_INTEL]]
+        inherit=ASP2A_BASE
+       {# {{ generate_script("pre-script", [gadi_base]) }} #}
+        [[[directives]]]
+            -l select=1:ncpus=8:mpiprocs=8:ompthreads=1:mem=32GB
+            -l walltime=00:30:00
+
+    [[ASP2A_PLOT]]
+        inherit=ASP2A_BASE
+       {# {{ generate_script("pre-script", [gadi_plot]) }} #}
+        [[[directives]]]
+            -l select=1:ncpus=8:mpiprocs=8:ompthreads=1:mem=32GB
+            -l walltime=02:00:00
+
+    [[ASP2A_PLOT_INTEL]]
+        inherit=ASP2A_PLOT
+
+    [[ASP2A_CHECK]]
+        inherit=ASP2A_BASE
+        [[[directives]]]
+            -l select=1:ncpus=8:mpiprocs=8:ompthreads=1:mem=32GB
+            -l walltime=00:30:00
+
+    [[ASP2A_EXPORT-SOURCE]]
+        platform=localhost
+        pre-script="""
+                module load gcc
+                module load ccrs_svn
+                module load git/2.43.7
+                module list 2>&1
+                   """
+        [[[environment]]]
+           #hostname = {{ROSE_ORIG_HOST}}
+            SITE = 'mss'
+            PLATFORM_SYNC = false
+
+        [[[directives]]]
+            -l select=1:ncpus=2:mpiprocs=2:ompthreads=1:mem=8GB
+            -l walltime=00:05:00
+
+    [[export-source]]
+        pre-script="""
+                module load gcc
+                module load ccrs_svn
+                module load git/2.43.7                
+                module list 2>&1
+                   """
+
+        post-script="""
+                EXTRACT_DIR=${CYLC_WORKFLOW_SHARE_DIR}/source
+
+                RC=0
+                grep -q BASH_XTRACEFD || RC=$?
+                [ $RC -eq 0 ] || \
+                sed -i '/^PROJECT_NAME = lfric_atm/i SHELL := /usr/bin/bash\nexport SHELL\nunexport BASH_XTRACEFD\n' \
+                       ${EXTRACT_DIR}/lfric_apps/applications/lfric_atm/Makefile
+
+                {% if PATCHES_ROOT != '' %}
+                     # CCRS local patches
+                     PATCHES_ROOT={{PATCHES_ROOT}}
+                     cd $PATCHES_ROOT
+                     echo "Applying CCRS local pathes ..."
+                     for f in `find -type f | sed '#^\./##g'`
+                     do
+                       [ -f $EXTRACT_DIR/$f.orig ] || cp -v $EXTRACT_DIR/$f  $EXTRACT_DIR/$f.orig
+                       cp -v $PATCHES_ROOT/$f $EXTRACT_DIR/$f
+                     done
+                {% endif %}
+
+                APPS=(lfric_atm gungho_model lfricinputs lfric2lfric)
+                for app in ${APPS[@]}
+                do
+                  cd ${EXTRACT_DIR}/lfric_apps/applications/$app/optimisation
+                  [ -d mss-asp2a || -L mss-asp2a ] || \
+                     ln -sf meto-ex1a mss-asp2a
+                done
+                    """
+
+        [[[environment]]]
+            USE_TOKENS = {{ USE_TOKENS }}
+
+    [[ASP2A_SCRIPTS]]
+        inherit=ASP2A_BASE
+
+    [[ASP2A_TECH_TESTS_INTEL]]
+        inherit=ASP2A_BASE
+       {# {{ generate_script("pre-script", [gadi_base]) }} #}
+        [[[directives]]]
+            -l select=1:ncpus=8:mpiprocs=8:ompthreads=1:mem=32GB
+            -l walltime=00:30:00
+
+    [[ASP2A_HOUSEKEEPING]]
+
+    [[SCRIPTS]]
+       {# {{ generate_script("pre-script", [gadi_base]) }} #}
+        [[[directives]]]
+            -l select=1:ncpus=8:mpiprocs=8:ompthreads=1:mem=32GB
+            -l walltime=00:30:00
+
+    [[ASP2A_LFRICINPUTS]]
+        inherit = ASP2A_RUN_INTEL
+        execution time limit = PT45M
+        [[[environment]]]
+            FASTMEM         = \$TMPDIR
+            CANNED_MESH_DIR = $BIG_DATA_DIR/meshes/HEAD
+            UMDIR = $UMDIR
+        [[[directives]]]
+            -l select=1:ncpus=8:mpiprocs=8:ompthreads=1:mem=32GB
+            -l walltime=00:30:00
+
+    [[ASP2A_WEIGHTS]]
+        platform={{ROSE_ORIG_HOST}}
+        inherit = ASP2A_LFRICINPUTS
+        pre-script = """
+                umask 0022
+                alias mpirun=mpiexec
+                module purge
+                module load craype-x86-milan cray-pals
+                module load PrgEnv-gnu
+                module load ccrs_common/1.0.0
+                module load ccrs_openmpi/5.0.3-prod
+                module load ccrs_ucx/1.17.0-prod
+                module load ccrs_python/3.12.12-cylc8
+                module load ccrs_fcm/2021.05.0
+                module load ccrs_hdf5-parallel/1.12.3-ompi
+                module load ccrs_netcdf-hdf5-parallel/4.9.2-ompi
+                module load ccrs_esmf/8.4.2-ompi
+                module load mule/2024.11.1
+                module load nco/5.1.6
+                module list 2>&1
+                     """

@@ -1,0 +1,71 @@
+{% do LOG.debug("Entered site/mss/macros/macros_asp2a.cylc") %}
+
+{# Macros here have largely been copied from the UM for now #}
+
+{% macro set_task_resources(family_name,
+                            family_inherits,
+                            wallclock,
+                            mpi_ranks,
+                            memory,
+                            threads=1,
+                            xios_nodes=0,
+                            ocean_nodes=0,
+                            river_nodes=0,
+                            ranks_per_node=0,
+                            ranks_depth_pad=1) %}
+
+    [[{{family_name|upper}}]]
+        inherit = {{family_inherits|upper}}
+        execution time limit = PT{{wallclock}}M
+
+        [[[directives]]]
+
+          {% set cpus_per_node = 128 %}
+          {% set gb_per_core = 4 %}
+          {% set max_mem=440 %} 
+          {% set lfric_xios_ratio=16 %}
+          {% set xios_mpiprocs=(cpus_per_node / 2)|int %}
+
+          {% set lfric_cores=(mpi_ranks * threads|int) %}
+          {% set xios_cores=(mpi_ranks / lfric_xios_ratio)|round(0,'ceil')|int %}
+          {% set tot_cores=(lfric_cores + xios_cores)|int %}
+          {% set xios_res="" %}
+
+          {% if tot_cores >= cpus_per_node %}
+
+          {%   set lfric_nodes=(lfric_cores / cpus_per_node)|round(0,'floor')|int %}
+          {%   set mpiprocs=(cpus_per_node / threads)|int %}
+          {%   set lfric_res=lfric_nodes|string ~ ":ncpus=" ~ mpiprocs ~ ":mpiprocs=" ~ mpiprocs ~ ":ompthreads=" ~ threads ~ ":mem=" ~ max_mem ~ "GB" %}
+          {%   set lfric_frac=(mpi_ranks - lfric_nodes * mpiprocs)|int %}
+          {%   if lfric_frac > 0 %}
+          {%     set lfric_res = lfric_res|string ~ "+1:ncpus=" ~ lfric_frac ~ ":mpiprocs=" ~ lfric_frac ~ ":ompthreads=" ~ threads ~ ":mem=" ~ MEM ~ "GB" %}
+          {%   endif %}
+
+          {%   if xios_nodes > 0 %}
+          {%     set xios_nodes=(xios_cores / xois_mpiprocs)|round(0,'ceil')|int %}
+          {%     set xios_res="+" ~ xios_nodes|string ~ ":ncpus=" ~ xios_mpiprocs ~ ":mpiprocs=" ~ xios_mpiprocs ~ ":ompthreads=1:mem=" ~ max_mem ~ "GB" %}
+          {%   endif %}
+
+          {% else %}
+
+          {%   set lfric_mem=(lfric_cores*gb_per_core) %}
+          {%   set xios_mem=(xios_cores*gb_per_core) %}
+          {%   set lfric_res="1:ncpus=" ~ mpi_ranks ~ ":mpiprocs=" ~ mpi_ranks ~ ":ompthreads=" ~ threads ~ ":mem=" ~ lfric_mem ~ "GB" %}
+          {%   if xios_nodes > 0 %}  
+          {%     set xios_res="+1:ncpus=" ~ xios_cores ~ ":mpiprocs=" ~ xios_cores ~ ":ompthreads=1" ~ ":mem=" ~ xios_mem ~ "GB" %}
+          {%   endif %}
+
+          {% endif %}
+
+          -l select={{lfric_res ~ xios_res }}
+
+{% endmacro %}
+
+
+{% macro set_memory(mem) %}
+    {% set value = mem[0] %}
+ 	{% set unit = mem[1] %}
+            -l mem={{value}}{{unit[:1]}}
+{% endmacro %}
+
+{% do LOG.debug("Finished in site/mss/macros/macros_asp2a.cylc") %}
