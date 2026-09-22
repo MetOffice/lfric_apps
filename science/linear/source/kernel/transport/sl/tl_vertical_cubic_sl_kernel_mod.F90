@@ -162,7 +162,7 @@ module tl_vertical_cubic_sl_kernel_mod
     if (ndf_wf == 1) then
       ! W3 field so require pert dist averaged to W3 point
       pert_dist(:) = ( dep_dist_pert(w2_idx : w2_idx + nlayers - 1)            &
-                             + dep_dist_pert(w2_idx + 1 : w2_idx + nlayers) ) / 2.0_r_tran
+                     + dep_dist_pert(w2_idx + 1 : w2_idx + nlayers) ) / 2.0_r_tran
     else
       ! Wtheta field so can use pert dist at W2v point
       pert_dist(:) = dep_dist_pert(w2_idx : w2_idx + nl - 1)
