@@ -102,3 +102,21 @@ class vn32_t698(MacroUpgrade):
         )
 
         return config, self.reports
+
+
+class vn32_t725(MacroUpgrade):
+    """Upgrade macro for ticket #725 by Ian Boutle."""
+
+    BEFORE_TAG = "vn3.2_t698"
+    AFTER_TAG = "vn3.2_t725"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(
+            config, ["namelist:mixing", "leonard_inc_ice"], ".false."
+        )
+        self.add_setting(
+            config, ["namelist:mixing", "leonard_inc_with_bl"], ".false."
+        )
+
+        return config, self.reports
