@@ -107,7 +107,7 @@ contains
   this%data_in(1) = 0.0_r_def
   this%data_in(2) = 100.0_r_def
   this%data_in(3) = 1000.0_r_def
-  ! Conver heights to geopotential
+  ! Convert heights to geopotential
   this%data_in(:) = gravity * this%data_in(:)
   this%height(1) = 0.0_r_def
   this%height(2) = 100.0_r_def

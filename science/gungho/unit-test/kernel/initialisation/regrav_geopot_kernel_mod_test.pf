@@ -4,7 +4,7 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 !> Test of interpolation from constant gravity geopotential height to true
-!> geopotentail height.
+!> geopotential height.
 !>
 module regrav_geopot_kernel_mod_test
 
