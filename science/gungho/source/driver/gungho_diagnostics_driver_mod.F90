@@ -4,6 +4,9 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 
+!> Some of the content of this file has been produced with the assistance of
+!> Met Office Claude Code Enterprise.
+
 !> @brief Outputs diagnostics from gungho/lfric_atm
 
 !> @details Calls the routine that generates diagnostic output for

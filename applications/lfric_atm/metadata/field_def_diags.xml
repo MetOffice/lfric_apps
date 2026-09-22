@@ -1,3 +1,5 @@
+<!-- Some of the content of this file has been produced with the assistance of
+     Met Office Claude Code Enterprise. -->
 <field_definition>
 <!-- Main diagnostic group -->
 <field_group id="diagnostic_fields" prec="8" operation="instant" enabled=".TRUE." >
