@@ -71,7 +71,7 @@
 	<!--<field id="read_tstar" name="tstar" long_name="surface_temperature" standard_name="surface_temperature" unit="K" domain_ref="face" operation="instant" />-->
 	<!--<field id="read_ozone" name="ozone" long_name="mass_fraction_of_ozone_in_air" standard_name="mass_fraction_of_ozone_in_air" unit="1" grid_ref="full_level_face_grid" operation="instant" />-->
 
-	<!-- Additional fields for basic_gal
+	<!-- Additional fields for basic_gal-->
 	<field id="read_dd_mf_cb" name="dd_mf_cb" long_name="Downdraft massflux at cloud base" unit="Pa s-1" domain_ref="face" operation="instant" />
 	<field id="read_snow_soot" name="snow_soot" long_name="Snow soot content" unit="kg kg-1" domain_ref="face" operation="instant" />
 	<field id="read_soil_sat_frac" name="soil_sat_frac" long_name="Soil saturated fraction" unit="1" domain_ref="face" operation="instant" />
@@ -80,7 +80,7 @@
 	<field id="read_surface_conductance" name="surface_conductance" long_name="Surface conductance" unit="m s-1" domain_ref="face" operation="instant" />
 	<field id="read_tstar_sea_ice" name="tstar_sea_ice" long_name="Sea ice surface temperature" unit="K" domain_ref="face" operation="instant" />
 	<field id="read_sea_ice_temperature" name="sea_ice_temperature" long_name="Sea-ice bulk temperature" unit="K" domain_ref="face" operation="instant" />
--->
+
 
 	<!-- land tiles fields for basic_gal
 	<field id="read_tile_snow_mass" name="tile_snow_mass" long_name="Tile snow mass" unit="kg" grid_ref="land_tiles_face_grid" operation="instant" />
