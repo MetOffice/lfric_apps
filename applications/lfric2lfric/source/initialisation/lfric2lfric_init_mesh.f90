@@ -110,7 +110,7 @@ subroutine init_mesh( config,                  &
 
   integer(kind=i_def),   intent(in) :: local_rank
   integer(kind=i_def),   intent(in) :: total_ranks
-  character(len=*),      intent(in) :: mesh_names(2)
+  character(*),          intent(in) :: mesh_names(2)
   class(extrusion_type), intent(in) :: extrusion
   logical(l_def),        intent(in) :: inner_halo_tiles
   integer(i_def),        intent(in) :: tile_size(:,:)
@@ -357,12 +357,11 @@ subroutine init_mesh( config,                  &
 
     ! Read in all global meshes from input file
     !===========================================================
-    call load_global_mesh( trim(mesh_file(src)), trim(mesh_names(src)), &
-                           rename_to=trim(stored_mesh_names(src)) )
+    call load_global_mesh( mesh_file(src), mesh_names(src), &
+                           rename_to=stored_mesh_names(src) )
 
-    call load_global_mesh( trim(mesh_file(dst)), trim(mesh_names(dst)), &
-                           rename_to=trim(stored_mesh_names(dst)) )
-
+    call load_global_mesh( mesh_file(dst), mesh_names(dst), &
+                           rename_to=stored_mesh_names(dst) )
 
     ! Partition the global meshes
     !===========================================================
