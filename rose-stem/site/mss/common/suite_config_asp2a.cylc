@@ -5,8 +5,8 @@
 
 {% set COMPILER = "intel" %}
 {% set COMP_VER = "2025.1.3" %}
-{% set PROJECT = "17001770_R1" | default('17001770', true) %}
-{% set QUEUE = "R23268452" | default('normal', true) %}
+{% set PROJECT = CHARGING_CODE | default('17001770', true) %}
+{% set QUEUE = QUEUE | default('normal', true) %}
 {% set PATCHES_ROOT = "$LFRICDIR/patches/rose-stem/vn3.2" | default ('', true) %}
 
 {% if SITE is not defined %}
