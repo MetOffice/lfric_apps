@@ -1,0 +1,297 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Test the dust_conc_diags kernel
+!>
+module dust_conc_diags_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: set_up, tear_down, test_dust_conc_diags, &
+           test_all_layers_above_band, test_empty_fields
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @before
+  subroutine set_up()
+
+    use feign_config_mod, only : feign_planet_config
+
+    implicit none
+
+    ! Standard dry-atmosphere planet constants; only rd and p_zero affect
+    ! this kernel's arithmetic (the test uses exner = 1 everywhere, so the
+    ! result does not depend on kappa).
+    call feign_planet_config( gravity=9.80665_r_def,     &
+                              omega=7.292116e-5_r_def,   &
+                              rd=287.05_r_def,           &
+                              cp=1005.0_r_def,           &
+                              p_zero=100000.0_r_def,     &
+                              scaling_factor=1.0_r_def )
+
+  end subroutine set_up
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @after
+  subroutine tear_down()
+
+    use config_loader_mod, only : final_configuration
+
+    implicit none
+
+    call final_configuration()
+
+  end subroutine tear_down
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_dust_conc_diags()
+
+    use dust_conc_diags_kernel_mod, only : dust_conc_diags_code
+
+    implicit none
+
+    real(kind=r_def), parameter :: tol = 1.0e-9_r_def
+
+    ! rho_air = p_zero / (rd * theta), chosen (with exner = 1 everywhere)
+    ! to equal 1.0 exactly, so the concentration conversion is easy to
+    ! check by hand.
+    real(kind=r_def), parameter :: rd_val    = 287.05_r_def
+    real(kind=r_def), parameter :: p_zero_val = 100000.0_r_def
+    real(kind=r_def), parameter :: theta_val = p_zero_val / rd_val
+
+    ! Uniform column: acc_ins_du + cor_ins_du = 1e-8 kg/kg at every level
+    real(kind=r_def), parameter :: acc_val = 6.0e-9_r_def
+    real(kind=r_def), parameter :: cor_val = 4.0e-9_r_def
+
+    ! Rho-level (W3) heights 0, 200, .., 1600 m above the first rho level.
+    ! Layers k=4..8 (600-800, 800-1000, ..., 1400-1600 m) each fall wholly
+    ! or partly within the 609.6-1524.0 m band and are counted at full
+    ! (200 m) thickness, including the two layers that straddle the band
+    ! edges, matching the UM's un-clipped band sum.
+    integer(i_def), parameter :: nlayers = 9_i_def
+    integer(i_def), parameter :: ndf_wth = 1_i_def, undf_wth = nlayers + 1
+    integer(i_def), parameter :: ndf_w3 = 1_i_def, undf_w3 = nlayers
+    integer(i_def), parameter :: ndf_2d = 1_i_def, undf_2d = 1_i_def
+
+    integer(i_def) :: map_wth(ndf_wth), map_w3(ndf_w3), map_2d(ndf_2d)
+
+    real(r_def) :: acc_ins_du(undf_wth), cor_ins_du(undf_wth)
+    real(r_def) :: theta(undf_wth), exner_in_wth(undf_wth)
+    real(r_def) :: height_w3(undf_w3)
+
+    real(r_def), target  :: dust_conc_surface_data(undf_2d)
+    real(r_def), target  :: dust_conc_2000_5000ft_data(undf_2d)
+    real(r_def), pointer :: dust_conc_surface(:)
+    real(r_def), pointer :: dust_conc_2000_5000ft(:)
+
+    real(r_def) :: expected_surface, expected_band
+
+    map_wth = (/ 1_i_def /)
+    map_w3  = (/ 1_i_def /)
+    map_2d  = (/ 1_i_def /)
+
+    theta        = theta_val
+    exner_in_wth = 1.0_r_def
+    acc_ins_du   = acc_val
+    cor_ins_du   = cor_val
+
+    height_w3 = (/ 0.0_r_def, 200.0_r_def, 400.0_r_def, 600.0_r_def,   &
+                  800.0_r_def, 1000.0_r_def, 1200.0_r_def,            &
+                  1400.0_r_def, 1600.0_r_def /)
+
+    dust_conc_surface_data(1)     = -999.0_r_def
+    dust_conc_2000_5000ft_data(1) = -999.0_r_def
+    dust_conc_surface     => dust_conc_surface_data
+    dust_conc_2000_5000ft => dust_conc_2000_5000ft_data
+
+    call dust_conc_diags_code( nlayers,                &
+                              acc_ins_du,              &
+                              cor_ins_du,              &
+                              theta,                   &
+                              exner_in_wth,             &
+                              height_w3,                &
+                              dust_conc_surface,        &
+                              dust_conc_2000_5000ft,    &
+                              ndf_wth, undf_wth, map_wth, &
+                              ndf_w3, undf_w3, map_w3,    &
+                              ndf_2d, undf_2d, map_2d )
+
+    ! (a) surface: 1e-8 kg/kg * 1.0 kg/m3 * 1e9 (kg to micg) * 1e-6
+    !     (micg to g) = 1e-5 g/m3
+    expected_surface = 1.0e-5_r_def
+    @assertEqual( expected_surface, dust_conc_surface(1), tol )
+
+    ! (b) band: 5 layers of 200 m thickness at 10.0 micg/m3, converted to
+    !     g/m3 and divided by the nominal 914.4 m band depth
+    expected_band = (5.0_r_def * 200.0_r_def * 10.0_r_def * 1.0e-6_r_def) / &
+                   914.4_r_def
+    @assertEqual( expected_band, dust_conc_2000_5000ft(1), tol )
+
+  end subroutine test_dust_conc_diags
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_all_layers_above_band()
+
+    ! (d) A column whose layers all lie above the 1524 m band top gives a
+    ! band value of exactly zero, not missing data.
+
+    use dust_conc_diags_kernel_mod, only : dust_conc_diags_code
+
+    implicit none
+
+    real(kind=r_def), parameter :: tol = 1.0e-9_r_def
+    real(kind=r_def), parameter :: rd_val     = 287.05_r_def
+    real(kind=r_def), parameter :: p_zero_val = 100000.0_r_def
+    real(kind=r_def), parameter :: theta_val  = p_zero_val / rd_val
+
+    integer(i_def), parameter :: nlayers = 9_i_def
+    integer(i_def), parameter :: ndf_wth = 1_i_def, undf_wth = nlayers + 1
+    integer(i_def), parameter :: ndf_w3 = 1_i_def, undf_w3 = nlayers
+    integer(i_def), parameter :: ndf_2d = 1_i_def, undf_2d = 1_i_def
+
+    integer(i_def) :: map_wth(ndf_wth), map_w3(ndf_w3), map_2d(ndf_2d)
+
+    real(r_def) :: acc_ins_du(undf_wth), cor_ins_du(undf_wth)
+    real(r_def) :: theta(undf_wth), exner_in_wth(undf_wth)
+    real(r_def) :: height_w3(undf_w3)
+
+    real(r_def), target  :: dust_conc_surface_data(undf_2d)
+    real(r_def), target  :: dust_conc_2000_5000ft_data(undf_2d)
+    real(r_def), pointer :: dust_conc_surface(:)
+    real(r_def), pointer :: dust_conc_2000_5000ft(:)
+
+    map_wth = (/ 1_i_def /)
+    map_w3  = (/ 1_i_def /)
+    map_2d  = (/ 1_i_def /)
+
+    theta        = theta_val
+    exner_in_wth = 1.0_r_def
+    acc_ins_du   = 6.0e-9_r_def
+    cor_ins_du   = 4.0e-9_r_def
+
+    ! First rho level is the reference (0 m); every level above it is
+    ! already above the 1524 m band top.
+    height_w3 = (/ 0.0_r_def, 2000.0_r_def, 2200.0_r_def, 2400.0_r_def, &
+                  2600.0_r_def, 2800.0_r_def, 3000.0_r_def,            &
+                  3200.0_r_def, 3400.0_r_def /)
+
+    dust_conc_surface_data(1)     = -999.0_r_def
+    dust_conc_2000_5000ft_data(1) = -999.0_r_def
+    dust_conc_surface     => dust_conc_surface_data
+    dust_conc_2000_5000ft => dust_conc_2000_5000ft_data
+
+    call dust_conc_diags_code( nlayers,                &
+                              acc_ins_du,              &
+                              cor_ins_du,              &
+                              theta,                   &
+                              exner_in_wth,             &
+                              height_w3,                &
+                              dust_conc_surface,        &
+                              dust_conc_2000_5000ft,    &
+                              ndf_wth, undf_wth, map_wth, &
+                              ndf_w3, undf_w3, map_w3,    &
+                              ndf_2d, undf_2d, map_2d )
+
+    @assertEqual( 0.0_r_def, dust_conc_2000_5000ft(1), tol )
+
+  end subroutine test_all_layers_above_band
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @test
+  subroutine test_empty_fields()
+
+    ! (c) Each output field is skipped, untouched, when it points at the
+    ! shared empty-data array, independent of whether the other output is
+    ! requested.
+
+    use dust_conc_diags_kernel_mod, only : dust_conc_diags_code
+    use empty_data_mod,             only : empty_real_data
+
+    implicit none
+
+    real(kind=r_def), parameter :: tol = 1.0e-9_r_def
+    real(kind=r_def), parameter :: rd_val     = 287.05_r_def
+    real(kind=r_def), parameter :: p_zero_val = 100000.0_r_def
+    real(kind=r_def), parameter :: theta_val  = p_zero_val / rd_val
+    real(kind=r_def), parameter :: sentinel   = -999.0_r_def
+
+    integer(i_def), parameter :: nlayers = 9_i_def
+    integer(i_def), parameter :: ndf_wth = 1_i_def, undf_wth = nlayers + 1
+    integer(i_def), parameter :: ndf_w3 = 1_i_def, undf_w3 = nlayers
+    integer(i_def), parameter :: ndf_2d = 1_i_def, undf_2d = 1_i_def
+
+    integer(i_def) :: map_wth(ndf_wth), map_w3(ndf_w3), map_2d(ndf_2d)
+
+    real(r_def) :: acc_ins_du(undf_wth), cor_ins_du(undf_wth)
+    real(r_def) :: theta(undf_wth), exner_in_wth(undf_wth)
+    real(r_def) :: height_w3(undf_w3)
+
+    real(r_def), target  :: surface_data(undf_2d)
+    real(r_def), target  :: band_data(undf_2d)
+    real(r_def), pointer :: dust_conc_surface(:)
+    real(r_def), pointer :: dust_conc_2000_5000ft(:)
+
+    map_wth = (/ 1_i_def /)
+    map_w3  = (/ 1_i_def /)
+    map_2d  = (/ 1_i_def /)
+
+    theta        = theta_val
+    exner_in_wth = 1.0_r_def
+    acc_ins_du   = 6.0e-9_r_def
+    cor_ins_du   = 4.0e-9_r_def
+    height_w3 = (/ 0.0_r_def, 200.0_r_def, 400.0_r_def, 600.0_r_def,   &
+                  800.0_r_def, 1000.0_r_def, 1200.0_r_def,            &
+                  1400.0_r_def, 1600.0_r_def /)
+
+    ! Surface skipped, band requested
+    surface_data(1) = sentinel
+    band_data(1)    = sentinel
+    dust_conc_surface     => empty_real_data
+    dust_conc_2000_5000ft => band_data
+
+    call dust_conc_diags_code( nlayers,                &
+                              acc_ins_du,              &
+                              cor_ins_du,              &
+                              theta,                   &
+                              exner_in_wth,             &
+                              height_w3,                &
+                              dust_conc_surface,        &
+                              dust_conc_2000_5000ft,    &
+                              ndf_wth, undf_wth, map_wth, &
+                              ndf_w3, undf_w3, map_w3,    &
+                              ndf_2d, undf_2d, map_2d )
+
+    @assertTrue( dust_conc_2000_5000ft(1) /= sentinel )
+
+    ! Band skipped, surface requested
+    surface_data(1) = sentinel
+    band_data(1)    = sentinel
+    dust_conc_surface     => surface_data
+    dust_conc_2000_5000ft => empty_real_data
+
+    call dust_conc_diags_code( nlayers,                &
+                              acc_ins_du,              &
+                              cor_ins_du,              &
+                              theta,                   &
+                              exner_in_wth,             &
+                              height_w3,                &
+                              dust_conc_surface,        &
+                              dust_conc_2000_5000ft,    &
+                              ndf_wth, undf_wth, map_wth, &
+                              ndf_w3, undf_w3, map_w3,    &
+                              ndf_2d, undf_2d, map_2d )
+
+    @assertTrue( dust_conc_surface(1) /= sentinel )
+
+  end subroutine test_empty_fields
+
+end module dust_conc_diags_kernel_mod_test

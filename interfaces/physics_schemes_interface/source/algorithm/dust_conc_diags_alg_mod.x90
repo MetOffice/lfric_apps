@@ -1,0 +1,105 @@
+!-------------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+!> @brief Code to calculate and output the total dust concentration at the
+!>        surface and in the 2000-5000 feet layer
+
+module dust_conc_diags_alg_mod
+
+  use aerosol_config_mod,          only: glomap_mode,               &
+                                         glomap_mode_ukca,          &
+                                         glomap_mode_dust_and_clim
+  use config_mod,                  only: config_type
+  use constants_mod,               only: l_def
+  use dust_conc_diags_kernel_mod,  only: dust_conc_diags_kernel_type
+  use field_collection_mod,        only: field_collection_type
+  use field_mod,                   only: field_type
+  use fs_continuity_mod,           only: W3
+  use initialise_diagnostics_mod,  only: init_diag => init_diagnostic_field
+  use io_config_mod,               only: use_xios_io
+  use log_mod,                     only: log_event, LOG_LEVEL_WARNING
+  use section_choice_config_mod,   only: aerosol, aerosol_um
+  use sci_geometric_constants_mod, only: get_height_fv
+
+  implicit none
+
+  private
+
+  public :: dust_conc_diags_alg
+
+contains
+
+  !> @details Output diagnostics of total dust concentration at the surface
+  !>          and in the 2000-5000 feet layer
+  !> @param[in] config          Application namelist configuration object
+  !> @param[in] aerosol_fields  Collection of fields for the aerosol scheme
+  !> @param[in] theta           Potential temperature
+  !> @param[in] exner_in_wth    Exner pressure in wth space
+  subroutine dust_conc_diags_alg(config, aerosol_fields, theta, exner_in_wth)
+
+    implicit none
+
+    type(config_type), intent(in) :: config
+
+    type(field_collection_type), intent(in) :: aerosol_fields
+    type(field_type),            intent(in) :: theta
+    type(field_type),            intent(in) :: exner_in_wth
+
+    ! Local fields
+    type(field_type) :: dust_conc_surface
+    type(field_type) :: dust_conc_2000_5000ft
+    type(field_type), pointer :: acc_ins_du
+    type(field_type), pointer :: cor_ins_du
+    type(field_type), pointer :: height_w3
+
+    logical(l_def) :: surface_flag, band_flag
+
+    nullify(acc_ins_du, cor_ins_du, height_w3)
+
+    surface_flag = init_diag(dust_conc_surface, 'aviation__dust_conc_surface')
+    band_flag = init_diag(dust_conc_2000_5000ft, &
+                          'aviation__dust_conc_2000_5000ft')
+
+    if ((surface_flag .or. band_flag) .and. use_xios_io) then
+
+      ! The dust concentration diagnostics require prognostic GLOMAP dust,
+      ! which is only advected when aerosol=um and glomap_mode is ukca or
+      ! dust_and_clim. Skip with a non-fatal warning otherwise, matching
+      ! the UM's non-fatal warning when the diagnostic's dependency is
+      ! unmet.
+      if (.not. (aerosol == aerosol_um .and.                 &
+                (glomap_mode == glomap_mode_ukca .or.        &
+                 glomap_mode == glomap_mode_dust_and_clim))) then
+        if (surface_flag) call log_event(                                    &
+          'aviation__dust_conc_surface requires prognostic GLOMAP dust '//   &
+          '(aerosol=um, glomap_mode=ukca or dust_and_clim); not computed.',  &
+          LOG_LEVEL_WARNING)
+        if (band_flag) call log_event(                                       &
+          'aviation__dust_conc_2000_5000ft requires prognostic GLOMAP '//    &
+          'dust (aerosol=um, glomap_mode=ukca or dust_and_clim); not '//     &
+          'computed.', LOG_LEVEL_WARNING)
+      else
+
+        call aerosol_fields%get_field('acc_ins_du', acc_ins_du)
+        call aerosol_fields%get_field('cor_ins_du', cor_ins_du)
+
+        height_w3 => get_height_fv(config, theta%get_mesh(), W3)
+
+        call invoke( dust_conc_diags_kernel_type( acc_ins_du, cor_ins_du,    &
+                                                  theta, exner_in_wth,      &
+                                                  height_w3,                &
+                                                  dust_conc_surface,        &
+                                                  dust_conc_2000_5000ft ) )
+
+        if (surface_flag) call dust_conc_surface%write_field()
+        if (band_flag) call dust_conc_2000_5000ft%write_field()
+
+      end if
+
+    end if
+
+  end subroutine dust_conc_diags_alg
+
+end module dust_conc_diags_alg_mod
