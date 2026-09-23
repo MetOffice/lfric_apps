@@ -130,6 +130,7 @@ contains
     real(r_def),allocatable :: rho_data(:)
     real(r_def),allocatable :: theta_data(:)
     real(r_def),allocatable :: moist_dyn_gas_data(:)
+    real(r_def),allocatable :: mask(:)
 
     integer(i_def)            :: nlayers
     integer(i_def)            :: ndf_wtheta, ndf_w3
@@ -172,6 +173,7 @@ contains
     allocate(theta_data(undf_wtheta))
     allocate(moist_dyn_gas_data(undf_wtheta))
     allocate(rho_data(undf_w3))
+    allocate(mask(undf_w3))
 
     cell = 1
 
@@ -180,12 +182,14 @@ contains
     rho_data(:)   = 0.0_r_def
     theta_data(:) = 300.0_r_def
     moist_dyn_gas_data(:) = 1.0_r_def
+    mask(:) = 1.0_r_def
 
     call sample_eos_rho_code( nlayers,            &
                               rho_data,           &
                               exner_data,         &
                               theta_data,         &
                               moist_dyn_gas_data, &
+                              mask,               &
                               kappa,              &
                               rd,                 &
                               p_zero,             &
