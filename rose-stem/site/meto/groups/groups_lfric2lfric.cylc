@@ -15,8 +15,7 @@
         "lfric2lfric_oasis_clim_gal9-C24_C12_1cpu_azspice_gnu_fast-debug-64bit",
         "lfric2lfric_oasis_clim_gal9_C12-ral_seuk_C16_lam_1cpu_azspice_gnu_fast-debug-64bit",
         "lfric2lfric_oasis_clim_gal9_C12-ral_seuk_C16_lam-lbc_1cpu_azspice_gnu_fast-debug-64bit",
-        "lfric2lfric_oasis_C12L70_to_seukL38_azspice_gnu_fast-debug-64bit",
-        "lfric2lfric_oasis_C12L70_to_C12L38_azspice_gnu_fast-debug-64bit",
+        "lfric2lfric_azspice_unit_tests",
         "lfric2lfric_azspice_canned",
     ],
     "lfric2lfric_azspice_extra": [
@@ -39,6 +38,9 @@
     "lfric2lfric_azspice_build": [
         "build_lfric2lfric_azspice_gnu_fast-debug-64bit",
     ],
+    "lfric2lfric_azspice_unit_tests": [
+        "lfric2lfric_unit_tests_azspice_gnu_64bit",
+    ],
     }) %}
 
 {# EX1A Groups #}
@@ -52,8 +54,6 @@
         "lfric2lfric_oasis_clim_gal9-C24_C12_6cpu_ex1a_cce_fast-debug-64bit",
         "lfric2lfric_oasis_clim_gal9_C12-ral_seuk_C16_lam_1cpu_ex1a_cce_fast-debug-64bit",
         "lfric2lfric_oasis_clim_gal9_C12-ral_seuk_C16_lam-lbc_1cpu_ex1a_cce_fast-debug-64bit",
-        "lfric2lfric_oasis_C12L70_to_seukL38_ex1a_cce_fast-debug-64bit",
-        "lfric2lfric_oasis_C12L70_to_C12L38_ex1a_cce_fast-debug-64bit",
         "lfric2lfric_ex1a_canned",
     ],
     "lfric2lfric_ex1a_extra": [
@@ -74,6 +74,9 @@
     ],
     "lfric2lfric_ex1a_canned": [
         "lfric2lfric_canned_ex1a_cce_fast-debug-64bit",
+    ],
+    "lfric2lfric_ex1a_unit_tests": [
+        "lfric2lfric_unit_tests_ex1a_gnu_64bit",
     ],
     }) %}
 
@@ -96,16 +99,21 @@
         "lfric2lfric_azspice_canned",
         "lfric2lfric_ex1a_canned",
     ],
+    "lfric2lfric_unit_tests": [
+        "lfric2lfric_azspice_unit_tests",
+    ],
     }) %}
 
 {# Platform Generic Extends #}
 {% do site_groups.developer.extend(site_groups.lfric2lfric_developer) %}
 {% do site_groups.all.extend(site_groups.lfric2lfric) %}
+{% do site_groups.unit_tests.extend(site_groups.lfric2lfric_unit_tests) %}
 {% do site_groups.build.extend(site_groups.lfric2lfric_build) %}
 
 {# Azspice Extends #}
 {% do site_groups.azspice_developer.extend(site_groups.lfric2lfric_azspice_developer) %}
 {% do site_groups.azspice.extend(site_groups.lfric2lfric_azspice) %}
+{% do site_groups.azspice_unit_tests.extend(site_groups.lfric2lfric_azspice_unit_tests) %}
 {% do site_groups.azspice_build.extend(site_groups.lfric2lfric_azspice_build) %}
 
 {# EX1A Extends #}

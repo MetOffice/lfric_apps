@@ -36,7 +36,6 @@ module lfric2lfric_driver_mod
                                             interm_collection_name
   use lfric2lfric_regrid_mod,         only: lfric2lfric_regrid
   use lfric2lfric_vert_mod,           only: lfric2lfric_vert
-  use lfric2lfric_copy_mod,           only: lfric2lfric_copy
   use lfric2lfric_multidata_mod,      only: lfric2lfric_multidata  
 
   implicit none

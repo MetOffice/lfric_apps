@@ -1,0 +1,106 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the multidata mapping kernel
+module lfric2lfric_multidata_kernel_mod_test
+
+  use constants_mod,                       only : r_def, i_def, r_single, r_double, l_def
+  use get_unit_test_m3x3_dofmap_mod,       only : get_w3_m3x3_dofmap
+
+  use funit
+
+  implicit none
+
+  public :: test_lfric2lfric_multidata_r_double
+
+contains
+  
+@Test
+subroutine test_lfric2lfric_multidata_r_double( )
+
+  use lfric2lfric_multidata_kernel_mod, &
+                     only : lfric2lfric_multidata_code
+  use dst_jules_surface_types_config_mod, &
+                     only : multidata_map
+  use feign_config_mod,   &
+                     only : feign_dst_jules_surface_types_config
+
+  implicit none
+
+  integer(kind=i_def) :: nlayers ! Number of vertical layers
+  integer(kind=i_def) :: ncell   ! Number of cells in horizontal
+  integer(kind=i_def) :: ndf     ! Number of dofs per cell
+  integer(kind=i_def) :: nsnow_src, nsnow_dst   ! Number of snow layers
+  integer(kind=i_def) :: ntiles_src, ntiles_dst ! Number of tiles
+  integer(kind=i_def) :: ndata_src, ndata_dst   ! Number of multidata fields
+  integer(kind=i_def) :: undf_src, undf_dst     ! Total dofs in column
+  integer(kind=i_def) :: i, k, i_src, i_dst, cell
+  integer(kind=i_def), allocatable, dimension(:,:) :: map_src, map_dst
+  integer(kind=i_def), allocatable, dimension(:) :: multidata_map_data
+  real(kind=r_double), allocatable, dimension(:) :: field_src, field_dst
+  real(kind=r_double), parameter :: tol = 1.0e-12_r_double
+  real(kind=r_double) :: expected, actual
+  logical(kind=l_def) :: ntiles_first
+
+  nlayers = 1
+  ncell = 9
+  ntiles_src = 2
+  ntiles_dst = 3
+  nsnow_src = 1
+  nsnow_dst = 1
+  ndf = 1
+  ntiles_first = .false.
+
+  allocate( multidata_map_data(ntiles_dst))
+  multidata_map_data = [1,2,2]
+  call feign_dst_jules_surface_types_config(multidata_map=multidata_map_data)
+  
+  ndata_src = nsnow_src * ntiles_src
+  ndata_dst = nsnow_dst * ntiles_dst
+  undf_src = ndata_src * ndf * nlayers * ncell
+  undf_dst = ndata_dst * ndf * nlayers * ncell
+  allocate( map_src(ndf, ncell), map_dst(ndf, ncell) )
+  allocate( field_src(undf_src), field_dst(undf_dst) )
+
+  call get_w3_m3x3_dofmap(map_src, nlayers)
+  call get_w3_m3x3_dofmap(map_dst, nlayers)
+  field_src(:) =  1.0_r_double
+
+  cell = 2
+  do i = 0, ntiles_src -1
+    i_src = map_src(1, cell) + i * nsnow_src
+    do k = 0, nsnow_dst -1
+       field_src( i_src + k ) = i + 1
+    end do
+  end do
+
+  call lfric2lfric_multidata_code( nlayers,         &
+                                   field_dst,       &
+                                   field_src,       &
+                                   nsnow_dst,       &
+                                   ntiles_dst,      &
+                                   nsnow_src,       &
+                                   ntiles_src,      &
+                                   ntiles_first,    &
+                                   ndf    ,         &
+                                   undf_dst,        &
+                                   map_dst(:,cell), &
+                                   ndf    ,         &
+                                   undf_src,        &
+                                   map_src(:,cell))
+
+   ! Data layout is layers first
+   do i = 0, ntiles_dst -1
+      i_dst = map_dst(1, cell) + i * nsnow_dst
+      do k = 0, nsnow_dst -1
+        expected = field_src( map_src(1, cell) + multidata_map_data( i + 1) - 1 ) 
+        actual = field_dst( i_dst + k )
+        @assertEqual( expected, actual, tol)
+      end do
+    end do
+
+  end subroutine test_lfric2lfric_multidata_r_double
+end module lfric2lfric_multidata_kernel_mod_test

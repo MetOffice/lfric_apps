@@ -249,6 +249,12 @@
         "kgo_checks": [],
     }) %}
 
+{% elif task_ns.conf_name == "unit_tests" %}
+
+    {% do task_dict.update({
+        "placeholder": true,
+    }) %}
+
 {% elif task.startswith("build") %}
 
     {% do task_dict.update({
