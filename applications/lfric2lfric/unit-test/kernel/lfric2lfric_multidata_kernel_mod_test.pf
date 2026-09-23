@@ -67,13 +67,13 @@ subroutine test_lfric2lfric_multidata_r_double( )
 
   call get_w3_m3x3_dofmap(map_src, nlayers)
   call get_w3_m3x3_dofmap(map_dst, nlayers)
-  field_src(:) =  1.0_r_double
+  field_src(:) =  5034.0_r_double ! A random value
 
   cell = 2
   do i = 0, ntiles_src -1
     i_src = map_src(1, cell) + i * nsnow_src
     do k = 0, nsnow_dst -1
-       field_src( i_src + k ) = i + 1
+       field_src( i_src + k ) = i + 1.0_r_double
     end do
   end do
 
