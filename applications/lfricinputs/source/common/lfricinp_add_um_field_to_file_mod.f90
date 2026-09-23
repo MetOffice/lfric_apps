@@ -237,7 +237,8 @@ if (lookup_int(lbvc) >= 126 .and. lookup_int(lbvc) <= 139 &
   if ( get_stashmaster_item(stashcode, pseudt) /= 0 ) then
 
     if ( get_stashmaster_item(stashcode, pseudl) == 11 ) then
-      snow_level_number = ( (level_number + 2)/3 )*1000 + (level_number - ((level_number + 2)/3 - 1)*3)
+      snow_level_number = ( (level_number + 2)/3 ) * 1000                    &
+                           + (level_number - ((level_number + 2)/3 - 1)*3)
       lookup_int(lbuser5) = snow_level_number
       write(log_scratch_space, '(A,I0)')                                     &
         "Pseudo-level number set as  ", snow_level_number
