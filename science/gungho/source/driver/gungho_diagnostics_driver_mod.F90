@@ -4,6 +4,9 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 
+!> Some of the content of this file has been produced with the assistance of
+!> Met Office Claude Code Enterprise.
+
 !> @brief Outputs diagnostics from gungho/lfric_atm
 
 !> @details Calls the routine that generates diagnostic output for
@@ -59,6 +62,7 @@ module gungho_diagnostics_driver_mod
   use pmsl_alg_mod,              only : pmsl_alg
   use rh_diag_alg_mod,           only : rh_diag_alg
   use freeze_lev_alg_mod,        only : freeze_lev_alg
+  use dust_conc_diags_alg_mod,   only : dust_conc_diags_alg
 #endif
 
   implicit none
@@ -94,6 +98,11 @@ contains
     type(field_type),            pointer :: mr(:)
     type(field_type),            pointer :: moist_dyn(:)
     type(field_collection_type), pointer :: derived_fields
+
+    ! For aviation diagnostics
+#ifdef UM_PHYSICS
+    type(field_collection_type), pointer :: aerosol_fields
+#endif
 
     type(field_type), pointer :: theta
     type(field_type), pointer :: u
@@ -336,6 +345,10 @@ contains
                               mr, moist_dyn)
       ! Wet bulb freezing level
       call freeze_lev_alg(modeldb%config,theta, mr, moist_dyn, exner_in_wth)
+      ! Dust concentration at the surface and in the 2000-5000ft layer
+      aerosol_fields => modeldb%fields%get_field_collection("aerosol_fields")
+      call dust_conc_diags_alg(modeldb%config, aerosol_fields, theta, &
+                               exner_in_wth)
 #endif
 
       temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')
