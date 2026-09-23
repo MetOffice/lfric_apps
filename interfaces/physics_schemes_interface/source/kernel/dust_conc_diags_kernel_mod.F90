@@ -3,6 +3,8 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+!> Some of the content of this file has been produced with the assistance of
+!> Met Office Claude Code Enterprise.
 !> @brief Interface to the dust concentration diagnostics.
 
 module dust_conc_diags_kernel_mod
