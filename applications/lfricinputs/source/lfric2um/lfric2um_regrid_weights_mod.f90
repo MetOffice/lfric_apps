@@ -72,15 +72,16 @@ function get_weights(stashcode) result (weights)
 
 ! Intrinsic modules
 use, intrinsic :: iso_fortran_env, only : int64
+
 ! lfricinputs modules
 use lfricinp_stashmaster_mod,    only: get_stashmaster_item, grid,    &
                                        land_compressed, ozone_points, &
                                        p_points, u_points, v_points,  &
                                        p_points_values_over_sea
-use lfricinp_regrid_options_mod, only: interp_method,             &
-                                       winds_on_w3,               &
-                                       specify_nearest_neighbour, &
-                                       nn_fields
+
+use lfricinp_regrid_options_mod, only: interp_method, nn_fields, &
+                                       specify_nearest_neighbour
+
 
 ! LFRic modules
 use log_mod, only: log_event, log_scratch_space, LOG_LEVEL_ERROR, &
@@ -111,17 +112,15 @@ horiz_grid_code = get_stashmaster_item(stashcode, grid)
 select case(horiz_grid_code)
 case( u_points )
   weights => mesh_face_centre_to_grid_u_bilinear
-        write(log_scratch_space, '((A,I4,A))')                          &
-           "Will use bilinear interpolation for stashcode: ",           &
-           stashcode, " on grid_u"
-        call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+  write(log_scratch_space, '((A,I4,A))')                                &
+     "Will use bilinear interpolation for stashcode: ", stashcode, " on grid_u"
+  call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
 
 case( v_points )
   weights => mesh_face_centre_to_grid_v_bilinear
-        write(log_scratch_space, '((A,I4,A))')                          &
-           "Will use bilinear interpolation for stashcode: ",           &
-           stashcode, " on grid_v"
-        call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+  write(log_scratch_space, '((A,I4,A))')                                &
+     "Will use bilinear interpolation for stashcode: ", stashcode, " on grid_v"
+  call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
 
 case( p_points, ozone_points, land_compressed, p_points_values_over_sea )
 
@@ -150,10 +149,10 @@ case( p_points, ozone_points, land_compressed, p_points_values_over_sea )
 
     if (trim(interp_method) == 'bilinear') then
       weights => mesh_face_centre_to_grid_p_bilinear
-        write(log_scratch_space, '((A,I4,A))')                          &
-           "Will use bilinear interpolation for stashcode: ", &
-           stashcode, " on grid_p"
-        call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+      write(log_scratch_space, '((A,I4,A))')                            &
+         "Will use bilinear interpolation for stashcode: ", stashcode,  &
+         " on grid_p"
+      call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
 
     else
       write(log_scratch_space, '(A)')                                   &
@@ -168,6 +167,7 @@ case DEFAULT
         "Unsupported horizontal grid type code: ", horiz_grid_code,     &
         " encountered during regrid of stashcode", stashcode
   call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+
 end select
 
 if (.not. allocated(weights%remap_matrix)) then
