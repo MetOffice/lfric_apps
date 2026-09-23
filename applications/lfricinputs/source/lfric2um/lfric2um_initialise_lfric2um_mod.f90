@@ -34,19 +34,14 @@ call lfric2um_config%load_namelists()
 ! Read in STASHmaster file
 call lfricinp_read_stashmaster(lfric2um_config%stashmaster_file)
 
-<<<<<<< HEAD
 ! Set um_grid from lfric2um namelist
 call lfricinp_set_grid_from_namelist(lfric2um_config%num_snow_layers, &
                                      lfric2um_config%num_surface_types)
 
-! Read in weights files
-call lfric2um_regrid_weightsfile_ctl()
-=======
 if (local_rank == 0) then
   ! Read in weights files
   call lfric2um_regrid_weightsfile_ctl()
 end if
->>>>>>> origin/lfric2um_testing_reorg
 
 end subroutine lfric2um_initialise_lfric2um
 
