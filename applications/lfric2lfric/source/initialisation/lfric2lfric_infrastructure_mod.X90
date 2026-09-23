@@ -77,13 +77,14 @@ module lfric2lfric_infrastructure_mod
   use coupler_exchange_2d_mod,     only: coupler_exchange_2d_type
 #endif
 
+  use mesh_mod, only: geometry_planar,    &
+                      geometry_spherical, &
+                      topology_periodic,  &
+                      topology_non_periodic
+
   !------------------------------------
   ! Configuration modules
   !------------------------------------
-  use base_mesh_config_mod, only: geometry_planar,         &
-                                  geometry_spherical,      &
-                                  topology_fully_periodic, &
-                                  topology_non_periodic
   use extrusion_config_mod,       only: key_from_method,              &
                                         method_uniform,               &
                                         method_geometric,             &
@@ -216,7 +217,6 @@ contains
 
     integer(i_def) :: geometry
     integer(i_def) :: topology
-    integer(i_def) :: coord_system
     real(r_def)    :: scaled_radius
 
     ! -------------------------------
@@ -241,7 +241,6 @@ contains
     source_topology     = modeldb%config%lfric2lfric%source_topology()
     start_dump_filename = modeldb%config%files%start_dump_filename()
 
-    coord_system    = modeldb%config%finite_element%coord_system()
     element_order_h = modeldb%config%finite_element%element_order_h()
     element_order_v = modeldb%config%finite_element%element_order_v()
 
@@ -273,7 +272,7 @@ contains
     select case (source_topology)
 
       case (source_topology_fully_periodic)
-        topology = topology_fully_periodic
+        topology = topology_periodic
 
       case (source_topology_non_periodic)
         topology = topology_non_periodic
@@ -468,12 +467,11 @@ contains
     call panel_id_inventory%get_field(mesh_src, panel_id)
 
     ! Using correct chi and panel_id, initialise xios context for source mesh
-    call io_context_src%initialise_xios_context( modeldb%mpi%get_comm(), &
+    call io_context_src%initialise_xios_context( modeldb%config,         &
+                                                 modeldb%mpi%get_comm(), &
                                                  chi, panel_id,          &
                                                  modeldb%clock,          &
-                                                 modeldb%calendar,       &
-                                                 geometry, topology,     &
-                                                 coord_system, scaled_radius )
+                                                 modeldb%calendar)
 
     call io_context_src%close_context_definition()
 

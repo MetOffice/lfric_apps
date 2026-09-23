@@ -294,7 +294,7 @@ contains
     height_w2  => get_height_fv(config, mesh, W2)
     height_w3  => get_height_fv(config, mesh, W3)
 
-    dA         => get_da_at_w2(mesh)
+    dA         => get_da_at_w2(config, mesh)
     rdz        => get_rdz_fd1(config, mesh%get_id())
     dtrdz      => get_dtrdz_fd2(config, mesh%get_id(), model_clock)
     rdz_w3     => get_rdz_w3(config, mesh%get_id())
@@ -349,7 +349,7 @@ contains
 
     if (fric_heating) then
       ! Calculate dissipation rates at cell centre
-      call map_physics_winds(diss_u, diss_v, diss_w, dissip)
+      call map_physics_winds(config, diss_u, diss_v, diss_w, dissip)
     end if
     call dissip%field_final()
     call diss_w%field_final()
@@ -438,7 +438,7 @@ contains
       call ustar_implicit%copy_field_properties(theta_star_surf)
       call ustar_implicit%copy_field_properties(qv_star_surf)
 
-      call map_physics_winds(taux, tauy, tauz, tau_w2)
+      call map_physics_winds(config, taux, tauy, tauz, tau_w2)
       call invoke( bl_imp_diag_kernel_type(bt_bl, bq_bl, ftl, fqw, &
                                            taux, tauy, wetrho_in_w3, &
                                            theta_star_surf, qv_star_surf, &
@@ -461,7 +461,7 @@ contains
       ! the ocean!
       if (write_diag .OR. l_esm_couple .OR. l_esm_couple_test) then
         call zh%copy_field_properties(tauz_ssi)
-        call map_physics_winds(taux_ssi, tauy_ssi, tauz_ssi, tau_ssi_w2)
+        call map_physics_winds(config, taux_ssi, tauy_ssi, tauz_ssi, tau_ssi_w2)
       end if
 
       ! Calculate zonal and meridional wind speeds - done here as it's
@@ -470,7 +470,7 @@ contains
            glomap_mode == glomap_mode_ukca .or. &
            glomap_mode == glomap_mode_dust_and_clim ) then
         call zh%copy_field_properties(w10m)
-        call map_physics_winds(u10m, v10m, w10m, wind10m_w2)
+        call map_physics_winds(config, u10m, v10m, w10m, wind10m_w2)
         ! Calculate the 10m windspeed
         call u10m%copy_field_properties(u10m2)
         call v10m%copy_field_properties(v10m2)
@@ -485,7 +485,8 @@ contains
       ! Output the BL diagnostics
       if (write_diag) then
         if (diag_step) then
-          call output_diags_for_bl_imp(zh, du_bl, wspd10m, u10m, v10m,         &
+          call output_diags_for_bl_imp(config,                                 &
+                                   zh, du_bl, wspd10m, u10m, v10m,             &
                                    wind10m_neut_w2,                            &
                                    wspd10m_neut, u10m_neut, v10m_neut,         &
                                    taux, tauy, ustar_implicit,                 &

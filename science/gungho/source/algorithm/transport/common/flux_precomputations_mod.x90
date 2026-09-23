@@ -24,10 +24,7 @@
 
 module flux_precomputations_alg_mod
 
-  use base_mesh_config_mod,           only: topology, geometry,                &
-                                            topology_non_periodic,             &
-                                            topology_fully_periodic,           &
-                                            geometry_spherical
+  use base_mesh_config_mod,           only: topology, geometry
   use boundaries_config_mod,          only: limited_area,                      &
                                             transport_boundary_depth,          &
                                             transport_overwrite_freq,          &
@@ -58,7 +55,9 @@ module flux_precomputations_alg_mod
                                             LOG_LEVEL_INFO,                    &
                                             LOG_LEVEL_WARNING,                 &
                                             log_at_level
-  use mesh_mod,                       only: mesh_type
+  use mesh_mod,                       only: mesh_type, &
+                                            topology_non_periodic, &
+                                            geometry_spherical
   use mesh_collection_mod,            only: mesh_collection
   use psykal_lite_transport_mod,      only: invoke_deep_shift_mass,            &
                                             invoke_deep_X_divideby_Y,          &
@@ -450,7 +449,7 @@ contains
       ! Set first reference field for this object ------------------------------
       if (mesh%get_id() /= self%mesh_ids(1)) then
         ! Restrict field to the mesh for this precomputation object
-        weights_w3 => get_intermesh_weights_w3_rtran(mesh, prime_mesh)
+        weights_w3 => get_intermesh_weights_w3_rtran(config, mesh, prime_mesh)
         call invoke( name='restrict_ref_field',                                &
                      restrict_scalar_weighted_kernel_type(self%ref_field(1,1), &
                                                           ref_field,           &

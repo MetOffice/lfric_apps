@@ -24,7 +24,10 @@ module limited_area_masks_alg_mod
                                                 LOG_LEVEL_WARNING
   use function_space_mod,                 only: function_space_type
   use function_space_collection_mod,      only: function_space_collection
-  use mesh_mod,                           only: mesh_type
+  use mesh_mod,                           only: mesh_type, &
+                                                geometry_spherical, &
+                                                geometry_planar, &
+                                                topology_non_periodic
   use create_edge_mask_kernel_mod,        only: create_edge_mask_kernel_type
   use propagate_onion_layers_kernel_mod,  only: propagate_onion_layers_kernel_type
   use create_threshold_mask_kernel_mod,   only: create_threshold_mask_kernel_type
@@ -195,9 +198,9 @@ contains
                                              domain )
 
     use boundaries_config_mod,        only: edge_cells_ns, edge_cells_ew
-    use base_mesh_config_mod,         only: geometry, geometry_spherical, &
-                                            geometry_planar, topology,    &
-                                            topology_non_periodic
+    use base_mesh_config_mod,         only: geometry, topology
+
+
 
     implicit none
 

@@ -23,6 +23,7 @@
 module pressure_operator_alg_mod
 
   use base_mesh_config_mod,    only: prime_mesh_name
+  use config_mod,              only: config_type
   use sci_hierarchical_linear_operator_mod, &
                                only: abstract_hierarchical_linear_operator_type
   use vector_mod,                         only: abstract_vector_type
@@ -34,6 +35,7 @@ module pressure_operator_alg_mod
                                                 LOG_LEVEL_ERROR, &
                                                 LOG_LEVEL_INFO,  &
                                                 log_scratch_space
+  use mesh_mod,                           only: mesh_type, topology_non_periodic
   use solver_constants_mod,               only: get_normalisation_r_solver
   use limited_area_constants_mod,         only: get_mask_r_solver
   use fs_continuity_mod,                  only: W2, W3, Wtheta
@@ -44,8 +46,8 @@ module pressure_operator_alg_mod
                                                 get_p3theta, &
                                                 get_helm_diag, &
                                                 get_hb_lumped_inv
+
   use boundaries_config_mod,              only: limited_area
-  use base_mesh_config_mod,               only: topology, topology_non_periodic
   use function_space_mod,                 only: function_space_type
   use multigrid_mod,                      only: multigrid_function_space_chain
 
@@ -124,9 +126,10 @@ contains
   !> @brief Apply Helmholtz operator to a pressure field to obtain \f$y=Hx\f$.
   !>
   !> @param[in,out] self Instance of pressure_operator_type
-  !> @param[in] x Field \f$x\f$ to apply operator to
+  !> @param[in]     config  Application configuration object
+  !> @param[in]     x       Field \f$x\f$ to apply operator to
   !> @param[in,out] y Resulting field \f$y=Hx\f$ in pressure space
-  subroutine apply_pressure_operator(self, x, y)
+  subroutine apply_pressure_operator(self, config, x, y)
 
     use scaled_matrix_vector_kernel_mod, only: scaled_matrix_vector_kernel_type
     use operator_mod,                    only: r_solver_operator_type
@@ -142,6 +145,7 @@ contains
     implicit none
 
     class(pressure_operator_type), intent(inout) :: self
+    type(config_type),             intent(in)    :: config
     class(abstract_vector_type),   intent(in)    :: x
     class(abstract_vector_type),   intent(inout) :: y
 
@@ -163,7 +167,8 @@ contains
 
     real(kind=r_solver), parameter     :: one = 1.0_r_solver
     integer(kind=i_def), parameter     :: one_int = 1_i_def
-    integer(kind=i_def)                :: mesh_id
+
+    type(mesh_type), pointer           :: mesh
     logical(kind=l_def)                :: lam_mesh
     integer(tik)                       :: id
 
@@ -171,7 +176,7 @@ contains
 
     select type (x)
     type is (r_solver_field_vector_type)
-      mesh_id = x%vector(1)%get_mesh_id()
+      mesh => x%vector(1)%get_mesh()
 
       select type (y)
       type is (r_solver_field_vector_type)
@@ -183,7 +188,10 @@ contains
           Helmholtz_operator => get_helmholtz_operator(self%level)
 
           lam_mesh=.false.
-          if (limited_area .and. topology==topology_non_periodic) lam_mesh=.true.
+          if ( limited_area .and. &
+               mesh%topology() == topology_non_periodic ) then
+            lam_mesh = .true.
+          end if
 
           call invoke( name="apply_h",&
                        apply_helmholtz_operator_kernel_type(y_vec, &
@@ -197,13 +205,13 @@ contains
           div_star        => get_div_star(self%level)
           compound_div    => get_compound_div(self%level)
           ptheta2         => get_ptheta2v(self%level)
-          mt_lumped_inv   => get_normalisation_r_solver(Wtheta, mesh_id)
+          mt_lumped_inv   => get_normalisation_r_solver(config, mesh, Wtheta)
           p3theta         => get_p3theta(self%level)
-          u_normalisation => get_normalisation_r_solver(W2, mesh_id)
+          u_normalisation => get_normalisation_r_solver(config, mesh, W2)
           hb_lumped_inv   => get_hb_lumped_inv(self%level)
           call grad_p%initialise( hb_lumped_inv%get_function_space() )
           if ( limited_area ) then
-            w2_mask => get_mask_r_solver(W2, mesh_id, prime_mesh_name)
+            w2_mask => get_mask_r_solver(W2, mesh%get_id(), prime_mesh_name)
             call invoke( setval_c( grad_p, 0.0_r_solver ),                             &
                          setval_c( y_vec,  0.0_r_solver ),                             &
                          scaled_matrix_vector_kernel_type(grad_p, x_vec,               &
@@ -237,7 +245,7 @@ contains
                    h_diag )
         end if
         if ( limited_area ) then
-          w3_mask => get_mask_r_solver(W3, mesh_id, prime_mesh_name)
+          w3_mask => get_mask_r_solver(W3, mesh%get_id(), prime_mesh_name)
           call invoke( inc_X_times_Y( y_vec, w3_mask ) )
           nullify( w3_mask, w2_mask )
         end if
@@ -265,11 +273,15 @@ contains
   !!        next level of the multigrid hierarchy.
   !>
   !>@param[in]     self            Instance of pressure_operator_type
-  !>@param[in]     fs_coarse       Coarse level function space
+  !>@param[in]     config          Application configuration object
   !>@param[in,out] coarse_operator Coarsened version of the operator on the next multigrid level
-  subroutine coarsen_pressure_operator(self,coarse_operator)
+  subroutine coarsen_pressure_operator(self, config, coarse_operator)
+
     implicit none
+
     class(pressure_operator_type), intent(in) :: self
+
+    type(config_type), intent(in) :: config
     class(abstract_hierarchical_linear_operator_type), allocatable, intent(inout) :: coarse_operator
 
     allocate(coarse_operator, &
