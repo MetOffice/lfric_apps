@@ -31,7 +31,7 @@ module slow_physics_alg_mod
   use mesh_mod,                  only: mesh_type
   use driver_modeldb_mod,        only: modeldb_type
   use field_parent_mod,          only: write_interface
-  use mixing_config_mod,         only: leonard_term
+  use mixing_config_mod,         only: leonard_term, leonard_inc_with_bl
   use print_field_stats_alg_mod, only: print_field_stats_alg
   use physics_config_mod,        only: microphysics_placement,         &
                                        microphysics_placement_slow,    &
@@ -289,9 +289,9 @@ contains
     ! ...for methane oxidation
     type( field_type ) :: dmv_methox
     ! ...for Leonard term flux
-    type( field_type ) :: u_inc_leonard
-    type( field_type ), pointer :: mt_inc_leonard => null()
-    type( field_type ), pointer :: thetal_inc_leonard => null()
+    type( field_type ), pointer :: u_inc_leonard
+    type( field_type ), pointer :: mt_inc_leonard
+    type( field_type ), pointer :: thetal_inc_leonard
     ! ...for evaporation condensation
     type( field_type ) :: dtheta_cld
     type( field_type ) :: dmr_cld(nummr)
@@ -926,7 +926,7 @@ contains
     !--------------------------------------------------------------------
 
     if (leonard_term .and. boundary_layer == boundary_layer_um ) then
-      call u%copy_field_properties(u_inc_leonard)
+      call turbulence_fields%get_field('u_inc_leonard', u_inc_leonard)
       call turbulence_fields%get_field('mt_inc_leonard', mt_inc_leonard)
       call turbulence_fields%get_field('thetal_inc_leonard', thetal_inc_leonard)
       call leonard_term_alg(modeldb%config,                     &
@@ -1073,11 +1073,10 @@ contains
       call dmv_methox%field_final()
     end if
 
-    if (leonard_term_done) then
+    if (leonard_term_done .and. .not. leonard_inc_with_bl) then
       call invoke(inc_X_plus_Y(mr(imr_v), mt_inc_leonard), &
                   inc_X_plus_Y(dtheta, thetal_inc_leonard), &
                   inc_X_plus_Y(du, u_inc_leonard) )
-      call u_inc_leonard%field_final()
     end if
 
     if (evap_condense_done) then

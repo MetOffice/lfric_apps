@@ -38,6 +38,8 @@ def trans(psyir):
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     '''
 
+    fortran_file_name = str(psyir.root.name)
+
     # Work through each loop in the file and OMP PARALLEL DO
     for loop in psyir.walk(Loop):
 
@@ -49,7 +51,9 @@ def trans(psyir):
                     ignore_dependencies_for=ignore_dependencies_for)
 
             except (TransformationError, IndexError) as err:
-                logging.warning(f"Could not transform because:{err}")
+                logging.warning(
+                    f"{fortran_file_name}: Could not transform because: \
+                    \n {err}")
 
 # Ignore loops setting these as order dependent:
 #     land_field l ainfo%land_index sea_pts
