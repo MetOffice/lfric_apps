@@ -325,6 +325,7 @@ subroutine cosp_code(nlayers, n_profile, &
   real(r_def), pointer, dimension(:, :) :: d_mass
   real(r_def), pointer, dimension(:, :) :: t_full_levels
   real(r_def), pointer, dimension(:, :) :: q_full_levels
+  real(r_def), pointer, dimension(:, :) :: cosp_lsrain
   real(r_def), pointer, dimension(:, :) :: cosp_crain
   real(r_def), pointer, dimension(:, :) :: cosp_csnow
   real(r_def), pointer, dimension(:) :: t_surf, p_surf, hgt_surf
@@ -488,6 +489,7 @@ subroutine cosp_code(nlayers, n_profile, &
   density_full_levels(0:nlayers,1:n_profile) => rho_in_wth(wth_0:wth_last)
   t_full_levels(0:nlayers,1:n_profile) => temperature_in_wth(wth_0:wth_last)
   q_full_levels(0:nlayers,1:n_profile) => mv(wth_0:wth_last)
+  cosp_lsrain(0:nlayers,1:n_profile) => ls_rain_3d(wth_0:wth_last)
   cosp_crain(0:nlayers,1:n_profile) => conv_rain_3d(wth_0:wth_last)
   cosp_csnow(0:nlayers,1:n_profile) => conv_snow_3d(wth_0:wth_last)
 
@@ -643,6 +645,7 @@ subroutine cosp_code(nlayers, n_profile, &
                 lw_diag%total_cloud_fraction, &
                 lw_diag%liq_incloud_mmr, &
                 lw_diag%ice_incloud_mmr, &
+                cosp_lsrain, &
                 cosp_crain, &
                 cosp_csnow, &
                 lw_diag%liq_dim, &
