@@ -326,10 +326,10 @@ end subroutine invoke_remap_on_extended_mesh_kernel_type
 !! Ticket #4302 will investigate replacing this with redundant computation
 SUBROUTINE invoke_deep_X_times_Y(field_1, field_2, field_3)
   TYPE(r_tran_field_type), intent(in) :: field_1, field_2, field_3
-  INTEGER(KIND=i_def) depth, clean_depth, max_depth
-  INTEGER df
-  INTEGER(KIND=i_def) loop_start, loop_stop
-  TYPE(r_tran_field_proxy_type) field_1_proxy, field_2_proxy, field_3_proxy
+  INTEGER(KIND=i_def) :: depth, clean_depth, max_depth
+  INTEGER :: df
+  INTEGER(KIND=i_def) :: loop_start, loop_stop
+  TYPE(r_tran_field_proxy_type) :: field_1_proxy, field_2_proxy, field_3_proxy
   !
   ! Initialise field and/or operator proxies
   !
@@ -377,10 +377,10 @@ END SUBROUTINE invoke_deep_X_times_Y
 !! Ticket #4302 will investigate replacing this with redundant computation
 SUBROUTINE invoke_deep_X_divideby_Y(field_1, field_2, field_3)
   TYPE(r_tran_field_type), intent(in) :: field_1, field_2, field_3
-  INTEGER(KIND=i_def) depth, clean_depth, max_depth
-  INTEGER df
-  INTEGER(KIND=i_def) loop_start, loop_stop
-  TYPE(r_tran_field_proxy_type) field_1_proxy, field_2_proxy, field_3_proxy
+  INTEGER(KIND=i_def) :: depth, clean_depth, max_depth
+  INTEGER :: df
+  INTEGER(KIND=i_def) :: loop_start, loop_stop
+  TYPE(r_tran_field_proxy_type) :: field_1_proxy, field_2_proxy, field_3_proxy
   !
   ! Initialise field and/or operator proxies
   !
@@ -432,13 +432,13 @@ END SUBROUTINE invoke_deep_X_divideby_Y
 SUBROUTINE invoke_deep_shift_mass(mass_shifted, mass_prime)
   USE sci_shift_mass_w3_kernel_mod, ONLY: shift_mass_w3_code
   TYPE(r_tran_field_type), intent(in) :: mass_shifted, mass_prime
-  INTEGER(KIND=i_def) depth, clean_depth, max_depth
-  INTEGER(KIND=i_def) cell
-  INTEGER(KIND=i_def) loop0_start, loop0_stop
-  INTEGER(KIND=i_def) nlayers
-  TYPE(r_tran_field_proxy_type) mass_shifted_proxy, mass_prime_proxy
+  INTEGER(KIND=i_def) :: depth, clean_depth, max_depth
+  INTEGER(KIND=i_def) :: cell
+  INTEGER(KIND=i_def) :: loop0_start, loop0_stop
+  INTEGER(KIND=i_def) :: nlayers
+  TYPE(r_tran_field_proxy_type) :: mass_shifted_proxy, mass_prime_proxy
   INTEGER(KIND=i_def), pointer :: map_adspc3_mass_shifted(:,:) => null(), map_w3(:,:) => null()
-  INTEGER(KIND=i_def) ndf_adspc3_mass_shifted, undf_adspc3_mass_shifted, ndf_w3, undf_w3
+  INTEGER(KIND=i_def) :: ndf_adspc3_mass_shifted, undf_adspc3_mass_shifted, ndf_w3, undf_w3
   TYPE(mesh_type), pointer :: mesh => null()
   !
   ! Initialise field and/or operator proxies
@@ -535,9 +535,9 @@ SUBROUTINE invoke_panel_edge_remap_kernel_type(                                &
                                           panel_edge_dist(4), halo_mask_x, halo_mask_y
   INTEGER(KIND=i_def), intent(in) :: cross_depth_x, cross_depth_y
   INTEGER, intent(in) :: ffsl_depth
-  INTEGER(KIND=i_def) cell
-  INTEGER(KIND=i_def) loop0_start, loop0_stop
-  INTEGER(KIND=i_def) nlayers_remapped_in_x
+  INTEGER(KIND=i_def) :: cell
+  INTEGER(KIND=i_def) :: loop0_start, loop0_stop
+  INTEGER(KIND=i_def) :: nlayers_remapped_in_x
   INTEGER(KIND=i_def), pointer, dimension(:) :: panel_edge_dist_1_data => null(), &
                                                 panel_edge_dist_2_data => null(), &
                                                 panel_edge_dist_3_data => null(), &
@@ -546,7 +546,7 @@ SUBROUTINE invoke_panel_edge_remap_kernel_type(                                &
   INTEGER(KIND=i_def), pointer, dimension(:) :: panel_edge_indices_x_data => null()
   INTEGER(KIND=i_def), pointer, dimension(:) :: halo_mask_x_data => null()
   INTEGER(KIND=i_def), pointer, dimension(:) :: halo_mask_y_data => null()
-  TYPE(integer_field_proxy_type) panel_edge_indices_x_proxy, panel_edge_indices_y_proxy, &
+  TYPE(integer_field_proxy_type) :: panel_edge_indices_x_proxy, panel_edge_indices_y_proxy, &
                                  panel_edge_dist_proxy(4), halo_mask_x_proxy, halo_mask_y_proxy
   REAL(KIND=r_tran), pointer, dimension(:) :: panel_edge_weights_y_data => null()
   REAL(KIND=r_tran), pointer, dimension(:) :: panel_edge_weights_x_data => null()
@@ -554,20 +554,20 @@ SUBROUTINE invoke_panel_edge_remap_kernel_type(                                &
   REAL(KIND=r_tran), pointer, dimension(:) :: field_for_x_ptr_data => null()
   REAL(KIND=r_tran), pointer, dimension(:) :: remapped_in_y_data => null()
   REAL(KIND=r_tran), pointer, dimension(:) :: remapped_in_x_data => null()
-  TYPE(r_tran_field_proxy_type) remapped_in_x_proxy, remapped_in_y_proxy, &
+  TYPE(r_tran_field_proxy_type) :: remapped_in_x_proxy, remapped_in_y_proxy, &
                                 field_for_x_ptr_proxy, field_for_y_ptr_proxy, &
                                 panel_edge_weights_x_proxy, panel_edge_weights_y_proxy
   INTEGER(KIND=i_def), pointer :: map_adspc1_remapped_in_x(:,:) => null(), &
                                   map_adspc3_panel_edge_dist(:,:) => null(), &
                                   map_adspc5_panel_edge_weights_x(:,:) => null(), &
                                   map_adspc7_field_for_x_ptr(:,:) => null()
-  INTEGER(KIND=i_def) ndf_adspc1_remapped_in_x, undf_adspc1_remapped_in_x, &
+  INTEGER(KIND=i_def) :: ndf_adspc1_remapped_in_x, undf_adspc1_remapped_in_x, &
                       ndf_adspc7_field_for_x_ptr, undf_adspc7_field_for_x_ptr, &
                       ndf_adspc5_panel_edge_weights_x, undf_adspc5_panel_edge_weights_x, &
                       ndf_adspc3_panel_edge_dist, undf_adspc3_panel_edge_dist
-  INTEGER(KIND=i_def) max_halo_depth_mesh
+  INTEGER(KIND=i_def) :: max_halo_depth_mesh
   TYPE(mesh_type), pointer :: mesh => null()
-  INTEGER(KIND=i_def) field_for_x_ptr_max_branch_length, field_for_y_ptr_max_branch_length
+  INTEGER(KIND=i_def) :: field_for_x_ptr_max_branch_length, field_for_y_ptr_max_branch_length
   INTEGER(KIND=i_def), pointer :: field_for_x_ptr_stencil_size(:,:) => null()
   INTEGER(KIND=i_def), pointer :: field_for_y_ptr_stencil_size(:,:) => null()
   INTEGER(KIND=i_def), pointer :: field_for_x_ptr_stencil_dofmap(:,:,:,:) => null()
@@ -736,18 +736,18 @@ END SUBROUTINE invoke_panel_edge_remap_kernel_type
     TYPE(integer_field_type), intent(in) :: halo_mask_x, halo_mask_y, halo_mask
     INTEGER(KIND=i_def), intent(in) :: cross_depth
     INTEGER, intent(in) :: max_halo_depth
-    INTEGER(KIND=i_def) cell
-    INTEGER(KIND=i_def) loop0_start, loop0_stop
-    INTEGER(KIND=i_def) nlayers_halo_mask_x
+    INTEGER(KIND=i_def) :: cell
+    INTEGER(KIND=i_def) :: loop0_start, loop0_stop
+    INTEGER(KIND=i_def) :: nlayers_halo_mask_x
     INTEGER(KIND=i_def), pointer, dimension(:) :: halo_mask_data => null()
     INTEGER(KIND=i_def), pointer, dimension(:) :: halo_mask_y_data => null()
     INTEGER(KIND=i_def), pointer, dimension(:) :: halo_mask_x_data => null()
-    TYPE(integer_field_proxy_type) halo_mask_x_proxy, halo_mask_y_proxy, halo_mask_proxy
+    TYPE(integer_field_proxy_type) :: halo_mask_x_proxy, halo_mask_y_proxy, halo_mask_proxy
     INTEGER(KIND=i_def), pointer :: map_adspc3_halo_mask_x(:,:) => null()
-    INTEGER(KIND=i_def) ndf_adspc3_halo_mask_x, undf_adspc3_halo_mask_x
-    INTEGER(KIND=i_def) max_halo_depth_mesh
+    INTEGER(KIND=i_def) :: ndf_adspc3_halo_mask_x, undf_adspc3_halo_mask_x
+    INTEGER(KIND=i_def) :: max_halo_depth_mesh
     TYPE(mesh_type), pointer :: mesh => null()
-    INTEGER(KIND=i_def) halo_mask_max_branch_length
+    INTEGER(KIND=i_def) :: halo_mask_max_branch_length
     INTEGER(KIND=i_def), pointer :: halo_mask_stencil_size(:,:) => null()
     INTEGER(KIND=i_def), pointer :: halo_mask_stencil_dofmap(:,:,:,:) => null()
     TYPE(stencil_2D_dofmap_type), pointer :: halo_mask_stencil_map => null()
