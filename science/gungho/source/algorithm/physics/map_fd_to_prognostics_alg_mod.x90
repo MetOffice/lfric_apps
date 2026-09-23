@@ -469,18 +469,19 @@ contains
     eos_level = get_nearest_level( mesh, eos_height )
     if ( eos_level == (mesh%get_nlayers() + 1) ) eos_level = eos_level - 1
 
+    ! Initialize the vertical profile by starting with the equation of state at
+    ! eos_level, and then integrating from this level to the top and the bottom
+    ! using hydrostatic balance with Coriolis terms.
+    if (exner_from_rho) then
+      eos_lev_m1 = eos_level-1
+      eos_lev_m1_copy = eos_lev_m1
+      call invoke(sample_eos_pressure_kernel_type(exner, rho, theta, &
+                                                  moist_dyn(gas_law),&
+                                                  eos_lev_m1,        &
+                                                  eos_lev_m1_copy))
+    end if
+
     if (shallow) then
-      ! Initialize the vertical profile by starting with the equation of state at
-      ! eos_level, and then integrating from this level to the top and the bottom
-      ! using hydrostatic balance with Coriolis terms.
-      if (exner_from_rho) then
-        eos_lev_m1 = eos_level-1
-        eos_lev_m1_copy = eos_lev_m1
-        call invoke(sample_eos_pressure_kernel_type(exner, rho, theta, &
-                                                    moist_dyn(gas_law),&
-                                                    eos_lev_m1,        &
-                                                    eos_lev_m1_copy))
-      end if
       call invoke( hydrostatic_coriolis_kernel_type( exner, theta,            &
                                                      c_vert_term,             &
                                                      moist_dyn, geopotential, &
@@ -488,13 +489,6 @@ contains
                                                      cp,                      &
                                                      eos_level ) )
 
-      if ( recompute_rho ) then
-        ! Recompute density using the equation of state
-        call invoke(                                                           &
-          sample_eos_rho_kernel_type(                                          &
-              rho, exner, theta, moist_dyn(gas_law), mask, kappa, rd, p_zero)  &
-              )
-      end if
 
    else
       ! Initialize the vertical profile of exner pressure by initializing
@@ -511,12 +505,11 @@ contains
              a_times_X( geopotential_g_const, gravity, height_w3 ), &
              ! Find exner at all layers beneath eos_level by integrating hydrostatic
              ! equation downwards, assuming constant gravity
-             hydrostatic_coriolis_kernel_type( exner, rho, theta,               &
+             hydrostatic_coriolis_kernel_type( exner, theta,                    &
                                                c_vert_term,                     &
                                                moist_dyn, geopotential_g_const, &
                                                height_w3, mask,                 &
-                                               p_zero, kappa,                   &
-                                               rd, cp,                          &
+                                               cp,                              &
                                                eos_level ),                     &
              ! Find exner in Wtheta space
              sample_w3_to_wtheta_kernel_type( exner_in_wth, exner,     &
@@ -547,13 +540,16 @@ contains
              sample_w3_to_wtheta_kernel_type( exner_in_wth, exner,     &
                                               height_wth, height_w3 ), &
              ! Recompute potential temperature, theta = T /exner
-             X_divideby_Y( theta, temperature, exner_in_wth ), &
-             ! Recompute density using the equation of state
-             sample_eos_rho_kernel_type(rho, exner, theta,                   &
-                                        moist_dyn(gas_law),                  &
-                                        mask, kappa, rd, p_zero)             &
-             )
+             X_divideby_Y( theta, temperature, exner_in_wth ) )
 
+    end if
+
+    if ( recompute_rho ) then
+      ! Recompute density using the equation of state
+      call invoke( &
+             sample_eos_rho_kernel_type( rho, exner, theta,  &
+                                         moist_dyn(gas_law), &
+                                         mask, kappa, rd, p_zero) )
     end if
 
     nullify( mesh )

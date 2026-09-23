@@ -51,7 +51,7 @@
         "panel_decomp": "auto_nonuniform",
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal10-C12" %}
+{% elif task_ns.conf_name == "nwp_gal10_regrav-C12" %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump","test_diags","regrav"],
