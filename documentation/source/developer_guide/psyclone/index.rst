@@ -7,9 +7,9 @@
 PSyclone Transformation Scripts
 ===============================
 
-The lfric_apps repository maintains the ability to provide PSyclone with module-
-specific transformation scripts. This page gives an overview of the
-structure of the directories that hold the trasnformation scripts.
+The lfric_apps repository maintains the ability to provide PSyclone with
+module-specific transformation scripts. This page gives an overview of the
+structure of the directories that hold the transformation scripts.
 
 .. toctree::
    :maxdepth: 0
@@ -17,6 +17,7 @@ structure of the directories that hold the trasnformation scripts.
 
    psyclone_scripts
    psyclone_makefiles
+   psyclone_functions
 
 
 Optimisation directory structure

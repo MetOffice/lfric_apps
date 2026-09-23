@@ -8,6 +8,7 @@ program um2lfric
 ! lfricinputs modules
 use config_mod,                    only: config_type
 use lfricinp_lfric_driver_mod,     only: lfricinp_initialise_lfric,     &
+                                         lfricinp_setup_basics,         &
                                          lfricinp_finalise_lfric, mesh, &
                                          twod_mesh, lfric_fields
 use lfricinp_ancils_mod,           only: lfricinp_create_ancil_fields, &
@@ -16,11 +17,12 @@ use lfricinp_create_lfric_fields_mod, &
                                    only: lfricinp_create_lfric_fields
 use lfricinp_um_grid_mod,          only: um_grid
 use lfricinp_datetime_mod,         only: datetime
-use lfricinp_initialise_mod,       only: lfricinp_initialise
+use lfricinp_initialise_mod,       only: lfricinp_initialise,           &
+                                         lfricinp_get_command_line_args
 
 ! um2lfric modules
-use um2lfric_namelist_mod,         only: um2lfric_nl_fname, &
-                                         um2lfric_config,   &
+use um2lfric_namelist_mod,         only: um2lfric_nl_fname,             &
+                                         um2lfric_config,               &
                                          required_lfric_namelists
 use um2lfric_initialise_um2lfric_mod, &
                                    only: um2lfric_initialise_um2lfric
@@ -35,23 +37,28 @@ use um2lfric_read_um_file_mod,     only: um2lfric_close_um_file, &
 
 implicit none
 
-type(config_type), save :: lfric_config
+type(config_type) :: lfric_config
 
 !==========================================================================
 ! Read inputs and initialise setup
 !==========================================================================
 
 ! Read command line arguments and return details of filenames.
-! Initialise common infrastructure
+call lfricinp_get_command_line_args(um2lfric_nl_fname)
+
+! Read the LFRic infrastructure namelist and set up MPI, XIOS and logger
+lfric_config = lfricinp_setup_basics(program_name_arg="um2lfric",              &
+                         required_lfric_namelists = required_lfric_namelists)
+
+! Read common regridding configuration
 call lfricinp_initialise(um2lfric_nl_fname)
 
-! Initialise um2lfric
+! Read um2lfric configuration, STASHmaster and regrid weights
 call um2lfric_initialise_um2lfric()
 
-! Initialise LFRic Infrastructure
-lfric_config = lfricinp_initialise_lfric(                                      &
-     program_name_arg="um2lfric",                                              &
-     required_lfric_namelists = required_lfric_namelists,                      &
+! Initialise rest of LFRic Infrastructure
+call lfricinp_initialise_lfric(                                                &
+     config=lfric_config,                                                      &
      start_date = datetime % first_validity_time,                              &
      time_origin = datetime % first_validity_time,                             &
      first_step = datetime % first_step,                                       &

@@ -83,6 +83,8 @@ module gungho_model_mod
                                          final_runtime_constants
   use timestep_method_mod,        only : timestep_method_type, &
                                          get_timestep_method_from_collection
+  use timing_mod,                 only : start_timing, stop_timing, &
+                                         tik, LPROF
   use rk_alg_timestep_mod,        only : rk_timestep_type
   use semi_implicit_timestep_alg_mod, &
                                   only : semi_implicit_timestep_type
@@ -109,6 +111,7 @@ module gungho_model_mod
   use um_domain_init_mod,          only : um_domain_init
   use um_sizes_init_mod,           only : um_sizes_init
   use um_physics_init_mod,         only : um_physics_init
+  use um_radaer_init_mod,          only : um_radaer_init
   use um_radaer_lut_init_mod,      only : um_radaer_lut_init
   use um_ukca_init_mod,            only : um_ukca_init
   use jules_timestep_alg_mod,      only : jules_timestep_type
@@ -442,6 +445,7 @@ contains
                                           radiation_socrates, &
                                           surface,            &
                                           surface_jules
+    use aerosol_config_mod,         only: l_radaer
 #endif
     use config_mod,                 only: config_type
 
@@ -482,9 +486,6 @@ contains
       ! Initialisation of UM physics variables
       call um_physics_init()
 
-      ! Read all the radaer lut namelist files
-      call um_radaer_lut_init()
-
       ! Initialisation of Jules high-level variables
       call jules_control_init()
 
@@ -495,8 +496,20 @@ contains
 
       ! Initialisation of UKCA physics variables
       call um_ukca_init(ncells_ukca, model_clock)
+      ! This is the way into the UKCA repo
+
+      if ( l_radaer ) then
+
+        ! Read all the radaer lut namelist files
+        call um_radaer_lut_init()
+
+        ! Initialisation of UKCA RADAER variables
+        call um_radaer_init()
+
+      end if
 
     end if
+
 #endif
   end subroutine basic_initialisations
 
@@ -602,6 +615,8 @@ contains
     integer(i_def) :: random_seed_size, proc_rank, big_int, perturb_seed_in
     integer(i_def), allocatable :: ranseed(:)
 
+    integer(tik)   :: id_mesh
+
     !=======================================================================
     ! 0.0 Extract configuration variables
     !=======================================================================
@@ -652,6 +667,8 @@ contains
     !=======================================================================
     ! 1.1 Determine the required meshes
     !=======================================================================
+
+    if ( LPROF ) call start_timing(id_mesh, 'gungho_driver.mesh_init')
 
     ! 1.1a Meshes that require a prime/2d extrusion
     ! ---------------------------------------------------------
@@ -912,6 +929,7 @@ contains
       end if
     end if
 
+    if ( LPROF ) call stop_timing(id_mesh, 'gungho_driver.mesh_init')
 
     !=======================================================================
     ! 2.0 Initialise FEM / Coordinates

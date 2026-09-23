@@ -8,7 +8,7 @@
 Science interface PSyclone makefiles
 ====================================
 
-Each interface to a non-LFRic science applicaton contains a Makefile that
+Each interface to a non-LFRic science application contains a Makefile that
 extends the functionality of the ``psyclone.mk`` file in LFRic Core. More
 specifically, these makefiles are intended to target Fortran source files that
 require a different PSyclone mode of operation than ``psykal``, which is the
@@ -107,23 +107,28 @@ application at::
 Modifying the PSyclone command(s)
 ---------------------------------
 
-To assist with more flexible use of the PSyclone command(s) for the two DSL methods,
-PSyKAl and Transmute, a flag has been added to allow users to adjust the flags used
-with the command.
-The main options are still required by default, but options that could be adjustable
-per site, or potentially per file are being allowed, like compiler options.
+To assist with more flexible use of the PSyclone command(s) for the two DSL
+methods, PSyKAl and Transmute, a flag has been added to allow users to adjust
+the flags used with the command.
+The main options are still required by default, but options that could be
+adjustable per site, or potentially per file are being allowed, like compiler
+options.
 An example is the use of ``-l all``, which has caused issues with some compilers,
 such as Intel or Nvidia.
 
 * ``PSYCLONE_TRANSMUTE_EXTRAS`` - used by Transmute
 * ``PSYCLONE_PSYKAL_EXTRAS`` - used by PSyKAl
 
-This has not been expanded further, however a user should be able to override them at
-a site level, and a file level.
-To affect all transformations for a given site, it is recommended that the PSyclone extras environment variables are set in the ``[[BUILD]]`` section of the corresponding ``suite_config_<SITE>.conf`` file, e.g.:
+This has not been expanded further, however a user should be able to override
+them at a site level, and a file level.
+To affect all transformations for a given site, it is recommended that the
+PSyclone extras environment variables are set in the ``[[BUILD]]`` section of
+the corresponding ``suite_config_<SITE>.conf`` file, e.g.:
 
 [[EX1A_BUILD]]
         [[[environment]]]
             PSYCLONE_TRANSMUTE_EXTRAS = '-l all'
-            
-To target the PSyclone arguments for a single file, such as in the case of preserving compiler directives, it is recommended to set the environment variables via a per-file system such as the GNUMake system shipped with LFRic.
+
+To target the PSyclone arguments for a single file, such as in the case of
+preserving compiler directives, it is recommended to set the environment
+variables via a per-file system such as the GNUMake system shipped with LFRic.
