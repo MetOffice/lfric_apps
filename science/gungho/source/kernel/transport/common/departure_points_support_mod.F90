@@ -170,7 +170,7 @@ contains
       cfl = deltaT*u_arrival
     else
       do iloop=1,nCellEdges-1
-        if (x_departure .le. height(iloop+1) .AND. x_departure .gt. height(iloop)) then
+        if (x_departure <= height(iloop+1) .AND. x_departure > height(iloop)) then
             x0 = height(iloop)
             x1 = height(iloop+1)
             x_departure_comp = real(iloop-1, r_tran)  + (x_departure-x0)/(x1-x0)
@@ -279,7 +279,7 @@ contains
       iCellRight = iEdge + 1_i_def
     end if
 
-    if (x_in .le. 0.0_r_tran .OR. x_in .ge. real(nCellEdges-1,r_tran) ) then
+    if (x_in <= 0.0_r_tran .OR. x_in >= real(nCellEdges-1,r_tran) ) then
       u_out=0.0_r_tran
     else
       u_out = (1.0_r_tran-fractional_x_value)*u_wind(iEdge) +                &
@@ -315,11 +315,11 @@ contains
     real(kind=r_tran)   :: x0
     real(kind=r_tran)   :: x1
 
-    if (x_in .le. height(1) .OR. x_in .ge. height(nCellEdges)) then
+    if (x_in <= height(1) .OR. x_in >= height(nCellEdges)) then
       u_out=0.0_r_tran
     else
       do iloop=1,nCellEdges-1
-        if (x_in .le. height(iloop+1) .AND. x_in .gt. height(iloop)) then
+        if (x_in <= height(iloop+1) .AND. x_in > height(iloop)) then
 
             iEdge = iloop
 
