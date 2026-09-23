@@ -1014,13 +1014,16 @@ z0h_eff_proxy%data, chr10m_proxy%data, ocn_cpl_point_proxy%data, ndf_wtheta, &
       REAL(KIND=r_def), pointer, dimension(:) :: theta_wth_data => null()
       REAL(KIND=r_def), pointer, dimension(:) :: exner_w3_data => null()
       REAL(KIND=r_def), pointer, dimension(:) :: geopot_w3_data => null()
-      TYPE(field_proxy_type) :: geopot_w3_proxy, exner_w3_proxy, theta_wth_proxy, height_wth_proxy, exner_wth_proxy, plev_geopot_proxy
-      INTEGER(KIND=i_def), pointer :: map_adspc1_geopot_w3(:,:) => null(), map_adspc2_plev_geopot(:,:) => null(), &
-&map_wtheta(:,:) => null()
-      INTEGER(KIND=i_def) :: ndf_adspc1_height_w3, undf_adspc1_height_w3, ndf_wtheta, undf_wtheta, ndf_adspc2_plev_geopot, &
-&undf_adspc2_plev_geopot
-      INTEGER(KIND=i_def) :: max_halo_depth_mesh
-      TYPE(mesh_type), pointer :: mesh => null()
+      TYPE(field_proxy_type)       :: geopot_w3_proxy, exner_w3_proxy, theta_wth_proxy, &
+                                      height_wth_proxy, exner_wth_proxy, plev_geopot_proxy
+      INTEGER(KIND=i_def), pointer :: map_adspc1_geopot_w3(:,:)   => null(), &
+                                      map_adspc2_plev_geopot(:,:) => null(), &
+                                      map_wtheta(:,:)             => null()
+      INTEGER(KIND=i_def)          :: ndf_adspc1_geopot_w3, undf_adspc1_geopot_w3,     &
+                                      ndf_wtheta, undf_wtheta, ndf_adspc2_plev_geopot, &
+                                      undf_adspc2_plev_geopot
+      INTEGER(KIND=i_def)          :: max_halo_depth_mesh
+      TYPE(mesh_type), pointer     :: mesh => null()
       !
       ! Initialise field and/or operator proxies
       !
