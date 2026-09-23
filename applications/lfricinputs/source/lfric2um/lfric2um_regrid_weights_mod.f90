@@ -83,7 +83,8 @@ use lfricinp_regrid_options_mod, only: interp_method,             &
                                        nn_fields
 
 ! LFRic modules
-use log_mod, only: log_event, log_scratch_space, LOG_LEVEL_ERROR, LOG_LEVEL_INFO
+use log_mod, only: log_event, log_scratch_space, LOG_LEVEL_ERROR, &
+                   LOG_LEVEL_INFO, LOG_LEVEL_DEBUG
 
 implicit none
 
@@ -111,16 +112,16 @@ select case(horiz_grid_code)
 case( u_points )
   weights => mesh_face_centre_to_grid_u_bilinear
         write(log_scratch_space, '((A,I4,A))')                          &
-           "Will use bilinear interpolation for stashcode: ", &
-           stashcode, "on grid_u"
-        call log_event(log_scratch_space, LOG_LEVEL_INFO)
+           "Will use bilinear interpolation for stashcode: ",           &
+           stashcode, " on grid_u"
+        call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
 
 case( v_points )
   weights => mesh_face_centre_to_grid_v_bilinear
         write(log_scratch_space, '((A,I4,A))')                          &
-           "Will use bilinear interpolation for stashcode: ", &
-           stashcode, "on grid_v"
-        call log_event(log_scratch_space, LOG_LEVEL_INFO)
+           "Will use bilinear interpolation for stashcode: ",           &
+           stashcode, " on grid_v"
+        call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
 
 case( p_points, ozone_points, land_compressed, p_points_values_over_sea )
 
@@ -130,8 +131,8 @@ case( p_points, ozone_points, land_compressed, p_points_values_over_sea )
   if ( nn_fields > 0 ) then
     do i_stash = 1,nn_fields
       if (stashcode == specify_nearest_neighbour(i_stash)) then
-        write(log_scratch_space, '((A,I4))')                          &
-           "Will use nearest neigbour interpolation for stashcode: ", &
+        write(log_scratch_space, '((A,I4))')                            &
+           "Will use nearest neigbour interpolation for stashcode: ",   &
            stashcode
         call log_event(log_scratch_space, LOG_LEVEL_INFO)
 
@@ -151,26 +152,26 @@ case( p_points, ozone_points, land_compressed, p_points_values_over_sea )
       weights => mesh_face_centre_to_grid_p_bilinear
         write(log_scratch_space, '((A,I4,A))')                          &
            "Will use bilinear interpolation for stashcode: ", &
-           stashcode, "on grid_p"
-        call log_event(log_scratch_space, LOG_LEVEL_INFO)
+           stashcode, " on grid_p"
+        call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
 
     else
-      write(log_scratch_space, '(A)')                                          &
-                            'Unsupported interpolation method for P points'
+      write(log_scratch_space, '(A)')                                   &
+            'Unsupported interpolation method for P points'
       call log_event(log_scratch_space, LOG_LEVEL_ERROR)
     end if
 
   end if
 
 case DEFAULT
-  write(log_scratch_space, '(2(A,I0))')                                        &
-        "Unsupported horizontal grid type code: ",                             &
-        horiz_grid_code, " encountered during regrid of stashcode", stashcode
+  write(log_scratch_space, '(2(A,I0))')                                 &
+        "Unsupported horizontal grid type code: ", horiz_grid_code,     &
+        " encountered during regrid of stashcode", stashcode
   call log_event(log_scratch_space, LOG_LEVEL_ERROR)
 end select
 
 if (.not. allocated(weights%remap_matrix)) then
-  call log_event("Attempted to select unallocated weights matrix",             &
+  call log_event("Attempted to select unallocated weights matrix",      &
                   LOG_LEVEL_ERROR)
 end if
 
