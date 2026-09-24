@@ -44,7 +44,6 @@ contains
                                           topology_fully_periodic
     use extrusion_config_mod,      only : method_uniform, &
                                           stretching_method_linear
-    use sci_chi_transform_mod,     only : init_chi_transforms
     use finite_element_config_mod, only : cellshape_quadrilateral, &
                                           coord_system_xyz, coord_space_wchi
     use feign_config_mod,          only : feign_extrusion_config,      &
@@ -84,8 +83,6 @@ contains
                               p_zero=100000.0_r_def,           &
                               scaling_factor=1.0_r_def )
 
-    call init_chi_transforms(geometry_spherical, topology_fully_periodic)
-
   end subroutine set_up
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -93,12 +90,10 @@ contains
   subroutine tear_down()
 
     use config_loader_mod,     only: final_configuration
-    use sci_chi_transform_mod, only: final_chi_transforms
 
     implicit none
 
     call final_configuration()
-    call final_chi_transforms()
 
   end subroutine tear_down
 

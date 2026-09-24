@@ -9,7 +9,7 @@
 !>
 module compute_energetics_kernel_mod_test
 
-  use constants_mod, only: i_def, r_def, imdi
+  use constants_mod, only: i_def, r_def
 
   use driver_water_constants_mod,  only : Lv => latent_heat_h2o_condensation, &
                                           Lf => latent_heat_h2o_fusion
@@ -60,7 +60,6 @@ contains
     use finite_element_config_mod, only : cellshape_quadrilateral, &
                                           coord_system_xyz, coord_space_wchi
     use feign_config_mod,          only : feign_finite_element_config
-    use sci_chi_transform_mod,     only : init_chi_transforms
 
     implicit none
 
@@ -77,22 +76,18 @@ contains
              rehabilitate=.true.,               &
              vorticity_in_w1=.false. )
 
-    call init_chi_transforms(imdi, imdi)
-
   end subroutine setUp
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
-    use config_loader_mod,     only: final_configuration
-    use sci_chi_transform_mod, only: final_chi_transforms
+    use config_loader_mod, only: final_configuration
 
     implicit none
 
     class(compute_energetics_kernel_test_type), intent(inout) :: this
 
     call final_configuration()
-    call final_chi_transforms()
 
   end subroutine tearDown
 

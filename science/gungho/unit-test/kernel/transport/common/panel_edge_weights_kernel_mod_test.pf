@@ -31,7 +31,6 @@ contains
 
     use base_mesh_config_mod,      only : geometry_spherical,                  &
                                           topology_fully_periodic
-    use sci_chi_transform_mod,     only : init_chi_transforms
     use extrusion_config_mod,      only : method_uniform,                      &
                                           stretching_method_linear
     use finite_element_config_mod, only : cellshape_quadrilateral,             &
@@ -82,22 +81,18 @@ contains
         vorticity_in_w1=.false.                                                &
     )
 
-    call init_chi_transforms(geometry_spherical, topology_fully_periodic)
-
   end subroutine setUp
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
     use config_loader_mod,     only: final_configuration
-    use sci_chi_transform_mod, only: final_chi_transforms
 
     implicit none
 
     class(panel_edge_weights_test_type), intent(inout) :: this
 
     call final_configuration()
-    call final_chi_transforms()
 
   end subroutine tearDown
 
