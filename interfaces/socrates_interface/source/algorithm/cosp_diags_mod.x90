@@ -31,16 +31,16 @@ module cosp_diags_mod
   logical( l_def ) :: calipso_cf_40_lvls_ice_flag
   logical( l_def ) :: calipso_cf_40_lvls_undet_flag
   logical( l_def ) :: calipso_cf_40_lvls_mask_flag
-  logical( l_def ) :: calipso_cloudsat_40_cl_mask
-  logical( l_def ) :: weighted_cloud_albedo
-  logical( l_def ) :: weighted_ctp
-  logical( l_def ) :: tot_cloud_area
-  logical( l_def ) :: cloudsat_gbxmean_ze_40
-  logical( l_def ) :: calipso_gbxmean_atb_40
-  logical( l_def ) :: calipso_mol_atb_40
-  logical( l_def ) :: calipso_cloudsat_40_cl
-  logical( l_def ) :: cloudsat_cloud_area_40
-  logical( l_def ) :: cloudsat_cfad_ze_40  
+  logical( l_def ) :: calipso_cloudsat_40_cl_mask_flag
+  logical( l_def ) :: weighted_cloud_albedo_flag
+  logical( l_def ) :: weighted_ctp_flag
+  logical( l_def ) :: tot_cloud_area_flag
+  logical( l_def ) :: cloudsat_gbxmean_ze_40_flag
+  logical( l_def ) :: calipso_gbxmean_atb_40_flag
+  logical( l_def ) :: calipso_mol_atb_40_flag
+  logical( l_def ) :: calipso_cloudsat_40_cl_flag
+  logical( l_def ) :: cloudsat_cloud_area_40_flag
+  logical( l_def ) :: cloudsat_cfad_ze_40_flag
   logical( l_def ) :: cloud_thermal_absorptivity_flag
   logical( l_def ) :: cloud_solar_extinction_flag
 
@@ -164,7 +164,7 @@ subroutine initialise_diags_for_cosp( &
   calipso_mol_atb_40, &
   calipso_cloudsat_40_cl, &
   cloudsat_cloud_area_40, &
-  cloudsat_cfad_ze_40, & 
+  cloudsat_cfad_ze_40, &
   cloud_thermal_absorptivity, cloud_solar_extinction )
 
   implicit none
@@ -191,7 +191,7 @@ subroutine initialise_diags_for_cosp( &
     calipso_mol_atb_40, &
     calipso_cloudsat_40_cl, &
     cloudsat_cloud_area_40, &
-    cloudsat_cfad_ze_40, & 
+    cloudsat_cfad_ze_40, &
     cloud_thermal_absorptivity, cloud_solar_extinction
   integer(tik)  :: id
 
@@ -225,25 +225,25 @@ subroutine initialise_diags_for_cosp( &
                                            'cosp__calipso_cf_40_lvls_undet' )
   calipso_cf_40_lvls_mask_flag       = init_diag( calipso_cf_40_lvls_mask, &
                                            'cosp__calipso_cf_40_lvls_mask' )
-  calipso_cloudsat_40_cl_mask        = init_diag( calipso_cloudsat_40_cl_mask, &
+  calipso_cloudsat_40_cl_mask_flag   = init_diag( calipso_cloudsat_40_cl_mask, &
                                            'calipso_cloudsat_40_cl_mask' )
-  weighted_cloud_albedo              = init_diag( weighted_cloud_albedo, &
+  weighted_cloud_albedo_flag         = init_diag( weighted_cloud_albedo, &
                                            'weighted_cloud_albedo' )
-  weighted_ctp                       = init_diag( weighted_ctp, &
+  weighted_ctp_flag                  = init_diag( weighted_ctp, &
                                            'weighted_ctp' )
-  tot_cloud_area                     = init_diag( tot_cloud_area, &
+  tot_cloud_area_flag                = init_diag( tot_cloud_area, &
                                            'tot_cloud_area' )
-  cloudsat_gbxmean_ze_40             = init_diag( cloudsat_gbxmean_ze_40, &
+  cloudsat_gbxmean_ze_40_flag        = init_diag( cloudsat_gbxmean_ze_40, &
                                            'cloudsat_gbxmean_ze_40' )
-  calipso_gbxmean_atb_40             = init_diag( calipso_gbxmean_atb_40, &
+  calipso_gbxmean_atb_40_flag        = init_diag( calipso_gbxmean_atb_40, &
                                            'calipso_gbxmean_atb_40' )
-  calipso_mol_atb_40                 = init_diag( calipso_mol_atb_40, &
+  calipso_mol_atb_40_flag            = init_diag( calipso_mol_atb_40, &
                                            'calipso_mol_atb_40' )
-  calipso_cloudsat_40_cl             = init_diag( calipso_cloudsat_40_cl, &
+  calipso_cloudsat_40_cl_flag        = init_diag( calipso_cloudsat_40_cl, &
                                            'calipso_cloudsat_40_cl' )
-  cloudsat_cloud_area_40             = init_diag( cloudsat_cloud_area_40, &
+  cloudsat_cloud_area_40_flag        = init_diag( cloudsat_cloud_area_40, &
                                            'cloudsat_cloud_area_40' )
-  cloudsat_cfad_ze_40                = init_diag( cloudsat_cfad_ze_40, &
+  cloudsat_cfad_ze_40_flag           = init_diag( cloudsat_cfad_ze_40, &
                                            'cloudsat_cfad_ze_40' )
   cloud_thermal_absorptivity_flag    = init_diag( cloud_thermal_absorptivity, &
                                            'cosp__cloud_thermal_absorptivity' )

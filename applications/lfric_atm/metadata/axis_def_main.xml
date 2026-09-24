@@ -25,6 +25,7 @@
   <axis id="isccp_ctp_tau_bins" name="isccp_ctp_tau_bins" />
   <axis id="cloudsat_levels" name="cloudsat_levels" />
   <axis id="csat_lvls_atb_bins" name="csat_lvls_atb_bins" />
+  <axis id="csat_lvls_ze_bins" name="csat_lvls_ze_bins" />
   <axis id="cloud_subcols" name="cloud_subcols" />
   <axis id="sw_bands" name="sw_bands" />
   <axis id="lw_bands" name="lw_bands" />

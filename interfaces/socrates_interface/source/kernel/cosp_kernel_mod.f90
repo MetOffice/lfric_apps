@@ -213,7 +213,7 @@ subroutine cosp_code(nlayers, n_profile, &
                      cloudsat_gbxmean_ze_40, &
                      calipso_gbxmean_atb_40, &
                      calipso_mol_atb_40, &
-                     calipso_cloudsat_40_cl, &     
+                     calipso_cloudsat_40_cl, &
                      cloudsat_cloud_area_40, &
                      cloudsat_cfad_ze_40, &
                      cloud_thermal_absorptivity, &
@@ -294,7 +294,7 @@ subroutine cosp_code(nlayers, n_profile, &
     calipso_cf_40_lvls_undet, calipso_cf_40_lvls_mask, &
     calipso_cloudsat_40_cl_mask, &
     cloudsat_gbxmean_ze_40, calipso_gbxmean_atb_40, &
-    calipso_mol_atb_40, calipso_cloudsat_40_cl, &     
+    calipso_mol_atb_40, calipso_cloudsat_40_cl, & 
     cloudsat_cloud_area_40
   real(r_def), pointer, dimension(:), intent(inout) :: & ! subcol
     calipso_total_backscatter

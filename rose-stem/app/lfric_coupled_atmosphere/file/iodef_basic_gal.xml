@@ -25,6 +25,7 @@
       <axis id="isccp_ctp_tau_bins" name="isccp_ctp_tau_bins" />
       <axis id="cloudsat_levels" name="cloudsat_levels" />
       <axis id="csat_lvls_atb_bins" name="csat_lvls_atb_bins" />
+      <axis id="csat_lvls_ze_bins" name="csat_lvls_ze_bins" />
       <axis id="cloud_subcols" name="cloud_subcols" />
       <axis id="sw_bands_radiation_levels" name="sw_bands_radiation_levels" />
       <axis id="lw_bands_radiation_levels" name="lw_bands_radiation_levels" />
@@ -712,16 +713,16 @@
 	<field id="cosp__calipso_cfad_sr_40_lvls" name="calipso_cfad_sr_40_lvls" long_name="calipso_cfad_sr_40_lvls" unit="1" domain_ref="face" axis_ref="csat_lvls_atb_bins" />
         <field id="cosp__cloud_thermal_absorptivity" name="cloud_thermal_absorptivity" long_name="in-cloud_broadband_thermal_absorptivity" unit="m2 kg-1" grid_ref="full_level_face_grid" />
         <field id="cosp__cloud_solar_extinction" name="cloud_solar_extinction" long_name="in-cloud_broadband_solar_extinction" unit="m2 kg-1" grid_ref="full_level_face_grid" />
-<field id="cosp__calipso_cloudsat_40_cl_mask" name="calipso_cloudsat_40_cl_mask" long_name="calipso_cloudsat_40_cl_mask" unit="1" domain_ref="face" />
+<field id="cosp__calipso_cloudsat_40_cl_mask" name="calipso_cloudsat_40_cl_mask" long_name="calipso_cloudsat_40_cl_mask" unit="1" domain_ref="face" axis_ref="cloudsat_levels" />
 <field id="cosp__weighted_cloud_albedo" name="weighted_cloud_albedo" long_name="weighted_cloud_albedo" unit="1" domain_ref="face" />
 <field id="cosp__weighted_ctp" name="weighted_ctp" long_name="weighted_ctp" unit="1" domain_ref="face" />
 <field id="cosp__tot_cloud_area" name="tot_cloud_area" long_name="tot_cloud_area" unit="1" domain_ref="face" />
-<field id="cosp__cloudsat_gbxmean_ze_40" name="cloudsat_gbxmean_ze_40" long_name="cloudsat_gbxmean_ze_40" unit="m-1 s-1" domain_ref="face" axis_ref="cloudsat_levels" />
+<field id="cosp__cloudsat_gbxmean_ze_40" name="cloudsat_gbxmean_ze_40" long_name="cloudsat_gbxmean_ze_40" unit="dBZ" domain_ref="face" axis_ref="cloudsat_levels" />
 <field id="cosp__calipso_gbxmean_atb_40" name="calipso_gbxmean_atb_40" long_name="calipso_gbxmean_atb_40" unit="m-1 sr-1" domain_ref="face" axis_ref="cloudsat_levels" />
 <field id="cosp__calipso_mol_atb_40" name="calipso_mol_atb_40" long_name="calipso_mol_atb_40" unit="m-1 sr-1" domain_ref="face" axis_ref="cloudsat_levels" />
-<field id="cosp__calipso_cloudsat_40_cl" name="calipso_cloudsat_40_cl" long_name="calipso_cloudsat_40_cl" unit="m-1 sr-1" domain_ref="face" axis_ref="cloudsat_levels" />
+<field id="cosp__calipso_cloudsat_40_cl" name="calipso_cloudsat_40_cl" long_name="calipso_cloudsat_40_cl" unit="1" domain_ref="face" axis_ref="cloudsat_levels" />
 <field id="cosp__cloudsat_cloud_area_40" name="cloudsat_cloud_area_40" long_name="cloudsat_cloud_area_40" unit="1" domain_ref="face" axis_ref="cloudsat_levels" />
-<field id="cosp__cloudsat_cfad_ze_40" name="cloudsat_cfad_ze_40" long_name="cloudsat_cfad_ze_40" unit="m-1 sr-1" domain_ref="face" axis_ref="csat_lvls_atb_bins" />
+<field id="cosp__cloudsat_cfad_ze_40" name="cloudsat_cfad_ze_40" long_name="cloudsat_cfad_ze_40" unit="1" domain_ref="face" axis_ref="csat_lvls_ze_bins" />
 	<!-- Stochastic Physics diagnostics -->
 	<field id="stochastic__dtheta_spt" name="dtheta_spt" long_name="potential_temperature_increment_from_spt" unit="K" grid_ref="full_level_face_grid" />
 	<field id="stochastic__dmv_spt" name="dmv_spt" long_name="vapour_increment_from_spt" unit="kg/kg" grid_ref="full_level_face_grid" />
