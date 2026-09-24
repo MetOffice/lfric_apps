@@ -6,21 +6,21 @@
 !> @brief Interface to the explicit JULES surface exchange scheme.
 module jules_exp_kernel_mod
 
-  use argument_mod,           only : arg_type,                   &
-                                     GH_FIELD, GH_SCALAR,        &
-                                     GH_REAL, GH_INTEGER,        &
-                                     GH_READ, GH_WRITE,          &
-                                     GH_READWRITE, DOMAIN,       &
-                                     ANY_DISCONTINUOUS_SPACE_1,  &
-                                     ANY_DISCONTINUOUS_SPACE_2,  &
-                                     ANY_DISCONTINUOUS_SPACE_3,  &
-                                     ANY_DISCONTINUOUS_SPACE_4,  &
-                                     ANY_DISCONTINUOUS_SPACE_5,  &
-                                     ANY_DISCONTINUOUS_SPACE_6,  &
-                                     ANY_DISCONTINUOUS_SPACE_7,  &
-                                     ANY_DISCONTINUOUS_SPACE_8,  &
-                                     ANY_DISCONTINUOUS_SPACE_9,  &
-                                     ANY_DISCONTINUOUS_SPACE_10, &
+  use argument_mod,           only : arg_type,                                 &
+                                     GH_FIELD, GH_SCALAR,                      &
+                                     GH_REAL, GH_INTEGER,                      &
+                                     GH_READ, GH_WRITE,                        &
+                                     GH_READWRITE, DOMAIN,                     &
+                                     ANY_DISCONTINUOUS_SPACE_1,                &
+                                     ANY_DISCONTINUOUS_SPACE_2,                &
+                                     ANY_DISCONTINUOUS_SPACE_3,                &
+                                     ANY_DISCONTINUOUS_SPACE_4,                &
+                                     ANY_DISCONTINUOUS_SPACE_5,                &
+                                     ANY_DISCONTINUOUS_SPACE_6,                &
+                                     ANY_DISCONTINUOUS_SPACE_7,                &
+                                     ANY_DISCONTINUOUS_SPACE_8,                &
+                                     ANY_DISCONTINUOUS_SPACE_9,                &
+                                     ANY_DISCONTINUOUS_SPACE_10,               &
                                      STENCIL, REGION
   use constants_mod,          only : i_def, i_um, r_def, r_um, rmdi
   use empty_data_mod,         only : empty_real_data
@@ -59,7 +59,7 @@ module jules_exp_kernel_mod
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! zh_2d
          arg_type(GH_FIELD, GH_REAL,  GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1),&! z0msea_2d
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! z0m_2d
-         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_2, STENCIL(REGION)),&! tile_fraction
+  arg_type(GH_FIELD,GH_REAL,GH_READ,ANY_DISCONTINUOUS_SPACE_2,STENCIL(REGION)),&! tile_fraction
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_3),&! leaf_area_index
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_3),&! canopy_height
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! peak_to_trough_orog
@@ -74,8 +74,8 @@ module jules_exp_kernel_mod
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! clapp_horn_b
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! soil_respiration
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! thermal_cond_wet_soil
-         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1, STENCIL(REGION)),&! sea_u_current
-         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1, STENCIL(REGION)),&! sea_v_current
+  arg_type(GH_FIELD,GH_REAL,GH_READ,ANY_DISCONTINUOUS_SPACE_1,STENCIL(REGION)),&! sea_u_current
+  arg_type(GH_FIELD,GH_REAL,GH_READ,ANY_DISCONTINUOUS_SPACE_1,STENCIL(REGION)),&! sea_v_current
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_4),&! sea_ice_temperature
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_4),&! sea_ice_conductivity
          arg_type(GH_FIELD, GH_REAL,  GH_READWRITE, ANY_DISCONTINUOUS_SPACE_4),&! sea_ice_pensolar
@@ -137,17 +137,17 @@ module jules_exp_kernel_mod
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_9),&! albedo_obs_scaling
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! soil_clay_2d
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! soil_sand_2d
-         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_10),&! dust_div_mrel
-         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_10),&! dust_div_flux
-         arg_type(GH_SCALAR, GH_INTEGER, GH_READ                             ), &! day_of_year
-         arg_type(GH_SCALAR, GH_INTEGER, GH_READ                             ), &! second_of_day
-         arg_type(GH_SCALAR, GH_REAL,    GH_READ                             ), &! flux_e
-         arg_type(GH_SCALAR, GH_REAL,    GH_READ                             ), &! flux_h
-         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1), &! urbwrr
-         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1), &! urbhwr
-         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1), &! urbhgt
-         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1), &! urbztm
-         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1), &! urbdisp
+         arg_type(GH_FIELD, GH_REAL, GH_READ,      ANY_DISCONTINUOUS_SPACE_10),&! dust_div_mrel
+         arg_type(GH_FIELD, GH_REAL, GH_WRITE,     ANY_DISCONTINUOUS_SPACE_10),&! dust_div_flux
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ                             ),&! day_of_year
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ                             ),&! second_of_day
+         arg_type(GH_SCALAR, GH_REAL,    GH_READ                             ),&! flux_e
+         arg_type(GH_SCALAR, GH_REAL,    GH_READ                             ),&! flux_h
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! urbwrr
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! urbhwr
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! urbhgt
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! urbztm
+         arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! urbdisp
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! rhostar
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! recip_l_mo_sea
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! t1_sd
@@ -447,8 +447,8 @@ contains
     ! LFRic modules
     !---------------------------------------
     use gas_calc_all_mod, only: co2_mix_ratio_now
-    use jules_control_init_mod, only: n_land_tile, n_sea_ice_tile,        &
-                                      first_sea_tile, first_sea_ice_tile, &
+    use jules_control_init_mod, only: n_land_tile, n_sea_ice_tile,             &
+                                      first_sea_tile, first_sea_ice_tile,      &
                                       n_surf_tile
 
     !---------------------------------------
@@ -475,8 +475,8 @@ contains
     use planet_constants_mod, only: p_zero, kappa, planet_radius, cp, g, grcp, &
                                     c_virtual, repsilon, r, lcrcp, lsrcp, vkman
     use rad_input_mod, only: co2_mmr
-    use bl_option_mod, only: one_third, flux_bc_opt,interactive_fluxes,  &
-                             specified_fluxes_only, specified_fluxes_cd, &
+    use bl_option_mod, only: one_third, flux_bc_opt,interactive_fluxes,        &
+                             specified_fluxes_only, specified_fluxes_cd,       &
                              l_noice_in_turb
     use water_constants_mod, only: lc
     use c_elevate, only: l_elev_absolute_height
@@ -680,17 +680,17 @@ contains
 
     real(kind=r_def), dimension(undf_pft),  intent(inout)  :: snow_unload_rate
     real(kind=r_def), dimension(undf_surf), intent(inout)  :: surf_interp
-    real(kind=r_def), dimension(undf_tile), intent(inout):: alpha1_tile,      &
-                                                            ashtf_prime_tile, &
-                                                            dtstar_tile,      &
-                                                            fracaero_t_tile,  &
-                                                            fracaero_s_tile,  &
-                                                            z0h_tile,         &
-                                                            z0m_tile,         &
-                                                            rhokh_tile,       &
-                                                            chr1p5m_tile,     &
-                                                            resfs_tile,       &
-                                                            gc_tile,          &
+    real(kind=r_def), dimension(undf_tile), intent(inout):: alpha1_tile,       &
+                                                            ashtf_prime_tile,  &
+                                                            dtstar_tile,       &
+                                                            fracaero_t_tile,   &
+                                                            fracaero_s_tile,   &
+                                                            z0h_tile,          &
+                                                            z0m_tile,          &
+                                                            rhokh_tile,        &
+                                                            chr1p5m_tile,      &
+                                                            resfs_tile,        &
+                                                            gc_tile,           &
                                                             canhc_tile
 
     real(kind=r_def), dimension(undf_2d),   intent(in)     :: soil_clay_2d
@@ -708,7 +708,7 @@ contains
     !-----------------------------------------------------------------------
     real(kind=r_um), allocatable :: qs_star(:,:)
     real(r_um) :: rholem, tv1_sd, w_m, dqsdt_star, wthvbar, ch, theta1
-    integer(i_def) :: k, i, i_tile, i_sice, n, i_snow, j, l, idiv, m, &
+    integer(i_def) :: k, i, i_tile, i_sice, n, i_snow, j, l, idiv, m,          &
          land_field, ssi_pts, sea_pts
 
     ! local switches and scalars
@@ -718,20 +718,24 @@ contains
 
     ! profile fields from level 0 upwards
     real(r_um), dimension(seg_len,1,0:1) :: p_theta_levels, q, qcl, qcf
+    real(r_um), dimension(seg_len,0:1)   :: p_theta_levels_2d, q_2d, qcf_2d,   &
+                                            qcl_2d
+    real(r_um), dimension(seg_len,1)     :: temperature_2d,                    &
+                                            bulk_cloud_fraction_2d
 
     real(r_um), dimension(co2_dim_len,co2_dim_row) :: co2
 
     ! single level real fields
-    real(r_um), dimension(seg_len,1) ::                                      &
-         fqw, ftl, rhokh, ddmfx,                                             &
-         z0h_specified, z0m_specified, soil_clay, t1_sd, q1_sd, fb_surf,     &
-         rib_gb, vshr, ustargbm, photosynth_act_rad, tstar_land, dtstar_sea, &
-         tstar_sice, alpha1_sea, ashtf_prime_sea, chr1p5m_sice, rhokh_sea,   &
+    real(r_um), dimension(seg_len,1) ::                                        &
+         fqw, ftl, rhokh, ddmfx,                                               &
+         z0h_specified, z0m_specified, soil_clay, t1_sd, q1_sd, fb_surf,       &
+         rib_gb, vshr, ustargbm, photosynth_act_rad, tstar_land, dtstar_sea,   &
+         tstar_sice, alpha1_sea, ashtf_prime_sea, chr1p5m_sice, rhokh_sea,     &
          z0hssi, z0mssi, z1_uv_top, z1_tq_top, rhostar, recip_l_mo_sea, sky
-    real(r_um), dimension(seg_len,1,1) :: temperature, bt_blend, bq_blend,   &
+    real(r_um), dimension(seg_len,1,1) :: temperature, bt_blend, bq_blend,     &
          bulk_cloud_fraction
 
-    real(r_um), dimension(seg_len_halo,1) ::  flandg,               &
+    real(r_um), dimension(seg_len_halo,1) ::  flandg,                          &
          flandfac, fseafac, cdr10m, rhokm_land, rhokm_ssi, rhokm
 
     ! single level integer fields
@@ -742,21 +746,21 @@ contains
     logical, dimension(seg_len,1) :: land_sea_mask
 
     ! fields on sea-ice categories
-    real(r_um), dimension(seg_len,1,nice_use) ::                             &
+    real(r_um), dimension(seg_len,1,nice_use) ::                               &
          alpha1_sice, ashtf_prime, rhokh_sice, dtstar_sice
 
     ! field on land points and soil levels
     real(r_um), dimension(:,:), allocatable :: soil_layer_moisture
 
     ! fields on land points
-    real(r_um), dimension(:), allocatable ::                                 &
-         hcons_soilt, rhostar_land, sand_land, clay_land, emis_soil,         &
+    real(r_um), dimension(:), allocatable ::                                   &
+         hcons_soilt, rhostar_land, sand_land, clay_land, emis_soil,           &
          dust_emsc_land
 
     ! fields on land points and tiles
-    real(r_um), dimension(:,:), allocatable ::                               &
-         dtstar_surft, alpha1, ashtf_prime_surft, chr1p5m, resfs,            &
-         rhokh_surft, canhc_surft, fracaero_t, fracaero_s,                   &
+    real(r_um), dimension(:,:), allocatable ::                                 &
+         dtstar_surft, alpha1, ashtf_prime_surft, chr1p5m, resfs,              &
+         rhokh_surft, canhc_surft, fracaero_t, fracaero_s,                     &
          epot_surft, flake, resft
 
     ! field on surface tiles and soil levels
@@ -764,7 +768,7 @@ contains
 
     ! Dust emission fields
     real(r_um), dimension(seg_len,1,ndiv) :: dust_flux
-    real(r_um), dimension(:,:,:), allocatable :: u_s_t_dry_tile,        &
+    real(r_um), dimension(:,:,:), allocatable :: u_s_t_dry_tile,               &
          u_s_t_tile
     real(r_um), dimension(:,:,:), allocatable :: dust_flux_surft
     real(r_um), dimension(:,:), allocatable :: mrel_land, dust_emiss_frac
@@ -777,6 +781,10 @@ contains
 
     real(r_um), dimension(seg_len,1,1) ::                                      &
          bt, bq, bt_cld, bq_cld, a_qs, a_dqsdt, dqsdt
+        real(r_um), dimension(seg_len,1) :: bt_2d, bq_2d, bt_cld_2d,           &
+                                            bq_cld_2d, bt_blend_2d,            &
+                                            bq_blend_2d, a_qs_2d, a_dqsdt_2d,  &
+                                            dqsdt_2d
     real(r_um), dimension(seg_len,1) :: charnock_w
 
     ! This is an idealised fixed value for ustar.
@@ -944,7 +952,7 @@ contains
 
     call jules_vars_alloc(land_field,ntype,n_land_tile,rad_nband,nsoilt,       &
                           sm_levels, seg_len, 1, npft, bl_levels, pdims_s,     &
-                          pdims, l_albedo_obs, cansnowtile, l_deposition,        &
+                          pdims, l_albedo_obs, cansnowtile, l_deposition,      &
                           jules_vars_data)
     call jules_vars_assoc(jules_vars,jules_vars_data)
 
@@ -974,24 +982,26 @@ contains
     do i = 1, seg_len
       do n = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
         i_sice = n - first_sea_ice_tile + 1
-        ainfo%ice_fract_ij(i,1) = ainfo%ice_fract_ij(i,1) + &
+        ainfo%ice_fract_ij(i,1) = ainfo%ice_fract_ij(i,1) +                    &
              real(tile_fraction(tile_stencil(1,1,i)+n-1), r_um)
-        ainfo%ice_fract_ncat_sicat(i, 1, i_sice) = &
+        ainfo%ice_fract_ncat_sicat(i, 1, i_sice) =                             &
              real(tile_fraction(tile_stencil(1,1,i)+n-1), r_um)
       end do
 
       ! Because Jules tests on flandg < 1, we need to ensure this is exactly
       ! 1 when no sea or sea-ice is present
-      if ( tile_fraction(tile_stencil(1,1,i)+first_sea_tile-1) == 0.0_r_def .and. &
-           ainfo%ice_fract_ij(i,1) == 0.0_r_um) then
+      if ( tile_fraction(tile_stencil(1,1,i)+first_sea_tile-1) == 0.0_r_def    &
+           .and. ainfo%ice_fract_ij(i,1) == 0.0_r_um) then
         flandg(i,1) = 1.0_r_um
       end if
 
       ! Jules requires sea-ice fractions with respect to the sea area
       if (ainfo%ice_fract_ij(i, 1) > 0.0_r_um) then
-        ainfo%ice_fract_ij(i, 1) = ainfo%ice_fract_ij(i, 1) / (1.0_r_um - flandg(i, 1))
-        ainfo%ice_fract_ncat_sicat(i, 1, 1:n_sea_ice_tile) &
-           = ainfo%ice_fract_ncat_sicat(i, 1, 1:n_sea_ice_tile) / (1.0_r_um - flandg(i, 1))
+        ainfo%ice_fract_ij(i, 1) = ainfo%ice_fract_ij(i, 1) /                  &
+            (1.0_r_um - flandg(i, 1))
+        ainfo%ice_fract_ncat_sicat(i, 1, 1:n_sea_ice_tile)                     &
+           = ainfo%ice_fract_ncat_sicat(i, 1, 1:n_sea_ice_tile) /              &
+            (1.0_r_um - flandg(i, 1))
       end if
     end do
 
@@ -999,7 +1009,8 @@ contains
       coast%fland(l) = flandg(ainfo%land_index(l),1)
       do n = 1, n_land_tile
         ! Jules requires fractions with respect to the land area
-        ainfo%frac_surft(l, n) = real(tile_fraction(tile_stencil(1,1,ainfo%land_index(l))+n-1), r_um) &
+           ainfo%frac_surft(l, n) = real(                                      &
+             tile_fraction(tile_stencil(1,1,ainfo%land_index(l))+n-1), r_um)   &
              / coast%fland(l)
       end do
     end do
@@ -1087,7 +1098,7 @@ contains
     do l = 1, land_field
       do n = 1, n_land_tile
         progs%tstar_surft(l, n) = real(tile_temperature(map_tile(1,ainfo%land_index(l))+n-1), r_um)
-        tstar_land(ainfo%land_index(l),1) = tstar_land(ainfo%land_index(l),1) &
+        tstar_land(ainfo%land_index(l),1) = tstar_land(ainfo%land_index(l),1)  &
              + ainfo%frac_surft(l, n) * progs%tstar_surft(l, n)
       end do
     end do
@@ -1111,8 +1122,8 @@ contains
         do n = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
           i_sice = n - first_sea_ice_tile + 1
           coast%tstar_sice_sicat(i, 1, i_sice) = real(tile_temperature(map_tile(1,i)+n-1), r_um)
-          tstar_sice(i,1) = tstar_sice(i,1) &
-                   + ainfo%ice_fract_ncat_sicat(i,1,i_sice) * &
+          tstar_sice(i,1) = tstar_sice(i,1)                                    &
+                   + ainfo%ice_fract_ncat_sicat(i,1,i_sice) *                  &
                    coast%tstar_sice_sicat(i,1,i_sice) / ainfo%ice_fract_ij(i,1)
         end do
       end if
@@ -1120,11 +1131,11 @@ contains
 
     do i = 1, seg_len
       ! Sea & Sea-ice temperature
-      coast%tstar_ssi_ij(i,1) = (1.0_r_um - ainfo%ice_fract_ij(i,1)) * &
+      coast%tstar_ssi_ij(i,1) = (1.0_r_um - ainfo%ice_fract_ij(i,1)) *         &
            coast%tstar_sea_ij(i,1) + ainfo%ice_fract_ij(i,1) * tstar_sice(i,1)
 
       ! Grid-box mean surface temperature
-      fluxes%tstar_ij(i,1) = flandg(i,1) * tstar_land(i,1) &
+      fluxes%tstar_ij(i,1) = flandg(i,1) * tstar_land(i,1)                     &
            + (1.0_r_um - flandg(i,1)) * coast%tstar_ssi_ij(i,1)
     end do
 
@@ -1134,7 +1145,7 @@ contains
         do n = 1, n_sea_ice_tile
           progs%k_sice_sicat(i, 1, n) = real(sea_ice_conductivity(map_sice(1,i)+n-1), r_um)
           ainfo%ti_cat_sicat(i, 1, n) = real(sea_ice_temperature(map_sice(1,i)+n-1), r_um)
-          progs%ti_sicat(i,1,1) = progs%ti_sicat(i,1,1) &
+          progs%ti_sicat(i,1,1) = progs%ti_sicat(i,1,1)                        &
                 + ainfo%ice_fract_ncat_sicat(i,1,n) * ainfo%ti_cat_sicat(i,1,n) / ainfo%ice_fract_ij(i,1)
         end do
       end if
@@ -1162,10 +1173,10 @@ contains
       end do
     end if
 
-    call sparm(land_field, n_land_tile, ainfo%surft_pts, ainfo%surft_index,   &
-               ainfo%frac_surft, progs%canht_pft, progs%lai_pft,              &
-               psparms%z0m_soil_gb, psparms%catch_snow_surft,                 &
-               psparms%catch_surft, psparms%z0_surft, psparms%z0h_bare_surft, &
+    call sparm(land_field, n_land_tile, ainfo%surft_pts, ainfo%surft_index,    &
+               ainfo%frac_surft, progs%canht_pft, progs%lai_pft,               &
+               psparms%z0m_soil_gb, psparms%catch_snow_surft,                  &
+               psparms%catch_surft, psparms%z0_surft, psparms%z0h_bare_surft,  &
                urban_param%ztm_gb)
 
 
@@ -1208,7 +1219,7 @@ contains
           do n = 1, rad_nband
             do i = 1, n_land_tile
               i_tile=n_land_tile*(n-1) + i - 1
-               jules_vars%albobs_scaling_surft(l,i,n) = &
+               jules_vars%albobs_scaling_surft(l,i,n) =                        &
                   albedo_obs_scaling(map_scal(1,ainfo%land_index(l))+i_tile)
             end do
           end do
@@ -1235,9 +1246,9 @@ contains
     do l = 1, land_field
       do n = 1, n_land_tile
         ! Net SW radiation on tiles
-        fluxes%sw_surft(l, n) = real(sw_down_surf(map_2d(1,ainfo%land_index(l))) - &
+        fluxes%sw_surft(l,n)=real(sw_down_surf(map_2d(1,ainfo%land_index(l)))- &
                                 sw_up_tile(map_tile(1,ainfo%land_index(l))+n-1), r_um)
-        fluxes%emis_surft(l, n) = 1.0_r_um - &
+        fluxes%emis_surft(l, n) = 1.0_r_um -                                   &
              real(tile_lw_grey_albedo(map_tile(1,ainfo%land_index(l))+n-1), r_um)
       end do
     end do
@@ -1249,7 +1260,7 @@ contains
 
     do i = 1, seg_len
       ! Net SW on open sea
-      fluxes%sw_sea(i) = real(sw_down_surf(map_2d(1,i)) - &
+      fluxes%sw_sea(i) = real(sw_down_surf(map_2d(1,i)) -                      &
                          sw_up_tile(map_tile(1,i)+first_sea_tile-1), r_um)
 
       ! The amount of diffuse visible light is needed for solar penetrating radiation
@@ -1260,9 +1271,10 @@ contains
       if (l_sice_swpen .and. ocn_cpl_point(map_2d(1,i)) == 1_i_def) then
         do n = first_sea_ice_tile, first_sea_ice_tile + n_sea_ice_tile - 1
           i_sice = n - first_sea_ice_tile + 1
-          sea_ice_pensolar(map_sice(1,i)+i_sice-1) = sw_direct_blue_surf(map_2d(1,i)) * &
-               sea_ice_pensolar_frac_direct(map_sice(1,i)+i_sice-1) + &
-               sw_diffuse_blue_surf *                                 &
+          sea_ice_pensolar(map_sice(1,i)+i_sice-1) =                           &
+            sw_direct_blue_surf(map_2d(1,i)) *                                 &
+               sea_ice_pensolar_frac_direct(map_sice(1,i)+i_sice-1) +          &
+               sw_diffuse_blue_surf *                                          &
                sea_ice_pensolar_frac_diffuse(map_sice(1,i)+i_sice-1)
         end do
       else
@@ -1276,8 +1288,8 @@ contains
         i_sice = n - first_sea_ice_tile + 1
 
         ! Net SW on sea-ice
-        fluxes%sw_sicat(i, i_sice) = real(sw_down_surf(map_2d(1,i)) -  &
-                                     sw_up_tile(map_tile(1,i)+n-1)  -  &
+        fluxes%sw_sicat(i, i_sice) = real(sw_down_surf(map_2d(1,i)) -          &
+                                     sw_up_tile(map_tile(1,i)+n-1)  -          &
                                      sea_ice_pensolar(map_sice(1,i)+i_sice-1), r_um)
       end do
 
@@ -1337,9 +1349,9 @@ contains
 
     ! Level heights
     do i = 1, seg_len
-      ainfo%z1_tq_ij(i,1) = height_wth(map_wth(1,i) + k_blend_tq(i,1))  &
+      ainfo%z1_tq_ij(i,1) = height_wth(map_wth(1,i) + k_blend_tq(i,1))         &
                           - height_wth(map_wth(1,i))
-      ainfo%z1_uv_ij(i,1) = height_w3(map_w3(1,i) + k_blend_uv(i,1)-1)  &
+      ainfo%z1_uv_ij(i,1) = height_w3(map_w3(1,i) + k_blend_uv(i,1)-1)         &
                           - height_wth(map_wth(1,i))
       z1_uv_top(i,1) = height_wth(map_wth(1,i) + 1) - height_wth(map_wth(1,i))
       z1_tq_top(i,1) = height_w3(map_w3(1,i) + 1) - height_wth(map_wth(1,i))
@@ -1350,11 +1362,11 @@ contains
       ! Land height
       if (land_sea_mask(i,1)) then
         l=l+1
-        if ( (l_ctile .and. coast%fland(l) > 0.0_r_um .and. &
-                            coast%fland(l) < 1.0_r_um) &
+        if ( (l_ctile .and. coast%fland(l) > 0.0_r_um .and.                    &
+                            coast%fland(l) < 1.0_r_um)                         &
                             .or. any(l_elev_absolute_height) ) then
           jules_vars%z_land_ij(i,1) = (height_wth(map_wth(1,i))+planet_radius)-planet_radius
-          if (jules_vars%z_land_ij(i,1) <  0.0_r_um) &
+          if (jules_vars%z_land_ij(i,1) <  0.0_r_um)                           &
               jules_vars%z_land_ij(i,1) = 0.0_r_um
         end if
       end if
@@ -1362,7 +1374,7 @@ contains
 
     do i = 1, seg_len
       ! thermodynamic variables
-      temperature(i,1,1) = theta_in_wth(map_wth(1,i)+k_blend_tq(i,1)) * &
+      temperature(i,1,1) = theta_in_wth(map_wth(1,i)+k_blend_tq(i,1)) *        &
                          exner_in_wth(map_wth(1,i)+k_blend_tq(i,1))
       q(i,1,1) = m_v_n(map_wth(1,i)+k_blend_tq(i,1))
       qcl(i,1,1) = m_cl_n(map_wth(1,i)+k_blend_tq(i,1))
@@ -1405,14 +1417,44 @@ contains
     ! External science code called
     !-----------------------------------------------------------------------
 
+    ! Copy in and out of 3d locally and 2d for the boundary layer
+    ! p_theta_levels/q/qcf/qcl are needed on both level 0 (surface) and
+    ! level 1, so must be copied for both k values.
+    do k = 0, 1
+      do i = 1, seg_len
+        p_theta_levels_2d(i,k) = p_theta_levels(i,1,k)
+        q_2d(i,k) = q(i,1,k)
+        qcf_2d(i,k) = qcf(i,1,k)
+        qcl_2d(i,k) = qcl(i,1,k)
+      end do
+    end do
+    ! temperature and bulk_cloud_fraction only ever hold a single level
+    do i = 1, seg_len
+      temperature_2d(i,1) = temperature(i,1,1)
+      bulk_cloud_fraction_2d(i,1) = bulk_cloud_fraction(i,1,1)
+    end do
     call buoy_tq (                                                             &
        ! IN dimensions/logicals
        1,                                                                      &
        ! IN fields
-       p_theta_levels,temperature,q,qcf,qcl,bulk_cloud_fraction,               &
+       p_theta_levels_2d,temperature_2d,q_2d,qcf_2d,qcl_2d,                    &
+       bulk_cloud_fraction_2d,                                                 &
        ! OUT fields
-       bt,bq,bt_cld,bq_cld,bt_blend,bq_blend,a_qs,a_dqsdt,dqsdt                &
+       bt_2d,bq_2d,bt_cld_2d,bq_cld_2d,bt_blend_2d,bq_blend_2d,                &
+       a_qs_2d,a_dqsdt_2d,dqsdt_2d                                             &
        )
+    ! bt/bq/etc are all single-level outputs (bl_levels=1 was passed above)
+    do i = 1, seg_len
+      bt(i,1,1) = bt_2d(i,1)
+      bq(i,1,1) = bq_2d(i,1)
+      bt_cld(i,1,1) = bt_cld_2d(i,1)
+      bq_cld(i,1,1) = bq_cld_2d(i,1)
+      bt_blend(i,1,1) = bt_blend_2d(i,1)
+      bq_blend(i,1,1) = bq_blend_2d(i,1)
+      a_qs(i,1,1) = a_qs_2d(i,1)
+      a_dqsdt(i,1,1) = a_dqsdt_2d(i,1)
+      dqsdt(i,1,1) = dqsdt_2d(i,1)
+    end do
 
     allocate(hcons_soilt(land_field))
     allocate(emis_soil(land_field))
@@ -1528,13 +1570,13 @@ contains
 
         fb_surf(i,1) = g * ( bt_blend(i,1,1)*ftl(i,1) +                        &
                              bq_blend(i,1,1)*fqw(i,1) ) /rhostar(i,1)
-        recip_l_mo_sea(i,1) = -vkman * fb_surf(i,1)                           &
+        recip_l_mo_sea(i,1) = -vkman * fb_surf(i,1)                            &
                               / ( ustargbm(i,1)*ustargbm(i,1)*ustargbm(i,1) )
         ! Zeroing w_m and tv1_sd required for Psyclone transmute
         w_m = 0.0_r_um
         tv1_sd = 0.0_r_um
         if ( fb_surf(i,1)  >   0.0_r_um) then
-          w_m  = ( 0.25_r_um*jules_vars%zh(i,1)*fb_surf(i,1) +                &
+          w_m  = ( 0.25_r_um*jules_vars%zh(i,1)*fb_surf(i,1) +                 &
                   ustargbm(i,1)*ustargbm(i,1)*ustargbm(i,1) ) ** one_third
 
           t1_sd(i,1) = 1.93_r_um * ftl(i,1) / (rhostar(i,1) * w_m)
@@ -1581,7 +1623,8 @@ contains
           ch = rhokh(i,1) / ( vshr(i,1) * rhostar(i,1) )
 
           ! Now more complicated formula based on fluxes
-          fluxes%tstar_ij(i,1) = ( theta1 + wthvbar/(ch*max(0.1_r_um,vshr(i,1))) -  &
+          fluxes%tstar_ij(i,1) = ( theta1 +                                    &
+                wthvbar/(ch*max(0.1_r_um,vshr(i,1))) -                         &
                c_virtual * theta1 *                                            &
                (qs_star(i,1)-q(i,1,1)-dqsdt_star*fluxes%tstar_ij(i,1)) )       &
                / ( (p_zero/forcing%pstar_ij(i,1))**kappa +                     &

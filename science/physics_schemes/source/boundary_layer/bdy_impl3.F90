@@ -58,54 +58,53 @@ integer, intent(in) ::                                                         &
          ! in No. of atmospheric levels for
          !    which boundary layer fluxes are
          !    calculated.
- k_blend_tq(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end)
+ k_blend_tq(pdims%i_start:pdims%i_end)
                                    ! in Theta level for blending height.
 
 real(kind=r_bl), intent(in) ::                                                 &
- gamma1(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                  &
- gamma2(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),                  &
+ gamma1(pdims%i_start:pdims%i_end),                                            &
+ gamma2(pdims%i_start:pdims%i_end),                                            &
                                ! in new scheme weights.
  gamma_in(bl_levels)          ! in standard implicit scheme weights.
 
 real(kind=r_bl), intent(in) ::                                                 &
- r_theta_levels(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,   &
+ r_theta_levels(tdims_l%i_start:tdims_l%i_end,                                 &
                 tdims_l%k_start:bl_levels),                                    &
- r_rho_levels(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,     &
+ r_rho_levels(tdims_l%i_start:tdims_l%i_end,                                   &
               1:bl_levels),                                                    &
                                  ! in height of rho and theta levels
- q(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,                &
+ q(tdims_l%i_start:tdims_l%i_end,                                              &
    tdims_l%k_start:bl_levels),                                                 &
                                  ! in specific humidity
- qcl(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,              &
+ qcl(tdims_l%i_start:tdims_l%i_end,                                            &
      tdims_l%k_start:bl_levels),                                               &
                                  ! in Cloud liquid water
- qcf(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,              &
+ qcf(tdims_l%i_start:tdims_l%i_end,                                            &
      tdims_l%k_start:bl_levels),                                               &
                                  ! in Cloud ice (kg per kg air)
- q_latest(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                 &
+ q_latest(tdims%i_start:tdims%i_end,                                           &
           bl_levels),                                                          &
                                  ! in specific humidity
- qcl_latest(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,               &
+ qcl_latest(tdims%i_start:tdims%i_end,                                         &
             bl_levels),                                                        &
                                  ! in Cloud liquid water
- qcf_latest(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,               &
+ qcf_latest(tdims%i_start:tdims%i_end,                                         &
             bl_levels),                                                        &
                                  ! in Cloud ice (kg per kg air)
- t(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),             &
+ t(tdims%i_start:tdims%i_end,bl_levels),                                       &
                                  ! in temperature
                                  !    Latest estimates to time
                                  !    level n+1 values
- t_latest(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                 &
+ t_latest(tdims%i_start:tdims%i_end,                                           &
           bl_levels),                                                          &
                                  ! in temperature
- dtrdz_charney_grid(tdims%i_start:tdims%i_end,                                 &
-                    tdims%j_start:tdims%j_end,bl_levels),                      &
+ dtrdz_charney_grid(tdims%i_start:tdims%i_end,bl_levels),                      &
                                  ! in dz for bottom BL_LEVELS
- rhokh(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                    &
+ rhokh(pdims%i_start:pdims%i_end,                                              &
        bl_levels),                                                             &
                                  ! in Exchange coeff for FTL above
                                  !    surface.
- rdz_charney_grid(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,         &
+ rdz_charney_grid(tdims%i_start:tdims%i_end,                                   &
                   bl_levels)
                                  ! in RDZ(,1) is the reciprocal of the
                                  ! height of level 1, i.e. of the
@@ -116,43 +115,43 @@ real(kind=r_bl), intent(in) ::                                                 &
 
 ! INOUT arrays
 real(kind=r_bl), intent(in out) ::                                             &
- fqw(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),           &
+ fqw(tdims%i_start:tdims%i_end,bl_levels),                                     &
                                  ! INOUT Flux of QW (ie., for surface,
                                  !    total evaporation). Kg/sq m/s
- ftl(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),           &
+ ftl(tdims%i_start:tdims%i_end,bl_levels),                                     &
                                  ! INOUT Flux of TL (ie., for surface,
                                  !    H/Cp where H is sensible heat
                                  !    in W per sq m).
- dqw(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),           &
+ dqw(tdims%i_start:tdims%i_end,bl_levels),                                     &
                                  ! INOUT BL increment to q field
- dtl(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels)
+ dtl(tdims%i_start:tdims%i_end,bl_levels)
                                  ! INOUT BL increment to T field
 
 ! out arrays
 real(kind=r_bl), intent(out) ::                                                &
- qw(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end, bl_levels),           &
+ qw(tdims%i_start:tdims%i_end, bl_levels),                                     &
                                  ! out total water
- tl(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end, bl_levels),           &
+ tl(tdims%i_start:tdims%i_end, bl_levels),                                     &
                                  ! out liquid water temperature
- ct_ctq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
+ ct_ctq(tdims%i_start:tdims%i_end,                                             &
         bl_levels),                                                            &
                                  ! out Coefficient in T and q
                                  !     tri-diagonal implicit matrix
- dqw_nt(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
+ dqw_nt(tdims%i_start:tdims%i_end,                                             &
         bl_levels),                                                            &
                                        ! NT incr to q field
- dtl_nt(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
+ dtl_nt(tdims%i_start:tdims%i_end,                                             &
         bl_levels),                                                            &
                                        ! NT incr to T field
- ctctq1_1(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),                &
+ ctctq1_1(tdims%i_start:tdims%i_end),                                          &
                                  ! out Coefficient of H*, E*
                                  !     for implicit coupling
                                  !     at level k_blend_tq
- dqw1_1(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),                  &
+ dqw1_1(tdims%i_start:tdims%i_end),                                            &
                                  ! out Coefficient needed
                                  !     for implicit coupling
                                  !     at level k_blend_tq
- dtl1_1(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end)
+ dtl1_1(tdims%i_start:tdims%i_end)
                                  ! out Coefficient needed
                                  !     for implicit coupling
                                  !     at level k_blend_tq
@@ -162,18 +161,18 @@ real(kind=r_bl), intent(out) ::                                                &
 ! The three set of arrays below are needed by the uncond stable
 ! BL numerical solver
 real(kind=r_bl) ::                                                             &
-  dqw1(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),         &
-  dtl1(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),         &
-  ctctq1(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels)
+  dqw1(tdims%i_start:tdims%i_end,bl_levels),                                   &
+  dtl1(tdims%i_start:tdims%i_end,bl_levels),                                   &
+  ctctq1(tdims%i_start:tdims%i_end,bl_levels)
 
 
 real(kind=r_bl) ::                                                             &
- ct_prod(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end)
+ ct_prod(tdims%i_start:tdims%i_end)
                 ! Product of coefficients in T and q matrix needed to
                 ! calculate the coefficients of surface fluxes for
                 ! implicit coupling at level k_blend_tq
 
-real(kind=r_bl) ::                                                &
+real(kind=r_bl) ::                                                             &
   temp(tdims%i_start:tdims%i_end)
                           ! temp for pressure grid vector division
 
@@ -198,8 +197,6 @@ integer ::                                                                     &
               ! Loop counter (horizontal field index).
  k            ! Loop counter (vertical index).
 
- integer, parameter :: j = 1 ! Array dimension, LFRic Parameter
-
 integer(kind=jpim), parameter :: zhook_in  = 0
 integer(kind=jpim), parameter :: zhook_out = 1
 real(kind=jprb)               :: zhook_handle
@@ -212,7 +209,7 @@ if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 blm1 = bl_levels-1
 
-!$OMP  PARALLEL DEFAULT(none) SHARED(l_correct,bl_levels,      &
+!$OMP  PARALLEL DEFAULT(none) SHARED(l_correct,bl_levels,                      &
 !$OMP  blm1,tdims, dqw_nt,dtl_nt,q_latest,qcl_latest,                          &
 !$OMP  gamma1,q,qcl,qcf,t_latest,t,ftl,rhokh,dtl,rdz_charney_grid,dqw,         &
 !$OMP  qcf_latest,                                                             &
@@ -230,13 +227,13 @@ if ( l_correct ) then
   do k = 1, bl_levels
     do i = tdims%i_start, tdims%i_end
       ! Don't use QW, TL here as these are no longer at time level n
-      dqw_nt(i,j,k) = q_latest(i,j,k) + qcl_latest(i,j,k)                      &
-                    + qcf_latest(i,j,k)                                        &
-                    - q(i,j,k) - qcl(i,j,k) - qcf(i,j,k)
-      dtl_nt(i,j,k) = t_latest(i,j,k)                                          &
-            - lcrcp * qcl_latest(i,j,k)                                        &
-            - lsrcp * qcf_latest(i,j,k)                                        &
-            - ( t(i,j,k) - lcrcp*qcl(i,j,k) - lsrcp*qcf(i,j,k) )
+      dqw_nt(i,k) = q_latest(i,k) + qcl_latest(i,k)                            &
+                    + qcf_latest(i,k)                                          &
+                    - q(i,k) - qcl(i,k) - qcf(i,k)
+      dtl_nt(i,k) = t_latest(i,k)                                              &
+            - lcrcp * qcl_latest(i,k)                                          &
+            - lsrcp * qcf_latest(i,k)                                          &
+            - ( t(i,k) - lcrcp*qcl(i,k) - lsrcp*qcf(i,k) )
     end do
   end do
 !$OMP end do NOWAIT
@@ -247,10 +244,10 @@ if ( l_correct ) then
 !$OMP do SCHEDULE(STATIC)
   do k = 2, bl_levels
     do i = tdims%i_start, tdims%i_end
-      ftl(i,j,k) = ftl(i,j,k) - rhokh(i,j,k) *                                 &
-        ( dtl(i,j,k) - dtl(i,j,k-1) ) * rdz_charney_grid(i,j,k)
-      fqw(i,j,k) = fqw(i,j,k) - rhokh(i,j,k) *                                 &
-        ( dqw(i,j,k) - dqw(i,j,k-1) ) * rdz_charney_grid(i,j,k)
+      ftl(i,k) = ftl(i,k) - rhokh(i,k) *                                       &
+        ( dtl(i,k) - dtl(i,k-1) ) * rdz_charney_grid(i,k)
+      fqw(i,k) = fqw(i,k) - rhokh(i,k) *                                       &
+        ( dqw(i,k) - dqw(i,k-1) ) * rdz_charney_grid(i,k)
     end do
   end do
 !$OMP end do
@@ -260,14 +257,14 @@ else
 !$OMP do SCHEDULE(STATIC)
   do k = 1, bl_levels
     do i = tdims%i_start, tdims%i_end
-      qw(i,j,k) = q(i,j,k) + qcl(i,j,k) + qcf(i,j,k)
-      tl(i,j,k) = t(i,j,k) - lcrcp*qcl(i,j,k) - lsrcp*qcf(i,j,k)
-      dqw_nt(i,j,k) = q_latest(i,j,k) + qcl_latest(i,j,k)                      &
-                      + qcf_latest(i,j,k) - qw(i,j,k)
-      dtl_nt(i,j,k) = t_latest(i,j,k)                                          &
-                      - lcrcp * qcl_latest(i,j,k)                              &
-                      - lsrcp * qcf_latest(i,j,k)                              &
-                      - tl(i,j,k)
+      qw(i,k) = q(i,k) + qcl(i,k) + qcf(i,k)
+      tl(i,k) = t(i,k) - lcrcp*qcl(i,k) - lsrcp*qcf(i,k)
+      dqw_nt(i,k) = q_latest(i,k) + qcl_latest(i,k)                            &
+                      + qcf_latest(i,k) - qw(i,k)
+      dtl_nt(i,k) = t_latest(i,k)                                              &
+                      - lcrcp * qcl_latest(i,k)                                &
+                      - lsrcp * qcf_latest(i,k)                                &
+                      - tl(i,k)
     end do
   end do
 !$OMP end do
@@ -294,43 +291,43 @@ end if  ! l_correct
 !$OMP do SCHEDULE(STATIC)
 do i = tdims%i_start, tdims%i_end
   ! Include non-turbulent increments.
-  r_sq = r_rho_levels(i,j,bl_levels)*r_rho_levels(i,j,bl_levels)
-  dqw(i,j,bl_levels) = ( dtrdz_charney_grid(i,j,bl_levels) *                   &
-                  (r_sq * fqw(i,j,bl_levels)) +                                &
-                    dqw_nt(i,j,bl_levels) ) * gamma2(i,j)
-  dtl(i,j,bl_levels) = ( dtrdz_charney_grid(i,j,bl_levels) *                   &
-                  (r_sq * ftl(i,j,bl_levels)) + dtl_nt(i,j,bl_levels)          &
-                        ) * gamma2(i,j)
-  ct_ctq(i,j,bl_levels) = -dtrdz_charney_grid(i,j,bl_levels) *                 &
-          gamma1(i,j)*(rhokh(i,j,bl_levels)*r_sq)*                             &
-          rdz_charney_grid(i,j,bl_levels)
-  rbt = one / ( one - ct_ctq(i,j,bl_levels) )
-  dqw(i,j,bl_levels) = rbt * dqw(i,j,bl_levels)
-  dtl(i,j,bl_levels) = rbt * dtl(i,j,bl_levels)
-  ct_ctq(i,j,bl_levels) = rbt * ct_ctq(i,j,bl_levels)
+  r_sq = r_rho_levels(i,bl_levels)*r_rho_levels(i,bl_levels)
+  dqw(i,bl_levels) = ( dtrdz_charney_grid(i,bl_levels) *                       &
+                  (r_sq * fqw(i,bl_levels)) +                                  &
+                    dqw_nt(i,bl_levels) ) * gamma2(i)
+  dtl(i,bl_levels) = ( dtrdz_charney_grid(i,bl_levels) *                       &
+                  (r_sq * ftl(i,bl_levels)) + dtl_nt(i,bl_levels)              &
+                        ) * gamma2(i)
+  ct_ctq(i,bl_levels) = -dtrdz_charney_grid(i,bl_levels) *                     &
+          gamma1(i)*(rhokh(i,bl_levels)*r_sq)*                                 &
+          rdz_charney_grid(i,bl_levels)
+  rbt = one / ( one - ct_ctq(i,bl_levels) )
+  dqw(i,bl_levels) = rbt * dqw(i,bl_levels)
+  dtl(i,bl_levels) = rbt * dtl(i,bl_levels)
+  ct_ctq(i,bl_levels) = rbt * ct_ctq(i,bl_levels)
 end do
 !$OMP end do
 
 do k = blm1, 2, -1
   !$OMP do SCHEDULE(STATIC)
   do i = tdims%i_start, tdims%i_end
-    r_sq = r_rho_levels(i,j,k)*r_rho_levels(i,j,k)
-    rr_sq = r_rho_levels(i,j,k+1)*r_rho_levels(i,j,k+1)
-    dqw(i,j,k) = ( -dtrdz_charney_grid(i,j,k)*                               &
-          ((rr_sq*fqw(i,j,k+1))-(r_sq*fqw(i,j,k)))+dqw_nt(i,j,k) )           &
-            *gamma2(i,j)
-    dtl(i,j,k) = ( -dtrdz_charney_grid(i,j,k)*                               &
-          ((rr_sq*ftl(i,j,k+1))-(r_sq*ftl(i,j,k)))+dtl_nt(i,j,k) )           &
-            *gamma2(i,j)
-    at = -dtrdz_charney_grid(i,j,k) *                                        &
-          gamma1(i,j)*(rr_sq*rhokh(i,j,k+1))*                                &
-          rdz_charney_grid(i,j,k+1)
-    ct_ctq(i,j,k) = -dtrdz_charney_grid(i,j,k) *                             &
-          gamma1(i,j)*(r_sq*rhokh(i,j,k))*rdz_charney_grid(i,j,k)
-    dqw(i,j,k) = (dqw(i,j,k) - at*dqw(i,j,k+1) )
-    dtl(i,j,k) = (dtl(i,j,k) - at*dtl(i,j,k+1) )
-    temp(i) = ( one - ct_ctq(i,j,k) -                                        &
-          at*( one + ct_ctq(i,j,k+1) ) )
+    r_sq = r_rho_levels(i,k)*r_rho_levels(i,k)
+    rr_sq = r_rho_levels(i,k+1)*r_rho_levels(i,k+1)
+    dqw(i,k) = ( -dtrdz_charney_grid(i,k)*                                     &
+          ((rr_sq*fqw(i,k+1))-(r_sq*fqw(i,k)))+dqw_nt(i,k) )                   &
+            *gamma2(i)
+    dtl(i,k) = ( -dtrdz_charney_grid(i,k)*                                     &
+          ((rr_sq*ftl(i,k+1))-(r_sq*ftl(i,k)))+dtl_nt(i,k) )                   &
+            *gamma2(i)
+    at = -dtrdz_charney_grid(i,k) *                                            &
+          gamma1(i)*(rr_sq*rhokh(i,k+1))*                                      &
+          rdz_charney_grid(i,k+1)
+    ct_ctq(i,k) = -dtrdz_charney_grid(i,k) *                                   &
+          gamma1(i)*(r_sq*rhokh(i,k))*rdz_charney_grid(i,k)
+    dqw(i,k) = (dqw(i,k) - at*dqw(i,k+1) )
+    dtl(i,k) = (dtl(i,k) - at*dtl(i,k+1) )
+    temp(i) = ( one - ct_ctq(i,k) -                                            &
+          at*( one + ct_ctq(i,k+1) ) )
     !y(i) = 1/x(i)
   end do
   !$OMP end do nowait
@@ -341,9 +338,9 @@ do k = blm1, 2, -1
   !$OMP end do nowait
   !$OMP do SCHEDULE(STATIC)
   do i = tdims%i_start, tdims%i_end
-    dqw(i,j,k) = temp(i) * dqw(i,j,k)
-    dtl(i,j,k) = temp(i) * dtl(i,j,k)
-    ct_ctq(i,j,k) = temp(i) * ct_ctq(i,j,k)
+    dqw(i,k) = temp(i) * dqw(i,k)
+    dtl(i,k) = temp(i) * dtl(i,k)
+    ct_ctq(i,k) = temp(i) * ct_ctq(i,k)
   end do
   !$OMP end do nowait
 
@@ -373,42 +370,42 @@ if ( .not. l_correct ) then
 !$OMP do SCHEDULE(STATIC)
   do i = tdims%i_start, tdims%i_end
     ! Include non-turbulent increments.
-    r_sq = r_rho_levels(i,j,bl_levels)*r_rho_levels(i,j,bl_levels)
-    dqw1(i,j,bl_levels) = dtrdz_charney_grid(i,j,bl_levels)*                   &
-                      (r_sq*fqw(i,j,bl_levels)) +                              &
-                      dqw_nt(i,j,bl_levels)
-    dtl1(i,j,bl_levels) = dtrdz_charney_grid(i,j,bl_levels)*                   &
-                      (r_sq*ftl(i,j,bl_levels)) +                              &
-                      dtl_nt(i,j,bl_levels)
-    ctctq1(i,j,bl_levels) = -dtrdz_charney_grid(i,j,bl_levels)*                &
-        gamma_in(bl_levels)*r_sq*rhokh(i,j,bl_levels)*                         &
-        rdz_charney_grid(i,j,bl_levels)
-    rbt = one / ( one - ctctq1(i,j,bl_levels) )
-    dqw1(i,j,bl_levels) = rbt * dqw1(i,j,bl_levels)
-    dtl1(i,j,bl_levels) = rbt * dtl1(i,j,bl_levels)
-    ctctq1(i,j,bl_levels) = rbt * ctctq1(i,j,bl_levels)
+    r_sq = r_rho_levels(i,bl_levels)*r_rho_levels(i,bl_levels)
+    dqw1(i,bl_levels) = dtrdz_charney_grid(i,bl_levels)*                       &
+                      (r_sq*fqw(i,bl_levels)) +                                &
+                      dqw_nt(i,bl_levels)
+    dtl1(i,bl_levels) = dtrdz_charney_grid(i,bl_levels)*                       &
+                      (r_sq*ftl(i,bl_levels)) +                                &
+                      dtl_nt(i,bl_levels)
+    ctctq1(i,bl_levels) = -dtrdz_charney_grid(i,bl_levels)*                    &
+        gamma_in(bl_levels)*r_sq*rhokh(i,bl_levels)*                           &
+        rdz_charney_grid(i,bl_levels)
+    rbt = one / ( one - ctctq1(i,bl_levels) )
+    dqw1(i,bl_levels) = rbt * dqw1(i,bl_levels)
+    dtl1(i,bl_levels) = rbt * dtl1(i,bl_levels)
+    ctctq1(i,bl_levels) = rbt * ctctq1(i,bl_levels)
   end do
 !$OMP end do
 
   do k = blm1, 2, -1
     !$OMP do SCHEDULE(STATIC)
     do i = tdims%i_start, tdims%i_end
-      r_sq = r_rho_levels(i,j,k)*r_rho_levels(i,j,k)
-      rr_sq = r_rho_levels(i,j,k+1)*r_rho_levels(i,j,k+1)
-      dqw1(i,j,k) = -dtrdz_charney_grid(i,j,k) *                             &
-        ((rr_sq*fqw(i,j,k+1)) - (r_sq*fqw(i,j,k))) + dqw_nt(i,j,k)
-      dtl1(i,j,k) = -dtrdz_charney_grid(i,j,k) *                             &
-        ((rr_sq*ftl(i,j,k+1)) - (r_sq*ftl(i,j,k))) + dtl_nt(i,j,k)
-      at = -dtrdz_charney_grid(i,j,k) *                                      &
-        gamma_in(k+1)*(rr_sq*rhokh(i,j,k+1))*rdz_charney_grid(i,j,k+1)
-      ctctq1(i,j,k) = -dtrdz_charney_grid(i,j,k) *                           &
-        gamma_in(k)*(r_sq*rhokh(i,j,k))*rdz_charney_grid(i,j,k)
+      r_sq = r_rho_levels(i,k)*r_rho_levels(i,k)
+      rr_sq = r_rho_levels(i,k+1)*r_rho_levels(i,k+1)
+      dqw1(i,k) = -dtrdz_charney_grid(i,k) *                                   &
+        ((rr_sq*fqw(i,k+1)) - (r_sq*fqw(i,k))) + dqw_nt(i,k)
+      dtl1(i,k) = -dtrdz_charney_grid(i,k) *                                   &
+        ((rr_sq*ftl(i,k+1)) - (r_sq*ftl(i,k))) + dtl_nt(i,k)
+      at = -dtrdz_charney_grid(i,k) *                                          &
+        gamma_in(k+1)*(rr_sq*rhokh(i,k+1))*rdz_charney_grid(i,k+1)
+      ctctq1(i,k) = -dtrdz_charney_grid(i,k) *                                 &
+        gamma_in(k)*(r_sq*rhokh(i,k))*rdz_charney_grid(i,k)
       ! pack
-      dqw1(i,j,k) =  (dqw1(i,j,k) - at*dqw1(i,j,k+1) )
-      dtl1(i,j,k) =  (dtl1(i,j,k) - at*dtl1(i,j,k+1) )
+      dqw1(i,k) =  (dqw1(i,k) - at*dqw1(i,k+1) )
+      dtl1(i,k) =  (dtl1(i,k) - at*dtl1(i,k+1) )
       !y(i) = 1/x(i)
-      temp(i) = ( one - ctctq1(i,j,k) -                                      &
-            at*( one + ctctq1(i,j,k+1) ) )
+      temp(i) = ( one - ctctq1(i,k) -                                          &
+            at*( one + ctctq1(i,k+1) ) )
     end do
     !$OMP end do nowait
     !$OMP do SCHEDULE(STATIC)
@@ -418,29 +415,29 @@ if ( .not. l_correct ) then
     !$OMP end do nowait
     !$OMP do SCHEDULE(STATIC)
     do i = tdims%i_start, tdims%i_end
-      dqw1(i,j,k) = temp(i) * dqw1(i,j,k)
-      dtl1(i,j,k) = temp(i) * dtl1(i,j,k)
-      ctctq1(i,j,k) = temp(i) * ctctq1(i,j,k)
+      dqw1(i,k) = temp(i) * dqw1(i,k)
+      dtl1(i,k) = temp(i) * dtl1(i,k)
+      ctctq1(i,k) = temp(i) * ctctq1(i,k)
     end do
     !$OMP end do nowait
   end do !blm1,2,-1
 
 !$OMP do SCHEDULE(STATIC)
   do i = tdims%i_start, tdims%i_end
-    r_sq = r_rho_levels(i,j,2)*r_rho_levels(i,j,2)
-    dqw1(i,j,1) = -dtrdz_charney_grid(i,j,1) * (r_sq*fqw(i,j,2)) +             &
-                  dqw_nt(i,j,1)
-    dtl1(i,j,1) = -dtrdz_charney_grid(i,j,1) * (r_sq*ftl(i,j,2)) +             &
-                  dtl_nt(i,j,1)
-    at = -dtrdz_charney_grid(i,j,1) *                                          &
-                gamma_in(2)*(r_sq*rhokh(i,j,2))*rdz_charney_grid(i,j,2)
-    rbt = one / ( one - at*( one + ctctq1(i,j,2) ) )
-    dqw1(i,j,1) = rbt * (dqw1(i,j,1) - at*dqw1(i,j,2) )
-    dtl1(i,j,1) = rbt * (dtl1(i,j,1) - at*dtl1(i,j,2) )
+    r_sq = r_rho_levels(i,2)*r_rho_levels(i,2)
+    dqw1(i,1) = -dtrdz_charney_grid(i,1) * (r_sq*fqw(i,2)) +                   &
+                  dqw_nt(i,1)
+    dtl1(i,1) = -dtrdz_charney_grid(i,1) * (r_sq*ftl(i,2)) +                   &
+                  dtl_nt(i,1)
+    at = -dtrdz_charney_grid(i,1) *                                            &
+                gamma_in(2)*(r_sq*rhokh(i,2))*rdz_charney_grid(i,2)
+    rbt = one / ( one - at*( one + ctctq1(i,2) ) )
+    dqw1(i,1) = rbt * (dqw1(i,1) - at*dqw1(i,2) )
+    dtl1(i,1) = rbt * (dtl1(i,1) - at*dtl1(i,2) )
 
     ! Now set CT_CTQ(1) to be r^2 * BETA
-    r_sq = r_theta_levels(i,j,0)*r_theta_levels(i,j,0)
-    ctctq1(i,j,1) = - (r_sq * dtrdz_charney_grid(i,j,1)) * rbt
+    r_sq = r_theta_levels(i,0)*r_theta_levels(i,0)
+    ctctq1(i,1) = - (r_sq * dtrdz_charney_grid(i,1)) * rbt
   end do
 !$OMP end do
 
@@ -454,24 +451,24 @@ if ( .not. l_correct ) then
 !$OMP do SCHEDULE(STATIC)
   do i = tdims%i_start,tdims%i_end
 
-    dtl1_1(i,j) = dtl1(i,j,k_blend_tq(i,j))
-    dqw1_1(i,j) = dqw1(i,j,k_blend_tq(i,j))
-    ct_prod(i,j) = ctctq1(i,j,k_blend_tq(i,j))
+    dtl1_1(i) = dtl1(i,k_blend_tq(i))
+    dqw1_1(i) = dqw1(i,k_blend_tq(i))
+    ct_prod(i) = ctctq1(i,k_blend_tq(i))
 
-    do k = k_blend_tq(i,j)-1, 1, -1
+    do k = k_blend_tq(i)-1, 1, -1
 
-      dtl1_1(i,j) = dtl1_1(i,j) + ( (-1) ** (k_blend_tq(i,j)+k) ) *            &
-                    dtl1(i,j,k) * ct_prod(i,j)
+      dtl1_1(i) = dtl1_1(i) + ( (-1) ** (k_blend_tq(i)+k) ) *                  &
+                    dtl1(i,k) * ct_prod(i)
 
-      dqw1_1(i,j) = dqw1_1(i,j) + ( (-1) ** (k_blend_tq(i,j)+k) ) *            &
-                    dqw1(i,j,k) * ct_prod(i,j)
+      dqw1_1(i) = dqw1_1(i) + ( (-1) ** (k_blend_tq(i)+k) ) *                  &
+                    dqw1(i,k) * ct_prod(i)
 
-      ct_prod(i,j) = ct_prod(i,j) * ctctq1(i,j,k)
+      ct_prod(i) = ct_prod(i) * ctctq1(i,k)
 
     end do
 
-    ctctq1_1(i,j) = ( (-1) ** ( k_blend_tq(i,j) + 1 ) ) *                      &
-                    ct_prod(i,j)
+    ctctq1_1(i) = ( (-1) ** ( k_blend_tq(i) + 1 ) ) *                          &
+                    ct_prod(i)
   end do
 !$OMP end do
 
@@ -486,21 +483,21 @@ else
 
 !$OMP do SCHEDULE(STATIC)
   do i = tdims%i_start, tdims%i_end
-    r_sq = r_rho_levels(i,j,1)*r_rho_levels(i,j,1)
-    rr_sq = r_rho_levels(i,j,2)*r_rho_levels(i,j,2)
-    dqw(i,j,1) = gamma2(i,j) * ( -dtrdz_charney_grid(i,j,1) *                  &
-        ((rr_sq*fqw(i,j,2)) - (r_sq*fqw(i,j,1))) + dqw_nt(i,j,1) )
-    dtl(i,j,1) = gamma2(i,j) * ( -dtrdz_charney_grid(i,j,1) *                  &
-        ((rr_sq*ftl(i,j,2)) - (r_sq*ftl(i,j,1))) + dtl_nt(i,j,1) )
-    at = -dtrdz_charney_grid(i,j,1) *                                          &
-          gamma1(i,j)*(rr_sq*rhokh(i,j,2))*rdz_charney_grid(i,j,2)
-    rbt = one / ( one - at*( one + ct_ctq(i,j,2) ) )
-    dqw(i,j,1) = rbt * (dqw(i,j,1) - at*dqw(i,j,2) )
-    dtl(i,j,1) = rbt * (dtl(i,j,1) - at*dtl(i,j,2) )
+    r_sq = r_rho_levels(i,1)*r_rho_levels(i,1)
+    rr_sq = r_rho_levels(i,2)*r_rho_levels(i,2)
+    dqw(i,1) = gamma2(i) * ( -dtrdz_charney_grid(i,1) *                        &
+        ((rr_sq*fqw(i,2)) - (r_sq*fqw(i,1))) + dqw_nt(i,1) )
+    dtl(i,1) = gamma2(i) * ( -dtrdz_charney_grid(i,1) *                        &
+        ((rr_sq*ftl(i,2)) - (r_sq*ftl(i,1))) + dtl_nt(i,1) )
+    at = -dtrdz_charney_grid(i,1) *                                            &
+          gamma1(i)*(rr_sq*rhokh(i,2))*rdz_charney_grid(i,2)
+    rbt = one / ( one - at*( one + ct_ctq(i,2) ) )
+    dqw(i,1) = rbt * (dqw(i,1) - at*dqw(i,2) )
+    dtl(i,1) = rbt * (dtl(i,1) - at*dtl(i,2) )
 
     ! Now set CT_CTQ(1) to be r^2 * BETA
-    r_sq = r_theta_levels(i,j,0)*r_theta_levels(i,j,0)
-    ct_ctq(i,j,1) = - (r_sq * dtrdz_charney_grid(i,j,1)) * rbt
+    r_sq = r_theta_levels(i,0)*r_theta_levels(i,0)
+    ct_ctq(i,1) = - (r_sq * dtrdz_charney_grid(i,1)) * rbt
   end do
 !$OMP end do
 
