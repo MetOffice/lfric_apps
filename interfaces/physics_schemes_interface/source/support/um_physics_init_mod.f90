@@ -366,8 +366,7 @@ contains
          except_disc_inv, ntml_level_corrn, free_trop_layers,              &
          smooth_to_bdys, sharpest, lem_stability, sg_shear_enh_lambda,     &
          l_new_kcloudtop, buoy_integ, l_reset_dec_thres, DynDiag_ZL_CuOnly,&
-         i_interp_local, i_interp_local_gradients,                         &
-         l_noice_in_turb, l_use_var_fixes,                                 &
+         i_interp_local, i_interp_local_gradients, l_noice_in_turb,        &
          i_interp_local_cf_dbdz, tke_diag_fac, a_ent_2, dec_thres_cloud,   &
          dec_thres_cu, near_neut_z_on_l, blend_gridindep_fa,               &
          specified_fluxes_tstar, buoy_integ_low, num_sweeps_bflux,         &
@@ -797,9 +796,8 @@ contains
           sg_orog_mixing = sg_shear_enh_lambda
       end select
 
-      ! TKE scaling parameter and switch for fixes to variance diagnostics
+      ! TKE scaling parameter
       tke_diag_fac  = 1.0_r_bl
-      l_use_var_fixes = .true.
       zhloc_depth_fac = real(zhloc_depth_fac_in, r_bl)
 
       if (topography == topography_horizon) then
