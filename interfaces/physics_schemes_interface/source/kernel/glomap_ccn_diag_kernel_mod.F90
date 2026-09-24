@@ -240,7 +240,7 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
   real(kind=r_def), dimension(nmodes_diag) :: sigmag
 
   ! Dry diameter thresholds of the three diagnostics (m)
-  real(kind=r_def), parameter :: dp0_cn   =  3.0e-9_r_def
+  real(kind=r_def), parameter :: dp0_3nm  =  3.0e-9_r_def
   real(kind=r_def), parameter :: dp0_30nm = 30.0e-9_r_def
   real(kind=r_def), parameter :: dp0_50nm = 50.0e-9_r_def
 
@@ -337,7 +337,7 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
         tail_sum = 0.0_r_def
         do imode = 1, nmodes_diag
           tail_sum = tail_sum + 0.5_r_def * number_conc(imode) *              &
-              ( 1.0_r_def - erf( log( dp0_cn / drydp(imode) )                 &
+              ( 1.0_r_def - erf( log( dp0_3nm / drydp(imode) )                &
                                  * recip_width(imode) ) )
         end do
         ccn_number_conc_3nm(map_wth(1) + k) = tail_sum
