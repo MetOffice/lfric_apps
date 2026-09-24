@@ -9,6 +9,27 @@
 
 {% set modelbasis = task_values["expt_basis"]~",0" %}
 
+{% set crun_segment = task_values["restart_no"] is not none %}
+{% if crun_segment and task_values["restart_no"] > 0 %}
+    {% set continuation = true %}
+{% else %}
+    {% set continuation = false %}
+{% endif %}
+{% set history_dir = "$CYLC_WORKFLOW_SHARE_DIR/data/"~
+                      task_values["datam"]~"_"~task_family %}
+{% if crun_segment %}
+    {% set history_dir = history_dir~"_crun" %}
+{% endif %}
+
+{% set basis = task_values["expt_basis"].split(",") %}
+{% set basis_point = "%04d%02d%02dT%02d%02dZ" | format(
+       basis[0]|int, basis[1]|int, basis[2]|int, basis[3]|int, basis[4]|int) %}
+{% set segment_offset = (task_values["init_tstep"]|int - 1) *
+                         task_values["DT"]|int %}
+{% set segment_length = (task_values["last_tstep"]|int -
+                         task_values["init_tstep"]|int + 1) *
+                         task_values["DT"]|int %}
+
 {% if task_values["ocean_nodes"] > 0 %}
     {% set ocean_ppnu =(task_values["nemo_nproc"]/task_values["ocean_nodes"]/2)|round(0,'ceil')|int %}
             ROSE_LAUNCHER_PREOPTS_NEMO = -n {{task_values["nemo_nproc"]}} -ppn 128
@@ -24,12 +45,17 @@
             NEMO_JPROC = {{task_values["nemo_jproc"]}}
             NEMO_NPROC = {{task_values["nemo_nproc"]}}
             NEMO_VERSION = {{task_values["nemo_version"]}}
-            DATAM = $CYLC_WORKFLOW_SHARE_DIR/data/{{task_values["datam"]}}
-            NEMO_DATA = $CYLC_WORKFLOW_SHARE_DIR/data/{{task_values["nemo_rst"]}}
-            NEMO_RST = $CYLC_WORKFLOW_SHARE_DIR/data/{{task_values["nemo_rst"]}}
-            TASKSTART = $(isodatetime 19790101T0000Z --print-format %Y,%m,%d,%H,%M)
-            TASKEND = $(isodatetime 19790101T0000Z 19790101T0000Z --calendar={{task_values["expt_calendar"]}} --offset='PT{{task_values["expt_resub"]}}' --print-format y,m,d,h,M,s)
-            TASKLENGTH = $(isodatetime 19790101T0000Z 19790101T0000Z --calendar={{task_values["expt_calendar"]}} --offset2='PT{{task_values["expt_resub"]}}' --print-format y,m,d,h,M,s)
+            DATAM = {{history_dir}}
+            NEMO_DATA = {{history_dir}}/{{task_values["nemo_rst"]}}
+            NEMO_RST = {{history_dir}}/{{task_values["nemo_rst"]}}
+            CONTINUE = {{"true" if continuation else "false"}}
+{% if crun_segment %}
+            CNWP_SUB_CYCLING = True
+{% endif %}
+            TASK_START_POINT = $(isodatetime {{basis_point}} --calendar={{task_values["expt_calendar"]}} --offset='PT{{segment_offset}}S' --print-format CCYYMMDDThhmmZ)
+            TASKSTART = $(isodatetime $TASK_START_POINT --print-format %Y,%m,%d,%H,%M)
+            TASKEND = $(isodatetime $TASK_START_POINT $TASK_START_POINT --calendar={{task_values["expt_calendar"]}} --offset='PT{{segment_length}}S' --print-format y,m,d,h,M,s)
+            TASKLENGTH = $(isodatetime $TASK_START_POINT $TASK_START_POINT --calendar={{task_values["expt_calendar"]}} --offset2='PT{{segment_length}}S' --print-format y,m,d,h,M,s)
             PREVIOUS_CYCLE =
             NEMO_RESTART_MULTI =
             NEMO_START = {{task_values["nemo_start"]}}
@@ -45,8 +71,15 @@
             RIVERS_ONLY_DRIVE_TASK = {{task_values["rivers_only_drive_task"]}}
             RIVERS_ONLY_INSTALL_DIR = {{task_values["rivers_only_install_dir"]}}
             RIVER_NPROC = {{task_values["river_nproc"]}}
-            RIVER_START =
+            RIVER_DATA = {{history_dir}}/{{task_values["river_rst"]}}
             RIV_NUMBER_ANCILLARY = {{task_values["riv_number_ancillary"]}}
+{% if continuation %}
+            RIVER_START = $(ls -1t $RIVER_DATA/*.dump.*.nc 2>/dev/null | head -n 1)
+            RIVER_STORAGE_FILE =
+{% else %}
+            RIVER_START = {{task_values["river_start"]}}
+            RIVER_STORAGE_FILE = {{task_values["river_storage_ancil"]}}
+{% endif %}
 
 {# other environment variables #}
 
