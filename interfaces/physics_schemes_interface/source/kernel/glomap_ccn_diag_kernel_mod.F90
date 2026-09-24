@@ -60,14 +60,12 @@ module glomap_ccn_diag_kernel_mod
 
   type, public, extends(kernel_type) :: glomap_ccn_diag_kernel_type
     private
-    type(arg_type) :: meta_args(23) = (/                &
+    type(arg_type) :: meta_args(21) = (/                &
          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, WTHETA), & ! ccn_no_conc_3nm
          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, WTHETA), & ! ccn_no_conc_30nm
          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, WTHETA), & ! ccn_no_conc_50nm
          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, WTHETA), & ! mconc_du_acc_ins
          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, WTHETA), & ! mconc_du_cor_ins
-         arg_type(GH_SCALAR, GH_REAL, GH_READ),          & ! p_zero
-         arg_type(GH_SCALAR, GH_REAL, GH_READ),          & ! one_over_kappa
          arg_type(GH_SCALAR, GH_REAL, GH_READ),          & ! rd
          arg_type(GH_FIELD,  GH_REAL, GH_READ,  WTHETA), & ! rho_in_wth
          arg_type(GH_FIELD,  GH_REAL, GH_READ,  WTHETA), & ! n_ait_sol
@@ -108,9 +106,6 @@ contains
 !!                                      accumulation insoluble mode
 !> @param[in,out] mconc_du_cor_ins     Dust mass concentration in the
 !!                                      coarse insoluble mode
-!> @param[in]     p_zero               Reference surface pressure
-!> @param[in]     one_over_kappa       Reciprocal of the ratio of the gas
-!!                                      constant to the specific heat
 !> @param[in]     rd                   Gas constant for dry air
 !> @param[in]     rho_in_wth           Dry air density in potential
 !!                                      temperature space
@@ -147,8 +142,6 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
                                  ccn_number_conc_50nm,                         &
                                  mconc_du_acc_ins,                             &
                                  mconc_du_cor_ins,                             &
-                                 p_zero,                                       &
-                                 one_over_kappa,                               &
                                  rd,                                           &
                                  rho_in_wth,                                   &
                                  n_ait_sol,                                    &
@@ -188,8 +181,6 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
   real(kind=r_def), pointer, dimension(:), intent(inout) :: mconc_du_acc_ins
   real(kind=r_def), pointer, dimension(:), intent(inout) :: mconc_du_cor_ins
 
-  real(kind=r_def), intent(in) :: p_zero
-  real(kind=r_def), intent(in) :: one_over_kappa
   real(kind=r_def), intent(in) :: rd
 
   real(kind=r_def), intent(in), dimension(undf_wth) :: rho_in_wth

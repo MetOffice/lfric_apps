@@ -72,7 +72,7 @@ contains
                                           cor_ins_du )
 
     use glomap_ccn_diag_kernel_mod, only: glomap_ccn_diag_kernel_type
-    use planet_config_mod,          only: p_zero, one_over_kappa, rd
+    use planet_config_mod,          only: rd
 
     implicit none
 
@@ -140,8 +140,6 @@ contains
                                               ccn_number_conc_50nm,          &
                                               mconc_du_acc_ins,              &
                                               mconc_du_cor_ins,              &
-                                              p_zero,                        &
-                                              one_over_kappa,                &
                                               rd,                            &
                                               rho_in_wth,                    &
                                               n_ait_sol,                     &
