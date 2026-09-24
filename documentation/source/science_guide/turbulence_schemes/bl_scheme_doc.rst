@@ -6,7 +6,7 @@
 
 .. attention::
 
-   This documentation has been transfered directly from the UM to LFRic;
+   This documentation has been transferred directly from the UM to LFRic;
    It is still a work in progress. There are still UM-specific references
    and terminology that are yet to be updated.
 
