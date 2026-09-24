@@ -258,6 +258,7 @@ module atlt_transport_controller_alg_mod
     rf_rf_inp_inner_prod = 0.0_r_def
     call atl_transport_controller_initialiser( tl_transport_controller, &
                                                model_clock,             &
+                                               stepper_siqn,            &
                                                ref_field_rdef,          &
                                                wind_n_rdef,             &
                                                wind_np1_rdef )

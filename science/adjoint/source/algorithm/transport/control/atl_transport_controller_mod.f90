@@ -8,6 +8,7 @@ module atl_transport_controller_mod
 
   use adj_transport_controller_mod, only: adj_ls_wind_pert_rho_initialiser, &
                                           adj_pert_wind_ls_rho_initialiser
+  use constants_mod,                only: i_def
   use field_mod,                    only: field_type
   use model_clock_mod,              only: model_clock_type
   use tl_transport_controller_mod,  only: tl_transport_controller_type
@@ -23,12 +24,14 @@ module atl_transport_controller_mod
   !> @brief Adjoint of the initialisation of the tl_transport_controller object
   !> @param[in,out] tl_transport_controller  The tangent linear transport controller object
   !> @param[in]     model_clock              Tracks the time within the model
+  !> @param[in]     stepper                  Enumerator for timestepper
   !> @param[in,out] ref_field_rdef           Perturbed reference density to use for
   !!                                         conservative transport of tracers.
   !> @param[in,out] wind_n_rdef              Perturbed wind at n-th time level.
   !> @param[in,out] wind_np1_rdef            Perturbed wind at (n+1)-th time level.
   subroutine atl_transport_controller_initialiser( tl_transport_controller, &
                                                    model_clock,             &
+                                                   stepper,                 &
                                                    ref_field_rdef,          &
                                                    wind_n_rdef,             &
                                                    wind_np1_rdef )
@@ -37,6 +40,7 @@ module atl_transport_controller_mod
     ! Arguments
     type(tl_transport_controller_type), intent(inout) :: tl_transport_controller
     type(model_clock_type),                intent(in) :: model_clock
+    integer(kind=i_def),                   intent(in) :: stepper
     type(field_type),                   intent(inout) :: ref_field_rdef
     type(field_type),                   intent(inout) :: wind_n_rdef
     type(field_type),                   intent(inout) :: wind_np1_rdef
@@ -50,6 +54,7 @@ module atl_transport_controller_mod
 
     call adj_pert_wind_ls_rho_initialiser( pert_wind_ls_rho_controller, &
                                            model_clock,                 &
+                                           stepper,                     &
                                            wind_n_rdef,                 &
                                            wind_np1_rdef )
     call adj_ls_wind_pert_rho_initialiser( ls_wind_pert_rho_controller, &

@@ -276,7 +276,7 @@ contains
                                                ref_field_rtran )
 
     call atl_transport_controller_initialiser( tl_transport_controller,         &
-                                               model_clock,                     &
+                                               model_clock, stepper,            &
                                                advected_fields(igh_d),          &
                                                wind_n,                          &
                                                wind_np1 )
