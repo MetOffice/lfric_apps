@@ -184,7 +184,7 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
                                  cor_ins_du,                                   &
                                  ndf_wth, undf_wth, map_wth )
 
-  use constants_mod,                   only: r_def, i_def
+  use constants_mod,                   only: r_def, i_def, l_def
   use science_chemistry_constants_mod, only: boltzmann
 
   implicit none
@@ -259,15 +259,15 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
   real(kind=r_def) :: tail_sum       ! Running sum over the modes
 
   ! Which diagnostics have real data behind them
-  logical :: l_ccn_3nm
-  logical :: l_ccn_30nm
-  logical :: l_ccn_50nm
-  logical :: l_du_acc_ins
-  logical :: l_du_cor_ins
-  logical :: l_number_conc
+  logical(kind=l_def) :: l_ccn_3nm
+  logical(kind=l_def) :: l_ccn_30nm
+  logical(kind=l_def) :: l_ccn_50nm
+  logical(kind=l_def) :: l_du_acc_ins
+  logical(kind=l_def) :: l_du_cor_ins
+  logical(kind=l_def) :: l_number_conc
 
   ! Which modes hold particles at this level
-  logical, dimension(nmodes_diag) :: l_mode_populated
+  logical(kind=l_def), dimension(nmodes_diag) :: l_mode_populated
 
   integer(kind=i_def) :: k, imode
 
