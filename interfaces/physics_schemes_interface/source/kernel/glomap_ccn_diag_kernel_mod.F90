@@ -60,13 +60,19 @@ module glomap_ccn_diag_kernel_mod
 
   type, public, extends(kernel_type) :: glomap_ccn_diag_kernel_type
     private
-    type(arg_type) :: meta_args(21) = (/                &
+    type(arg_type) :: meta_args(27) = (/                &
          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, WTHETA), & ! ccn_no_conc_3nm
          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, WTHETA), & ! ccn_no_conc_30nm
          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, WTHETA), & ! ccn_no_conc_50nm
          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, WTHETA), & ! mconc_du_acc_ins
          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, WTHETA), & ! mconc_du_cor_ins
          arg_type(GH_SCALAR, GH_REAL, GH_READ),          & ! rd
+         arg_type(GH_SCALAR, GH_REAL, GH_READ),          & ! sigmag_ait_sol
+         arg_type(GH_SCALAR, GH_REAL, GH_READ),          & ! sigmag_acc_sol
+         arg_type(GH_SCALAR, GH_REAL, GH_READ),          & ! sigmag_cor_sol
+         arg_type(GH_SCALAR, GH_REAL, GH_READ),          & ! sigmag_ait_ins
+         arg_type(GH_SCALAR, GH_REAL, GH_READ),          & ! sigmag_acc_ins
+         arg_type(GH_SCALAR, GH_REAL, GH_READ),          & ! sigmag_cor_ins
          arg_type(GH_FIELD,  GH_REAL, GH_READ,  WTHETA), & ! rho_in_wth
          arg_type(GH_FIELD,  GH_REAL, GH_READ,  WTHETA), & ! n_ait_sol
          arg_type(GH_FIELD,  GH_REAL, GH_READ,  WTHETA), & ! n_acc_sol
@@ -107,6 +113,18 @@ contains
 !> @param[in,out] mconc_du_cor_ins     Dust mass concentration in the
 !!                                      coarse insoluble mode
 !> @param[in]     rd                   Gas constant for dry air
+!> @param[in]     sigmag_ait_sol       Aitken soluble mode geometric
+!!                                      standard deviation
+!> @param[in]     sigmag_acc_sol       Accumulation soluble mode geometric
+!!                                      standard deviation
+!> @param[in]     sigmag_cor_sol       Coarse soluble mode geometric
+!!                                      standard deviation
+!> @param[in]     sigmag_ait_ins       Aitken insoluble mode geometric
+!!                                      standard deviation
+!> @param[in]     sigmag_acc_ins       Accumulation insoluble mode geometric
+!!                                      standard deviation
+!> @param[in]     sigmag_cor_ins       Coarse insoluble mode geometric
+!!                                      standard deviation
 !> @param[in]     rho_in_wth           Dry air density in potential
 !!                                      temperature space
 !> @param[in]     n_ait_sol            Aitken soluble mode number mixing ratio
@@ -143,6 +161,12 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
                                  mconc_du_acc_ins,                             &
                                  mconc_du_cor_ins,                             &
                                  rd,                                           &
+                                 sigmag_ait_sol,                               &
+                                 sigmag_acc_sol,                               &
+                                 sigmag_cor_sol,                               &
+                                 sigmag_ait_ins,                               &
+                                 sigmag_acc_ins,                               &
+                                 sigmag_cor_ins,                               &
                                  rho_in_wth,                                   &
                                  n_ait_sol,                                    &
                                  n_acc_sol,                                    &
@@ -182,6 +206,12 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
   real(kind=r_def), pointer, dimension(:), intent(inout) :: mconc_du_cor_ins
 
   real(kind=r_def), intent(in) :: rd
+  real(kind=r_def), intent(in) :: sigmag_ait_sol
+  real(kind=r_def), intent(in) :: sigmag_acc_sol
+  real(kind=r_def), intent(in) :: sigmag_cor_sol
+  real(kind=r_def), intent(in) :: sigmag_ait_ins
+  real(kind=r_def), intent(in) :: sigmag_acc_ins
+  real(kind=r_def), intent(in) :: sigmag_cor_ins
 
   real(kind=r_def), intent(in), dimension(undf_wth) :: rho_in_wth
   real(kind=r_def), intent(in), dimension(undf_wth) :: n_ait_sol
@@ -206,12 +236,8 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
   ! accumulation insoluble, coarse insoluble
   integer(kind=i_def), parameter :: nmodes_diag = 6
 
-  ! Geometric standard deviation of each mode, taken from the UKCA 7-mode
-  ! setup i_sussbcocdu_7mode (ukca_mode_setup sigmag), with the leading
-  ! nucleation-soluble entry dropped
-  real(kind=r_def), parameter :: sigmag(nmodes_diag) =                        &
-      (/ 1.59_r_def, 1.40_r_def, 2.00_r_def,                                  &
-         1.59_r_def, 1.59_r_def, 2.00_r_def /)
+  ! Geometric standard deviation of each mode
+  real(kind=r_def), dimension(nmodes_diag) :: sigmag
 
   ! Dry diameter thresholds of the three diagnostics (m)
   real(kind=r_def), parameter :: dp0_cn   =  3.0e-9_r_def
@@ -267,6 +293,8 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
   !---------------------------------------------------------------------------
 
   if ( l_number_conc ) then
+    sigmag = (/ sigmag_ait_sol, sigmag_acc_sol, sigmag_cor_sol,               &
+                sigmag_ait_ins, sigmag_acc_ins, sigmag_cor_ins /)
     do imode = 1, nmodes_diag
       recip_width(imode) = 1.0_r_def / ( root_two * log( sigmag(imode) ) )
     end do

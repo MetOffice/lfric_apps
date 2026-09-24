@@ -15,7 +15,7 @@
 
 module glomap_ccn_diags_mod
 
-  use constants_mod,              only: l_def
+  use constants_mod,              only: l_def, r_def
   use field_mod,                  only: field_type
   use mesh_mod,                   only: mesh_type
   use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
@@ -39,6 +39,9 @@ contains
   !>          RADAER timesteps on the GLOMAP climatology path, so requesting
   !>          the number concentrations more frequently than the RADAER call
   !>          reuses the diameters of the most recent RADAER timestep.
+  !> @param[in] glomap_vars   GLOMAP mode setup of the calling aerosol scheme,
+  !!                          which holds the geometric standard deviation
+  !!                          of each mode
   !> @param[in] rho_in_wth    Dry air density in potential temperature space
   !> @param[in] n_ait_sol     Aitken soluble mode number mixing ratio
   !> @param[in] n_acc_sol     Accumulation soluble mode number mixing ratio
@@ -55,7 +58,8 @@ contains
   !> @param[in] acc_ins_du    Accumulation insoluble mode dust mass mixing
   !!                          ratio
   !> @param[in] cor_ins_du    Coarse insoluble mode dust mass mixing ratio
-  subroutine output_diags_for_glomap_ccn( rho_in_wth,                          &
+  subroutine output_diags_for_glomap_ccn( glomap_vars,                         &
+                                          rho_in_wth,                          &
                                           n_ait_sol,                           &
                                           n_acc_sol,                           &
                                           n_cor_sol,                           &
@@ -73,9 +77,14 @@ contains
 
     use glomap_ccn_diag_kernel_mod, only: glomap_ccn_diag_kernel_type
     use planet_config_mod,          only: rd
+    use ukca_mode_setup,            only: glomap_variables_type,             &
+                                          mode_ait_sol, mode_acc_sol,        &
+                                          mode_cor_sol, mode_ait_insol,      &
+                                          mode_acc_insol, mode_cor_insol
 
     implicit none
 
+    type( glomap_variables_type ), intent(in) :: glomap_vars
     type( field_type ), intent(in) :: rho_in_wth
     type( field_type ), intent(in) :: n_ait_sol
     type( field_type ), intent(in) :: n_acc_sol
@@ -97,6 +106,13 @@ contains
     type( field_type ) :: ccn_number_conc_50nm
     type( field_type ) :: mconc_du_acc_ins
     type( field_type ) :: mconc_du_cor_ins
+
+    real( kind=r_def ) :: sigmag_ait_sol
+    real( kind=r_def ) :: sigmag_acc_sol
+    real( kind=r_def ) :: sigmag_cor_sol
+    real( kind=r_def ) :: sigmag_ait_ins
+    real( kind=r_def ) :: sigmag_acc_ins
+    real( kind=r_def ) :: sigmag_cor_ins
 
     logical( kind=l_def ) :: ccn_3nm_flag
     logical( kind=l_def ) :: ccn_30nm_flag
@@ -133,6 +149,15 @@ contains
                                 'aerosol__mconc_du_cor_ins',                   &
                                  force_mesh = aerosol_mesh )
 
+    ! Geometric standard deviations of the six modes the kernel sums over,
+    ! taken from the mode setup so they follow the configured modes
+    sigmag_ait_sol = real( glomap_vars%sigmag(mode_ait_sol),   r_def )
+    sigmag_acc_sol = real( glomap_vars%sigmag(mode_acc_sol),   r_def )
+    sigmag_cor_sol = real( glomap_vars%sigmag(mode_cor_sol),   r_def )
+    sigmag_ait_ins = real( glomap_vars%sigmag(mode_ait_insol), r_def )
+    sigmag_acc_ins = real( glomap_vars%sigmag(mode_acc_insol), r_def )
+    sigmag_cor_ins = real( glomap_vars%sigmag(mode_cor_insol), r_def )
+
     ! The kernel fills only the fields that carry real data; the others
     ! still point at the shared empty data array and are left untouched
     call invoke( glomap_ccn_diag_kernel_type( ccn_number_conc_3nm,           &
@@ -141,6 +166,12 @@ contains
                                               mconc_du_acc_ins,              &
                                               mconc_du_cor_ins,              &
                                               rd,                            &
+                                              sigmag_ait_sol,                &
+                                              sigmag_acc_sol,                &
+                                              sigmag_cor_sol,                &
+                                              sigmag_ait_ins,                &
+                                              sigmag_acc_ins,                &
+                                              sigmag_cor_ins,                &
                                               rho_in_wth,                    &
                                               n_ait_sol,                     &
                                               n_acc_sol,                     &

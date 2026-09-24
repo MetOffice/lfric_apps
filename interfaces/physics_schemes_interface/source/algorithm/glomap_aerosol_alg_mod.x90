@@ -29,6 +29,7 @@ module glomap_aerosol_alg_mod
   use fs_continuity_mod,               only: Wtheta
   use intermesh_mappings_alg_mod,      only: map_scalar_intermesh
   use glomap_ccn_diags_mod,            only: output_diags_for_glomap_ccn
+  use ukca_config_specification_mod,   only: glomap_variables_climatology
 
   implicit none
 
@@ -376,7 +377,8 @@ contains
 
       ! Cloud condensation nuclei number concentrations and dust mass
       ! concentrations, computed only when requested
-      call output_diags_for_glomap_ccn( rho_in_wth,                            &
+      call output_diags_for_glomap_ccn( glomap_variables_climatology,          &
+                                        rho_in_wth,                            &
                                         n_ait_sol,                             &
                                         n_acc_sol,                             &
                                         n_cor_sol,                             &

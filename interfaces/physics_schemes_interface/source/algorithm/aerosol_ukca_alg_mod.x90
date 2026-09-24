@@ -73,6 +73,7 @@ contains
     use physics_constants_mod,         only: get_rdz_w3
     use aerosol_ukca_kernel_mod,       only: aerosol_ukca_kernel_type
     use glomap_ccn_diags_mod,          only: output_diags_for_glomap_ccn
+    use ukca_config_specification_mod, only: glomap_variables
     use io_config_mod,                 only: use_xios_io, write_diag
     use xios,                          only: xios_date, xios_get_current_date, &
                                              xios_date_get_day_of_year
@@ -1665,7 +1666,8 @@ contains
 
       ! Cloud condensation nuclei number concentrations and dust mass
       ! concentrations, computed only when requested
-      call output_diags_for_glomap_ccn( rho_in_wth,                            &
+      call output_diags_for_glomap_ccn( glomap_variables,                      &
+                                        rho_in_wth,                            &
                                         n_ait_sol,                             &
                                         n_acc_sol,                             &
                                         n_cor_sol,                             &
