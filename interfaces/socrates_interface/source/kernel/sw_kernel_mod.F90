@@ -721,6 +721,7 @@ subroutine sw_code(nlayers, n_profile, &
 
   max_threads = 1
   !$ max_threads = omp_get_max_threads()
+
   do k = 0, nlayers
     profile_list = pack( [(l, l=1, n_profile)], &
                          lit_fraction_rts(twod_1:twod_last) > 0.0_r_def &

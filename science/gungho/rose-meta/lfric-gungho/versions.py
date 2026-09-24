@@ -129,3 +129,23 @@ class vn32_t699(MacroUpgrade):
         )
 
         return config, self.reports
+
+
+class vn32_t723(MacroUpgrade):
+    """Upgrade macro for ticket #723 by Benjamin Went."""
+
+    BEFORE_TAG = "vn3.2_t744"
+    AFTER_TAG = "vn3.2_t723"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        """
+        Set segmentation size limit for short and long wave radiation
+        inc kernels for ral jobs
+        """
+        self.add_setting(
+            config, ["namelist:physics", "sw_inc_segment_limit"], "32")
+        self.add_setting(
+            config, ["namelist:physics", "lw_inc_segment_limit"], "32")
+
+        return config, self.reports
