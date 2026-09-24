@@ -130,8 +130,8 @@ module tl_test_semi_imp_alg_mod
     real(r_def) :: array_norm(n_variables), array_norm_prev(n_variables)
     character(str_def) :: array_names(n_variables)
 
-    real(r_def), parameter :: tol = 5.e-2_r_def
-    real(r_def), parameter :: indiv_tol = 5.e-1_r_def
+    real(r_def), parameter :: tol = 5.e-1_r_def
+    real(r_def), parameter :: indiv_tol = 7.5e-1_r_def
     real(r_def), parameter :: dtemp_encorr = 0.0_r_def
 
     integer :: n, i

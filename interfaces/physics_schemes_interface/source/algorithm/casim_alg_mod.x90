@@ -45,6 +45,7 @@ contains
   !>@param[in]     cloud_fields           Fields for cloud scheme
   !>@param[in]     aerosol_fields         Fields for the aerosol schemes
   !>@param[in]     turbulence_fields      Fields for turbulence scheme
+  !>@param[in]     convection_fields      Fields for convection scheme
   !>@param[in]     mesh                   Current mesh
   !>@param[in,out] dmr_mphys      Mixing ratio increment due to microphysics
   !>@param[in,out] theta_inc      Potential temperature increment in wth space
@@ -54,7 +55,7 @@ contains
   subroutine casim_alg( config,                                                &
                         mr_n, theta, dry_rho_in_w3, derived_fields,            &
                         microphysics_fields, cloud_fields, aerosol_fields,     &
-                        turbulence_fields, mesh,                               &
+                        turbulence_fields, convection_fields, mesh,            &
                         dmr_mphys, theta_inc, dcfl, dcff, dbcf )
 
     use casim_kernel_mod, only: casim_kernel_type
@@ -77,6 +78,7 @@ contains
     type( field_collection_type ), intent(in)    :: cloud_fields
     type( field_collection_type ), intent(in)    :: aerosol_fields
     type( field_collection_type ), intent(in)    :: turbulence_fields
+    type( field_collection_type ), intent(in)    :: convection_fields
 
     type( field_type ), intent( inout ) :: dmr_mphys ( nummr )
     type( field_type ), intent( inout ) :: theta_inc
@@ -108,6 +110,7 @@ contains
     type( field_type ), pointer :: ni_mphys            => null()
     type( field_type ), pointer :: ns_mphys            => null()
     type( field_type ), pointer :: ng_mphys            => null()
+    type( field_type ), pointer :: conv_ppn_frac
 
     ! In cloud value passed to radiation
     type( field_type ), pointer :: cloud_drop_no_conc  => null()
@@ -166,6 +169,7 @@ contains
     call microphysics_fields%get_field('ni_mphys',ni_mphys)
     call microphysics_fields%get_field('ns_mphys',ns_mphys)
     call microphysics_fields%get_field('ng_mphys',ng_mphys)
+    call convection_fields%get_field('conv_ppn_frac',conv_ppn_frac)
 
     call aerosol_fields%get_field('cloud_drop_no_conc',cloud_drop_no_conc)
     call aerosol_fields%get_field('murk', murk)
@@ -195,7 +199,7 @@ contains
                                      ls_rain_3d, ls_snow_3d, ls_graup_3d,      &
                                      theta_inc, cloud_drop_no_conc, murk,      &
                                      refl_tot, refl_1km,                       &
-                                     superc_liq, superc_rain ) )
+                                     superc_liq, superc_rain, conv_ppn_frac ) )
 
     if (turb_gen_mixph) then
       dz_in_wth => get_dz_at_wtheta(config, theta%get_mesh())

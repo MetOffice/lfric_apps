@@ -14,7 +14,7 @@ module apply_mixed_wp_operator_kernel_mod
 use argument_mod,      only : arg_type,              &
                               GH_FIELD, GH_OPERATOR, &
                               GH_READ,               &
-                              GH_WRITE,              &
+                              GH_READWRITE,          &
                               GH_REAL, CELL_COLUMN
 use constants_mod,     only : r_solver, i_def
 use kernel_mod,        only : kernel_type
@@ -28,21 +28,21 @@ private
 !-------------------------------------------------------------------------------
 type, public, extends(kernel_type) :: apply_mixed_wp_operator_kernel_type
   private
-  type(arg_type) :: meta_args(14) = (/                       &
-       arg_type(GH_FIELD,    GH_REAL, GH_WRITE, W2v),        & ! lhs_w
-       arg_type(GH_FIELD,    GH_REAL, GH_WRITE, W3),         & ! lhs_p
-       arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2h),        & ! uv'
-       arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2v),        & ! w'
-       arg_type(GH_FIELD,    GH_REAL, GH_READ,  W3),         & ! exner'
-       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  Wtheta, W2), & ! Ptheta2
-       arg_type(GH_FIELD,    GH_REAL, GH_READ,  Wtheta),     & ! Mtheta^-1
-       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W2, W2),     & ! Mu^{c,d}
-       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W2, Wtheta), & ! P2theta
-       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W2, W3),     & ! grad
-       arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2),         & ! norm_u
-       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, W3),     & ! m3p
-       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, W2),     & ! q32
-       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W3, Wtheta)  & ! p3t
+  type(arg_type) :: meta_args(14) = (/                           &
+       arg_type(GH_FIELD,    GH_REAL, GH_READWRITE, W2v),        & ! lhs_w
+       arg_type(GH_FIELD,    GH_REAL, GH_READWRITE, W3),         & ! lhs_p
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,      W2h),        & ! uv'
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,      W2v),        & ! w'
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,      W3),         & ! exner'
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,      Wtheta, W2), & ! Ptheta2
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,      Wtheta),     & ! Mtheta^-1
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,      W2, W2),     & ! Mu^{c,d}
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,      W2, Wtheta), & ! P2theta
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,      W2, W3),     & ! grad
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,      W2),         & ! norm_u
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,      W3, W3),     & ! m3p
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,      W3, W2),     & ! q32
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,      W3, Wtheta)  & ! p3t
        /)
   integer :: operates_on = CELL_COLUMN
   contains

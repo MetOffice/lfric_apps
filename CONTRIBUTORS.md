@@ -20,7 +20,7 @@
 | tom-j-h             | Tom Hill           | Met Office                       | 2026-01-27 |
 | mike-hobson         | Mike Hobson        | Met Office                       | 2025-12-17 |
 | EdHone              | Ed Hone            | Met Office                       | 2026-01-26 |
-| jirudaya            | Jaffery Irudayasamy | University of Edinburgh          | 2026-03-11 |
+| jirudaya            | Jaffery Irudayasamy | University of Edinburgh         | 2026-03-11 |
 | cjohnson-pi         | Christine Johnson  | Met Office                       | 2026-01-19 |
 | jameskent-metoffice | James Kent         | Met Office                       | 2026-01-21 |
 | Adrian-Lock         | Adrian Lock        | Met Office                       | 2026-01-09 |
@@ -37,12 +37,12 @@
 | harry-shepherd      | Harry Shepherd     | Met Office                       | 2026-01-08 |
 | Pierre-siddall      | Pierre Siddall     | Met Office                       | 2026-03-02 |
 | DanStoneMO          | Daniel Stone       | Met Office                       | 2026-02-26 |
-| ericaneininger      | Erica Neininger    | Met Office                       | 2026-03-02 |
 | hsrumbold           | Heather Rumbold    | Met Office                       | 2026-05-06 |
 | pdearnshaw          | Paul Earnshaw      | Met Office                       | 2026-05-07 |
 | SamanthaPullen      | Samantha Pullen    | Met Office                       | 2026-04-20 !
 | mo-lottieturner     | Lottie Turner      | Met Office                       | 2026-01-27 |
 | DrTVockerodtMO      | Terence Vockerodt  | Met Office                       | 2026-01-08 |
+| mattatmet           | Matthew Walker     | Met Office                       | 2026-04-21 |
 | MetBenjaminWent     | Benjamin Went      | Met Office                       | 2026-01-15 |
 | mo-rickywong        | Ricky Wong         | Met Office                       | 2026-02-24 |
 | theabro             | Nathan Luke Abraham | NCAS & University of Cambridge  | 2026-04-15 |
@@ -55,4 +55,7 @@
 | marcstring          | Marc Stringer      | NCAS, Reading University         | 2026-05-06 |
 | cameronbateman-mo   | Cameron Bateman    | Met Office                       | 2026-05-28 |
 | davelee2804         | David Lee          | Bureau of Meteorology, Australia | 2026-06-02 |
+| bblay-mo            | Byron Blay         | Met Office                       | 2026-07-01 |
+| ickc                | Kolen Cheung       | University of Exeter             | 2026-07-22 |
+| mo-snishimoto       | Shusuke Nishimoto  | Met Office                       | 2026-07-21 |
 | mo-cjsmith          | Chris Smith        | Met Office                       | 2026-09-02 |

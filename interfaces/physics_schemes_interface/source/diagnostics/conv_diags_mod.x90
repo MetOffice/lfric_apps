@@ -10,8 +10,10 @@ module conv_diags_mod
   use constants_mod,       only: l_def
   use field_mod,           only: field_type
   use timing_mod,          only: start_timing, stop_timing, tik, LPROF
-  use initialise_diagnostics_mod,     only : init_diag &
-                                             => init_diagnostic_field
+  use icao_heights_kernel_mod,    only: icao_heights_kernel_type
+  use planet_constants_mod,       only: g_over_r_def
+  use initialise_diagnostics_mod, only : init_diag => init_diagnostic_field, &
+                                         diag_samp => diagnostic_to_be_sampled
 
   implicit none
 
@@ -56,7 +58,9 @@ module conv_diags_mod
                       massflux_up_cmpta_flag,      &
                       cca_unadjusted_flag,         &
                       dth_conv_noshal_flag,        &
-                      dmv_conv_noshal_flag
+                      dmv_conv_noshal_flag,        &
+                      cloud_base_icao_height_flag, &
+                      cloud_top_icao_height_flag
 
   public :: initialise_diags_for_conv
   public :: output_diags_for_conv
@@ -106,7 +110,9 @@ contains
                                        massflux_up_cmpta,      &
                                        cca_unadjusted,         &
                                        dth_conv_noshal,        &
-                                       dmv_conv_noshal)
+                                       dmv_conv_noshal,        &
+                                       cloud_base_icao_height, &
+                                       cloud_top_icao_height)
 
     implicit none
 
@@ -154,7 +160,9 @@ contains
                                          massflux_up_cmpta,       &
                                          cca_unadjusted,          &
                                          dth_conv_noshal,         &
-                                         dmv_conv_noshal
+                                         dmv_conv_noshal,         &
+                                         cloud_base_icao_height,  &
+                                         cloud_top_icao_height
 
     logical(l_def) :: ignore
     integer(tik)   :: id
@@ -199,10 +207,20 @@ contains
     ! cv_base is zeroed because value tested in kernel
     call invoke( setval_c(cv_base, 0.0_r_def) )
 
-    pres_cv_base_flag = init_diag(pres_cv_base, 'convection__pres_cv_base')
+    cloud_base_icao_height_flag = init_diag(cloud_base_icao_height, &
+      'convection__conv_cloud_base_icao_height')
     ! not zeroed because overwritten
 
-    pres_cv_top_flag = init_diag(pres_cv_top, 'convection__pres_cv_top')
+    cloud_top_icao_height_flag = init_diag(cloud_top_icao_height, &
+      'convection__conv_cloud_top_icao_height')
+    ! not zeroed because overwritten
+
+    pres_cv_base_flag = init_diag(pres_cv_base, 'convection__pres_cv_base', &
+      activate=cloud_base_icao_height_flag)
+    ! not zeroed because overwritten
+
+    pres_cv_top_flag = init_diag(pres_cv_top, 'convection__pres_cv_top', &
+      activate=cloud_top_icao_height_flag)
     ! not zeroed because overwritten
 
     pres_lowest_cv_base_flag = init_diag(pres_lowest_cv_base, &
@@ -365,7 +383,9 @@ contains
                                     massflux_up_cmpta,      &
                                     cca_unadjusted,         &
                                     dth_conv_noshal,        &
-                                    dmv_conv_noshal)
+                                    dmv_conv_noshal,        &
+                                    cloud_base_icao_height, &
+                                    cloud_top_icao_height)
 
     implicit none
 
@@ -432,7 +452,9 @@ contains
                                        massflux_up_cmpta,      &
                                        cca_unadjusted,         &
                                        dth_conv_noshal,        &
-                                       dmv_conv_noshal
+                                       dmv_conv_noshal,        &
+                                       cloud_base_icao_height, &
+                                       cloud_top_icao_height
     integer( tik )  :: id
 
     if ( LPROF ) call start_timing( id, 'diags.conv' )
@@ -461,6 +483,20 @@ contains
     call conv_rain_3d%write_field('convection__conv_rain_3d')
     call conv_snow_3d%write_field('convection__conv_snow_3d')
     call cca_2d%write_field('convection__cca_2d')
+
+    ! Diagnostics calculated outside the kernel
+    ! 2D
+    if (cloud_base_icao_height_flag) then
+      call invoke(icao_heights_kernel_type( &
+        cloud_base_icao_height, pres_cv_base, g_over_r_def))
+      call cloud_base_icao_height%write_field()
+    end if
+
+    if (cloud_top_icao_height_flag) then
+      call invoke(icao_heights_kernel_type( &
+        cloud_top_icao_height, pres_cv_top, g_over_r_def))
+      call cloud_top_icao_height%write_field()
+    end if
 
     ! Diagnostics computed within the kernel
     ! 2D
@@ -510,4 +546,5 @@ contains
     if ( LPROF ) call stop_timing( id, 'diags.conv' )
 
   end subroutine output_diags_for_conv
+
 end module conv_diags_mod
