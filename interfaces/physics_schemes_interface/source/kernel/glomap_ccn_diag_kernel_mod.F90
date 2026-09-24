@@ -60,7 +60,7 @@ module glomap_ccn_diag_kernel_mod
 
   type, public, extends(kernel_type) :: glomap_ccn_diag_kernel_type
     private
-    type(arg_type) :: meta_args(24) = (/                &
+    type(arg_type) :: meta_args(23) = (/                &
          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, WTHETA), & ! cn_number_conc
          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, WTHETA), & ! ccn_no_conc_30nm
          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, WTHETA), & ! ccn_no_conc_50nm
@@ -68,8 +68,7 @@ module glomap_ccn_diag_kernel_mod
          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, WTHETA), & ! mconc_du_cor_ins
          arg_type(GH_SCALAR, GH_REAL, GH_READ),          & ! p_zero
          arg_type(GH_SCALAR, GH_REAL, GH_READ),          & ! one_over_kappa
-         arg_type(GH_FIELD,  GH_REAL, GH_READ,  WTHETA), & ! theta_in_wth
-         arg_type(GH_FIELD,  GH_REAL, GH_READ,  WTHETA), & ! exner_in_wth
+         arg_type(GH_SCALAR, GH_REAL, GH_READ),          & ! rd
          arg_type(GH_FIELD,  GH_REAL, GH_READ,  WTHETA), & ! rho_in_wth
          arg_type(GH_FIELD,  GH_REAL, GH_READ,  WTHETA), & ! n_ait_sol
          arg_type(GH_FIELD,  GH_REAL, GH_READ,  WTHETA), & ! n_acc_sol
@@ -112,9 +111,7 @@ contains
 !> @param[in]     p_zero               Reference surface pressure
 !> @param[in]     one_over_kappa       Reciprocal of the ratio of the gas
 !!                                      constant to the specific heat
-!> @param[in]     theta_in_wth         Potential temperature field
-!> @param[in]     exner_in_wth         Exner pressure in potential
-!!                                      temperature space
+!> @param[in]     rd                   Gas constant for dry air
 !> @param[in]     rho_in_wth           Dry air density in potential
 !!                                      temperature space
 !> @param[in]     n_ait_sol            Aitken soluble mode number mixing ratio
@@ -152,8 +149,7 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
                                  mconc_du_cor_ins,                             &
                                  p_zero,                                       &
                                  one_over_kappa,                               &
-                                 theta_in_wth,                                 &
-                                 exner_in_wth,                                 &
+                                 rd,                                           &
                                  rho_in_wth,                                   &
                                  n_ait_sol,                                    &
                                  n_acc_sol,                                    &
@@ -194,9 +190,8 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
 
   real(kind=r_def), intent(in) :: p_zero
   real(kind=r_def), intent(in) :: one_over_kappa
+  real(kind=r_def), intent(in) :: rd
 
-  real(kind=r_def), intent(in), dimension(undf_wth) :: theta_in_wth
-  real(kind=r_def), intent(in), dimension(undf_wth) :: exner_in_wth
   real(kind=r_def), intent(in), dimension(undf_wth) :: rho_in_wth
   real(kind=r_def), intent(in), dimension(undf_wth) :: n_ait_sol
   real(kind=r_def), intent(in), dimension(undf_wth) :: n_acc_sol
@@ -251,9 +246,6 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
   real(kind=r_def), dimension(nmodes_diag) :: number_conc
   real(kind=r_def), dimension(nmodes_diag) :: drydp
 
-  real(kind=r_def) :: exner_k        ! Exner pressure at this level
-  real(kind=r_def) :: pressure       ! Pressure at this level (Pa)
-  real(kind=r_def) :: temperature    ! Temperature at this level (K)
   real(kind=r_def) :: air_num_dens   ! Number density of air (cm-3)
   real(kind=r_def) :: tail_sum       ! Running sum over the modes
 
@@ -295,18 +287,16 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
 
   do k = 1, nlayers
 
-    exner_k     = exner_in_wth(map_wth(1) + k)
-    pressure    = p_zero * exner_k**one_over_kappa
-    temperature = exner_k * theta_in_wth(map_wth(1) + k)
-
     !-------------------------------------------------------------------------
     ! Number concentrations above each dry diameter threshold
     !-------------------------------------------------------------------------
 
     if ( l_number_conc ) then
 
-      ! Number density of air molecules from pressure and temperature
-      air_num_dens = pressure / ( temperature * boltzmann * m3_to_cm3 )
+      ! Number density of air molecules from the dry air density, since
+      ! rho * rd * T = p = n * boltzmann * T
+      air_num_dens = rho_in_wth(map_wth(1) + k) * rd                          &
+                     / ( boltzmann * m3_to_cm3 )
 
       ! Number mixing ratios are per air molecule, so scaling by the air
       ! number density gives particles per cubic centimetre

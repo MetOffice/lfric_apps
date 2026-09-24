@@ -1665,9 +1665,7 @@ contains
 
       ! CN and CCN number concentrations and dust mass concentrations,
       ! computed only when requested
-      call output_diags_for_glomap_ccn( state(igh_t),                          &
-                                        exner_in_wth,                          &
-                                        rho_in_wth,                            &
+      call output_diags_for_glomap_ccn( rho_in_wth,                            &
                                         n_ait_sol,                             &
                                         n_acc_sol,                             &
                                         n_cor_sol,                             &

@@ -39,8 +39,6 @@ contains
   !>          RADAER timesteps on the GLOMAP climatology path, so requesting
   !>          the number concentrations more frequently than the RADAER call
   !>          reuses the diameters of the most recent RADAER timestep.
-  !> @param[in] theta_in_wth  Potential temperature field
-  !> @param[in] exner_in_wth  Exner pressure in potential temperature space
   !> @param[in] rho_in_wth    Dry air density in potential temperature space
   !> @param[in] n_ait_sol     Aitken soluble mode number mixing ratio
   !> @param[in] n_acc_sol     Accumulation soluble mode number mixing ratio
@@ -57,9 +55,7 @@ contains
   !> @param[in] acc_ins_du    Accumulation insoluble mode dust mass mixing
   !!                          ratio
   !> @param[in] cor_ins_du    Coarse insoluble mode dust mass mixing ratio
-  subroutine output_diags_for_glomap_ccn( theta_in_wth,                        &
-                                          exner_in_wth,                        &
-                                          rho_in_wth,                          &
+  subroutine output_diags_for_glomap_ccn( rho_in_wth,                          &
                                           n_ait_sol,                           &
                                           n_acc_sol,                           &
                                           n_cor_sol,                           &
@@ -76,12 +72,10 @@ contains
                                           cor_ins_du )
 
     use glomap_ccn_diag_kernel_mod, only: glomap_ccn_diag_kernel_type
-    use planet_config_mod,          only: p_zero, one_over_kappa
+    use planet_config_mod,          only: p_zero, one_over_kappa, rd
 
     implicit none
 
-    type( field_type ), intent(in) :: theta_in_wth
-    type( field_type ), intent(in) :: exner_in_wth
     type( field_type ), intent(in) :: rho_in_wth
     type( field_type ), intent(in) :: n_ait_sol
     type( field_type ), intent(in) :: n_acc_sol
@@ -121,7 +115,7 @@ contains
     ! The aerosol scheme may run on a coarser mesh than the rest of the
     ! model, so derive the mesh from an input field rather than from the
     ! diagnostic metadata
-    aerosol_mesh => exner_in_wth%get_mesh()
+    aerosol_mesh => rho_in_wth%get_mesh()
 
     cn_flag       = init_diag( cn_number_conc,                                 &
                               'aerosol__ccn_number_conc_3nm',                  &
@@ -148,8 +142,7 @@ contains
                                               mconc_du_cor_ins,              &
                                               p_zero,                        &
                                               one_over_kappa,                &
-                                              theta_in_wth,                  &
-                                              exner_in_wth,                  &
+                                              rd,                            &
                                               rho_in_wth,                    &
                                               n_ait_sol,                     &
                                               n_acc_sol,                     &
