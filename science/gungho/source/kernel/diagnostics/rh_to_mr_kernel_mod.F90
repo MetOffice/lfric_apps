@@ -24,7 +24,7 @@ module rh_to_mr_kernel_mod
 #ifdef UM_PHYSICS
   use qsat_mod,                   only: qsat_mix
 #endif
-  use log_mod,                    only: log_event
+  use log_mod,                    only: log_event, LOG_LEVEL_ERROR
 
   implicit none
 
