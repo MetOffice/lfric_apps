@@ -244,11 +244,6 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
   real(kind=r_def), parameter :: dp0_30nm = 30.0e-9_r_def
   real(kind=r_def), parameter :: dp0_50nm = 50.0e-9_r_def
 
-  ! Smallest dry diameter admitted, well below any physical particle size.
-  ! Guards the logarithm against unset diameters, which are left at zero
-  ! until the first RADAER timestep on the climatology path.
-  real(kind=r_def), parameter :: drydp_min = 1.0e-12_r_def
-
   ! Square root of two, evaluated at run time so that it takes the
   ! precision of r_def
   real(kind=r_def) :: root_two
@@ -270,6 +265,9 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
   logical :: l_du_acc_ins
   logical :: l_du_cor_ins
   logical :: l_number_conc
+
+  ! Which modes hold particles at this level
+  logical, dimension(nmodes_diag) :: l_mode_populated
 
   integer(kind=i_def) :: k, imode
 
@@ -323,20 +321,28 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
       number_conc(5) = n_acc_ins(map_wth(1) + k) * air_num_dens
       number_conc(6) = n_cor_ins(map_wth(1) + k) * air_num_dens
 
-      drydp(1) = max( drydp_ait_sol(map_wth(1) + k), drydp_min )
-      drydp(2) = max( drydp_acc_sol(map_wth(1) + k), drydp_min )
-      drydp(3) = max( drydp_cor_sol(map_wth(1) + k), drydp_min )
-      drydp(4) = max( drydp_ait_ins(map_wth(1) + k), drydp_min )
-      drydp(5) = max( drydp_acc_ins(map_wth(1) + k), drydp_min )
-      drydp(6) = max( drydp_cor_ins(map_wth(1) + k), drydp_min )
+      drydp(1) = drydp_ait_sol(map_wth(1) + k)
+      drydp(2) = drydp_acc_sol(map_wth(1) + k)
+      drydp(3) = drydp_cor_sol(map_wth(1) + k)
+      drydp(4) = drydp_ait_ins(map_wth(1) + k)
+      drydp(5) = drydp_acc_ins(map_wth(1) + k)
+      drydp(6) = drydp_cor_ins(map_wth(1) + k)
+
+      ! Only sum over modes with particles in them. The dry diameters are
+      ! left at zero until the first RADAER timestep on the climatology
+      ! path, and an empty mode contributes nothing.
+      l_mode_populated = ( drydp > 0.0_r_def ) .and.                          &
+                         ( number_conc > 0.0_r_def )
 
       ! Cloud condensation nuclei: dry diameter > 3 nm
       if ( l_ccn_3nm ) then
         tail_sum = 0.0_r_def
         do imode = 1, nmodes_diag
-          tail_sum = tail_sum + 0.5_r_def * number_conc(imode) *              &
-              ( 1.0_r_def - erf( log( dp0_3nm / drydp(imode) )                &
-                                 * recip_width(imode) ) )
+          if ( l_mode_populated(imode) ) then
+            tail_sum = tail_sum + 0.5_r_def * number_conc(imode) *            &
+                ( 1.0_r_def - erf( log( dp0_3nm / drydp(imode) )              &
+                                   * recip_width(imode) ) )
+          end if
         end do
         ccn_number_conc_3nm(map_wth(1) + k) = tail_sum
       end if
@@ -345,9 +351,11 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
       if ( l_ccn_30nm ) then
         tail_sum = 0.0_r_def
         do imode = 1, nmodes_diag
-          tail_sum = tail_sum + 0.5_r_def * number_conc(imode) *              &
-              ( 1.0_r_def - erf( log( dp0_30nm / drydp(imode) )               &
-                                 * recip_width(imode) ) )
+          if ( l_mode_populated(imode) ) then
+            tail_sum = tail_sum + 0.5_r_def * number_conc(imode) *            &
+                ( 1.0_r_def - erf( log( dp0_30nm / drydp(imode) )             &
+                                   * recip_width(imode) ) )
+          end if
         end do
         ccn_number_conc_30nm(map_wth(1) + k) = tail_sum
       end if
@@ -356,9 +364,11 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
       if ( l_ccn_50nm ) then
         tail_sum = 0.0_r_def
         do imode = 1, nmodes_diag
-          tail_sum = tail_sum + 0.5_r_def * number_conc(imode) *              &
-              ( 1.0_r_def - erf( log( dp0_50nm / drydp(imode) )               &
-                                 * recip_width(imode) ) )
+          if ( l_mode_populated(imode) ) then
+            tail_sum = tail_sum + 0.5_r_def * number_conc(imode) *            &
+                ( 1.0_r_def - erf( log( dp0_50nm / drydp(imode) )             &
+                                   * recip_width(imode) ) )
+          end if
         end do
         ccn_number_conc_50nm(map_wth(1) + k) = tail_sum
       end if
