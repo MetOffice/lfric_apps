@@ -26,6 +26,7 @@
 .. attention::
 
    This documentation has been transferred directly from the UM to LFRic;
+   (UMDP 030: The PC2 Cloud Scheme).
    It is still a work in progress. There are still UM-specific references
    and terminology that are yet to be updated.
 
