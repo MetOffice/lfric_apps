@@ -83,7 +83,6 @@ contains
   integer( kind=i_def ), intent(in) :: nlayers
 
   real( kind=r_def )          :: dt_rdef
-!  real( kind=r_def )          :: vapour_field(number_heights)
   real( kind=r_def )          :: vapour_target(number_heights)
   real( kind=r_def )          :: relaxation_coeff
   integer( kind=i_def )       :: k
@@ -110,7 +109,7 @@ contains
   end select
 
   ! Only apply relaxation between the specified times, unless only
-  ! one time is specified. In the later case relaxation applies at all times.
+  ! one time is specified. In the latter case relaxation applies at all times.
   if ( number_times > 1 .and. &
        ( time_now < times(1) .or. time_now > times(number_times) ) ) return
 
