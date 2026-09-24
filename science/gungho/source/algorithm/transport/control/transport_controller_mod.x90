@@ -396,7 +396,8 @@ contains
                                        watkins_fail_field,                     &
                                        wind_flux,                              &
                                        dt_one,                                 &
-                                       detj_at_w3),                            &
+                                       detj_at_w3,                             &
+                                       1),                                     &
                    ! Determine the adjusted wind for the final step
                    X_minus_Y(step_3_wind_flux, vert_wind_flux, step_1_wind_flux) )
 
@@ -672,7 +673,8 @@ contains
                                          watkins_fail_field,                   &
                                          ref_flux_one_step,                    &
                                          dt_one,                               &
-                                         ref_mass),                            &
+                                         ref_mass,                             &
+                                         self%num_substeps),                   &
                      ! Determine the adjusted wind for the final step
                      X_minus_Y(step_3_flux, vert_flux, step_1_flux) )
 
@@ -883,14 +885,16 @@ contains
     type(flux_precomputations_type), pointer :: ffsl_precomputations
     type(mesh_type),                 pointer :: mesh
     type(r_tran_field_type)                  :: wind_flux
+    real(kind=r_tran)                        :: dt_whole_step
 
     ! If object is not created, then create it here
     if (.not. self%ffsl_precomputations%is_initialised()) then
       mesh => self%transporting_wind%get_mesh()
 
       ! Wind needs multiplying by dt
+      dt_whole_step = self%dt_substep * real(self%num_substeps, r_tran)
       call self%transporting_wind%copy_field_properties(wind_flux)
-      call invoke( a_times_X(wind_flux, self%dt_substep, self%transporting_wind) )
+      call invoke( a_times_X(wind_flux, dt_whole_step, self%transporting_wind) )
 
       ! Since the object has not already been created, we initialise it with the
       ! 3D wind, rather than a wind flux for each split step
