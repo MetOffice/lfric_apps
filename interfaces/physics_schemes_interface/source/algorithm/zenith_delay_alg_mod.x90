@@ -30,9 +30,9 @@ module zenith_delay_alg_mod
 contains
 
   !> @brief   Output diagnostic of zenith total delay
-  !> @details Port of the UM PWS diagnostic (STASH m01s20i060). The whole
-  !>          calculation is done inside the request guard, in a single
-  !>          column kernel.
+  !> @details The excess path length a signal accumulates travelling
+  !>          vertically through the atmosphere. The whole calculation is
+  !>          done inside the request guard, in a single column kernel.
   !> @param[in]  config     Application namelist configuration object
   !> @param[in]  exner_w3   Exner pressure in W3 space
   !> @param[in]  exner_wth  Exner pressure in Wtheta space
