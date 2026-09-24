@@ -92,13 +92,13 @@ contains
     type( field_type ), intent(in) :: acc_ins_du
     type( field_type ), intent(in) :: cor_ins_du
 
-    type( field_type ) :: cn_number_conc
+    type( field_type ) :: ccn_number_conc_3nm
     type( field_type ) :: ccn_number_conc_30nm
     type( field_type ) :: ccn_number_conc_50nm
     type( field_type ) :: mconc_du_acc_ins
     type( field_type ) :: mconc_du_cor_ins
 
-    logical( kind=l_def ) :: cn_flag
+    logical( kind=l_def ) :: ccn_3nm_flag
     logical( kind=l_def ) :: ccn_30nm_flag
     logical( kind=l_def ) :: ccn_50nm_flag
     logical( kind=l_def ) :: du_acc_ins_flag
@@ -117,7 +117,7 @@ contains
     ! diagnostic metadata
     aerosol_mesh => rho_in_wth%get_mesh()
 
-    cn_flag       = init_diag( cn_number_conc,                                 &
+    ccn_3nm_flag  = init_diag( ccn_number_conc_3nm,                            &
                               'aerosol__ccn_number_conc_3nm',                  &
                                force_mesh = aerosol_mesh )
     ccn_30nm_flag = init_diag( ccn_number_conc_30nm,                           &
@@ -135,7 +135,7 @@ contains
 
     ! The kernel fills only the fields that carry real data; the others
     ! still point at the shared empty data array and are left untouched
-    call invoke( glomap_ccn_diag_kernel_type( cn_number_conc,                &
+    call invoke( glomap_ccn_diag_kernel_type( ccn_number_conc_3nm,           &
                                               ccn_number_conc_30nm,          &
                                               ccn_number_conc_50nm,          &
                                               mconc_du_acc_ins,              &
@@ -159,7 +159,7 @@ contains
                                               acc_ins_du,                    &
                                               cor_ins_du ) )
 
-    if ( cn_flag )         call cn_number_conc%write_field()
+    if ( ccn_3nm_flag )    call ccn_number_conc_3nm%write_field()
     if ( ccn_30nm_flag )   call ccn_number_conc_30nm%write_field()
     if ( ccn_50nm_flag )   call ccn_number_conc_50nm%write_field()
     if ( du_acc_ins_flag ) call mconc_du_acc_ins%write_field()

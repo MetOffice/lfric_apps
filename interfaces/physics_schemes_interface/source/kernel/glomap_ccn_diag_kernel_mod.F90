@@ -61,7 +61,7 @@ module glomap_ccn_diag_kernel_mod
   type, public, extends(kernel_type) :: glomap_ccn_diag_kernel_type
     private
     type(arg_type) :: meta_args(23) = (/                &
-         arg_type(GH_FIELD,  GH_REAL, GH_WRITE, WTHETA), & ! cn_number_conc
+         arg_type(GH_FIELD,  GH_REAL, GH_WRITE, WTHETA), & ! ccn_no_conc_3nm
          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, WTHETA), & ! ccn_no_conc_30nm
          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, WTHETA), & ! ccn_no_conc_50nm
          arg_type(GH_FIELD,  GH_REAL, GH_WRITE, WTHETA), & ! mconc_du_acc_ins
@@ -98,7 +98,7 @@ contains
 !>        thresholds to give condensation and cloud condensation nuclei
 !>        counts, and convert the dust mass mixing ratios to concentrations.
 !> @param[in]     nlayers              The number of layers
-!> @param[in,out] cn_number_conc       Condensation nuclei number
+!> @param[in,out] ccn_number_conc_3nm  Condensation nuclei number
 !!                                      concentration, dry diameter > 3 nm
 !> @param[in,out] ccn_number_conc_30nm Cloud condensation nuclei number
 !!                                      concentration, dry diameter > 30 nm
@@ -142,7 +142,7 @@ contains
 !!                                      column for the potential temperature
 !!                                      space
 subroutine glomap_ccn_diag_code( nlayers,                                      &
-                                 cn_number_conc,                               &
+                                 ccn_number_conc_3nm,                          &
                                  ccn_number_conc_30nm,                         &
                                  ccn_number_conc_50nm,                         &
                                  mconc_du_acc_ins,                             &
@@ -182,7 +182,7 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
 
   ! Diagnostic outputs, which point at the shared empty data array when
   ! the diagnostic has not been requested
-  real(kind=r_def), pointer, dimension(:), intent(inout) :: cn_number_conc
+  real(kind=r_def), pointer, dimension(:), intent(inout) :: ccn_number_conc_3nm
   real(kind=r_def), pointer, dimension(:), intent(inout) :: ccn_number_conc_30nm
   real(kind=r_def), pointer, dimension(:), intent(inout) :: ccn_number_conc_50nm
   real(kind=r_def), pointer, dimension(:), intent(inout) :: mconc_du_acc_ins
@@ -250,7 +250,7 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
   real(kind=r_def) :: tail_sum       ! Running sum over the modes
 
   ! Which diagnostics have real data behind them
-  logical :: l_cn
+  logical :: l_ccn_3nm
   logical :: l_ccn_30nm
   logical :: l_ccn_50nm
   logical :: l_du_acc_ins
@@ -263,13 +263,13 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
   ! Determine which diagnostics have been requested
   !---------------------------------------------------------------------------
 
-  l_cn         = .not. associated( cn_number_conc,       empty_real_data )
+  l_ccn_3nm    = .not. associated( ccn_number_conc_3nm,  empty_real_data )
   l_ccn_30nm   = .not. associated( ccn_number_conc_30nm, empty_real_data )
   l_ccn_50nm   = .not. associated( ccn_number_conc_50nm, empty_real_data )
   l_du_acc_ins = .not. associated( mconc_du_acc_ins,     empty_real_data )
   l_du_cor_ins = .not. associated( mconc_du_cor_ins,     empty_real_data )
 
-  l_number_conc = l_cn .or. l_ccn_30nm .or. l_ccn_50nm
+  l_number_conc = l_ccn_3nm .or. l_ccn_30nm .or. l_ccn_50nm
 
   !---------------------------------------------------------------------------
   ! Lognormal width of each mode, which does not vary in the column
@@ -315,14 +315,14 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
       drydp(6) = max( drydp_cor_ins(map_wth(1) + k), drydp_min )
 
       ! Condensation nuclei: dry diameter > 3 nm
-      if ( l_cn ) then
+      if ( l_ccn_3nm ) then
         tail_sum = 0.0_r_def
         do imode = 1, nmodes_diag
           tail_sum = tail_sum + 0.5_r_def * number_conc(imode) *              &
               ( 1.0_r_def - erf( log( dp0_cn / drydp(imode) )                 &
                                  * recip_width(imode) ) )
         end do
-        cn_number_conc(map_wth(1) + k) = tail_sum
+        ccn_number_conc_3nm(map_wth(1) + k) = tail_sum
       end if
 
       ! Cloud condensation nuclei: dry diameter > 30 nm
@@ -371,8 +371,8 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
   ! used in model evolution.
   !---------------------------------------------------------------------------
 
-  if ( l_cn ) then
-    cn_number_conc(map_wth(1)) = cn_number_conc(map_wth(1) + 1)
+  if ( l_ccn_3nm ) then
+    ccn_number_conc_3nm(map_wth(1)) = ccn_number_conc_3nm(map_wth(1) + 1)
   end if
   if ( l_ccn_30nm ) then
     ccn_number_conc_30nm(map_wth(1)) = ccn_number_conc_30nm(map_wth(1) + 1)
