@@ -129,7 +129,8 @@ contains
       reversible = (/ .false., .false., .false. /),        &
       panel_edge_treatment = panel_edge_treatment_none,    &
       panel_edge_high_order = .false.,                     &
-      special_edges_monotone = (/ 0, 0, 0 /)               &
+      special_edges_monotone = (/ 0, 0, 0 /),              &
+      native_w2_wind_transport = .false.                   &
     )
 
 

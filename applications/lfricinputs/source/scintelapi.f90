@@ -18,7 +18,7 @@ use dump_generator_mod,       only: dump_generator
 
 implicit none
 
-type(config_type), save :: lfric_config
+type(config_type) :: lfric_config
 
 ! Initialise the LFRic, XIOS, API, etc. infrastructure
 call scintelapi_initialise(lfric_config)
