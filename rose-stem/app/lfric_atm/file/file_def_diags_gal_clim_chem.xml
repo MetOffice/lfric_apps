@@ -176,6 +176,7 @@
       <field field_ref="chemistry__o1d"/>
       <field field_ref="chemistry__photol_rate_jo1d"/>
       <field field_ref="chemistry__photol_rate_jno2"/>
+      <field field_ref="chemistry__photol_rate_jo3p"/>
     </field_group>
 
     <!-- 2D fields averaged on radiation timesteps -->
