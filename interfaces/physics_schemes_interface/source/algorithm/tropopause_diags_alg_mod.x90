@@ -44,14 +44,6 @@ contains
     type(field_type) :: trop_ht, trop_temp, trop_press, trop_icao_ht
     type(field_type), pointer :: height_wth
 
-    ! The kernel derives trop_temp from trop_ht, trop_press from trop_temp,
-    ! and trop_icao_ht from trop_press: a one-way cascade, not a mutual
-    ! dependency. Fields are initialised downstream-to-upstream so each
-    ! field's own request flag can be folded into the activate= argument
-    ! of the field it depends on - requesting a downstream field
-    ! force-activates its upstream dependencies, never the reverse. The
-    ! kernel checks each field's activation status directly
-    ! (associated(..., empty_real_data)) to decide what to compute.
     logical(l_def) :: trop_ht_flag
     logical(l_def) :: trop_temp_flag
     logical(l_def) :: trop_press_flag
@@ -59,23 +51,21 @@ contains
 
     nullify(height_wth)
 
+    ! Initialise the requires fields, which have a one-way dependency chain.
     trop_icao_ht_flag = init_diag(trop_icao_ht, 'aviation__trop_icao_height')
 
     trop_press_flag = init_diag(trop_press, 'aviation__trop_pressure', &
-                                 activate=trop_icao_ht_flag)
+        activate=trop_icao_ht_flag)
 
     trop_temp_flag = init_diag(trop_temp, 'aviation__trop_temperature', &
-                                activate=(trop_press_flag .or. &
-                                          trop_icao_ht_flag))
+        activate=(trop_press_flag .or. trop_icao_ht_flag))
 
     trop_ht_flag = init_diag(trop_ht, 'aviation__trop_height', &
-                              activate=(trop_temp_flag .or. &
-                                        trop_press_flag .or. trop_icao_ht_flag))
+        activate=(trop_temp_flag .or. trop_press_flag .or. trop_icao_ht_flag))
 
-    ! Writes stay inside this guard so that a field is never written unless
-    ! the kernel actually filled it.
-    if (trop_ht_flag .or. trop_temp_flag .or. trop_press_flag .or. &
-        trop_icao_ht_flag) then
+    ! Call the kernel and write the fields.
+    if (trop_ht_flag .or. trop_temp_flag .or. &
+        trop_press_flag .or. trop_icao_ht_flag) then
 
       height_wth => get_height_fv(config, theta%get_mesh(), Wtheta)
 
