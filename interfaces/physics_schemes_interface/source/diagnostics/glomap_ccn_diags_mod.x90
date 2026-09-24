@@ -124,7 +124,7 @@ contains
     aerosol_mesh => exner_in_wth%get_mesh()
 
     cn_flag       = init_diag( cn_number_conc,                                 &
-                              'aerosol__cn_number_conc',                       &
+                              'aerosol__ccn_number_conc_3nm',                  &
                                force_mesh = aerosol_mesh )
     ccn_30nm_flag = init_diag( ccn_number_conc_30nm,                           &
                               'aerosol__ccn_number_conc_30nm',                 &
