@@ -249,9 +249,6 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
   ! until the first RADAER timestep on the climatology path.
   real(kind=r_def), parameter :: drydp_min = 1.0e-12_r_def
 
-  ! Number of cubic centimetres in a cubic metre
-  real(kind=r_def), parameter :: m3_to_cm3 = 1.0e+6_r_def
-
   ! Square root of two, evaluated at run time so that it takes the
   ! precision of r_def
   real(kind=r_def) :: root_two
