@@ -664,9 +664,8 @@ subroutine casim_code( nlayers,                     &
           end if
           frac_dep = mwfv * timestep / deltaz(1,1,k)
 
-          ! Ensure frac_dep is positive
-          ! but allow "fraction fallen" to be > 1.
-          frac_dep = max(frac_dep, 0.0_r_def)
+          ! Ensure frac_dep is positive and <=1
+          frac_dep = min(max(frac_dep, 0.0_r_def), 1.0_r_def)
 
           !--------------------------------------------------------------
           ! Calculate the amount of cloud overhang between levels
