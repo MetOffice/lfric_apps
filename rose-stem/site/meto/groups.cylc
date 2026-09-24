@@ -83,16 +83,4 @@
 {% include "site/meto/groups/groups_physics_schemes_interface.cylc" %}
 {% include "site/meto/groups/groups_science_shared.cylc" %}
 
-
-{# Maintaining a list of jobs that aren't running properly #}
-{# This is done to have a clean test suite on EX + Azspice at vn2.0 #}
-{# This group should be squashed over the next release #}
-{# TODO: Squash this group in tickets #517 + #518 #}
-{% do site_groups.update({
-    "non_working_group": [
-        "lfric_atm_nwp_gal9-C224_MG_ex1a_cce_full-debug-64bit",
-        "lfric_atm_nwp_gal9-C224_MG_ex1a_cce_full-debug-64bit-rbl32",
-    ]
-    }) %}
-
 {% do LOG.debug("Finished in site/meto/groups.cylc") %}

@@ -92,6 +92,8 @@ contains
                                     sfwater, sfrain, sfsnow,                  &
                                     refl_tot, refl_1km )
 
+    use convection_config_mod, only: cv_scheme, cv_scheme_comorph
+
     implicit none
 
     type ( field_type ), intent (in) :: exner_in_wth,                         &
@@ -173,9 +175,11 @@ contains
 
     if (refl_1km_flag) call refl_1km%write_field()
 
-    call ls_rain%write_field('microphysics__ls_rain')
-
-    call ls_snow%write_field('microphysics__ls_snow')
+    if (cv_scheme /= cv_scheme_comorph) then
+      ! With comorph we write these in the convection diagnostics
+      call ls_rain%write_field('microphysics__ls_rain')
+      call ls_snow%write_field('microphysics__ls_snow')
+    end if
 
     call ls_graup%write_field('microphysics__ls_graup')
 

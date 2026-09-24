@@ -29,6 +29,8 @@ def trans(psyir):
     PSyclone function call, run through psyir object,
     each schedule (or subroutine) and apply paralleldo transformations
     to each loop.
+    :param psyir: the PSyIR of the provided file.
+    :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     '''
 
     fortran_file_name = str(psyir.root.name)
@@ -60,4 +62,4 @@ def trans(psyir):
 
             except (TransformationError, IndexError) as err:
                 logging.warning(
-                    "Could not transform because:\n %s", err)
+                    f"{fortran_file_name}: Could not transform because:\n {err}")
