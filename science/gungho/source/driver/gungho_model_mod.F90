@@ -1078,7 +1078,7 @@ contains
       if ( modeldb%config%namelist_exists('chemistry') ) then
         chem_scheme = modeldb%config%chemistry%chem_scheme()
         if ( chem_scheme == chem_scheme_strattrop )                &
-          call ukca_diag_setup(modeldb)
+          call ukca_diag_setup(modeldb%values)
       end if
     end if
 #endif

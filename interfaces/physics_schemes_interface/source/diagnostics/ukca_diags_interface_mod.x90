@@ -20,7 +20,9 @@
 module ukca_diags_interface_mod
 
 use ukca_diag_setup_mod,   only: nm_rxnflux_oh_ch4_trop,                       &
-                                 nm_o3_column_du
+                                 nm_o3_column_du,                              &
+                                 key_diagname_base
+
 use photol_diags_kernel_mod,  only: photol_diags_kernel_type
 
 use ukca_api_mod, only :   ukca_maxlen_diagname, ukca_maxlen_message,          &
@@ -50,7 +52,9 @@ subroutine initialise_ukca_diagnostics(                                        &
                                         l_chem_timestep,                       &
                                         n_req_ukca_diags_3d,                   &
                                         idiag_status_3d,                       &
-                                        ukca_req_diagnames_fullht              &                                        
+                                        ukca_req_diagnames_fullht,             &
+                                        rxnflux_oh_ch4_trop,                   &
+                                        o3_column_du                           &                                      
                                       )
 ! ----------------------------------------------------------------------
 ! Description:
@@ -60,16 +64,22 @@ subroutine initialise_ukca_diagnostics(                                        &
 ! ----------------------------------------------------------------------
 implicit none
 
-type(key_value_collection_type), intent(inout) :: values
+type(key_value_collection_type), intent(in) :: values
 logical(l_def), intent(in)  :: l_chem_timestep
 integer(i_def), intent(out) :: n_req_ukca_diags_3d
 integer(i_def), allocatable, intent(out) :: idiag_status_3d(:)
 character(len=ukca_maxlen_diagname), allocatable, intent(out) ::               &
                                ukca_req_diagnames_fullht(:)
+type(field_type), intent(inout) :: rxnflux_oh_ch4_trop
+type(field_type), intent(inout) :: o3_column_du
 
 ! Local variables
 integer(i_def) :: n
 logical :: l_diag_requested
+character(len=ukca_maxlen_diagname) :: diagname_key
+! Pointers to extract data from key_value dictionary.
+integer(i_def), pointer :: ptr_n_req_diags
+character(len=ukca_maxlen_diagname), pointer :: ptr_ukca_diagname
 
 ! Error handling variables
 integer(i_um) :: errcode
@@ -79,20 +89,28 @@ character(len=ukca_maxlen_message) :: ukca_errmsg
 
 errcode = 0_i_um
 
+nullify(ptr_n_req_diags)
+nullify(ptr_ukca_diagname)
+
 ! Extract key values and names from database
 ! If main n_req key is not found, the ukca_diag_setup routine was not called
 ! (or failed with warning), so allocate minimal size to arrays
 if ( .not. values%key_value_exists('n_req_ukca_diags_3d') ) then
   n_req_ukca_diags_3d = 0
-  allocate(ukca_diagnames_req_fullht(0))
+  allocate(ukca_req_diagnames_fullht(0))
   allocate(idiag_status_3d(0))
   return
 end if
-call values%get_value('n_req_ukca_diags_3d', n_req_ukca_diags_3d)
-allocate(ukca_diagnames_req_fullht(n_req_ukca_diags_3d))
-call values%get_value('ukca_req_diagnames_fullht', ukca_req_diagnames_fullht)
+call values%get_value('n_req_ukca_diags_3d', ptr_n_req_diags)
+n_req_ukca_diags_3d = ptr_n_req_diags
+allocate(ukca_req_diagnames_fullht(n_req_ukca_diags_3d))
+! Currently diagnames are stored as individual keys
+do n = 1, n_req_ukca_diags_3d
+  write(diagname_key, '(A,I0)') trim(key_diagname_base), n
+  call values%get_value( diagname_key, ptr_ukca_diagname )
+  ukca_req_diagnames_fullht(n) = ptr_ukca_diagname
+end do
 allocate(idiag_status_3d(n_req_ukca_diags_3d))
-call values%get_value('idiag_status_ukca_3d', idiag_status_3d)
 
 ! Determine if any requested UKCA diagnostics are active for this call.
 !
@@ -177,7 +195,7 @@ do i = 1, n_req_ukca_diags_3d
       end if  
     case default
       write(log_scratch_space, '(A,A,A)')'OUTPUT_UKCA_DIAGS, Unrecognised ',   &
-            trim(ukca_req_diagnames_fullht(n)),                                &
+            trim(ukca_req_diagnames_fullht(i)),                                &
             '. Add new diagnostic write statements here.'
       call log_event(log_scratch_space, LOG_LEVEL_ERROR )
   end select
