@@ -9,7 +9,7 @@ module lfricinp_um_grid_mod
 use, intrinsic :: iso_fortran_env, only : int64
 
 ! LFRic modules
-use log_mod,  only: log_event, LOG_LEVEL_INFO, LOG_LEVEL_ERROR
+use log_mod, only: log_event, log_scratch_space, LOG_LEVEL_INFO, LOG_LEVEL_ERROR
 
 ! UM2LFRic modules
 use lfricinp_grid_type_mod, only: lfricinp_grid_type
@@ -21,7 +21,7 @@ type(lfricinp_grid_type), public, save :: um_grid
 
 private
 
-public :: lfricinp_set_grid_from_file
+public :: lfricinp_set_grid_from_file, lfricinp_set_grid_from_namelist
 
 contains
 
@@ -54,5 +54,23 @@ um_grid%num_surface_types = num_surface_types
 um_grid%num_ice_cats = num_ice_cats
 
 end subroutine lfricinp_set_grid_from_file
+
+!-----------------------------------------------------------
+
+subroutine lfricinp_set_grid_from_namelist(num_snow_layers, num_surface_types)
+! Description:
+! Extracts grid information from lfric2um namelist to populate grid_info object
+
+implicit none
+
+! Arguments
+integer(kind=int64), intent(in) :: num_snow_layers
+integer(kind=int64), intent(in) :: num_surface_types
+
+! Set pseudo level information
+um_grid%num_snow_layers = num_snow_layers
+um_grid%num_surface_types = num_surface_types
+
+end subroutine lfricinp_set_grid_from_namelist
 
 end module lfricinp_um_grid_mod
