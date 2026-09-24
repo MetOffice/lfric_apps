@@ -252,9 +252,9 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
   ! Number of cubic centimetres in a cubic metre
   real(kind=r_def), parameter :: m3_to_cm3 = 1.0e+6_r_def
 
-  ! Square root of two, written out for portability of constant
-  ! expressions across compilers
-  real(kind=r_def), parameter :: root_two = 1.4142135623730951_r_def
+  ! Square root of two, evaluated at run time so that it takes the
+  ! precision of r_def
+  real(kind=r_def) :: root_two
 
   ! Reciprocal of sqrt(2)*ln(sigmag) for each mode
   real(kind=r_def), dimension(nmodes_diag) :: recip_width
@@ -293,6 +293,7 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
   !---------------------------------------------------------------------------
 
   if ( l_number_conc ) then
+    root_two = sqrt( 2.0_r_def )
     sigmag = (/ sigmag_ait_sol, sigmag_acc_sol, sigmag_cor_sol,               &
                 sigmag_ait_ins, sigmag_acc_ins, sigmag_cor_ins /)
     do imode = 1, nmodes_diag
