@@ -5827,9 +5827,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
       do k = 1, nlayers
         diagnostics_fullht_real( map_wdiag(1, i) + ((m-1)*(nlayers+1)) + k ) = &
           real( diag_fullht_real( i, 1, k, m ), r_def )
-      end do
-      diagnostics_fullht_real( map_wdiag(1, i) + ((m-1)*(nlayers+1)) + 0 ) =   &
-        diagnostics_fullht_real( map_wdiag(1, i) + ((m-1)*(nlayers+1)) + 1 )
+      end do      
     end do
   end do
  deallocate( diag_fullht_real )

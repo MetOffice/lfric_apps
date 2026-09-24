@@ -30,7 +30,8 @@ use ukca_api_mod, only :   ukca_maxlen_diagname, ukca_maxlen_message,          &
                            ukca_diag_status_inactive,                          &
                            ukca_diag_status_requested
 
-use initialise_diagnostics_mod,  only: init_diag => init_diagnostic_field
+use initialise_diagnostics_mod,  only: init_diag => init_diagnostic_field,     &
+                                       diagnostic_to_be_sampled
 
 use key_value_collection_mod,    only: key_value_collection_type
 use constants_mod, only : i_def, r_def, l_def, str_def, i_um
@@ -52,9 +53,7 @@ subroutine initialise_ukca_diagnostics(                                        &
                                         l_chem_timestep,                       &
                                         n_req_ukca_diags_3d,                   &
                                         idiag_status_3d,                       &
-                                        ukca_req_diagnames_fullht,             &
-                                        rxnflux_oh_ch4_trop,                   &
-                                        o3_column_du                           &                                      
+                                        ukca_req_diagnames_fullht              &                                        
                                       )
 ! ----------------------------------------------------------------------
 ! Description:
@@ -70,13 +69,12 @@ integer(i_def), intent(out) :: n_req_ukca_diags_3d
 integer(i_def), allocatable, intent(out) :: idiag_status_3d(:)
 character(len=ukca_maxlen_diagname), allocatable, intent(out) ::               &
                                ukca_req_diagnames_fullht(:)
-type(field_type), intent(inout) :: rxnflux_oh_ch4_trop
-type(field_type), intent(inout) :: o3_column_du
 
 ! Local variables
 integer(i_def) :: n
-logical :: l_diag_requested
+logical :: l_diag_active
 character(len=ukca_maxlen_diagname) :: diagname_key
+
 ! Pointers to extract data from key_value dictionary.
 integer(i_def), pointer :: ptr_n_req_diags
 character(len=ukca_maxlen_diagname), pointer :: ptr_ukca_diagname
@@ -117,20 +115,20 @@ allocate(idiag_status_3d(n_req_ukca_diags_3d))
 ! Some diagnostics will not be calculated on non-chemistry steps,
 ! so deactivate automatically
 do n = 1, n_req_ukca_diags_3d
-  l_diag_requested = .false.
+  l_diag_active = .false.
   select case (trim(ukca_req_diagnames_fullht(n)))
     case (trim(nm_rxnflux_oh_ch4_trop))
-      l_diag_requested = init_diag(rxnflux_oh_ch4_trop,           &
-                            'chemistry__'//nm_rxnflux_oh_ch4_trop)  
-      if ( .not. l_chem_timestep ) l_diag_requested = .false.
+      l_diag_active = diagnostic_to_be_sampled(                                &
+                                 'chemistry__'//nm_rxnflux_oh_ch4_trop )
+      if ( .not. l_chem_timestep ) l_diag_active = .false.
     case (trim(nm_o3_column_du))
-      l_diag_requested = init_diag(o3_column_du,'chemistry__'//nm_o3_column_du)
+      l_diag_active = diagnostic_to_be_sampled('chemistry__'//nm_o3_column_du)
     case default
       call log_event(                                                          &
         'INIT_UKCA_DIAGS: Unrecognised :'//trim(ukca_req_diagnames_fullht(n)), &
         LOG_LEVEL_ERROR )
   end select
-  if (l_diag_requested) then
+  if (l_diag_active) then
     idiag_status_3d(n) = ukca_diag_status_requested
     write(log_scratch_space, '(A,A)')'UKCA ACTIVE diagnostic : ', &
           trim(ukca_req_diagnames_fullht(n))
@@ -161,9 +159,7 @@ subroutine output_ukca_diagnostics(                                            &
                                     n_req_ukca_diags_3d,                       &
                                     idiag_status_3d,                           &
                                     ukca_req_diagnames_fullht,                 &
-                                    diagnostics_fullht_real,                   &
-                                    rxnflux_oh_ch4_trop,                       &
-                                    o3_column_du                               &
+                                    diagnostics_fullht_real                    &                                    
                                   )
                
 implicit none
@@ -174,21 +170,24 @@ character(len=ukca_maxlen_diagname), allocatable, intent(in) ::                &
                                ukca_req_diagnames_fullht(:)
 type(field_type), intent(in) :: diagnostics_fullht_real
 
-type(field_type), intent(inout) :: rxnflux_oh_ch4_trop
-type(field_type), intent(inout) :: o3_column_du
+type(field_type) :: rxnflux_oh_ch4_trop
+type(field_type) :: o3_column_du
 
 integer(i_def) :: i
 
 do i = 1, n_req_ukca_diags_3d
   select case (trim(ukca_req_diagnames_fullht(i)))
     case (trim(nm_rxnflux_oh_ch4_trop))
-      if (idiag_status_3d(i) == ukca_diag_status_requested)  then
+      if (idiag_status_3d(i) == ukca_diag_status_requested  .and.              &
+          init_diag(rxnflux_oh_ch4_trop,                                       &
+                    'chemistry__'//nm_rxnflux_oh_ch4_trop) )  then
         call invoke (  photol_diags_kernel_type( rxnflux_oh_ch4_trop, i,       &
                                                 diagnostics_fullht_real ) )
         call rxnflux_oh_ch4_trop % write_field
       end if  
     case (trim(nm_o3_column_du))
-      if (idiag_status_3d(i) == ukca_diag_status_requested) then
+      if (idiag_status_3d(i) == ukca_diag_status_requested  .and.              &
+          init_diag(o3_column_du,'chemistry__'//nm_o3_column_du) ) then
         call invoke (  photol_diags_kernel_type( o3_column_du, i,              &
                                                 diagnostics_fullht_real ) )
         call o3_column_du % write_field
