@@ -50,6 +50,8 @@ jules:
     - src/control/shared/overbank_inundation_mod.F90
     - src/control/shared/p_s_parms.F90
     - src/control/shared/prognostics.F90
+    - src/control/shared/soil_bgc_4pool_field_mod.F90
+    - src/control/shared/soil_bgc_4pool_control_mod.F90
     - src/control/shared/soil_ecosse_vars_mod.F90
     - src/control/shared/surf_couple_explicit_mod.F90
     - src/control/shared/surf_couple_extra_mod.F90
