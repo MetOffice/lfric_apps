@@ -9,10 +9,13 @@
                       'module purge ; '~
                       'module use /home/users/lfricadmin/lmod' %}
 
-{% set azspice_compiler_gnu = 'module load lfric/vn3.2' %}
+{% set azspice_compiler_gnu = 'module load lfric/vn3.2 ; '~
+                              'module load xios/3.0.4.0' %}
 
-{% set azspice_coupled_gnu = 'module load xios/2.2701-oasis ; '~
-                             'module load oasis' %}
+{% set azspice_coupled_gnu = 'module load xios/3.0.4.0-oasis ; '~
+                             'module load oasis ; '~
+                             'export xios_path=/data/apps/spack/releases/2026.7.1/install/linux-zen2/xios-3.0.4.0-fcqe4aoih7e5ohneqcl7nl3n2s4r4a47 ; '~
+                             'export prism_path=/data/apps/spack/releases/2026.7.1/install/linux-zen2/oasis-3-mct5.0-xzdifnugilmb5ir6lehyt5pzinkevw57'%}
 
 {% set azspice_run = 'ulimit -s unlimited' %}
 

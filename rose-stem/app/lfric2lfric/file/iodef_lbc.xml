@@ -76,15 +76,17 @@
     <variable_definition>
       <variable_group id = "buffer">
         <variable id = "optimal_buffer_size" type = "string" >performance</variable>
-        <variable id = "buffer_factor_size" type = "double" >1.0</variable>
+        <variable id = "buffer_size_factor" type = "double" >1.0</variable>
       </variable_group>
 
       <variable_group id = "parameters" >
+        <variable id = "transport_protocol" type="string" >p2p</variable>
+        <variable id = "services_use_window_manager" type="bool">false</variable>
         <variable id = "using_server" type = "bool" >false</variable>
-        <variable id = "using_oasis" type = "bool">false</variable>
+        <variable id = "using_oasis" type = "bool">true</variable>
+        <variable id = "clients_code_id" type = "string">lfric</variable>
         <variable id = "info_level" type = "int" >$XIOS_INFO_LEVEL</variable>
         <variable id = "print_file" type="bool">$XIOS_PRINT_FILE</variable>
-        <variable id = "oasis_codes_id" type="string" >lfric2lfric lfric2lfric</variable>
       </variable_group>
     </variable_definition>
   </context>

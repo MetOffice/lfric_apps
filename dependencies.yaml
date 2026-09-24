@@ -30,12 +30,12 @@ lfric_apps:
     ref:
 
 lfric_core:
-   source: git@github.com:MetOffice/lfric_core.git
-   ref: 220a00ce5fb318513918e3b7f063be54945f9149
+   source: git@github.com:EdHone/lfric_core.git
+   ref: main-xios3adopt
 
 moci:
-    source: git@github.com:MetOffice/moci.git
-    ref: 2026.07.1
+    source: https://github.com/harry-shepherd/moci.git
+    ref: 41ac5ea5c231100b72c24c067b63586b2c83ccba
 
 SimSys_Scripts:
     source: git@github.com:MetOffice/SimSys_Scripts.git

@@ -59,3 +59,4 @@
 | bblay-mo            | Byron Blay          | Met Office                       | 2026-07-01   |
 | ickc                | Kolen Cheung        | University of Exeter             | 2026-07-22   |
 | mo-snishimoto       | Shusuke Nishimoto   | Met Office                       | 2026-07-21   |
+| svadams             | Samantha Adams      | Met Office                       | 2026-07-27   |

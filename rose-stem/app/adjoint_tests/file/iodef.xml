@@ -34,6 +34,7 @@
     
     <axis_definition>
       <axis id="ls_axis" name="ls_axis" n_glo="7"/>
+      <axis id="1" name="one" n_glo="1"/>
     </axis_definition>
 
     <grid_definition>
@@ -70,6 +71,8 @@
       </variable_group>
 
       <variable_group id = "parameters" >
+        <variable id="transport_protocol" type="string" >p2p</variable>
+       <variable id = "services_use_window_manager" type="bool">false</variable>
         <variable id = "using_server" type = "bool" >true</variable>
         <variable id = "info_level" type = "int" >$XIOS_INFO_LEVEL</variable>
         <variable id = "print_file" type="bool">$XIOS_PRINT_FILE</variable>

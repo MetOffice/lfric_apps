@@ -24,7 +24,8 @@ module jedi_lfric_comm_mod
 
 ! USE_XIOS flag used for models using the XIOS I/O server
 #ifdef USE_XIOS
-  use lfric_xios_driver_mod, only: lfric_xios_initialise, lfric_xios_finalise
+  use lfric_xios_driver_mod, only: lfric_xios_initialise, lfric_xios_finalise, &
+                                   lfric_xios_context_finalise
 #endif
 
   implicit none
@@ -100,8 +101,8 @@ contains
     implicit none
 
 #ifdef USE_XIOS
-    ! Finalise XIOS
-    call lfric_xios_finalise()
+    ! Finalise XIOS context
+    call lfric_xios_context_finalise()
 #endif
 
   end subroutine final_external_comm

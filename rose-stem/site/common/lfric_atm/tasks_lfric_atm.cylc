@@ -494,7 +494,7 @@
 {% elif task_ns.conf_name.startswith("nwp_gal10-C896_MG") %}
 
     {% do task_dict.update({
-        "CXI_MATCH_hybrid": true,
+        "CXI_MATCH_MODE": "software",
         "opt_confs": ["um_dump"],
         "resolution": "C896_MG",
         "DT": 240,

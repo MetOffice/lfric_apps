@@ -203,7 +203,7 @@
   </file>
 
   <file id="emiss_bc_biomass_hi_ancil" name="emiss_bc_biomass_hi_ancil" mode="read" output_freq="1mo" convention="UGRID" cyclic="true" enabled=".FALSE.">
-    <field_group id="emiss_bc_biomass_hi_ancil_fIeld_group" >
+    <field_group id="emiss_bc_biomass_hi_ancil_field_group" >
       <field id="em_bc_bb_hi_time" name="time" unit="days" operation="once" axis_ref="emiss_axis"/>
       <field id="emiss_bc_biomass_high_data" name="emissions_BC_biomass_high" long_name="BC biomass high-level emissions" unit="kg m-2 s-1" operation="instant" domain_ref="face" axis_ref="emiss_axis"/>
     </field_group>
