@@ -41,7 +41,8 @@ contains
   !>          reuses the diameters of the most recent RADAER timestep.
   !> @param[in] glomap_vars   GLOMAP mode setup of the calling aerosol scheme,
   !!                          which holds the geometric standard deviation
-  !!                          of each mode
+  !!                          of each mode; must already have been filled
+  !!                          by that scheme's mode setup
   !> @param[in] rho_in_wth    Dry air density in potential temperature space
   !> @param[in] n_ait_sol     Aitken soluble mode number mixing ratio
   !> @param[in] n_acc_sol     Accumulation soluble mode number mixing ratio
@@ -150,7 +151,9 @@ contains
                                  force_mesh = aerosol_mesh )
 
     ! Geometric standard deviations of the six modes the kernel sums over,
-    ! taken from the mode setup so they follow the configured modes
+    ! taken from the mode setup so they follow the configured modes. This
+    ! relies on the caller's mode setup (UKCA or the GLOMAP climatology)
+    ! having been run during initialisation, which fills glomap_vars.
     sigmag_ait_sol = real( glomap_vars%sigmag(mode_ait_sol),   r_def )
     sigmag_acc_sol = real( glomap_vars%sigmag(mode_acc_sol),   r_def )
     sigmag_cor_sol = real( glomap_vars%sigmag(mode_cor_sol),   r_def )
