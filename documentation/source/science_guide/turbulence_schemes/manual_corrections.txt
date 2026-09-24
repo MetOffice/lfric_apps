@@ -2,6 +2,14 @@ diff --git a/documentation/source/science_guide/turbulence_schemes/bl_scheme_doc
 index 5b373b68..8ff32c06 100644
 --- a/documentation/source/science_guide/turbulence_schemes/bl_scheme_doc.rst
 +++ b/documentation/source/science_guide/turbulence_schemes/bl_scheme_doc.rst
+@ -7,6 +7,7 @@
+ .. attention::
+ 
+    This documentation has been transferred directly from the UM to LFRic;
++   (UMDP 024: The Parametrization of Boundary Layer Processes).
+    It is still a work in progress. There are still UM-specific references
+    and terminology that are yet to be updated.
+ 
 @@ -257,8 +257,8 @@ Types I to VI are shown schematically in :numref:`Fig. %s <fig:bltypes>`.
     :name: fig:bltypes
  

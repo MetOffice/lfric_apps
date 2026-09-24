@@ -7,6 +7,7 @@
 .. attention::
 
    This documentation has been transferred directly from the UM to LFRic;
+   (UMDP 024: The Parametrization of Boundary Layer Processes).
    It is still a work in progress. There are still UM-specific references
    and terminology that are yet to be updated.
 
