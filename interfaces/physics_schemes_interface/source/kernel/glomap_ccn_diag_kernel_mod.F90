@@ -246,7 +246,7 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
   real(kind=r_def), dimension(nmodes_diag) :: number_conc
   real(kind=r_def), dimension(nmodes_diag) :: drydp
 
-  real(kind=r_def) :: air_num_dens   ! Number density of air (cm-3)
+  real(kind=r_def) :: air_num_dens   ! Number density of air (m-3)
   real(kind=r_def) :: tail_sum       ! Running sum over the modes
 
   ! Which diagnostics have real data behind them
@@ -295,11 +295,10 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
 
       ! Number density of air molecules from the dry air density, since
       ! rho * rd * T = p = n * boltzmann * T
-      air_num_dens = rho_in_wth(map_wth(1) + k) * rd                          &
-                     / ( boltzmann * m3_to_cm3 )
+      air_num_dens = rho_in_wth(map_wth(1) + k) * rd / boltzmann
 
       ! Number mixing ratios are per air molecule, so scaling by the air
-      ! number density gives particles per cubic centimetre
+      ! number density gives particles per cubic metre
       number_conc(1) = n_ait_sol(map_wth(1) + k) * air_num_dens
       number_conc(2) = n_acc_sol(map_wth(1) + k) * air_num_dens
       number_conc(3) = n_cor_sol(map_wth(1) + k) * air_num_dens
