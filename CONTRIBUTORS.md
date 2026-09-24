@@ -37,6 +37,7 @@
 | yaswant             | Yaswant Pradhan     | Met Office                       | 2025-12-16   |
 | harry-shepherd      | Harry Shepherd      | Met Office                       | 2026-01-08   |
 | Pierre-siddall      | Pierre Siddall      | Met Office                       | 2026-03-02   |
+| mo-cjsmith          | Chris Smith         | Met Office                       | 2026-09-22   |
 | DanStoneMO          | Daniel Stone        | Met Office                       | 2026-02-26   |
 | hsrumbold           | Heather Rumbold     | Met Office                       | 2026-05-06   |
 | pdearnshaw          | Paul Earnshaw       | Met Office                       | 2026-05-07   |
