@@ -4,8 +4,8 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 
-!> @brief Processes the GLOMAP-mode condensation and cloud condensation
-!>        nuclei number concentration and dust mass concentration diagnostics.
+!> @brief Processes the GLOMAP-mode cloud condensation nuclei number
+!>        concentration and dust mass concentration diagnostics.
 !> @details The diagnostics are derived from the aerosol size distribution
 !>          and composition rather than being scheme outputs, so they are
 !>          computed at output time. Fields that have not been requested
@@ -28,11 +28,11 @@ module glomap_ccn_diags_mod
 
 contains
 
-  !> @brief Compute and output the CN and CCN number concentrations and the
-  !>        dust mass concentrations
+  !> @brief Compute and output the cloud condensation nuclei number
+  !>        concentrations and the dust mass concentrations
   !> @details The number concentrations count the particles per unit volume
-  !>          with a dry diameter above 3 nm (condensation nuclei), 30 nm and
-  !>          50 nm (cloud condensation nuclei), summed over the GLOMAP modes.
+  !>          with a dry diameter above 3 nm, 30 nm and 50 nm, summed over
+  !>          the GLOMAP modes.
   !>          The dust mass concentrations are the dust mass mixing ratios of
   !>          the accumulation and coarse insoluble modes multiplied by the
   !>          dry air density. The dry modal diameters are only refreshed on

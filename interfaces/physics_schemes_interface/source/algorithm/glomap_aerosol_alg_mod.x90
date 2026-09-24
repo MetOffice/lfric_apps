@@ -374,8 +374,8 @@ contains
         call cloud_drop_no_conc_aero%write_field('aerosol__cloud_drop_no_conc')
       end if
 
-      ! CN and CCN number concentrations and dust mass concentrations,
-      ! computed only when requested
+      ! Cloud condensation nuclei number concentrations and dust mass
+      ! concentrations, computed only when requested
       call output_diags_for_glomap_ccn( rho_in_wth,                            &
                                         n_ait_sol,                             &
                                         n_acc_sol,                             &

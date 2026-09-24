@@ -3,8 +3,8 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
-!> @brief Condensation and cloud condensation nuclei number concentrations
-!>        from the GLOMAP-mode aerosol size distribution.
+!> @brief Cloud condensation nuclei number concentrations from the
+!>        GLOMAP-mode aerosol size distribution.
 !>
 !> @details Each GLOMAP mode is a lognormal distribution of dry particle
 !>          diameter with geometric mean diameter drydp and fixed geometric
@@ -14,15 +14,15 @@
 !>
 !>            0.5 * nd * ( 1 - erf( ln(dp0/drydp) / (sqrt(2)*ln(sigmag)) ) )
 !>
-!>          summed over the modes. This gives the condensation nuclei count
-!>          (dp0 = 3 nm) and the cloud condensation nuclei counts at two
-!>          activation thresholds (dp0 = 30 nm and dp0 = 50 nm).
+!>          summed over the modes. This gives the cloud condensation nuclei
+!>          counts at three dry diameter thresholds (dp0 = 3 nm, 30 nm and
+!>          50 nm).
 !>
 !>          Only the six modes that carry a dry modal diameter in LFRic are
 !>          summed. The nucleation-soluble mode is omitted because LFRic has
 !>          no drydp_nuc_sol field; its contribution is negligible at the
-!>          30 nm and 50 nm thresholds but not at 3 nm, so the condensation
-!>          nuclei count is a low estimate under prognostic UKCA.
+!>          30 nm and 50 nm thresholds but not at 3 nm, so the 3 nm count
+!>          is a low estimate under prognostic UKCA.
 !>
 !>          The dust mass concentrations are the dust mass mixing ratios of
 !>          the accumulation and coarse insoluble modes multiplied by the
@@ -95,10 +95,10 @@ module glomap_ccn_diag_kernel_mod
 contains
 
 !> @brief Sum the lognormal tail of each GLOMAP mode above three dry diameter
-!>        thresholds to give condensation and cloud condensation nuclei
-!>        counts, and convert the dust mass mixing ratios to concentrations.
+!>        thresholds to give cloud condensation nuclei counts, and convert
+!>        the dust mass mixing ratios to concentrations.
 !> @param[in]     nlayers              The number of layers
-!> @param[in,out] ccn_number_conc_3nm  Condensation nuclei number
+!> @param[in,out] ccn_number_conc_3nm  Cloud condensation nuclei number
 !!                                      concentration, dry diameter > 3 nm
 !> @param[in,out] ccn_number_conc_30nm Cloud condensation nuclei number
 !!                                      concentration, dry diameter > 30 nm
@@ -313,7 +313,7 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
       drydp(5) = max( drydp_acc_ins(map_wth(1) + k), drydp_min )
       drydp(6) = max( drydp_cor_ins(map_wth(1) + k), drydp_min )
 
-      ! Condensation nuclei: dry diameter > 3 nm
+      ! Cloud condensation nuclei: dry diameter > 3 nm
       if ( l_ccn_3nm ) then
         tail_sum = 0.0_r_def
         do imode = 1, nmodes_diag
