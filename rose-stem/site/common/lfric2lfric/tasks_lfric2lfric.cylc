@@ -216,6 +216,22 @@
         "xios_min_buffer_size": 2097152,
     }) %}
 
+{% elif task_ns.conf_name == "oasis_C224_to_seuk" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["oasis","src_C224_L70", "dst_seuk"],
+        "resolution": ["seuk","C224_MG"],
+        "dst_mesh": "seuk",
+        "dst_name": "seuk",
+        "dst_type": "regional",
+        "src_mesh": "C224_MG",
+        "src_name": "dynamics",
+        "src_type": "global",
+        "mpi_parts": 216,
+	"log_level": "debug",
+	"xios_min_buffer_size": 2097152,
+    }) %}
+
 {% elif task_ns.conf_name == "canned" %}
 
     {% do task_dict.update({
