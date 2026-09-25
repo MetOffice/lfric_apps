@@ -366,6 +366,7 @@ contains
                          enforce_bc_kernel_type(rhs_u) )
           end if
 
+          if ( LPROF ) call stop_timing( id_from, 'transport.wind_from_comps' )
         end if ! native wind transport
         call log_field_minmax( LOG_LEVEL_DEBUG, 'advection increment', rhs_u )
 
