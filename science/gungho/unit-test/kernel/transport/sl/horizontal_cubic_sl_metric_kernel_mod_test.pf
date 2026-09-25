@@ -1,0 +1,189 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Test the horizontal cubic semi-Lagrangian metric kernel
+
+module horizontal_cubic_sl_metric_kernel_mod_test
+
+  use constants_mod, only : i_def, r_tran
+
+  implicit none
+
+contains
+
+  !------------------------------------------------------------------
+
+  @Test
+  subroutine horizontal_cubic_sl_metric_kernel_test( )
+
+    use, intrinsic :: iso_fortran_env, only: real64
+    use funit
+    use horizontal_cubic_sl_metric_kernel_mod, only: horizontal_cubic_sl_metric_code
+
+    implicit none
+
+    real(kind=r_tran), parameter :: tol = 1.0e-12_r_tran
+    real(kind=r_tran)            :: use_tol
+
+    integer(kind=i_def), parameter :: nlayers = 1
+    integer(kind=i_def), parameter :: ndf_wf = 1
+    integer(kind=i_def), parameter :: ndf_w2h = 4
+    integer(kind=i_def), parameter :: undf_wf = 18
+    integer(kind=i_def), parameter :: undf_w2h = 4
+    integer(kind=i_def), parameter :: stencil_max = 3
+
+    integer(kind=i_def), dimension(ndf_wf) :: map_wf
+    integer(kind=i_def), dimension(ndf_w2h) :: map_w2h
+    integer(kind=i_def), dimension(4) :: stencil_sizes
+    integer(kind=i_def), dimension(ndf_wf,stencil_max,4) :: stencil_map
+
+    real(kind=r_tran), dimension(undf_wf) :: increment
+    real(kind=r_tran), dimension(undf_wf) :: z
+    real(kind=r_tran), dimension(undf_w2h) :: wind
+
+    ! Base indices of each horizontal point for 2 levels (k=0,1):
+    ! west: 3->5, 2->3, center->1, east: 6->11, 7->13,
+    ! south: 4->7, 5->9, north: 8->15, 9->17.
+    integer(kind=i_def), parameter :: idx_c = 1
+    integer(kind=i_def), parameter :: idx_w1 = 3
+    integer(kind=i_def), parameter :: idx_w2 = 5
+    integer(kind=i_def), parameter :: idx_e1 = 11
+    integer(kind=i_def), parameter :: idx_e2 = 13
+    integer(kind=i_def), parameter :: idx_s1 = 7
+    integer(kind=i_def), parameter :: idx_s2 = 9
+    integer(kind=i_def), parameter :: idx_n1 = 15
+    integer(kind=i_def), parameter :: idx_n2 = 17
+
+    ! Get correct tolerance
+    if ( r_tran == real64 ) then
+      use_tol = tol
+    else
+      use_tol = 1.0e-6_r_tran
+    end if
+
+    map_wf(1) = 1
+    map_w2h(:) = (/ 1, 2, 3, 4 /)
+
+    stencil_sizes(:) = stencil_max
+    stencil_map(:,:,:) = reshape(                                              &
+        (/ idx_c, idx_w1, idx_w2,  & ! W branch
+           idx_c, idx_s1, idx_s2,  & ! S branch
+           idx_c, idx_e1, idx_e2,  & ! E branch
+           idx_c, idx_n1, idx_n2 /), & ! N branch
+        [ndf_wf, stencil_max, 4]                                              &
+    )
+
+    z(:) = 0.0_r_tran
+    ! x-like profile that is linear along W/E and constant along S/N.
+    z(idx_w2:idx_w2+1) = -2.0_r_tran
+    z(idx_w1:idx_w1+1) = -1.0_r_tran
+    z(idx_c:idx_c+1) = 0.0_r_tran
+    z(idx_e1:idx_e1+1) = 1.0_r_tran
+    z(idx_e2:idx_e2+1) = 2.0_r_tran
+    z(idx_s1:idx_s1+1) = 0.0_r_tran
+    z(idx_s2:idx_s2+1) = 0.0_r_tran
+    z(idx_n1:idx_n1+1) = 0.0_r_tran
+    z(idx_n2:idx_n2+1) = 0.0_r_tran
+
+    ! TEST 1: Positive zonal wind => positive increment on both levels.
+    increment(:) = 0.0_r_tran
+    wind(:) = (/ 2.0_r_tran, 0.0_r_tran, 2.0_r_tran, 0.0_r_tran /)
+
+    call horizontal_cubic_sl_metric_code( nlayers,       &
+                                          increment,     &
+                                          z,             &
+                                          stencil_sizes, &
+                                          stencil_max,   &
+                                          stencil_map,   &
+                                          wind,          &
+                                          ndf_wf,        &
+                                          undf_wf,       &
+                                          map_wf,        &
+                                          ndf_w2h,       &
+                                          undf_w2h,      &
+                                          map_w2h )
+
+    @assertEqual(2.0_r_tran, increment(1), use_tol)
+    @assertEqual(2.0_r_tran, increment(2), use_tol)
+
+    ! TEST 2: Negative zonal wind => negative increment on both levels.
+    increment(:) = 0.0_r_tran
+    wind(:) = (/ -2.0_r_tran, 0.0_r_tran, -2.0_r_tran, 0.0_r_tran /)
+
+    call horizontal_cubic_sl_metric_code( nlayers,       &
+                                          increment,     &
+                                          z,             &
+                                          stencil_sizes, &
+                                          stencil_max,   &
+                                          stencil_map,   &
+                                          wind,          &
+                                          ndf_wf,        &
+                                          undf_wf,       &
+                                          map_wf,        &
+                                          ndf_w2h,       &
+                                          undf_w2h,      &
+                                          map_w2h )
+
+    @assertEqual(-2.0_r_tran, increment(1), use_tol)
+    @assertEqual(-2.0_r_tran, increment(2), use_tol)
+
+    z(:) = 0.0_r_tran
+    ! x-like profile that is linear along S/N and constant along E/W.
+    z(idx_n2:idx_n2+1) = -2.0_r_tran
+    z(idx_n1:idx_n1+1) = -1.0_r_tran
+    z(idx_c:idx_c+1) = 0.0_r_tran
+    z(idx_s1:idx_s1+1) = 1.0_r_tran
+    z(idx_s2:idx_s2+1) = 2.0_r_tran
+    z(idx_w1:idx_w1+1) = 0.0_r_tran
+    z(idx_w2:idx_w2+1) = 0.0_r_tran
+    z(idx_e1:idx_e1+1) = 0.0_r_tran
+    z(idx_e2:idx_e2+1) = 0.0_r_tran
+
+    ! TEST 3: Positive meridional wind => positive increment on both levels.
+    increment(:) = 0.0_r_tran
+    wind(:) = (/ 0.0_r_tran, 2.0_r_tran, 0.0_r_tran, 2.0_r_tran /)
+
+    call horizontal_cubic_sl_metric_code( nlayers,       &
+                                          increment,     &
+                                          z,             &
+                                          stencil_sizes, &
+                                          stencil_max,   &
+                                          stencil_map,   &
+                                          wind,          &
+                                          ndf_wf,        &
+                                          undf_wf,       &
+                                          map_wf,        &
+                                          ndf_w2h,       &
+                                          undf_w2h,      &
+                                          map_w2h )
+
+    @assertEqual(2.0_r_tran, increment(1), use_tol)
+    @assertEqual(2.0_r_tran, increment(2), use_tol)
+
+    ! TEST 4: Negative meridional wind => negative increment on both levels.
+    increment(:) = 0.0_r_tran
+    wind(:) = (/ 0.0_r_tran, -2.0_r_tran, 0.0_r_tran, -2.0_r_tran /)
+
+    call horizontal_cubic_sl_metric_code( nlayers,       &
+                                          increment,     &
+                                          z,             &
+                                          stencil_sizes, &
+                                          stencil_max,   &
+                                          stencil_map,   &
+                                          wind,          &
+                                          ndf_wf,        &
+                                          undf_wf,       &
+                                          map_wf,        &
+                                          ndf_w2h,       &
+                                          undf_w2h,      &
+                                          map_w2h )
+
+    @assertEqual(-2.0_r_tran, increment(1), use_tol)
+    @assertEqual(-2.0_r_tran, increment(2), use_tol)
+
+
+  end subroutine horizontal_cubic_sl_metric_kernel_test
+
+end module horizontal_cubic_sl_metric_kernel_mod_test
