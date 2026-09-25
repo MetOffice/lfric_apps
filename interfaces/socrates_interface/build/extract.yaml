@@ -10,7 +10,12 @@ socrates:
     - src/cosp_control/cosp_diagnostics_mod.F90
     - src/cosp_control/cosp_input_mod.F90
     - src/cosp_control/cosp_mod.F90
+    - src/cosp_control/cosp_mxratio_mod.F90
+    - src/cosp_control/cosp_precip_mod.F90
     - src/cosp_control/cosp_radiation_mod.F90
+    - src/cosp_control/cosp_reff_mod.F90
+    - src/cosp_control/cosp_stats_extra.F90
+    - src/cosp_control/cosp_subgrid_mod.F90
     - src/cosp_control/cosp_types_mod.F90
     - src/cosp_github/driver/src/cosp2_io.f90
     - src/cosp_github/model-interface/cosp_errorHandling.F90
@@ -18,6 +23,7 @@ socrates:
     - src/cosp_github/src
     - src/cosp_github/subsample_and_optics_example/optics/cosp_optics.F90
     - src/cosp_github/subsample_and_optics_example/optics/quickbeam_optics
+    - src/cosp_github/subsample_and_optics_example/subcol/prec_scops.F90
     - src/illumination/astro_constants_mod.F90
     - src/illumination/def_orbit.F90
     - src/illumination/orbprm_mod.F90

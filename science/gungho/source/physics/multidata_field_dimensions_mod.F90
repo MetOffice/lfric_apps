@@ -28,7 +28,7 @@ module multidata_field_dimensions_mod
 #ifdef UM_PHYSICS
       !                   1         2         3
       !          123456789012345678901234567890
-      character(30), parameter :: multidata_items(35) = &
+      character(30), parameter :: multidata_items(36) = &
             [character(30) ::                           &
                 'plant_func_types',                     &
                 'sea_ice_categories',                   &
@@ -51,6 +51,7 @@ module multidata_field_dimensions_mod
                 'isccp_ctp_tau_bins',                   &
                 'cloudsat_levels',                      &
                 'csat_lvls_atb_bins',                   &
+                'csat_lvls_ze_bins',                    &
                 'horizon_angles',                       &
                 'horizon_aspects',                      &
                 'aod_wavel',                            &
@@ -152,6 +153,7 @@ end subroutine sync_multidata_field_dimensions
     use extrusion_config_mod,    only: number_of_layers
     use cosp_config_mod,         only: n_subcol_gen
     use cosp_mod,                only: n_cloudsat_levels, n_backscatter_bins,  &
+                                       n_dbze_bins, &
                                        n_isccp_tau_bins, n_isccp_pressure_bins
     use radiation_config_mod,    only: topography,         &
                                        topography_horizon, &
@@ -247,6 +249,8 @@ end subroutine sync_multidata_field_dimensions
             dim = n_cloudsat_levels
       case ('csat_lvls_atb_bins')
             dim = n_cloudsat_levels*n_backscatter_bins
+      case ('csat_lvls_ze_bins')
+            dim = n_cloudsat_levels*n_dbze_bins
       case ('horizon_angles')
             if (radiation == radiation_socrates .and. &
                   topography == topography_horizon) then
