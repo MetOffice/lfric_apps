@@ -21,10 +21,6 @@ module rh_to_mr_kernel_mod
   use kernel_mod,                 only: kernel_type
   use section_choice_config_mod,  only: cloud, cloud_um, cloud_evap_condense
   use physics_common_mod,         only: qsaturation
-#ifdef UM_PHYSICS
-  use qsat_mod,                   only: qsat_mix
-#endif
-  use log_mod,                    only: log_event, LOG_LEVEL_ERROR
 
   implicit none
 
@@ -102,49 +98,21 @@ subroutine rh_to_mr_code( nlayers,       &
   real(kind=r_def),                        intent(in)    :: p_zero
 
   ! Internal variables
-  integer(kind=i_def)           :: df, min_col_index, max_col_index, npts
-  real(kind=r_def), allocatable :: temperature(:), pressure(:)
-  real(kind=r_def), allocatable :: mr_sat(:)
+  integer(kind=i_def) :: df, min_col_index, max_col_index
+  real(kind=r_def)    :: temperature, pressure, mr_sat
 
   ! Find minimum and maximum DoF numberings for this column
   min_col_index = minval(map_wt)
   max_col_index = maxval(map_wt) + nlayers - 1
-  npts = max_col_index - min_col_index + 1
-
-  allocate(temperature(min_col_index:max_col_index))
-  allocate(pressure(min_col_index:max_col_index))
-  allocate(mr_sat(min_col_index:max_col_index))
 
   ! Directly loop over all DoFs in the column
   do df = min_col_index, max_col_index
-    temperature(df) = theta(df) * exner_at_wt(df)
-    pressure(df) = p_zero * exner_at_wt(df) ** (1.0_r_def/kappa)
+    temperature = theta(df) * exner_at_wt(df)
+    pressure = p_zero * exner_at_wt(df) ** (1.0_r_def/kappa)
+    mr_sat = qsaturation(temperature, 0.01_r_def*pressure)
+    mr_v(df) = rel_hum(df) * mr_sat / &
+               (1.0_r_def + (1.0_r_def-rel_hum(df)) * mr_sat * recip_epsilon)
   end do
-
-  ! Use appropriate vapour saturation function
-  select case(cloud)
-    case(cloud_evap_condense)
-      do df = min_col_index, max_col_index
-         mr_sat(df) = qsaturation(temperature(df), 0.01_r_def*pressure(df))
-      end do
-    case(cloud_um)
-#ifdef UM_PHYSICS
-      call qsat_mix(mr_sat, temperature, pressure, npts)
-#else
-      call log_event('UM_PHYSICS required in rh_to_mr_kernel.', &
-                     LOG_LEVEL_ERROR)
-#endif
-    case default
-      call log_event('Missing saturation function in rh_to_mr_kernel.', &
-                     LOG_LEVEL_ERROR)
-  end select
-
-  do df = min_col_index, max_col_index
-    mr_v(df) = rel_hum(df) * mr_sat(df) / &
-               (1.0_r_def + (1.0_r_def-rel_hum(df)) * mr_sat(df) * recip_epsilon)
-  end do
-
-  deallocate(temperature, pressure, mr_sat)
 
 end subroutine rh_to_mr_code
 
