@@ -1,0 +1,12 @@
+{% do LOG.debug("Entered mss/suite_config.cylc") %}
+
+    [[MSS_ORIG]]
+        platform = localhost
+
+{% include 'site/mss/common/suite_config_asp2a.cylc' %}
+
+{% if "lfricinputs" in requested_applications %}
+    {% include 'site/'~SITE~'/common/suite_config_lfricinputs.cylc' %}
+{% endif %}
+
+{% do LOG.debug("Finished in mss/suite_config.cylc") %}

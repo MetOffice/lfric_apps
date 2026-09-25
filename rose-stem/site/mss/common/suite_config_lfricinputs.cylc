@@ -1,0 +1,40 @@
+{% do LOG.debug("Entered site/mss/common/suite_config_lfricinputs.cylc") %}
+
+    [[LFRICINPUTS_BASE]]
+        execution retry delays = 2*PT1M
+        [[[environment]]]
+            ROSE_ORIG_HOST = {{ROSE_ORIG_HOST}}
+
+{% for tasks in [1, 2, 6, 12, 18, 24] %}
+    [[MSS_ASP2A_{{tasks}}_TASKS]]
+        [[[directives]]]
+           {%set MEM = tasks * 4 %}
+            -l select=1:ncpus={{tasks}}:mpiprocs={{tasks}}:ompthreads=1:mem={{MEM}}GB
+            -l walltime=00:30:00
+        [[[environment]]]
+            TOTAL_RANKS = {{tasks}}
+            XIOS_SERVER_MODE=False
+{% endfor %}
+
+    [[MSS_ASP2A_RUN_TASKS]]
+        inherit=MSS_ASP2A_1_TASKS
+
+    [[MSS_ASP2A_NORMAL_QUEUE]]
+
+    [[ROSE_ANA_ASP2A]]
+        pre-script = """
+                umask 0022
+                alias mpirun=mpiexec
+                module purge
+                module load craype-x86-milan
+                module load libfabric cray-dsmml
+                module load PrgEnv-gnu
+                module load ccrs_common/1.0.0
+                module load ccrs_python/3.12.12-cylc8
+                module load ccrs_fcm/2021.05.0
+                module load ants_env/2.1.0
+                module load gcc
+                module list 2>&1
+                     """
+
+{% do LOG.debug("Finished in site/mss/common/suite_config_lfricinputs.cylc") %}
