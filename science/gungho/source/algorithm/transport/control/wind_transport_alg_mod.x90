@@ -306,6 +306,7 @@ contains
           ! Return from components to full wind field in W2
           ! -------------------------------------------------------------------- !
 
+          if ( LPROF ) call start_timing( id_from, 'transport.wind_from_comps' )
           project_xdot_to_w2 => get_project_xdot_to_w2(mesh)
           project_ydot_to_w2 => get_project_ydot_to_w2(mesh)
           project_zdot_to_w2 => get_project_zdot_to_w2(mesh)
