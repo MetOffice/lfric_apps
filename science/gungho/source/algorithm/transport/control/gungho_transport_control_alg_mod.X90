@@ -244,6 +244,7 @@ contains
     ! Internal variables
     logical(kind=l_def)                    :: do_moisture_diagnostics
     logical(kind=l_def)                    :: cheap_update_step
+    logical(kind=l_def)                    :: safe_ref
 
     ! Temporary fields or pointers
     type(field_type)                       :: fields_np1(bundle_size)
@@ -346,7 +347,7 @@ contains
 
     ! Check negative reference fields at this point
     if (check_any_eqn_consistent()) then
-      call transport_controller%check_reference_field()
+      safe_ref = transport_controller%check_reference_field(fail_on_neg=.true.)
     end if
 
     ! ------------------------------------------------------------------------ !

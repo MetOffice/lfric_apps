@@ -557,7 +557,10 @@ contains
   !> @brief Calculates the reference fields to be used in tracer transport, and
   !!        if any of these are going to be negative, may perform the Watkins
   !!        algorithm to adjust how the fluxes are distributed between steps.
-  subroutine check_reference_field(self)
+  !> @param[in] fail_on_neg  If true, the model will stop if a reference field
+  !!                         is negative. If false, the model will continue.
+  !> @return  True if the ref field is safe to use, false if not
+  function check_reference_field(self, fail_on_neg) result(ref_field_safe)
 
     use transport_config_mod,           only: ffsl_unity_3d,                   &
                                               adjust_vhv_wind,                 &
@@ -572,6 +575,7 @@ contains
     implicit none
 
     class(transport_controller_type), target, intent(inout) :: self
+    logical(kind=l_def),                      intent(in)    :: fail_on_neg
 
     type(flux_precomputations_type), pointer :: flux_precomputations
 
@@ -688,22 +692,36 @@ contains
             call self%flux_precomputations%initialise_step(step=(3+3*(i-1)), ref_flux=step_3_flux)
           end do
 
+          ref_field_safe = .true.
         else
           ! We're about to fail... log the Lipschitz numbers
+          ref_field_safe = .false.
+
           call lipschitz_diag_alg(                                             &
                   self%config,                                                 &
                   self%reference_splitting, self%transporting_wind,            &
                   self%dt_substep, LOG_LEVEL_WARNING                           &
           )
 
-          if (adjust_tracer_equation) then
+          if (.not. fail_on_neg                                                &
+              .and. substep_transport == substep_transport_adaptive            &
+              .and. self%num_substeps < 3) then
+            ! Time to attempt substepping...
+            call log_event(                                                    &
+              'The Watkins algorithm failed to keep all reference fields ' //  &
+              'positive for the transport of tracers. Now try substepping...', &
+              LOG_LEVEL_WARNING                                                &
+            )
+
+          else if (adjust_tracer_equation) then
             ! Use advective form for tracer transport instead of consistent form
             call log_event(                                                    &
               'Reference field for tracer transport is negative, so ' //       &
               'making all tracers advective for this step. This will ' //      &
-              'make tracer transport non-conservative. ', LOG_LEVEL_INFO       &
+              'make tracer transport non-conservative. ', LOG_LEVEL_WARNING    &
             )
             self%make_tracers_advective = .true.
+
           else
             ! Fail gracefully
             call log_event(                                                    &
@@ -734,7 +752,7 @@ contains
       end if
     end if
 
-  end subroutine check_reference_field
+  end function check_reference_field
 
 ! ============================================================================ !
 ! SETTERS
@@ -1021,12 +1039,17 @@ contains
   !> @param[in] ref_flux     The reference flux field
   subroutine initialise_flux_precomputations(self, ref_flux)
 
+    use transport_config_mod,           only: substep_transport,               &
+                                              substep_transport_adaptive
+
     implicit none
 
     class(transport_controller_type), target, intent(inout) :: self
     type(r_tran_field_type),                  intent(in)    :: ref_flux
 
     type(mesh_type), pointer :: mesh
+    logical(kind=l_def)      :: safe_ref
+    integer(kind=i_def)      :: i, start_substeps, end_substeps
 
     if (self%flux_precomputations%is_initialised()) then
       call log_event(                                                          &
@@ -1043,13 +1066,54 @@ contains
     ! coarser mesh. In either case, the fluxes calculated during the transport
     ! of the density are not the same as those that will be used to transport
     ! the tracers. We set the correct flux here.
-    call self%flux_precomputations%initialise(                                 &
-            self%config,                                                       &
-            mesh, self%reference_splitting, self%num_substeps,                 &
-            self%transporting_wind, self%dt_substep,                           &
-            flux=ref_flux, ref_field=self%ref_field_rtran                      &
-    )
-    call self%check_reference_field()
+
+    ! Loop through substeps, as we may need to increase the number to keep
+    ! the reference fields positive
+    safe_ref = .false.
+    start_substeps = self%num_substeps
+    if (substep_transport == substep_transport_adaptive) then
+      end_substeps = 3  ! Force max substeps of 3
+    else
+      end_substeps = 1  ! No substepping
+    end if
+
+    do i = start_substeps, end_substeps
+      call self%flux_precomputations%initialise(                               &
+              self%config,                                                     &
+              mesh, self%reference_splitting, self%num_substeps,               &
+              self%transporting_wind, self%dt_substep,                         &
+              flux=ref_flux, ref_field=self%ref_field_rtran                    &
+      )
+      if (i == end_substeps) then
+        ! Fail if we have reached max substeps
+        safe_ref = self%check_reference_field(fail_on_neg=.true.)
+      else
+        safe_ref = self%check_reference_field(fail_on_neg=.false.)
+      end if
+
+      if (.not. safe_ref) then
+        ! Watkins algorithm failed to keep reference field positive
+        ! This is likely to be BDF tracer transport near start of run
+        ! Try enforcing substepping for tracer transport
+        self%dt_substep = (                                                    &
+            self%dt_substep * self%num_substeps                                &
+            / real(self%num_substeps + 1, r_tran)                              &
+        )
+        self%num_substeps = self%num_substeps + 1
+
+        ! Clear all precomputations in case they were set
+        call self%ffsl_precomputations%finalise()
+        call self%flux_precomputations%finalise()
+        call self%wind_precomputations%finalise()
+
+        write(log_scratch_space, '(A,I4)')                                     &
+            'Transport: Reference field for tracer transport cannot stay ' //  &
+            'positive. Increasing number of substeps to ', self%num_substeps
+        call log_event(log_scratch_space, LOG_LEVEL_WARNING)
+      else
+        EXIT
+      end if
+    end do
 
   end subroutine initialise_flux_precomputations
 
