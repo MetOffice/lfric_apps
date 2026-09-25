@@ -121,7 +121,7 @@ contains
     type(function_space_type),  pointer :: w2_fs
     type(function_space_type),  pointer :: w2b_fs
     logical(kind=l_def)                 :: optimised_conversion
-    integer(tik)                        :: id
+    integer(tik)                        :: id, id_to, id_from
     type(field_type)                    :: ones
     type(field_type),           pointer :: da
     type(field_type)                    :: chi1_n, chi1_d, chi2_n, chi2_d, chi1_d_w2, chi2_d_w2
