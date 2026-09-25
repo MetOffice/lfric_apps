@@ -135,7 +135,7 @@ subroutine cosp_alg(config, pressure_in_wth, temperature_in_wth, exner, mr, &
     calipso_gbxmean_atb_40, &
     calipso_mol_atb_40, &
     calipso_cloudsat_40_cl, &
-    cloudsat_cloud_area_40, &
+    calipso_cloud_area_40, &
     cloudsat_cfad_ze_40, &
     cloud_thermal_absorptivity, cloud_solar_extinction
 
@@ -214,7 +214,7 @@ subroutine cosp_alg(config, pressure_in_wth, temperature_in_wth, exner, mr, &
     calipso_gbxmean_atb_40, &
     calipso_mol_atb_40, &
     calipso_cloudsat_40_cl, &
-    cloudsat_cloud_area_40, &
+    calipso_cloud_area_40, &
     cloudsat_cfad_ze_40, &
     cloud_thermal_absorptivity, cloud_solar_extinction)
 
@@ -252,7 +252,7 @@ subroutine cosp_alg(config, pressure_in_wth, temperature_in_wth, exner, mr, &
     calipso_gbxmean_atb_40, &
     calipso_mol_atb_40, &
     calipso_cloudsat_40_cl, &
-    cloudsat_cloud_area_40, &
+    calipso_cloud_area_40, &
     cloudsat_cfad_ze_40, &
     cloud_thermal_absorptivity, cloud_solar_extinction ) )
   if ( LPROF ) call stop_timing( id, 'cosp' )
@@ -279,7 +279,7 @@ subroutine cosp_alg(config, pressure_in_wth, temperature_in_wth, exner, mr, &
       calipso_gbxmean_atb_40, &
       calipso_mol_atb_40, &
       calipso_cloudsat_40_cl, &
-      cloudsat_cloud_area_40, &
+      calipso_cloud_area_40, &
       cloudsat_cfad_ze_40, &
       cloud_thermal_absorptivity, cloud_solar_extinction )
   end if

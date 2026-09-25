@@ -188,14 +188,14 @@
       <field field_ref="cosp__isccp_ctp_tau"/>
       <field field_ref="cosp__calipso_cloudsat_40_cl_mask" />
       <field field_ref="cosp__weighted_cloud_albedo" />
-      <field field_ref="cosp__weighted_ctp" />
-      <field field_ref="cosp__tot_cloud_area" />
-      <field field_ref="cosp__cloudsat_gbxmean_ze_40" />
-      <field field_ref="cosp__calipso_gbxmean_atb_40" />
-      <field field_ref="cosp__calipso_mol_atb_40" />
-      <field field_ref="cosp__calipso_cloudsat_40_cl" />
-      <field field_ref="cosp__cloudsat_cloud_area_40" />
-      <field field_ref="cosp__cloudsat_cfad_ze_40" />
+      <field field_ref="cosp__weighted_ctp"/>
+      <field field_ref="cosp__tot_cloud_area"/>
+      <field field_ref="cosp__cloudsat_gbxmean_ze_40"/>
+      <field field_ref="cosp__calipso_gbxmean_atb_40"/>
+      <field field_ref="cosp__calipso_mol_atb_40"/>
+      <field field_ref="cosp__calipso_cloudsat_40_cl"/>
+      <field field_ref="cosp__calipso_cloud_area_40"/>
+      <field field_ref="cosp__cloudsat_cfad_ze_40"/>
     </field_group>
   </file>
 
