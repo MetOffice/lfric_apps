@@ -58,8 +58,8 @@ subroutine initialise_ukca_diagnostics(                                        &
 ! ----------------------------------------------------------------------
 ! Description:
 !   Set up the list of active diagnostics to be passed to UKCA
-!   Requirement of diagnostic is determined by call to init_diag which
-!   in turn queries XIOS to check if field is to be sampled this timestep
+!   Requirement of diagnostic is determined by call to function
+!   diagnostic_to_be_sampled to check if field is sampled this timestep
 ! ----------------------------------------------------------------------
 implicit none
 
@@ -159,8 +159,15 @@ subroutine output_ukca_diagnostics(                                            &
                                     n_req_ukca_diags_3d,                       &
                                     idiag_status_3d,                           &
                                     ukca_req_diagnames_fullht,                 &
-                                    diagnostics_fullht_real                    &                                    
+                                    diagnostics_fullht_real                    &
                                   )
+! ----------------------------------------------------------------------
+! Description:
+!   Write out the active UKCA diagnostics
+!   Each diagnostic to be written out in this call (based on status_flags)
+!   is extracted from the multi-data field/ super array first using the
+!   photol_diag kernel routine.
+! ----------------------------------------------------------------------
                
 implicit none
 
