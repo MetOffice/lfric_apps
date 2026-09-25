@@ -75,6 +75,8 @@ output-format = "grouped"                #group results by file
 "lfric2lfric_mod.f90" = ["C031"]
 "lfric2lfric_init_coupler_mod.F90" = ["C082"]
 "lfric2lfric_init_mesh.f90" = ["C082"]
+"lfric2lfric_vert_lin_interp_lin_extrap_kernel_mod_test.pf" = ["C121"]
+"lfric2lfric_vert_lin_interp_no_extrap_kernel_mod_test.pf" = ["C121"]
 
 # gravity_wave files:
 "analytic_buoyancy_profiles_mod_test.pf" = ["E001", "C121"]
@@ -171,3 +173,6 @@ output-format = "grouped"                #group results by file
 "atlt_derive_exner_from_eos_alg_mod.x90" = ["C132"]
 "adjt_compute_vorticity_alg_mod.x90" = ["C132"]
 "atlt_moist_dyn_mass_alg_mod.x90" = ["C031"]
+
+
+
