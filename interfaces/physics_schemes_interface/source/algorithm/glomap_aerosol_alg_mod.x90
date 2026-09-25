@@ -19,7 +19,9 @@ module glomap_aerosol_alg_mod
   use timing_mod,                      only: start_timing, stop_timing, &
                                              tik, LPROF
   use radiation_config_mod,            only: n_radstep
-  use aerosol_config_mod,              only: n_radaer_step
+  use aerosol_config_mod,              only: n_radaer_step,          &
+                                             glomap_mode,            &
+                                             glomap_mode_climatology
   use microphysics_config_mod,         only: microphysics_casim
   use function_space_mod,              only: function_space_type
   use function_space_collection_mod,   only: function_space_collection
@@ -376,23 +378,28 @@ contains
       end if
 
       ! Cloud condensation nuclei number concentrations and dust mass
-      ! concentrations, computed only when requested
-      call output_diags_for_glomap_ccn( glomap_variables_climatology,          &
-                                        rho_in_wth,                            &
-                                        n_ait_sol,                             &
-                                        n_acc_sol,                             &
-                                        n_cor_sol,                             &
-                                        n_ait_ins,                             &
-                                        n_acc_ins,                             &
-                                        n_cor_ins,                             &
-                                        drydp_ait_sol,                         &
-                                        drydp_acc_sol,                         &
-                                        drydp_cor_sol,                         &
-                                        drydp_ait_ins,                         &
-                                        drydp_acc_ins,                         &
-                                        drydp_cor_ins,                         &
-                                        acc_ins_du,                            &
-                                        cor_ins_du )
+      ! concentrations, computed only when requested. When the dust is
+      ! prognostic the UKCA aerosol algorithm outputs these instead, so
+      ! only output them here when running purely with climatologies, to
+      ! avoid writing them twice in one timestep
+      if ( glomap_mode == glomap_mode_climatology ) then
+        call output_diags_for_glomap_ccn( glomap_variables_climatology,        &
+                                          rho_in_wth,                          &
+                                          n_ait_sol,                           &
+                                          n_acc_sol,                           &
+                                          n_cor_sol,                           &
+                                          n_ait_ins,                           &
+                                          n_acc_ins,                           &
+                                          n_cor_ins,                           &
+                                          drydp_ait_sol,                       &
+                                          drydp_acc_sol,                       &
+                                          drydp_cor_sol,                       &
+                                          drydp_ait_ins,                       &
+                                          drydp_acc_ins,                       &
+                                          drydp_cor_ins,                       &
+                                          acc_ins_du,                          &
+                                          cor_ins_du )
+      end if
 
       if ( LPROF ) call stop_timing( id_diags, 'diags.glomap_clim' )
     end if
