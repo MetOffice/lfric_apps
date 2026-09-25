@@ -94,6 +94,9 @@ contains
     type(field_type),            pointer :: mr(:)
     type(field_type),            pointer :: moist_dyn(:)
     type(field_collection_type), pointer :: derived_fields
+#ifdef UM_PHYSICS
+    type(field_collection_type), pointer :: cloud_fields
+#endif
 
     type(field_type), pointer :: theta
     type(field_type), pointer :: u
@@ -332,8 +335,9 @@ contains
       ! Call PMSL algorithm
       call pmsl_alg(modeldb%config, exner, derived_fields, theta, twod_mesh)
       ! Pressure level diagnostics
+      cloud_fields => modeldb%fields%get_field_collection("cloud_fields")
       call pres_lev_diags_alg(modeldb%config, derived_fields, theta, exner, &
-                              mr, moist_dyn)
+                              mr, moist_dyn, cloud_fields)
       ! Wet bulb freezing level
       call freeze_lev_alg(modeldb%config,theta, mr, moist_dyn, exner_in_wth)
 #endif

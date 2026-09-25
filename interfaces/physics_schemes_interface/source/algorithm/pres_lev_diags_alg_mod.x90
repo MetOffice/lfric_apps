@@ -22,7 +22,8 @@ module pres_lev_diags_alg_mod
   use mr_indices_mod,          only: nummr, imr_v
   use moist_dyn_mod,           only: num_moist_factors, total_mass
   use planet_config_mod,       only: p_zero, kappa, gravity, cp
-  use planet_constants_mod,    only: ex_power
+  use planet_constants_mod,    only: ex_power, repsilon
+  use conversions_mod,         only: zerodegc
 
   implicit none
 
@@ -46,15 +47,18 @@ contains
   !> @param[in]  exner_w3        Exner pressure
   !> @param[in]  mr              Mixing ratio bundle
   !> @param[in]  moist_dyn       Moist_dynamics factors (for 1+sum(m_x))
+  !> @param[in]  cloud_fields    Group of cloud fields
   subroutine pres_lev_diags_alg(config,                              &
                                 derived_fields, theta_wth, exner_w3, &
-                                mr, moist_dyn)
+                                mr, moist_dyn, cloud_fields)
 
     use psykal_lite_phys_mod, only: invoke_pres_interp_kernel_type,  &
                                     invoke_heaviside_kernel_type,    &
                                     invoke_geo_on_pres_kernel_type,  &
                                     invoke_temp_on_pres_kernel_type, &
                                     invoke_thetaw_kernel_type
+    use icing_pot_rh_kernel_mod, only: icing_pot_rh_kernel_type
+    use icing_pot_kernel_mod,    only: icing_pot_kernel_type
 
     implicit none
 
@@ -65,6 +69,7 @@ contains
     type( field_type ), intent(in) :: theta_wth, exner_w3
     type( field_type ), intent(in) :: mr(nummr)
     type( field_type ), intent(in) :: moist_dyn(num_moist_factors)
+    type( field_collection_type ), intent(in) :: cloud_fields
     ! Internal variables
     type( field_type ), pointer     :: exner_wth
     type( field_type ), pointer     :: u_in_w3
@@ -73,13 +78,16 @@ contains
     type( field_type ), pointer     :: wetrho_in_wth
     type( field_type ), pointer     :: height_w3
     type( field_type ), pointer     :: height_wth
+    type( field_type ), pointer     :: bulk_fraction
 
     ! Define fields
     type( field_type ) :: plev_heaviside, plev_temp, plev_u, plev_v, &
          plev_w, plev_geopot, temp, omega, plev_omega, plev_mv, plev_qv, qv, &
          plev_thetaw, plev_temp_save
+    type( field_type ) :: plev_icing_pot, icing_temp, icing_qv, icing_rh, &
+         plev_icing_rh, plev_icing_temp, plev_icing_cloud
     integer(i_def) :: nplev
-    real(r_def) :: minus_g
+    real(r_def) :: minus_g, repsilon_r_def, zerodegc_r_def
     real(r_def), allocatable :: plevs(:)
 
     logical(l_def) :: plev_heaviside_flag, plev_temp_flag,             &
@@ -87,7 +95,8 @@ contains
          plev_u_flag, plev_u_clim_flag, plev_v_flag, plev_v_clim_flag, &
          plev_w_flag, plev_w_clim_flag, plev_omega_clim_flag,          &
          plev_mv_clim_flag, plev_qv_clim_flag,                         &
-         plev_geopot_flag, plev_geopot_clim_flag, plev_thetaw_flag
+         plev_geopot_flag, plev_geopot_clim_flag, plev_thetaw_flag,    &
+         plev_icing_pot_flag
     integer(tik) :: id
 
     if ( LPROF ) call start_timing( id, 'diags.pressure_lev' )
@@ -282,6 +291,48 @@ contains
                                           p_zero, kappa)
         call plev_geopot%write_field('plev__geopot_clim')
       end if
+
+    end if
+
+    ! Icing potential on pressure levels: relative humidity where cloud is
+    ! present and the temperature is between -20 and 0 degrees Celsius
+    plev_icing_pot_flag = init_diag(plev_icing_pot, 'plev__icing_pot')
+    if (plev_icing_pot_flag .and. use_xios_io) then
+
+      call cloud_fields%get_field('bulk_fraction', bulk_fraction)
+      repsilon_r_def = real(repsilon, r_def)
+      zerodegc_r_def = real(zerodegc, r_def)
+
+      ! Relative humidity on model levels
+      call theta_wth%copy_field_properties(icing_temp)
+      call theta_wth%copy_field_properties(icing_qv)
+      call theta_wth%copy_field_properties(icing_rh)
+      call invoke(X_times_Y(icing_temp, theta_wth, exner_wth),             &
+                  X_divideby_Y(icing_qv, mr(imr_v), moist_dyn(total_mass)), &
+                  icing_pot_rh_kernel_type(icing_rh, icing_temp, exner_wth, &
+                                           icing_qv, p_zero, kappa,         &
+                                           repsilon_r_def, zerodegc_r_def), &
+                  name="icing_pot_rh")
+
+      ! Relative humidity, temperature and cloud fraction on pressure levels
+      call plev_icing_pot%copy_field_properties(plev_icing_rh)
+      call plev_icing_pot%copy_field_properties(plev_icing_temp)
+      call plev_icing_pot%copy_field_properties(plev_icing_cloud)
+      call invoke_pres_interp_kernel_type(icing_rh, exner_wth,           &
+                                          nplev, plevs, plev_icing_rh,   &
+                                          p_zero, kappa)
+      call invoke_pres_interp_kernel_type(icing_temp, exner_wth,         &
+                                          nplev, plevs, plev_icing_temp, &
+                                          p_zero, kappa)
+      call invoke_pres_interp_kernel_type(bulk_fraction, exner_wth,       &
+                                          nplev, plevs, plev_icing_cloud, &
+                                          p_zero, kappa)
+
+      call invoke(icing_pot_kernel_type(plev_icing_pot, plev_icing_rh,      &
+                                        plev_icing_temp, plev_icing_cloud, &
+                                        nplev, zerodegc_r_def),            &
+                name="icing_pot")
+      call plev_icing_pot%write_field()
 
     end if
 

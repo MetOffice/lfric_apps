@@ -990,6 +990,7 @@
   <field id="plev__rh_ice" name="plev_rh_ice" long_name="relative_humidity_wrt_ice_at_pressure_levels" unit="m s-1" domain_ref="face" axis_ref="pressure_levels"/>
   <field id="plev__rh_ice_clim" name="plev_rh_ice_clim" long_name="relative_humidity_wrt_ice_at_pressure_levels_for_climate_averaging" unit="m s-1" domain_ref="face" axis_ref="pressure_levels"/>
   <field id="plev__rh_water" name="plev_rh_water" long_name="relative_humidity_wrt_water_at_pressure_levels" unit="m s-1" domain_ref="face" axis_ref="pressure_levels"/>
+  <field id="plev__icing_pot" name="plev_icing_pot" long_name="wafc_mean_icing_potential_at_pressure_levels" unit="1" domain_ref="face" axis_ref="pressure_levels"/>
   <field id="plev__xi3" name="plev_xi3" long_name="vertical_vorticity_at_pressure_levels" unit="s-1" domain_ref="face" axis_ref="pressure_levels_xi3"/>
   <field id="plev__pv" name="plev_pv" long_name="potential_vorticity_at_pressure_levels" unit="m2 s-1 K kg-1" domain_ref="face" axis_ref="pressure_levels"/>
   <field id="plev__uu_clim" name="plev_uu_clim" standard_name="square_of_eastward_wind" unit="m2 s-2" domain_ref="face" axis_ref="pressure_levels"> plev__u_clim * plev__u_clim </field>
