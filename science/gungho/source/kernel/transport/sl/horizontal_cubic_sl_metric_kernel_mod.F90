@@ -135,38 +135,38 @@ contains
       vm = -0.5_r_def*(wind(map_w2h(2)+km) + wind(map_w2h(2)+kp))
       vp = -0.5_r_def*(wind(map_w2h(4)+km) + wind(map_w2h(4)+kp))
 
-    ! dzdx
-    ! Compute upwind Z on the left and right sides of the cell
-    if ( um > 0.0_r_def ) then
-      z_l = b0*z(stencil_map(1,d3(1),1)+k) + b1*z(stencil_map(1,d2(1),1)+k) + b2*z(stencil_map(1,1,1)+k)
-    else
-      z_l = c1*z(stencil_map(1,d2(1),1)+k) + c2*z(stencil_map(1,1,1)+k) + c3*z(stencil_map(1,d2(3),3)+k)
-    end if
-    if ( up > 0.0_r_def ) then
-      z_r = b0*z(stencil_map(1,d2(1),1)+k) + b1*z(stencil_map(1,1,1)+k) + b2*z(stencil_map(1,d2(3),3)+k)
-    else
-      z_r = c1*z(stencil_map(1,1,3)+k) + c2*z(stencil_map(1,d2(3),3)+k) + c3*z(stencil_map(1,d3(3),3)+k)
-    end if
+      ! dzdx
+      ! Compute upwind Z on the left and right sides of the cell
+      if ( um > 0.0_r_def ) then
+        z_l = b0*z(stencil_map(1,d3(1),1)+k) + b1*z(stencil_map(1,d2(1),1)+k) + b2*z(stencil_map(1,1,1)+k)
+      else
+        z_l = c1*z(stencil_map(1,d2(1),1)+k) + c2*z(stencil_map(1,1,1)+k) + c3*z(stencil_map(1,d2(3),3)+k)
+      end if
+      if ( up > 0.0_r_def ) then
+        z_r = b0*z(stencil_map(1,d2(1),1)+k) + b1*z(stencil_map(1,1,1)+k) + b2*z(stencil_map(1,d2(3),3)+k)
+      else
+        z_r = c1*z(stencil_map(1,1,3)+k) + c2*z(stencil_map(1,d2(3),3)+k) + c3*z(stencil_map(1,d3(3),3)+k)
+      end if
 
-    dzdx = (z_r- z_l)
+      dzdx = (z_r- z_l)
 
-    ! dzdy
-    ! Compute upwind Z on the left and right sides of the cell
-    if ( vm > 0.0_r_def ) then
-      z_l = b0*z(stencil_map(1,d3(2),2)+k) + b1*z(stencil_map(1,d2(2),2)+k) + b2*z(stencil_map(1,1,2)+k)
-    else
-      z_l = c1*z(stencil_map(1,d2(2),2)+k) + c2*z(stencil_map(1,1,2)+k) + c3*z(stencil_map(1,d2(4),4)+k)
-    end if
-    if ( vp > 0.0_r_def ) then
-      z_r = b0*z(stencil_map(1,d2(2),2)+k) + b1*z(stencil_map(1,1,2)+k) + b2*z(stencil_map(1,d2(4),4)+k)
-    else
-      z_r = c1*z(stencil_map(1,1,4)+k) + c2*z(stencil_map(1,d2(4),4)+k) + c3*z(stencil_map(1,d3(4),4)+k)
-    end if
+      ! dzdy
+      ! Compute upwind Z on the left and right sides of the cell
+      if ( vm > 0.0_r_def ) then
+        z_l = b0*z(stencil_map(1,d3(2),2)+k) + b1*z(stencil_map(1,d2(2),2)+k) + b2*z(stencil_map(1,1,2)+k)
+      else
+        z_l = c1*z(stencil_map(1,d2(2),2)+k) + c2*z(stencil_map(1,1,2)+k) + c3*z(stencil_map(1,d2(4),4)+k)
+      end if
+      if ( vp > 0.0_r_def ) then
+        z_r = b0*z(stencil_map(1,d2(2),2)+k) + b1*z(stencil_map(1,1,2)+k) + b2*z(stencil_map(1,d2(4),4)+k)
+      else
+        z_r = c1*z(stencil_map(1,1,4)+k) + c2*z(stencil_map(1,d2(4),4)+k) + c3*z(stencil_map(1,d3(4),4)+k)
+      end if
 
-    dzdy = (z_r- z_l)
+      dzdy = (z_r- z_l)
 
-    increment(map_wf(1)+k) = 0.5_r_def*(um+up)*dzdx + 0.5_r_def*(vm+vp)*dzdy
-  end do
+      increment(map_wf(1)+k) = 0.5_r_def*(um+up)*dzdx + 0.5_r_def*(vm+vp)*dzdy
+    end do
 
   end subroutine horizontal_cubic_sl_metric_code
 

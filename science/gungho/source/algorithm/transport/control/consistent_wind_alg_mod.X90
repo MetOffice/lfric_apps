@@ -1,7 +1,11 @@
 !-----------------------------------------------------------------------------
-! (c) Crown copyright 2026
+! (c) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
 !-----------------------------------------------------------------------------
-!> @brief Compute the consistent vertical wind
+!> @brief Compute the consistent vertical wind by removing the orographic component
+!!        obtained using the fem polynomials and adding in the same component
+!!        obtained using hte transport scheme reconstruction 
 
 module consistent_wind_alg_mod
 
@@ -46,7 +50,7 @@ contains
   !!          from the horizontal wind over terrain uses the transport scheme reconstruction
   !!          to compute the orographic gradient instead of the finite element scheme. This
   !!          results in the correct cancellation with the horizontal transport of the field
-  !!          over terrain.
+  !!          over terrain that is applied by updating the transport controller object.
   !> @param[in]     config               Application namelist configuration object
   !> @param[in,out] transport_controller Encapsulating object containing the
   !!                                     transport counter and precomputations
@@ -55,7 +59,7 @@ contains
   !> @param[in]     wind_np1             Wind at the end of the step
   !> @param[in]     model_clock          Model time information
   !> @param[in]     outer                Outer iteration index
-  !> @param[in]     cheap_update_step    Whether a cheap controller update is used
+  !> @param[in]     cheap_update_step    Whether a cheap transport update is used
   subroutine consistent_wind_alg(config,               &
                                  transport_controller, &
                                  rho_d_latest,         &
@@ -107,7 +111,7 @@ contains
         transport_metadata_collection%get_transport_metadata('potential_temperature')
     call chi3_inc%initialise( chi3%get_function_space() )
 
-    ! Split out the horzontal and vertical components of the wind
+    ! Split out the horizontal and vertical components of the wind
     w2h_fs => function_space_collection%get_fs( wind_n%get_mesh(),            &
                                                 wind_n%get_element_order_h(), &
                                                 wind_n%get_element_order_v(), W2h )

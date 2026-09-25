@@ -100,6 +100,7 @@
         "gungho_model_sbr_lam-n96_MG_lam_ex1a_gnu_fast-debug-64bit",
         "gungho_model_sbr_lam-n96_MG_lam_rotate_ex1a_gnu_fast-debug-64bit",
         "gungho_model_schar_cart-BiP200x8-500x500_ex1a_gnu_fast-debug-64bit",
+        "gungho_model_schar_cart-consistent-BiP200x8-500x500_ex1a_gnu_fast-debug-64bit",
         "gungho_model_schar_cart-alt2-BiP100x4-1000x1000_ex1a_gnu_fast-debug-64bit",
         "gungho_model_semi-implicit-for-linear-C12_ex1a_gnu_fast-debug-64bit",
         "gungho_model_shallow-hot-jupiter-C24_MG_ex1a_gnu_fast-debug-64bit",
