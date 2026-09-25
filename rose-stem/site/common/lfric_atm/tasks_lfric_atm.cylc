@@ -788,6 +788,20 @@
         "xios_min_buffer_size": 2097152,
     }) %}
 
+{% elif task_ns.conf_name == "ral_dev-seuk_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["l70_40km","ral3","blendshcu","ral_opts","hh_solve"],
+        "resolution": "seuk_MG",
+        "DT": 60,
+        "tsteps": 120,
+        "crun": 2,
+        "crun_compare": false,
+        "mpi_parts": 16,
+        "kgo_checks": ["checksum"],
+        "plot_str": "plot_map.py -ral $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
+    }) %}
+
 {% elif task_ns.conf_name == "ral3_mixmol-seuk_MG" %}
 
     {% do task_dict.update({
