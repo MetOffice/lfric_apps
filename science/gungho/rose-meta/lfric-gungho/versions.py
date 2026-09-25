@@ -20,13 +20,10 @@ class UpgradeError(Exception):
 
 """
 Copy this template and complete to add your macro
-
 class vnXX_txxx(MacroUpgrade):
     # Upgrade macro for <TICKET> by <Author>
-
     BEFORE_TAG = "vnX.X"
     AFTER_TAG = "vnX.X_txxx"
-
     def upgrade(self, config, meta_config=None):
         # Add settings
         return config, self.reports
@@ -130,16 +127,24 @@ class vn32_t699(MacroUpgrade):
             ["namelist:transport", "native_w2_wind_transport"],
             ".false.",
         )
-
         return config, self.reports
 
+
 class vn32_t760(MacroUpgrade):
-    """Upgrade macro for PR #760 by Chris Smith."""
+    """Upgrade macro for ticket #760 by Chris Smith."""
 
     BEFORE_TAG = "vn3.2_t699"
     AFTER_TAG = "vn3.2_t760"
 
     def upgrade(self, config, meta_config=None):
-        self.add_setting(config, ["namelist:initial_temperature", "profile_variable"], "'potential'")
-        self.add_setting(config, ["namelist:initial_vapour", "profile_variable"], "'mr'")
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(
+            config,
+            ["namelist:initial_temperature", "profile_variable"],
+            "'potential'",
+        )
+        self.add_setting(
+            config, ["namelist:initial_vapour", "profile_variable"], "'mr'"
+        )
+
         return config, self.reports
