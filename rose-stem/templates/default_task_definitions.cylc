@@ -81,6 +81,10 @@
     {% do task_dict.update({"restart_no": none}) %}
 {% endif %}
 
+{#% if "vernier" not in task_dict %}
+    {% do task_dict.update({"vernier": False}) %}
+{% endif %#}
+
 {% if "restart_read" not in task_dict %}
     {% do task_dict.update({"restart_read": ".false."}) %}
 {% endif %}
