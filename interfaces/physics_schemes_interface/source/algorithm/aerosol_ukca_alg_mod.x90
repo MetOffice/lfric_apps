@@ -1621,6 +1621,8 @@ contains
                                         diagnostics_fullht_real                &
                                       )
     
+        if (allocated(idiags_status_3d)) deallocate(idiags_status_3d)
+        if (allocated(ukca_req_diagnames_fullht)) deallocate(ukca_req_diagnames_fullht)
       end if    ! chem_scheme_strattrop
 
       call dms%write_field('chemistry__dms')

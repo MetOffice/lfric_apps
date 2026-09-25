@@ -125,9 +125,6 @@ allocate(idiag_status_3d(n_req_ukca_diags_3d))
 diagnames_fullht_real(:) = tmp_diagnames_fullht_real(1:n_req_ukca_diags_3d)
 idiag_status_3d(:) = tmp_diag_status_3d(1:n_req_ukca_diags_3d)
 
-deallocate(tmp_diag_status_3d)
-deallocate(tmp_diagnames_fullht_real)
-
 ! Pass on active diagnostic information to UKCA via API - if any requested
 if ( n_req_ukca_diags_3d > 0_i_def ) then
   CALL ukca_set_diagnostic_requests(                                           &
@@ -152,7 +149,9 @@ end do
 
 deallocate(idiag_status_3d)
 deallocate(diagnames_fullht_real)
+deallocate(tmp_diag_status_3d)
 deallocate(req_diagnames_fullht)
+deallocate(tmp_diagnames_fullht_real)
 
 end subroutine ukca_diag_setup
 ! ----------------------------------------------------------------------
