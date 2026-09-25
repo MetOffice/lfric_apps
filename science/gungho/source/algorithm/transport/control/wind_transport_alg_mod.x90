@@ -263,6 +263,7 @@ contains
           ! Split wind into components in W3
           ! -------------------------------------------------------------------- !
 
+          if ( LPROF ) call start_timing( id_to, 'transport.wind_to_comps' )
           do dir = 1,3
             call u_w3_n(dir)%initialise( w3_fs )
             call u_w3_inc(dir)%initialise( w3_fs )
