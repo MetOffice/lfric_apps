@@ -299,7 +299,6 @@ contains
     use rtheta_kernel_mod,              only: rtheta_kernel_type
     use rtheta_bd_kernel_mod,           only: rtheta_bd_kernel_type
     use reference_element_mod,          only: reference_element_type
-    use mesh_mod,                       only: mesh_type
     use split_w2_field_kernel_mod,      only: split_w2_field_kernel_type
     use integer_field_mod,              only: integer_field_type
     use sci_geometric_constants_mod,    only: get_face_selector_ew,            &

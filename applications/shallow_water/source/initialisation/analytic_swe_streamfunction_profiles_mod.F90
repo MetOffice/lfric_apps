@@ -16,9 +16,10 @@ module analytic_swe_streamfunction_profiles_mod
                                     log_scratch_space, &
                                     LOG_LEVEL_ERROR
 
+  use mesh_mod, only: geometry_spherical
+
   ! Configuration
-  use base_mesh_config_mod,   only: geometry, &
-                                    geometry_spherical
+  use base_mesh_config_mod,   only: geometry
   use planet_config_mod,      only: scaled_radius, scaled_omega
   use shallow_water_settings_config_mod,                   &
                               only: swe_test_swe_galewsky, &

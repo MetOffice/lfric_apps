@@ -34,6 +34,7 @@ module pressure_operator_alg_mod
                                                 LOG_LEVEL_ERROR, &
                                                 LOG_LEVEL_INFO,  &
                                                 log_scratch_space
+  use mesh_mod,                           only: topology_non_periodic
   use solver_constants_mod,               only: get_normalisation_r_solver
   use limited_area_constants_mod,         only: get_mask_r_solver
   use fs_continuity_mod,                  only: W2, W3, Wtheta
@@ -44,8 +45,9 @@ module pressure_operator_alg_mod
                                                 get_p3theta, &
                                                 get_helm_diag, &
                                                 get_hb_lumped_inv
+
   use boundaries_config_mod,              only: limited_area
-  use base_mesh_config_mod,               only: topology, topology_non_periodic
+  use base_mesh_config_mod,               only: topology
   use function_space_mod,                 only: function_space_type
   use multigrid_mod,                      only: multigrid_function_space_chain
 

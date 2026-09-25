@@ -68,8 +68,8 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine setUp( this )
 
-    use base_mesh_config_mod,      only : geometry_planar, &
-                                          topology_fully_periodic
+    use mesh_mod,                only : geometry_planar, &
+                                        topology_periodic
     use extrusion_config_mod,    only : method_uniform, &
                                         stretching_method_linear
     use finite_element_config_mod, only : cellshape_quadrilateral, &
@@ -105,7 +105,7 @@ contains
                prime_mesh_name='unit_test',      &
                geometry=geometry_planar,         &
                prepartitioned=.false.,           &
-               topology=topology_fully_periodic, &
+               topology=topology_periodic, &
                fplane=.false., f_lat_deg=0.0_r_def )
 
     call feign_extrusion_config( planet_radius=planet_radius,                &
@@ -156,7 +156,7 @@ contains
                                  perturb_init=.false., perturb_magnitude=0,   &
                                  perturb_seed=0 )
 
-    call init_chi_transforms(geometry_planar, topology_fully_periodic)
+    call init_chi_transforms(geometry_planar, topology_periodic)
 
     nlayers=3
     call get_w0_m3x3_q3x3x3_size( this%ndf_w0, this%undf_w0, ncells, &

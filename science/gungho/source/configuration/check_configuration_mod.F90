@@ -147,12 +147,13 @@ contains
                                            alpha,                              &
                                            outer_iterations,                   &
                                            inner_iterations
-    use base_mesh_config_mod,        only: geometry,                           &
-                                           geometry_spherical,                 &
+
+    use mesh_mod,                    only: geometry_spherical,                 &
                                            geometry_planar,                    &
-                                           topology,                           &
-                                           topology_fully_periodic,            &
-                                           topology_non_periodic,              &
+                                           topology_periodic,                  &
+                                           topology_non_periodic
+
+    use base_mesh_config_mod,        only: geometry, topology,                 &
                                            prime_mesh_name
     use departure_points_config_mod, only: horizontal_limit,                   &
                                            horizontal_limit_none,              &
@@ -319,7 +320,7 @@ contains
           write( log_scratch_space, '(A)' ) 'panel_edge_treatment only valid for spherical geometry'
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end if
-        if ( topology /=  topology_fully_periodic) then
+        if ( topology /=  topology_periodic) then
           write( log_scratch_space, '(A)' ) 'panel_edge_treatment only valid for fully periodic topology'
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end if
