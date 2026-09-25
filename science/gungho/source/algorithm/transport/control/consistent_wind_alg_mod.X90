@@ -5,7 +5,7 @@
 !-----------------------------------------------------------------------------
 !> @brief Compute the consistent vertical wind by removing the orographic component
 !!        obtained using the fem polynomials and adding in the same component
-!!        obtained using hte transport scheme reconstruction 
+!!        obtained using hte transport scheme reconstruction
 
 module consistent_wind_alg_mod
 
