@@ -284,28 +284,19 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
   l_number_conc = l_ccn_3nm .or. l_ccn_30nm .or. l_ccn_50nm
 
   !---------------------------------------------------------------------------
-  ! Lognormal width of each mode, which does not vary in the column
+  ! Number concentrations above each dry diameter threshold
   !---------------------------------------------------------------------------
 
   if ( l_number_conc ) then
+
+    ! Lognormal width of each mode, which does not vary in the column
     sigmag = (/ sigmag_ait_sol, sigmag_acc_sol, sigmag_cor_sol,               &
                 sigmag_ait_ins, sigmag_acc_ins, sigmag_cor_ins /)
     do imode = 1, nmodes_diag
       recip_width(imode) = 1.0_r_def / ( root_two * log( sigmag(imode) ) )
     end do
-  end if
 
-  !---------------------------------------------------------------------------
-  ! Column loop
-  !---------------------------------------------------------------------------
-
-  do k = 1, nlayers
-
-    !-------------------------------------------------------------------------
-    ! Number concentrations above each dry diameter threshold
-    !-------------------------------------------------------------------------
-
-    if ( l_number_conc ) then
+    do k = 1, nlayers
 
       ! Number density of air molecules from the dry air density, since
       ! rho * rd * T = p = n * boltzmann * T
@@ -372,23 +363,27 @@ subroutine glomap_ccn_diag_code( nlayers,                                      &
         ccn_number_conc_50nm(map_wth(1) + k) = tail_sum
       end if
 
-    end if
+    end do
 
-    !-------------------------------------------------------------------------
-    ! Dust mass concentrations: mass mixing ratio times the dry air density
-    !-------------------------------------------------------------------------
+  end if
 
-    if ( l_du_acc_ins ) then
+  !---------------------------------------------------------------------------
+  ! Dust mass concentrations: mass mixing ratio times the dry air density
+  !---------------------------------------------------------------------------
+
+  if ( l_du_acc_ins ) then
+    do k = 1, nlayers
       mconc_du_acc_ins(map_wth(1) + k) = acc_ins_du(map_wth(1) + k) *         &
                                          rho_in_wth(map_wth(1) + k)
-    end if
+    end do
+  end if
 
-    if ( l_du_cor_ins ) then
+  if ( l_du_cor_ins ) then
+    do k = 1, nlayers
       mconc_du_cor_ins(map_wth(1) + k) = cor_ins_du(map_wth(1) + k) *         &
                                          rho_in_wth(map_wth(1) + k)
-    end if
-
-  end do
+    end do
+  end if
 
   !---------------------------------------------------------------------------
   ! The zeroth level is redundant for the GLOMAP fields, so set it to the
