@@ -9,6 +9,7 @@ module jules_snow_diags_mod
 
   use constants_mod,               only: l_def, r_def
   use field_mod,                   only: field_type
+  use integer_field_mod,           only: integer_field_type
   use timing_mod,                  only: start_timing, stop_timing, tik, LPROF
   use sci_weighted_ave_kernel_mod, only: weighted_ave_kernel_type
 
@@ -62,6 +63,8 @@ contains
   !> @param[in]     snowice_melt             Total snow and ice melt on tiles
   !> @param[in]     snow_depth               Depth of snow on tiles
   !> @param[in]     tile_snow_rgrain         Snow grain size on tiles
+  !> @param[in]     snow_under_canopy        Snow beneath the tile canopy
+  !> @param[in]     n_snow_layers            Number of snow layers on tiles
   !> @param[in]     snowpack_density         Density of snow pack on tiles
   !> @param[in]     snow_layer_temp          Temperature of snow layers on tiles
   !> @param[in]     snow_layer_thickness     Thickness of snow layers on tiles
@@ -74,6 +77,7 @@ contains
   subroutine output_diags_for_jules_snow(tile_fraction, tile_snow_mass,        &
                                      snowice_melt,                             &
                                      snow_depth, tile_snow_rgrain,             &
+                                     snow_under_canopy, n_snow_layers,         &
                                      snowpack_density, snow_layer_temp,        &
                                      snow_layer_thickness, snow_layer_ice_mass,&
                                      snow_layer_liq_mass, snow_layer_rgrain,   &
@@ -91,7 +95,8 @@ contains
                                          snow_layer_thickness,                 &
                                          snow_layer_ice_mass,                  &
                                          snow_layer_liq_mass,                  &
-                                         snow_layer_rgrain
+                                         snow_layer_rgrain, snow_under_canopy
+    type( integer_field_type ), intent(in) :: n_snow_layers
 
     ! Diagnostics computed within the kernel
     type( field_type ), intent(in)    :: grid_snow_mass
@@ -107,7 +112,9 @@ contains
     call snowice_melt%write_field('snow__snowice_melt')
     call snow_depth%write_field('snow__snow_depth')
     call tile_snow_rgrain%write_field('snow__tile_snow_rgrain')
+    call n_snow_layers%write_field('snow__n_snow_layers')
     call snowpack_density%write_field('snow__snowpack_density')
+    call snow_under_canopy%write_field('snow__snow_under_canopy')
     call snow_layer_temp%write_field('snow__snow_layer_temp')
     call snow_layer_thickness%write_field('snow__snow_layer_thickness')
     call snow_layer_ice_mass%write_field('snow__snow_layer_ice_mass')
