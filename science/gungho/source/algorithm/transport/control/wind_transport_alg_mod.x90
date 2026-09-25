@@ -121,7 +121,7 @@ contains
     type(function_space_type),  pointer :: w2_fs
     type(function_space_type),  pointer :: w2b_fs
     logical(kind=l_def)                 :: optimised_conversion
-    integer(tik)                        :: id_to, id_from
+    integer(tik)                        :: id
     type(field_type)                    :: ones
     type(field_type),           pointer :: da
     type(field_type)                    :: chi1_n, chi1_d, chi2_n, chi2_d, chi1_d_w2, chi2_d_w2
@@ -133,7 +133,7 @@ contains
                                            topology_is_fully_periodic
 
 
-    if ( LPROF ) call start_timing( id_to, 'transport.wind' )
+    if ( LPROF ) call start_timing( id, 'transport.wind' )
 
     k_h = get_element_order_h_transport()
     k_v = get_element_order_v_transport()
@@ -383,7 +383,7 @@ contains
 
     end if ! si_momentum_equation
 
-    if ( LPROF ) call stop_timing( id_from, 'transport.wind' )
+    if ( LPROF ) call stop_timing( id, 'transport.wind' )
 
   end subroutine wind_transport_alg
 
