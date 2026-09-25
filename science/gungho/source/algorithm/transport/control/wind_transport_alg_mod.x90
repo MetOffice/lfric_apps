@@ -289,6 +289,7 @@ contains
           call log_field_minmax( LOG_LEVEL_TRACE, 'ydot', u_w3_n(2) )
           call log_field_minmax( LOG_LEVEL_TRACE, 'zdot', u_w3_n(3) )
 
+          if ( LPROF ) call stop_timing( id_to, 'transport.wind_to_comps' )
           ! -------------------------------------------------------------------- !
           ! Transport wind components in W3
           ! -------------------------------------------------------------------- !
