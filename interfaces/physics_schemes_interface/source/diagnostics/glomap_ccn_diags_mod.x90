@@ -1,0 +1,204 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Processes the GLOMAP-mode cloud condensation nuclei number
+!>        concentration and dust mass concentration diagnostics.
+!> @details The diagnostics are derived from the aerosol size distribution
+!>          and composition rather than being scheme outputs, so they are
+!>          computed at output time. Fields that have not been requested
+!>          are left as empty-data fields, which the kernel detects and
+!>          skips. The same routine serves both the GLOMAP climatology and
+!>          the prognostic UKCA paths.
+
+module glomap_ccn_diags_mod
+
+  use constants_mod,              only: l_def, r_def
+  use field_mod,                  only: field_type
+  use mesh_mod,                   only: mesh_type
+  use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
+
+  implicit none
+
+  private
+
+  public :: output_diags_for_glomap_ccn
+
+contains
+
+  !> @brief Compute and output the cloud condensation nuclei number
+  !>        concentrations and the dust mass concentrations
+  !> @details The number concentrations count the particles per unit volume
+  !>          with a dry diameter above 3 nm, 30 nm and 50 nm, summed over
+  !>          the GLOMAP modes.
+  !>          The dust mass concentrations are the dust mass mixing ratios of
+  !>          the accumulation and coarse insoluble modes multiplied by the
+  !>          dry air density. The dry modal diameters are only refreshed on
+  !>          RADAER timesteps on the GLOMAP climatology path, so requesting
+  !>          the number concentrations more frequently than the RADAER call
+  !>          reuses the diameters of the most recent RADAER timestep.
+  !> @param[in] glomap_vars   GLOMAP mode setup of the calling aerosol scheme,
+  !!                          which holds the geometric standard deviation
+  !!                          of each mode; must already have been filled
+  !!                          by that scheme's mode setup
+  !> @param[in] rho_in_wth    Dry air density in potential temperature space
+  !> @param[in] n_ait_sol     Aitken soluble mode number mixing ratio
+  !> @param[in] n_acc_sol     Accumulation soluble mode number mixing ratio
+  !> @param[in] n_cor_sol     Coarse soluble mode number mixing ratio
+  !> @param[in] n_ait_ins     Aitken insoluble mode number mixing ratio
+  !> @param[in] n_acc_ins     Accumulation insoluble mode number mixing ratio
+  !> @param[in] n_cor_ins     Coarse insoluble mode number mixing ratio
+  !> @param[in] drydp_ait_sol Aitken soluble mode dry modal diameter
+  !> @param[in] drydp_acc_sol Accumulation soluble mode dry modal diameter
+  !> @param[in] drydp_cor_sol Coarse soluble mode dry modal diameter
+  !> @param[in] drydp_ait_ins Aitken insoluble mode dry modal diameter
+  !> @param[in] drydp_acc_ins Accumulation insoluble mode dry modal diameter
+  !> @param[in] drydp_cor_ins Coarse insoluble mode dry modal diameter
+  !> @param[in] acc_ins_du    Accumulation insoluble mode dust mass mixing
+  !!                          ratio
+  !> @param[in] cor_ins_du    Coarse insoluble mode dust mass mixing ratio
+  subroutine output_diags_for_glomap_ccn( glomap_vars,                         &
+                                          rho_in_wth,                          &
+                                          n_ait_sol,                           &
+                                          n_acc_sol,                           &
+                                          n_cor_sol,                           &
+                                          n_ait_ins,                           &
+                                          n_acc_ins,                           &
+                                          n_cor_ins,                           &
+                                          drydp_ait_sol,                       &
+                                          drydp_acc_sol,                       &
+                                          drydp_cor_sol,                       &
+                                          drydp_ait_ins,                       &
+                                          drydp_acc_ins,                       &
+                                          drydp_cor_ins,                       &
+                                          acc_ins_du,                          &
+                                          cor_ins_du )
+
+    use glomap_ccn_diag_kernel_mod, only: glomap_ccn_diag_kernel_type
+    use planet_config_mod,          only: rd
+    use ukca_mode_setup,            only: glomap_variables_type,             &
+                                          mode_ait_sol, mode_acc_sol,        &
+                                          mode_cor_sol, mode_ait_insol,      &
+                                          mode_acc_insol, mode_cor_insol
+
+    implicit none
+
+    type( glomap_variables_type ), intent(in) :: glomap_vars
+    type( field_type ), intent(in) :: rho_in_wth
+    type( field_type ), intent(in) :: n_ait_sol
+    type( field_type ), intent(in) :: n_acc_sol
+    type( field_type ), intent(in) :: n_cor_sol
+    type( field_type ), intent(in) :: n_ait_ins
+    type( field_type ), intent(in) :: n_acc_ins
+    type( field_type ), intent(in) :: n_cor_ins
+    type( field_type ), intent(in) :: drydp_ait_sol
+    type( field_type ), intent(in) :: drydp_acc_sol
+    type( field_type ), intent(in) :: drydp_cor_sol
+    type( field_type ), intent(in) :: drydp_ait_ins
+    type( field_type ), intent(in) :: drydp_acc_ins
+    type( field_type ), intent(in) :: drydp_cor_ins
+    type( field_type ), intent(in) :: acc_ins_du
+    type( field_type ), intent(in) :: cor_ins_du
+
+    type( field_type ) :: ccn_number_conc_3nm
+    type( field_type ) :: ccn_number_conc_30nm
+    type( field_type ) :: ccn_number_conc_50nm
+    type( field_type ) :: mconc_du_acc_ins
+    type( field_type ) :: mconc_du_cor_ins
+
+    real( kind=r_def ) :: sigmag_ait_sol
+    real( kind=r_def ) :: sigmag_acc_sol
+    real( kind=r_def ) :: sigmag_cor_sol
+    real( kind=r_def ) :: sigmag_ait_ins
+    real( kind=r_def ) :: sigmag_acc_ins
+    real( kind=r_def ) :: sigmag_cor_ins
+
+    logical( kind=l_def ) :: ccn_3nm_flag
+    logical( kind=l_def ) :: ccn_30nm_flag
+    logical( kind=l_def ) :: ccn_50nm_flag
+    logical( kind=l_def ) :: du_acc_ins_flag
+    logical( kind=l_def ) :: du_cor_ins_flag
+
+    type( mesh_type ), pointer :: aerosol_mesh
+
+    !--------------------------------------------------------------------
+    ! End of declarations; start of subroutine execution
+    !--------------------------------------------------------------------
+
+    nullify(aerosol_mesh)
+
+    ! The aerosol scheme may run on a coarser mesh than the rest of the
+    ! model, so derive the mesh from an input field rather than from the
+    ! diagnostic metadata
+    aerosol_mesh => rho_in_wth%get_mesh()
+
+    ccn_3nm_flag  = init_diag( ccn_number_conc_3nm,                            &
+                              'aerosol__ccn_number_conc_3nm',                  &
+                               force_mesh = aerosol_mesh )
+    ccn_30nm_flag = init_diag( ccn_number_conc_30nm,                           &
+                              'aerosol__ccn_number_conc_30nm',                 &
+                               force_mesh = aerosol_mesh )
+    ccn_50nm_flag = init_diag( ccn_number_conc_50nm,                           &
+                              'aerosol__ccn_number_conc_50nm',                 &
+                               force_mesh = aerosol_mesh )
+    du_acc_ins_flag = init_diag( mconc_du_acc_ins,                             &
+                                'aerosol__mconc_du_acc_ins',                   &
+                                 force_mesh = aerosol_mesh )
+    du_cor_ins_flag = init_diag( mconc_du_cor_ins,                             &
+                                'aerosol__mconc_du_cor_ins',                   &
+                                 force_mesh = aerosol_mesh )
+
+    ! Geometric standard deviations of the six modes the kernel sums over,
+    ! taken from the mode setup so they follow the configured modes. This
+    ! relies on the caller's mode setup (UKCA or the GLOMAP climatology)
+    ! having been run during initialisation, which fills glomap_vars.
+    sigmag_ait_sol = real( glomap_vars%sigmag(mode_ait_sol),   r_def )
+    sigmag_acc_sol = real( glomap_vars%sigmag(mode_acc_sol),   r_def )
+    sigmag_cor_sol = real( glomap_vars%sigmag(mode_cor_sol),   r_def )
+    sigmag_ait_ins = real( glomap_vars%sigmag(mode_ait_insol), r_def )
+    sigmag_acc_ins = real( glomap_vars%sigmag(mode_acc_insol), r_def )
+    sigmag_cor_ins = real( glomap_vars%sigmag(mode_cor_insol), r_def )
+
+    ! The kernel fills only the fields that carry real data; the others
+    ! still point at the shared empty data array and are left untouched
+    call invoke( glomap_ccn_diag_kernel_type( ccn_number_conc_3nm,           &
+                                              ccn_number_conc_30nm,          &
+                                              ccn_number_conc_50nm,          &
+                                              mconc_du_acc_ins,              &
+                                              mconc_du_cor_ins,              &
+                                              rd,                            &
+                                              sigmag_ait_sol,                &
+                                              sigmag_acc_sol,                &
+                                              sigmag_cor_sol,                &
+                                              sigmag_ait_ins,                &
+                                              sigmag_acc_ins,                &
+                                              sigmag_cor_ins,                &
+                                              rho_in_wth,                    &
+                                              n_ait_sol,                     &
+                                              n_acc_sol,                     &
+                                              n_cor_sol,                     &
+                                              n_ait_ins,                     &
+                                              n_acc_ins,                     &
+                                              n_cor_ins,                     &
+                                              drydp_ait_sol,                 &
+                                              drydp_acc_sol,                 &
+                                              drydp_cor_sol,                 &
+                                              drydp_ait_ins,                 &
+                                              drydp_acc_ins,                 &
+                                              drydp_cor_ins,                 &
+                                              acc_ins_du,                    &
+                                              cor_ins_du ) )
+
+    if ( ccn_3nm_flag )    call ccn_number_conc_3nm%write_field()
+    if ( ccn_30nm_flag )   call ccn_number_conc_30nm%write_field()
+    if ( ccn_50nm_flag )   call ccn_number_conc_50nm%write_field()
+    if ( du_acc_ins_flag ) call mconc_du_acc_ins%write_field()
+    if ( du_cor_ins_flag ) call mconc_du_cor_ins%write_field()
+
+    nullify(aerosol_mesh)
+
+  end subroutine output_diags_for_glomap_ccn
+
+end module glomap_ccn_diags_mod

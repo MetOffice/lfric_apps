@@ -542,8 +542,13 @@ contains
                ( glomap_mode == glomap_mode_dust_and_clim ) ) .and.  &
              ( ( activation_scheme == activation_scheme_jones ) .or. &
                ( l_radaer ) ) ) then
-          call glomap_aerosol_alg ( aerosol_fields, cloud_fields, theta_aero,       &
-                                    exner_in_wth_aero, mr_n_aero, clock%get_step() )
+          call glomap_aerosol_alg ( aerosol_fields,                            &
+                                    cloud_fields,                              &
+                                    theta_aero,                                &
+                                    exner_in_wth_aero,                         &
+                                    rho_in_wth_aero,                           &
+                                    mr_n_aero,                                 &
+                                    clock%get_step() )
         end if
 
         !--------------------------------------------------------------------

@@ -72,6 +72,8 @@ contains
                                              get_detj_at_w3_fv
     use physics_constants_mod,         only: get_rdz_w3
     use aerosol_ukca_kernel_mod,       only: aerosol_ukca_kernel_type
+    use glomap_ccn_diags_mod,          only: output_diags_for_glomap_ccn
+    use ukca_config_specification_mod, only: glomap_variables
     use io_config_mod,                 only: use_xios_io, write_diag
     use xios,                          only: xios_date, xios_get_current_date, &
                                              xios_date_get_day_of_year
@@ -443,6 +445,7 @@ contains
     type( field_type ), pointer :: w_in_wth     ! Vertical component of winds
     type( field_type ), pointer :: wetrho_in_w3 ! Wet density in W3
     type( field_type ), pointer :: wetrho_in_wth ! Wet density in WTHETA
+    type( field_type ), pointer :: rho_in_wth    ! Dry density in WTHETA
 
 
     ! Time variables
@@ -722,6 +725,7 @@ contains
     call derived_fields%get_field('w_in_wth', w_in_wth)
     call derived_fields%get_field('wetrho_in_w3', wetrho_in_w3)
     call derived_fields%get_field('wetrho_in_wth', wetrho_in_wth)
+    call derived_fields%get_field('rho_in_wth', rho_in_wth)
 
     ! Unpack other fields
     call radiation_fields%get_field('sin_stellar_declination_rts',             &
@@ -1659,6 +1663,25 @@ contains
       call pvol_om_ait_ins%write_field('aerosol__pvol_om_ait_ins')
       call pvol_du_acc_ins%write_field('aerosol__pvol_du_acc_ins')
       call pvol_du_cor_ins%write_field('aerosol__pvol_du_cor_ins')
+
+      ! Cloud condensation nuclei number concentrations and dust mass
+      ! concentrations, computed only when requested
+      call output_diags_for_glomap_ccn( glomap_variables,                      &
+                                        rho_in_wth,                            &
+                                        n_ait_sol,                             &
+                                        n_acc_sol,                             &
+                                        n_cor_sol,                             &
+                                        n_ait_ins,                             &
+                                        n_acc_ins,                             &
+                                        n_cor_ins,                             &
+                                        drydp_ait_sol,                         &
+                                        drydp_acc_sol,                         &
+                                        drydp_cor_sol,                         &
+                                        drydp_ait_ins,                         &
+                                        drydp_acc_ins,                         &
+                                        drydp_cor_ins,                         &
+                                        acc_ins_du,                            &
+                                        cor_ins_du )
 
       if ( LPROF ) call stop_timing( id_diags, 'diags.ukca' )
     end if      ! write diag
