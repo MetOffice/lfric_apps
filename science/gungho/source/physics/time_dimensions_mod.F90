@@ -11,6 +11,7 @@ module time_dimensions_mod
   use log_mod,                   only: log_event,                             &
                                        log_scratch_space,                     &
                                        log_level_error
+  use lfric_xios_time_axis_mod,  only: read_time_dim
 #ifdef UM_PHYSICS
   ! This import split to support fparser which gets confused by FPP directives
   ! in the middle of a syntactic unit.
@@ -63,63 +64,6 @@ module time_dimensions_mod
 
   contains
 
-  !> @brief Source time dimension from netcdf file
-  !> @param[in] path Fully qualified name of netcdf file
-  !> @result    Time dimension
-  function get_netcdf_time_dim(path) result(time_dim)
-    use netcdf, only: nf90_open, nf90_close, nf90_nowrite,                    &
-                      nf90_inq_dimid, nf90_inquire_dimension
-    implicit none
-
-    character(*), intent(in) :: path
-    integer(i_def) :: ncid
-    integer(i_def) :: dimid
-    integer(i_def) :: ierr
-    character(str_def) :: time_name
-    integer(i_def) :: time_dim
-
-    ierr = nf90_open(path, NF90_NOWRITE, ncid)
-    if (ierr /= 0) then
-      write(log_scratch_space,'(A, A, A, I3)')                                &
-        'error opening file ', trim(path),                                    &
-        ' for input, error code: ', ierr
-      call log_event(log_scratch_space, log_level_error)
-    end if
-
-    ierr = nf90_inq_dimid(ncid, 'time', dimid)
-    if (ierr /= 0) then
-      write(log_scratch_space, '(A, A, A, I3)')                               &
-        'error inquiring time dimension id in file ',                         &
-        trim(path),                                                           &
-        ', error code: ', ierr
-      call log_event(log_scratch_space, log_level_error)
-    end if
-
-    ierr = nf90_inquire_dimension(ncid, dimid, time_name, time_dim)
-    if (ierr /= 0) then
-      write(log_scratch_space, '(A, A, I3)')                                  &
-        'error inquiring time dimension, ',                                   &
-        'error code: ', ierr
-      call log_event(log_scratch_space, log_level_error)
-    end if
-
-    if (time_name /= 'time') then
-      write(log_scratch_space, '(A, A)')                                      &
-        'unexpected time dimension name, ',                                   &
-        time_name
-      call log_event(log_scratch_space, log_level_error)
-    end if
-
-    ierr = nf90_close(ncid)
-    if (ierr /= 0) then
-      write(log_scratch_space, '(A, A, A, I3)')                               &
-        'error closing file, ', trim(path),                                   &
-        ', error code: ', ierr
-      call log_event(log_scratch_space, log_level_error)
-    end if
-
-  end function get_netcdf_time_dim
-
   !> @brief Get time dimension of ancil file
   !> @param[in]  dir  Ancil file directory
   !> @param[in]  file Ancil file name (may include subdirectories)
@@ -136,10 +80,10 @@ module time_dimensions_mod
     if (file == cmdi) then
       status = .false.
     else if (file(1:1) == '/') then
-      tdim = get_netcdf_time_dim(trim(file) // '.nc')
+      tdim = read_time_dim(trim(file))
       status = .true.
     else
-      tdim = get_netcdf_time_dim(trim(dir) // '/' // trim(file) // '.nc')
+      tdim = read_time_dim(trim(dir) // '/' // trim(file))
       status = .true.
     end if
   end function get_ancil_dim

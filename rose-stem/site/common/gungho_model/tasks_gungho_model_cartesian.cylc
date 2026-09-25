@@ -139,6 +139,23 @@
         "plot_str": "cartesian_mountain_plot.py diagGungho $NODAL_DATA_DIR u 3 T002250 2 2 8 schar zoom_1 lines $PLOT_DIR"
     }) %}
 
+{% elif task_ns.conf_name == "cart-schar-native-wind" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["schar_cart_8s", "native_wind_transport"],
+        "resolution": "BiP200x8-500x500",
+        "DT": 8,
+        "mpi_parts": 5,
+        "threads": 3,
+        "panel_decomp": "row",
+        "use_xios": false,
+        "tsteps": 2250,
+        "wallclock": 30,
+        "kgo_checks": [],
+        "plot_str": "cartesian_mountain_plot.py diagGungho $NODAL_DATA_DIR u 3 T002250 2 2 8 schar zoom_1 lines $PLOT_DIR"
+    }) %}
+
+
 {% elif task_ns.conf_name == "cart-bell_3d" %}
 
     {% do task_dict.update({
@@ -153,6 +170,22 @@
         "kgo_checks": [],
         "plot_str": "cartesian_mountain_plot.py diagGungho $NODAL_DATA_DIR u 3 T000900 159 99 200 bell zoom_2 lines $PLOT_DIR"
     }) %}
+
+{% elif task_ns.conf_name == "cart-bell_3d-native-wind" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["bell_3d_cart", "native_wind_transport"],
+        "resolution": "BiP300x200-200x200",
+        "DT": 4,
+        "mpi_parts": 25,
+        "threads": 6,
+        "use_xios": false,
+        "tsteps": 900,
+        "wallclock": 60,
+        "kgo_checks": [],
+        "plot_str": "cartesian_mountain_plot.py diagGungho $NODAL_DATA_DIR u 3 T000900 159 99 200 bell zoom_2 lines $PLOT_DIR"
+    }) %}
+
 
 {% elif task_ns.conf_name == "cart-warm3dbubble" %}
 
