@@ -8,7 +8,7 @@
 {# Azspice Groups #}
 {% do site_groups.update({
     "lfric2lfric_test": [
-        "lfric2lfric_oasis_C224_to_seuk_azspice_gnu_fast-debug-64bit",
+        "lfric2lfric_oasis_C224_to_seuk_ex1a_cce_fast-debug-64bit",
     ],
     "lfric2lfric_azspice_developer": [
         "lfric2lfric_ral_seuk-C32_lam_MG_1cpu_azspice_gnu_fast-debug-64bit",

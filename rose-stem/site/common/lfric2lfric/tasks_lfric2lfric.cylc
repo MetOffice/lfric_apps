@@ -227,7 +227,9 @@
         "src_mesh": "C224_MG",
         "src_name": "dynamics",
         "src_type": "global",
-        "mpi_parts": 4,
+        "mpi_parts": 216,
+	"log_level": "debug",
+	"xios_min_buffer_size": 2097152,
     }) %}
 
 {% elif task_ns.conf_name == "canned" %}
