@@ -25,13 +25,6 @@
     task_values["build_memory"]
     ) }}
 
-{# Set the psyclone transformation #}
-{% if task_values["psyclone_transformation"] == "default" %}
-    {% set psyclone_transformation = SITE~"-"~task_ns.platform %}
-{% else %}
-    {% set psyclone_transformation = task_values["psyclone_transformation"] %}
-{% endif %}
-
 {# Check to see if it is a Perftools compile, as we need to change the Makefile target#}
 {%- set BUILD_TARGET  = "build" -%}
 {%  set PAT_BUILD_APP = "" %}
@@ -58,7 +51,6 @@
             WORKING_DIR             = {{working_dir}}
             TARGET                  = {{BUILD_TARGET}}
             PROFILE                 = {{task_values["optlevel"]}}
-            PSYCLONE_TRANSFORMATION = {{psyclone_transformation}}
             UM_FCM_TARGET_PLATFORM  = {{SITE}}-{{task_ns.platform}}
             LFRIC_TARGET_PLATFORM   = {{SITE}}-{{task_ns.platform}}
             MAKE_THREADS            = {{task_values["build_cpus"]}}
@@ -69,6 +61,7 @@
             R_PHYS_PRECISION        = {{task_values["precision"]["rphys"]}}
             PRE_PROCESS_MACROS      = {{task_values["pre_process_macros"]}}
             PAT_BUILD_PATH          = {{PAT_BUILD_APP}}
+            {{ set_psyclone_transformation(task_values["psyclone_transformation"]) }}
 {% if task_ns.application == "lfricinputs" %}
             PROGRAMS                = {{task_values["app_name"]}}
 {% endif %}
