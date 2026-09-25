@@ -275,7 +275,7 @@
         <!-- stochastic fields -->
         <field id="checkpoint_blpert_rand_fld" name="blpert_rand_fld" long_name="blpert_random_number" unit="1" prec="8" domain_ref="face" operation="once" />
         <field id="checkpoint_blpert_flag" name="blpert_flag" long_name="blpert_perturbed_flag" unit="1" prec="8" domain_ref="face" operation="once" />
-        <field id="checkpoint_random_seed" name="random_seed" long_name="random_seed_for_stochastic_physics" unit="1" grid_ref="random_seed_grid" operation="once"/>
+        <field id="checkpoint_random_seed" name="random_seed" long_name="random_seed_for_stochastic_physics" unit="1"  prec="8" grid_ref="random_seed_grid" operation="once"/>
 
       </file>
     </file_definition>
