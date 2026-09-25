@@ -223,8 +223,8 @@ rhocomp     => glomap_variables%rhocomp
 ! initialise modal Mass arrays to zero (will contain sum of mass over all
 !  components)
 
-!$OMP PARALLEL DEFAULT(none)                                                   &
-!$OMP SHARED( tdims, AitkenSolMass, AitkenSolNumber, CoarseSolMass,            &
+!$OMP parallel default(none)                                                   &
+!$OMP shared( tdims, AitkenSolMass, AitkenSolNumber, CoarseSolMass,            &
 !$OMP         CoarseSolNumber, AccumDustMass, AccumDustNumber,                 &
 !$OMP         CoarseDustMass,  CoarseDustNumber,  AccumSolMass,                &
 !$OMP         AccumSolNumber, AitkenSolBk, AccumSolBk, CoarseSolBk,            &
@@ -233,7 +233,7 @@ rhocomp     => glomap_variables%rhocomp
 !$OMP         rhoCASIM, T_work, mode, component, ncp, mmr_index_um,            &
 !$OMP         nmr_index_um)                                                    &
 !$OMP private( i, j, k, aird, imode, icp, i_cpt )
-!$OMP do SCHEDULE(STATIC)
+!$OMP do schedule(static)
 do j = tdims%j_start, tdims%j_end
   do i = tdims%i_start, tdims%i_end
     do k = 1, tdims%k_end
@@ -275,7 +275,7 @@ do imode=mode_ait_sol,mode_cor_insol
         select case (imode)
 
         case (mode_ait_sol)
-!$OMP do SCHEDULE(STATIC)
+!$OMP do schedule(static)
           do j = tdims%j_start, tdims%j_end
             do i = tdims%i_start, tdims%i_end
               do k = 1, tdims%k_end
@@ -291,7 +291,7 @@ do imode=mode_ait_sol,mode_cor_insol
           end do  ! loop over j
 !$OMP end do
         case (mode_acc_sol)
-!$OMP do SCHEDULE(STATIC)
+!$OMP do schedule(static)
           do j = tdims%j_start, tdims%j_end
             do i = tdims%i_start, tdims%i_end
               do k = 1, tdims%k_end
@@ -307,7 +307,7 @@ do imode=mode_ait_sol,mode_cor_insol
           end do  ! loop over j
 !$OMP end do
         case (mode_cor_sol)
-!$OMP do SCHEDULE(STATIC)
+!$OMP do schedule(static)
           do j = tdims%j_start, tdims%j_end
             do i = tdims%i_start, tdims%i_end
               do k = 1, tdims%k_end
@@ -323,7 +323,7 @@ do imode=mode_ait_sol,mode_cor_insol
           end do  ! loop over j
 !$OMP end do
         case (mode_acc_insol)
-!$OMP do SCHEDULE(STATIC)
+!$OMP do schedule(static)
           do j = tdims%j_start, tdims%j_end
             do i = tdims%i_start, tdims%i_end
               do k = 1, tdims%k_end
@@ -334,7 +334,7 @@ do imode=mode_ait_sol,mode_cor_insol
           end do  ! loop over j
 !$OMP end do
         case (mode_cor_insol)
-!$OMP do SCHEDULE(STATIC)
+!$OMP do schedule(static)
           do j = tdims%j_start, tdims%j_end
             do i = tdims%i_start, tdims%i_end
               do k = 1, tdims%k_end
@@ -353,7 +353,7 @@ do imode=mode_ait_sol,mode_cor_insol
     select case (imode)
 
     case (mode_ait_sol)
-!$OMP do SCHEDULE(STATIC)
+!$OMP do schedule(static)
       do k=1,tdims%k_end
         do j = tdims%j_start, tdims%j_end
           do i = tdims%i_start, tdims%i_end
@@ -366,7 +366,7 @@ do imode=mode_ait_sol,mode_cor_insol
       end do  ! loop over k
 !$OMP end do
     case (mode_acc_sol)
-!$OMP do SCHEDULE(STATIC)
+!$OMP do schedule(static)
       do k=1,tdims%k_end
         do j = tdims%j_start, tdims%j_end
           do i = tdims%i_start, tdims%i_end
@@ -379,7 +379,7 @@ do imode=mode_ait_sol,mode_cor_insol
       end do  ! loop over k
 !$OMP end do
     case (mode_cor_sol)
-!$OMP do SCHEDULE(STATIC)
+!$OMP do schedule(static)
       do k=1,tdims%k_end
         do j = tdims%j_start, tdims%j_end
           do i = tdims%i_start, tdims%i_end
@@ -392,7 +392,7 @@ do imode=mode_ait_sol,mode_cor_insol
       end do  ! loop over k
 !$OMP end do
     case (mode_acc_insol)
-!$OMP do SCHEDULE(STATIC)
+!$OMP do schedule(static)
       do k=1,tdims%k_end
         do j = tdims%j_start, tdims%j_end
           do i = tdims%i_start, tdims%i_end
@@ -405,7 +405,7 @@ do imode=mode_ait_sol,mode_cor_insol
       end do  ! loop over k
 !$OMP end do
     case (mode_cor_insol)
-!$OMP do SCHEDULE(STATIC)
+!$OMP do schedule(static)
       do k=1,tdims%k_end
         do j = tdims%j_start, tdims%j_end
           do i = tdims%i_start, tdims%i_end
@@ -427,7 +427,7 @@ end do ! loop over imode
 ! If there is no aerosol in a mode then CASIM will not carry out activation
 ! in that mode. In order to avoid carrying out spurious divides by zero here,
 ! we set the Bk to missing data if the volume is zero.
-!$OMP do SCHEDULE(STATIC)
+!$OMP do schedule(static)
 do j = tdims%j_start, tdims%j_end
   do i = tdims%i_start, tdims%i_end
     do k = 1, tdims%k_end
@@ -439,8 +439,8 @@ do j = tdims%j_start, tdims%j_end
     end do
   end do
 end do
-!$OMP end do NOWAIT
-!$OMP do SCHEDULE(STATIC)
+!$OMP end do nowait
+!$OMP do schedule(static)
 do j = tdims%j_start, tdims%j_end
   do i = tdims%i_start, tdims%i_end
     do k = 1, tdims%k_end
@@ -452,8 +452,8 @@ do j = tdims%j_start, tdims%j_end
     end do
   end do
 end do
-!$OMP end do NOWAIT
-!$OMP do SCHEDULE(STATIC)
+!$OMP end do nowait
+!$OMP do schedule(static)
 do j = tdims%j_start, tdims%j_end
   do i = tdims%i_start, tdims%i_end
     do k = 1, tdims%k_end
@@ -465,8 +465,8 @@ do j = tdims%j_start, tdims%j_end
     end do
   end do
 end do
-!$OMP end do NOWAIT
-!$OMP end PARALLEL
+!$OMP end do nowait
+!$OMP end parallel
 
 if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)
 
