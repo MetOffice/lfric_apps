@@ -124,7 +124,7 @@ case( v_points )
 
 case( p_points, ozone_points, land_compressed, p_points_values_over_sea )
 
-	! Check for specified interpolation method for this stashcode
+  ! Check for specified interpolation method for this stashcode
   ! and the use appropriate weights
   unspecified = .true.
   if ( nn_fields > 0 ) then
