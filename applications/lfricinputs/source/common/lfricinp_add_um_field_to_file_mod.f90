@@ -32,8 +32,8 @@ use lfricinp_um_parameters_mod,        only: um_imdi, um_rmdi,               &
 
 
 ! lfric modules
-use log_mod, only : LOG_LEVEL_DEBUG, LOG_LEVEL_INFO, LOG_LEVEL_ERROR, &
-                    log_event, log_scratch_space
+use log_mod, only : log_event, LOG_LEVEL_DEBUG, LOG_LEVEL_ERROR, &
+                    LOG_LEVEL_INFO, log_scratch_space
 
 ! shumlib modules
 use f_shum_fieldsfile_mod, only: f_shum_fixed_length_header_len

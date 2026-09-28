@@ -18,13 +18,15 @@ contains
 !> and reading in gridding weights
 subroutine lfric2um_initialise_lfric2um()
 
+! lfric2um modules
+use lfric2um_namelists_mod,          only: lfric2um_config
+use lfric2um_regrid_weights_mod,     only: lfric2um_regrid_weightsfile_ctl
+
+! lfricinputs modules
 use lfricinp_lfric_driver_mod,       only: local_rank
 use lfricinp_stashmaster_mod,        only: lfricinp_read_stashmaster
 use lfricinp_stash_to_lfric_map_mod, only: lfricinp_init_stash_to_lfric_map
 use lfricinp_um_grid_mod,            only: lfricinp_set_grid_from_namelist
-
-use lfric2um_namelists_mod,          only: lfric2um_config
-use lfric2um_regrid_weights_mod,     only: lfric2um_regrid_weightsfile_ctl
 
 implicit none
 
