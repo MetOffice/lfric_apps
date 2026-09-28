@@ -59,6 +59,8 @@ module wind_precomputations_alg_mod
                                             direction_3d
   use transport_constants_mod,        only: get_element_order_h_transport,     &
                                             get_element_order_v_transport
+  use transport_config_mod,           only: native_w2_wind_transport
+
 
   implicit none
 
@@ -108,6 +110,13 @@ module wind_precomputations_alg_mod
     type(integer_field_type), allocatable :: vert_wt_quintic_index(:,:,:)
     type(r_tran_field_type),  allocatable :: vert_w3_linear_coeff(:,:,:)
     type(r_tran_field_type),  allocatable :: vert_wt_linear_coeff(:,:,:)
+    type(r_tran_field_type),  allocatable :: vert_w2h_cubic_coeff(:,:,:)
+    type(integer_field_type), allocatable :: vert_w2h_cubic_index(:,:,:)
+    type(r_tran_field_type),  allocatable :: vert_w2h_herm_cubic_coeff(:,:,:)
+    type(integer_field_type), allocatable :: vert_w2h_herm_cubic_index(:,:,:)
+    type(r_tran_field_type),  allocatable :: vert_w2h_quintic_coeff(:,:,:)
+    type(integer_field_type), allocatable :: vert_w2h_quintic_index(:,:,:)
+    type(r_tran_field_type),  allocatable :: vert_w2h_linear_coeff(:,:,:)
 
     ! Departure distances (for non-3D-unity FFSL)
     type(r_tran_field_type),  allocatable :: dep_dist_xy(:,:)
@@ -273,6 +282,16 @@ contains
     allocate( self%vert_wt_quintic_coeff( num_meshes, num_fractions, 6 ) )
     allocate( self%vert_wt_quintic_index( num_meshes, num_fractions, 6 ) )
 
+    if ( native_w2_wind_transport ) then
+      allocate( self%vert_w2h_linear_coeff( num_meshes, num_fractions, 2 ) )
+      allocate( self%vert_w2h_cubic_coeff( num_meshes, num_fractions, 4 ) )
+      allocate( self%vert_w2h_cubic_index( num_meshes, num_fractions, 4 ) )
+      allocate( self%vert_w2h_herm_cubic_coeff( num_meshes, num_fractions, 4 ) )
+      allocate( self%vert_w2h_herm_cubic_index( num_meshes, num_fractions, 4 ) )
+      allocate( self%vert_w2h_quintic_coeff( num_meshes, num_fractions, 6 ) )
+      allocate( self%vert_w2h_quintic_index( num_meshes, num_fractions, 6 ) )
+    end if
+
     ! Departure distances for SL and non 3D-unity FFSL
     allocate( self%dep_dist_xy( num_meshes, num_fractions ) )
     allocate( self%dep_dist_z( num_meshes, num_fractions ) )
@@ -414,6 +433,15 @@ contains
     if ( allocated( self%vert_w3_quintic_index ) )      deallocate( self%vert_w3_quintic_index )
     if ( allocated( self%vert_wt_quintic_coeff ) )      deallocate( self%vert_wt_quintic_coeff )
     if ( allocated( self%vert_wt_quintic_index ) )      deallocate( self%vert_wt_quintic_index )
+    if ( allocated( self%vert_w2h_linear_coeff ) )      deallocate( self%vert_w2h_linear_coeff )
+    if ( allocated( self%vert_w2h_cubic_coeff ) )       deallocate( self%vert_w2h_cubic_coeff )
+    if ( allocated( self%vert_w2h_cubic_index ) )       deallocate( self%vert_w2h_cubic_index )
+    if ( allocated( self%vert_w2h_herm_cubic_coeff ) )  deallocate( self%vert_w2h_herm_cubic_coeff )
+    if ( allocated( self%vert_w2h_herm_cubic_index ) )  deallocate( self%vert_w2h_herm_cubic_index )
+    if ( allocated( self%vert_w2h_quintic_coeff ) )     deallocate( self%vert_w2h_quintic_coeff )
+    if ( allocated( self%vert_w2h_quintic_index ) )     deallocate( self%vert_w2h_quintic_index )
+
+
     if ( allocated( self%dep_dist_xy ) )                deallocate( self%dep_dist_xy )
     if ( allocated( self%dep_dist_z ) )                 deallocate( self%dep_dist_z )
     if ( allocated( self%dep_stencil_extent ) )         deallocate( self%dep_stencil_extent )
@@ -702,6 +730,22 @@ contains
         )
       end select
 
+    case (W2h)
+      select case (order)
+      case (vertical_sl_order_cubic)
+        coeffs => self%vert_w2h_cubic_coeff(mesh_idx, frac_idx, :)
+      case (vertical_sl_order_cubic_hermite)
+        coeffs => self%vert_w2h_herm_cubic_coeff(mesh_idx, frac_idx, :)
+      case (vertical_sl_order_quintic)
+        coeffs => self%vert_w2h_quintic_coeff(mesh_idx, frac_idx, :)
+      case (vertical_sl_order_linear)
+        coeffs => self%vert_w2h_linear_coeff(mesh_idx, frac_idx, :)
+      case default
+        call log_event(                                                        &
+                "get_vert_sl_coeff: order not implemented", LOG_LEVEL_ERROR    &
+        )
+      end select
+
     case default
       call log_event(                                                          &
               "get_vert_sl_coeff: space not implemented", LOG_LEVEL_ERROR      &
@@ -771,6 +815,20 @@ contains
         sl_indices => self%vert_wt_herm_cubic_index(mesh_idx, frac_idx, :)
       case (vertical_sl_order_quintic)
         sl_indices => self%vert_wt_quintic_index(mesh_idx, frac_idx, :)
+      case default
+        call log_event(                                                        &
+                "get_vert_sl_index: order not implemented", LOG_LEVEL_ERROR    &
+        )
+      end select
+
+    case (W2H)
+      select case (order)
+      case (vertical_sl_order_cubic)
+        sl_indices => self%vert_w2h_cubic_index(mesh_idx, frac_idx, :)
+      case (vertical_sl_order_cubic_hermite)
+        sl_indices => self%vert_w2h_herm_cubic_index(mesh_idx, frac_idx, :)
+      case (vertical_sl_order_quintic)
+        sl_indices => self%vert_w2h_quintic_index(mesh_idx, frac_idx, :)
       case default
         call log_event(                                                        &
                 "get_vert_sl_index: order not implemented", LOG_LEVEL_ERROR    &
@@ -1623,6 +1681,30 @@ contains
       case (vertical_sl_order_quintic)
         coeffs => self%vert_wt_quintic_coeff(mesh_idx, frac_idx, :)
         sl_indices => self%vert_wt_quintic_index(mesh_idx, frac_idx, :)
+
+      case default
+        call log_event(                                                        &
+                "compute_sl_coefficients: order not implemented",              &
+                LOG_LEVEL_ERROR                                                &
+        )
+      end select
+
+    case (W2H)
+      select case (order)
+      case (vertical_sl_order_linear)
+        coeffs => self%vert_w2h_linear_coeff(mesh_idx, frac_idx, :)
+
+      case (vertical_sl_order_cubic)
+        coeffs => self%vert_w2h_cubic_coeff(mesh_idx, frac_idx, :)
+        sl_indices => self%vert_w2h_cubic_index(mesh_idx, frac_idx, :)
+
+      case (vertical_sl_order_cubic_hermite)
+        coeffs => self%vert_w2h_herm_cubic_coeff(mesh_idx, frac_idx, :)
+        sl_indices => self%vert_w2h_herm_cubic_index(mesh_idx, frac_idx, :)
+
+      case (vertical_sl_order_quintic)
+        coeffs => self%vert_w2h_quintic_coeff(mesh_idx, frac_idx, :)
+        sl_indices => self%vert_w2h_quintic_index(mesh_idx, frac_idx, :)
 
       case default
         call log_event(                                                        &
