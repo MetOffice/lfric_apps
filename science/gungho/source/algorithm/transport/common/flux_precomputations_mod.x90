@@ -107,8 +107,9 @@ module flux_precomputations_alg_mod
     integer(kind=i_def)                   :: max_stencil_extent
     logical(kind=l_def)                   :: max_stencil_extent_computed = .false.
 
-    ! Total reference flux (over whole transport step), needed for cheap update
-    type(r_tran_field_type)               :: total_ref_flux
+    ! Total reference flux (over whole transport step), needed when there is
+    ! a separate tracer transport, e.g. cheap update, coarse tracers, TR-BDF2
+    type(r_tran_field_type),  allocatable :: total_ref_flux
 
     ! Wind and dt for whole transport step, needed for logging
     type(r_tran_field_type),  pointer     :: transporting_wind => null()
@@ -294,6 +295,7 @@ contains
     self%to_initialise_by_step = present(flux)
     self%reset_unity = .false.
     if (present(reset_unity)) self%reset_unity = reset_unity
+    allocate(self%total_ref_flux)
 
     ! Determine settings for extended mesh remapping of density
     if (panel_edge_treatment == panel_edge_treatment_extended_mesh) then
@@ -603,6 +605,7 @@ contains
     nullify(self%transporting_wind)
     self%is_initialised_flag = .false.
     self%max_stencil_extent_computed = .false.
+    if ( allocated( self%total_ref_flux ) )  deallocate( self%total_ref_flux )
     if ( allocated( self%mesh_ids ) )        deallocate( self%mesh_ids )
     if ( allocated( self%ref_field ) )       deallocate( self%ref_field )
     if ( allocated( self%ref_mass ) )        deallocate( self%ref_mass )
@@ -1758,7 +1761,8 @@ contains
   !!        reference field over the *whole* transport step. This is needed when
   !!        using the "cheap update" transport formulation, as the total flux
   !!        needs storing from previous outer loops for the transport of tracers
-  !!        in the final outer loop.
+  !!        in the final outer loop. It is also needed for coarse transport of
+  !!        tracers, and the transport of tracers in TR-BDF2.
   !> @return The total reference flux
   function get_total_ref_flux(self) result(total_ref_flux)
 
@@ -1767,6 +1771,13 @@ contains
     class(flux_precomputations_type), target, intent(in) :: self
     type(r_tran_field_type), pointer                     :: total_ref_flux
     character(len=str_def)                               :: field_name
+
+    if (.not. allocated(self%total_ref_flux)) then
+      call log_event(                                                          &
+        'flux_precomp%get_total_ref_flux: self%total_ref_flux not allocated',  &
+        LOG_LEVEL_ERROR                                                        &
+      )
+    end if
 
     total_ref_flux => self%total_ref_flux
 
@@ -1780,7 +1791,8 @@ contains
   !!        field over the *whole* transport step. This is needed when using the
   !!        "cheap update" transport formulation, as the total flux needs
   !!        storing from previous outer loops for the transport of tracers in
-  !!        the final outer loop.
+  !!        the final outer loop. It is also needed for coarse transport of
+  !!        tracers, and the transport of tracers in TR-BDF2.
   !!        As we may be substepping, the field is incremented rather than set
   !> @param[in] total_ref_flux The total reference flux to set
   subroutine set_total_ref_flux(self, total_ref_flux)
@@ -1789,6 +1801,13 @@ contains
 
     class(flux_precomputations_type), target, intent(inout) :: self
     type(r_tran_field_type),                  intent(in)    :: total_ref_flux
+
+    if (.not. allocated(self%total_ref_flux)) then
+      call log_event(                                                          &
+        'flux_precomp%set_total_ref_flux: self%total_ref_flux not allocated',  &
+        LOG_LEVEL_ERROR                                                        &
+      )
+    end if
 
     if (.not. self%total_ref_flux%is_initialised()) then
       call self%total_ref_flux%initialise(total_ref_flux%get_function_space())
