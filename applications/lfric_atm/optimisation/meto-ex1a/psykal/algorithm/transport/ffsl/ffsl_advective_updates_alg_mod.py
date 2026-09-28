@@ -48,8 +48,8 @@ from psyclone.domain.lfric.transformations import LFRicLoopFuseTrans
 from psyclone.psyGen import InvokeSchedule
 from psyclone.transformations import TransformationError
 from psyclone_tools import (redundant_computation_setval, colour_loops,
+                            openmp_parallelise_loops,
                             view_transformed_schedule)
-
 
 def fuse_loops(psyir):
     '''
@@ -101,4 +101,5 @@ def trans(psyir):
     redundant_computation_setval(psyir)
     fuse_loops(psyir)
     colour_loops(psyir)
+    openmp_parallelise_loops(psyir)
     view_transformed_schedule(psyir)
