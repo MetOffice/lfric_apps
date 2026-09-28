@@ -111,6 +111,7 @@ class vn32_t725(MacroUpgrade):
         self.add_setting(
             config, ["namelist:mixing", "leonard_inc_with_bl"], ".false."
         )
+        return config, self.reports
 
 
 class vn32_t699(MacroUpgrade):
