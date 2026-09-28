@@ -168,7 +168,7 @@ class vn32_t760(MacroUpgrade):
 class vn32_t581(MacroUpgrade):
     # Upgrade macro for #581 by Christine Johnson
 
-    BEFORE_TAG = "vn3.2_t655"
+    BEFORE_TAG = "vn3.2_t760"
     AFTER_TAG = "vn3.2_t581"
 
     def upgrade(self, config, meta_config=None):
