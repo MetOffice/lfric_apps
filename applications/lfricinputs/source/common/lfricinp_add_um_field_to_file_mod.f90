@@ -32,8 +32,8 @@ use lfricinp_um_parameters_mod,        only: um_imdi, um_rmdi,               &
 
 
 ! lfric modules
-use log_mod, only : log_event, LOG_LEVEL_INFO, LOG_LEVEL_ERROR, &
-                    log_scratch_space
+use log_mod, only : LOG_LEVEL_DEBUG, LOG_LEVEL_INFO, LOG_LEVEL_ERROR, &
+                    log_event, log_scratch_space
 
 ! shumlib modules
 use f_shum_fieldsfile_mod, only: f_shum_fixed_length_header_len
@@ -229,9 +229,10 @@ lookup_real_tmp(brsvd4) = 0.0_real64
 if (lookup_int(lbvc) >= 126 .and. lookup_int(lbvc) <= 139 &
      .or. lookup_int(lbvc) == 5 .or. lookup_int(lbvc) == 0 .or. &
      lookup_int(lbvc) == 275 ) then
+
   write(log_scratch_space, '(A,I0,A)') &
      "Vertical coord type ", lookup_int(lbvc), " treated as single layer"
-  call log_event(log_scratch_space, LOG_LEVEL_INFO)
+  call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
 
   ! Pseudo-level number
   if ( get_stashmaster_item(stashcode, pseudt) /= 0 ) then
@@ -243,6 +244,7 @@ if (lookup_int(lbvc) >= 126 .and. lookup_int(lbvc) <= 139 &
       write(log_scratch_space, '(A,I0)')                                     &
         "Pseudo-level number set as  ", snow_level_number
       call log_event(log_scratch_space, LOG_LEVEL_INFO)
+
     else
       lookup_int(lbuser5) = level_number
       write(log_scratch_space, '(A,I0)')                                     &
@@ -267,23 +269,28 @@ else if (lookup_int(lbvc) == 6) then ! Deep soil levels
   ! bulev is the same as brsvd1
   write(log_scratch_space, '(A,I0,A)') &
     "Vertical coord type ", lookup_int(lbvc), " treated as soil field"
-  call log_event(log_scratch_space, LOG_LEVEL_INFO)
+  call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+
   if (level_number == 1) then
     lookup_real_tmp(bulev) = 0.0_real64
-    lookup_real_tmp(blev)=0.05_real64
-    lookup_real_tmp(brlev)=0.1_real64
+    lookup_real_tmp(blev) = 0.05_real64
+    lookup_real_tmp(brlev) = 0.1_real64
+
   else if (level_number == 2) then
     lookup_real_tmp(bulev) = 0.1_real64
-    lookup_real_tmp(blev)=0.225_real64
-    lookup_real_tmp(brlev)=0.35_real64
+    lookup_real_tmp(blev) = 0.225_real64
+    lookup_real_tmp(brlev) = 0.35_real64
+
   else if (level_number == 3) then
     lookup_real_tmp(bulev) = 0.35_real64
-    lookup_real_tmp(blev)=0.675_real64
-    lookup_real_tmp(brlev)=1.0_real64
+    lookup_real_tmp(blev) = 0.675_real64
+    lookup_real_tmp(brlev) = 1.0_real64
+
   else if (level_number == 4) then
     lookup_real_tmp(bulev) = 1.0_real64
-    lookup_real_tmp(blev)=2.0_real64
-    lookup_real_tmp(brlev)=3.0_real64
+    lookup_real_tmp(blev) = 2.0_real64
+    lookup_real_tmp(brlev) = 3.0_real64
+
   else
     write(log_scratch_space, '(A,I0,A)') "Soil level number ", level_number, &
       " not supported. Only soil fields with 4 levels are supported currently"
