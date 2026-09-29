@@ -27,6 +27,9 @@ module create_lbcs_mod
                                          lbc_option_analytic,    &
                                          lbc_option_gungho_file, &
                                          lbc_option_um2lfric_file
+  use boundaries_config_mod,      only : lbc_bal_meth, &
+                                         lbc_bal_meth_keep_rho, &
+                                         lbc_bal_meth_keep_exner_eos_lev
   use aerosol_config_mod,         only : murk_lbc
 
   implicit none
@@ -100,7 +103,15 @@ module create_lbcs_mod
         case ( lbc_option_um2lfric_file )
           !------ Fields updated directly from LBC file-----------------
           call proc%apply(make_spec('lbc_theta', main%lbc, Wtheta, time_axis=axis%lbc))
-          call proc%apply(make_spec('lbc_rho_r2', main%lbc, W3, time_axis=axis%lbc))
+          select case (lbc_bal_meth)
+          case(lbc_bal_meth_keep_rho)
+            call proc%apply(make_spec('lbc_rho_r2', main%lbc, W3, time_axis=axis%lbc))
+            call proc%apply(make_spec('lbc_exner', main%lbc, W3))
+          case(lbc_bal_meth_keep_exner_eos_lev)
+            call proc%apply(make_spec('lbc_rho_r2', main%lbc, W3))
+            call proc%apply(make_spec('lbc_exner', main%lbc, W3, time_axis=axis%lbc))
+          end select
+
           call proc%apply(make_spec('lbc_h_u', main%lbc, W2H, time_axis=axis%lbc))
           call proc%apply(make_spec('lbc_v_u', main%lbc, Wtheta, time_axis=axis%lbc))
 
@@ -117,7 +128,6 @@ module create_lbcs_mod
 
           !----- Fields derived from the fields in the LBC file---------
           call proc%apply(make_spec('lbc_rho', main%lbc, W3))
-          call proc%apply(make_spec('lbc_exner', main%lbc, W3))
           call proc%apply(make_spec('lbc_u', main%lbc, W2))
           call proc%apply(make_spec('boundary_u_diff', main%lbc, W2))
           call proc%apply(make_spec('boundary_u_driving', main%lbc, W2))

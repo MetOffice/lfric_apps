@@ -1,0 +1,51 @@
+<file_definition>
+  <!--  IAU files  -->
+  <file id="iau" name="iau" mode="read" output_freq="1ts" convention="UGRID" enabled=".FALSE.">
+    <field_group freq_op="1ts" operation="instant" read_access=".TRUE.">
+      <field id="u_in_w3_inc" name="u_in_w3" long_name="eastward_wind_inc" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="once"/>
+      <field id="v_in_w3_inc" name="v_in_w3" long_name="southward_wind_inc" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="once"/>
+      <field id="exner_inc" name="exner" long_name="exner_pressure_inc" unit="kg m-1 s-2" grid_ref="half_level_face_grid" operation="once"/>
+      <field id="q_inc" name="q" long_name="specific humidity_inc" unit="1" grid_ref="full_level_face_grid" operation="once"/>
+      <field id="qcf_inc" name="qcf" long_name="specific_humidity_cloud_ice_inc" unit="1" grid_ref="full_level_face_grid" operation="once"/>
+      <field id="qcl_inc" name="qcl" long_name="specific_humidity_cloud_liquid_inc" unit="1" grid_ref="full_level_face_grid" operation="once"/>
+      <field id="rho_r2_inc" name="rho_r2" long_name="density_times_r_squared_inc" unit="kg m-1" grid_ref="half_level_face_grid" operation="once"/>
+      <field id="theta_inc" name="theta" long_name="air_potential_temperature_inc" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" operation="once"/>
+      <field id="dust1_mmr_inc" name="dust1_mmr" long_name="dust_division_1_mass_mixing_ratio_inc" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once"/>
+      <field id="dust2_mmr_inc" name="dust2_mmr" long_name="dust_division_2_mass_mixing_ratio_inc" unit="kg kg-1" grid_ref="full_level_face_grid" operation="once"/>
+    </field_group>
+  </file>
+  
+  <!--  IAU perturbation increment file  -->
+  <file id="iau_pert" name="iau_pert" mode="read" output_freq="1ts" convention="UGRID" enabled=".FALSE.">
+    <field_group freq_op="1ts" operation="instant" read_access=".TRUE.">
+      <field id="u_in_w3_pert_inc" name="u_in_w3_inc" long_name="eastward_wind_inc" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="once"/>
+      <field id="v_in_w3_pert_inc" name="v_in_w3_inc" long_name="southward_wind_inc" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="once"/>
+      <field id="exner_pert_inc" name="exner_inc" long_name="exner_pressure_inc" unit="kg m-1 s-2" grid_ref="half_level_face_grid" operation="once"/>
+      <field id="q_pert_inc" name="q_inc" long_name="specific humidity_inc" unit="1" grid_ref="full_level_face_grid" operation="once"/>
+      <field id="qcf_pert_inc" name="qcf_inc" long_name="specific_humidity_cloud_ice_inc" unit="1" grid_ref="full_level_face_grid" operation="once"/>
+      <field id="qcl_pert_inc" name="qcl_inc" long_name="specific_humidity_cloud_liquid_inc" unit="1" grid_ref="full_level_face_grid" operation="once"/>
+      <field id="rho_r2_pert_inc" name="rho_r2_inc" long_name="density_times_r_squared_inc" unit="kg m-1" grid_ref="half_level_face_grid" operation="once"/>
+      <field id="theta_pert_inc" name="theta_inc" long_name="air_potential_temperature_inc" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" operation="once"/>
+      <field id="dust1_mmr_pert_inc" name="dust1_mmr_inc" long_name="Dust division 1 mass mixing ratio inc" unit="kg/kg" grid_ref="full_level_face_grid" operation="once"/>
+      <field id="dust2_mmr_pert_inc" name="dust2_mmr_inc" long_name="Dust division 2 mass mixing ratio inc" unit="kg/kg" grid_ref="full_level_face_grid" operation="once"/>
+    </field_group>
+  </file>
+
+  <!--  IAU land surface increment file -->
+  <file id="iau_surf" name="iau_surf" mode="read" output_freq="1ts" convention="UGRID" enabled=".FALSE.">
+    <field_group freq_op="1ts" operation="instant" read_access=".TRUE."> 
+      <field id="tile_temperature_inc" name="tile_temperature" long_name="land_tile_temperature_inc" standard_name="land_tile_temperature" unit="K" domain_ref="face" axis_ref="land_tiles" operation="once"/>
+      <field id="snow_layer_temp_inc" name="tile_snow_layer_temp" long_name="snow_layer_temperature_on_tiles_inc" standard_name="snow_layer_temperature_on_tiles" unit="K" domain_ref="face" axis_ref="snow_layers_and_tiles" operation="once"/>
+      <field id="soil_moisture_inc" name="soil_moisture" long_name="soil_moisture_inc" standard_name="soil_moisture" unit="kg kg-1" domain_ref="face" axis_ref="soil_levels" operation="once"/>
+      <field id="soil_temperature_inc" name="soil_temperature" long_name="soil_temperature_inc" standard_name="soil_temperature" unit="K" domain_ref="face" axis_ref="soil_levels" operation="once"/>
+    </field_group>
+  </file>
+
+  <!--  IAU sea surface temperature increment file -->
+  <file id="iau_sst" name="iau_sst" mode="read" output_freq="1ts" convention="UGRID" enabled=".FALSE.">
+    <field_group freq_op="1ts" operation="instant" read_access=".TRUE."> 
+      <field id="tstar_sea_inc" name="tstar" long_name="Sea surface temperature" unit="K" domain_ref="face" operation="once"/>
+    </field_group>
+  </file>
+
+</file_definition>

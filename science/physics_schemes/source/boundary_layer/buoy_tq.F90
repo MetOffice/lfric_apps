@@ -50,7 +50,7 @@ implicit none
 
 character(len=*), parameter :: RoutineName='BUOY_TQ_64B'
 integer, parameter :: prec = real_64
-#include "buoy_tq.h"
+#include "include/buoy_tq.h"
 
 return
 end subroutine buoy_tq_64b
@@ -79,7 +79,7 @@ implicit none
 
 character(len=*), parameter :: RoutineName='BUOY_TQ_32B'
 integer, parameter :: prec = real_32
-#include "buoy_tq.h"
+#include "include/buoy_tq.h"
 
 return
 end subroutine buoy_tq_32b
