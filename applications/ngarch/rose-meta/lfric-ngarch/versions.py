@@ -120,3 +120,41 @@ class vn32_t725(MacroUpgrade):
         )
 
         return config, self.reports
+
+
+class vn32_t699(MacroUpgrade):
+    """Upgrade macro for ticket #699 by thomas.melvin."""
+
+    BEFORE_TAG = "vn3.2_t725"
+    AFTER_TAG = "vn3.2_t699"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        """Add native_w2_wind_transport to namelist transport"""
+        self.add_setting(
+            config,
+            ["namelist:transport", "native_w2_wind_transport"],
+            ".false.",
+        )
+
+        return config, self.reports
+
+
+class vn32_t760(MacroUpgrade):
+    """Upgrade macro for ticket #760 by Chris Smith."""
+
+    BEFORE_TAG = "vn3.2_t699"
+    AFTER_TAG = "vn3.2_t760"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(
+            config,
+            ["namelist:initial_temperature", "profile_variable"],
+            "'potential'",
+        )
+        self.add_setting(
+            config, ["namelist:initial_vapour", "profile_variable"], "'mr'"
+        )
+
+        return config, self.reports
