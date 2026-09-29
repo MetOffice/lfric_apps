@@ -16,7 +16,6 @@ module atl_rhs_alg_mod
   use sci_fem_constants_mod,               only: get_mass_matrix_fe, &
                                                  get_inverse_mass_matrix_fe
   use dycore_constants_mod,                only: get_coriolis,       &
-                                                 get_geopotential,   &
                                                  get_w2_mass_matrix, &
                                                  w2_damping_layer_matrix
   use field_mod,                           only: field_type
@@ -75,8 +74,8 @@ contains
   !!                state
   !> @param[in]     dlayer_rhs Use damping layer in rhs yes/no
   !> @param[in]     model_clock Time in the model
-subroutine atl_rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn,        &
-                       ls_state, ls_moist_dyn, compute_eos,                &
+subroutine atl_rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn,            &
+                       ls_state, ls_moist_dyn, compute_eos,                    &
                        dlayer_rhs, model_clock)
 
     implicit none
@@ -100,7 +99,6 @@ subroutine atl_rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn,        &
                                     coriolis
     type(field_type), pointer :: chi(:),       &
                                  panel_id,     &
-                                 geopotential, &
                                  u,            &
                                  theta,        &
                                  rho,          &
@@ -134,7 +132,6 @@ subroutine atl_rhs_alg(rhs, alpha_dt, base_state, state, moist_dyn,        &
 
     mesh => base_state(igh_u)%get_mesh()
 
-    geopotential => get_geopotential(mesh%get_id())
     mm_wtheta    => get_mass_matrix_fe(Wtheta, mesh%get_id())
     chi          => get_coordinates(mesh)
     panel_id     => get_panel_id(mesh)

@@ -217,9 +217,13 @@
 {% endif %}
 
 
-{# If application is lfric_coupled read in default values specific to coupled runs #}
-{% if task_ns.application == "lfric_coupled" %}
-    {% include "templates/default_task_definitions_lfric_coupled.cylc" %}
+{% if "coupled" not in task_dict %}
+    {% do task_dict.update({"coupled": false}) %}
+{% endif %}
+
+{# If application is coupled read in default values specific to coupled runs #}
+{% if task_dict["coupled"] %}
+    {% include "templates/default_task_definitions_coupled.cylc" %}
 {% endif %}
 
 
@@ -257,14 +261,6 @@
 
 {% if "rose_ana_families" not in task_dict %}
     {% do task_dict.update({"rose_ana_families": [task_ns.platform|upper~"_ROSE_ANA"]}) %}
-{% endif %}
-
-{# ###################################### #}
-{# MPI & LibFabric Configuration Settings #}
-{# ###################################### #}
-
-{% if "CXI_MATCH_hybrid" not in task_dict %}
-    {% do task_dict.update({"CXI_MATCH_hybrid": false}) %}
 {% endif %}
 
 {% do LOG.debug("Finished in templates/default_task_definitions.cylc") %}
