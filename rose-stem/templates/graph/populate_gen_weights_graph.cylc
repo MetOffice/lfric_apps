@@ -46,25 +46,34 @@
     {% do tasks_to_run.update({mesh_build_weights_platform: {} }) %}
 {% endif %}
 
-{# Set mesh generate task for weights platform #}
-{% set mesh_run_weights_platform = "run_mesh_"~
-                                    task_values["resolution"]~"_"~
-                                    site_vars["scripts_platform"]~"_"~
-                                    site_vars["mesh_build"][site_vars["scripts_platform"]] %}
-{% if mesh_run_weights_platform not in tasks_to_run %}
-    {% do tasks_to_run.update({mesh_run_weights_platform: {} }) %}
-{% endif %}
-
 {% do graph_sections.append([
     export_task_weights_platform, mesh_build_weights_platform
     ]) %}
 
-{% do graph_sections.append([
-    mesh_build_weights_platform, mesh_run_weights_platform
-    ]) %}
-{% do graph_sections.append([
-    mesh_run_weights_platform, generate_weights_task~"?"
-    ]) %}
+{% if task_values["resolution"] is string %}
+    {% set res = task_values["resolution"] %}
+    {% do task_values.update({"resolution": [res]}) %}
+{% endif %}
+
+{% for resolution in task_values["resolution"] %}
+
+{# Set mesh generate task for weights platform #}
+    {% set mesh_run_weights_platform = "run_mesh_"~
+                                        resolution~"_"~
+                                        site_vars["scripts_platform"]~"_"~
+                                        site_vars["mesh_build"][site_vars["scripts_platform"]] %}
+
+    {% if mesh_run_weights_platform not in tasks_to_run %}
+        {% do tasks_to_run.update({mesh_run_weights_platform: {} }) %}
+    {% endif %}
+
+    {% do graph_sections.append([
+        mesh_build_weights_platform, mesh_run_weights_platform
+        ]) %}
+    {% do graph_sections.append([
+        mesh_run_weights_platform, generate_weights_task
+        ]) %}
+{% endfor %}
 
 {% do graph_sections.append([
     generate_weights_task~":finish", export_weights_task
