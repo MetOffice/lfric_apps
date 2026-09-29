@@ -1,3 +1,5 @@
+<!-- Some content in this file was generated or refactored with assistance from
+     - Claude Code (Claude Opus 5.5), 2026-09-29. -->
 <field_definition>
 <!-- Main diagnostic group -->
 <field_group id="diagnostic_fields" prec="8" operation="instant" enabled=".TRUE." >
@@ -1006,6 +1008,7 @@
   <field id="plev__rh_water" name="plev_rh_water" long_name="relative_humidity_wrt_water_at_pressure_levels" unit="m s-1" domain_ref="face" axis_ref="pressure_levels"/>
   <field id="plev__xi3" name="plev_xi3" long_name="vertical_vorticity_at_pressure_levels" unit="s-1" domain_ref="face" axis_ref="pressure_levels_xi3"/>
   <field id="plev__pv" name="plev_pv" long_name="potential_vorticity_at_pressure_levels" unit="m2 s-1 K kg-1" domain_ref="face" axis_ref="pressure_levels"/>
+  <field id="plev__in_cloud_turb_pot" name="plev_in_cloud_turb_pot" long_name="in_cloud_turbulence_potential_at_pressure_levels" unit="K m-1" domain_ref="face" axis_ref="pressure_levels"/>
   <field id="plev__uu_clim" name="plev_uu_clim" standard_name="square_of_eastward_wind" unit="m2 s-2" domain_ref="face" axis_ref="pressure_levels"> plev__u_clim * plev__u_clim </field>
   <field id="plev__uv_clim" name="plev_uv_clim" standard_name="product_of_eastward_wind_and_northward_wind" unit="m2 s-2" domain_ref="face" axis_ref="pressure_levels"> plev__u_clim * plev__v_clim </field>
   <field id="plev__uom_clim" name="plev_uom_clim" standard_name="product_of_eastward_wind_and_lagrangian_tendency_of_air_pressure" unit="Pa m s-2" domain_ref="face" axis_ref="pressure_levels"> plev__u_clim * plev__omega_clim </field>

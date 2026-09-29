@@ -1,3 +1,5 @@
+<!-- Some content in this file was generated or refactored with assistance from
+     - Claude Code (Claude Opus 5.5), 2026-09-29. -->
 <file_definition>
 
   <!-- Diagnostic standard level fields - Hourly -->
@@ -150,6 +152,7 @@
       <field field_ref="turbulence__thermal_speed"/>
       <field field_ref="aviation__geopot_thickness_850"/>
       <field field_ref="aviation__geopot_thickness_500"/>
+      <field field_ref="plev__in_cloud_turb_pot"/>
       <field field_ref="convection__conv_cloud_base_icao_height"/>
       <field field_ref="convection__conv_cloud_top_icao_height"/>
     </field_group>     
