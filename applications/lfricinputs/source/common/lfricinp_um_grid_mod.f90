@@ -57,17 +57,20 @@ end subroutine lfricinp_set_grid_from_file
 
 !-----------------------------------------------------------
 
-subroutine lfricinp_set_grid_from_namelist(num_snow_layers, num_surface_types)
+subroutine lfricinp_set_grid_from_namelist(num_ice_cats, num_snow_layers, &
+                                           num_surface_types)
 ! Description:
 ! Extracts grid information from lfric2um namelist to populate grid_info object
 
 implicit none
 
 ! Arguments
+integer(kind=int64), intent(in) :: num_ice_cats
 integer(kind=int64), intent(in) :: num_snow_layers
 integer(kind=int64), intent(in) :: num_surface_types
 
 ! Set pseudo level information
+um_grid%num_ice_cats = num_ice_cats
 um_grid%num_snow_layers = num_snow_layers
 um_grid%num_surface_types = num_surface_types
 

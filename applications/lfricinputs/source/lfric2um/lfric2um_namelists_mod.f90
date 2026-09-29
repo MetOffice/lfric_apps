@@ -31,6 +31,7 @@ type :: config
   integer(kind=int64), allocatable :: stash_list(:)
   integer(kind=int64), allocatable :: lbtim_list(:)
   integer(kind=int64), allocatable :: lbproc_list(:)
+  integer(kind=int64), allocatable :: num_ice_cats
   integer(kind=int64), allocatable :: num_snow_layers
   integer(kind=int64), allocatable :: num_surface_types
   integer(kind=int64) :: um_version_int = um_imdi
@@ -105,6 +106,7 @@ character(len=fnamelen) :: weights_file_face_centre_to_v_bilinear = 'unset'
 integer(kind=int64) :: stash_list(max_stash_list)
 integer(kind=int64) :: lbtim_list(max_stash_list)
 integer(kind=int64) :: lbproc_list(max_stash_list)
+integer(kind=int64) :: num_ice_cats = um_imdi
 integer(kind=int64) :: num_snow_layers = um_imdi
 integer(kind=int64) :: num_surface_types = um_imdi
 integer(kind=int64) :: um_version_int = um_imdi
@@ -117,7 +119,8 @@ namelist /configure_lfric2um/ output_filename,                                 &
                               weights_file_face_centre_to_p_neareststod,       &
                               weights_file_face_centre_to_u_bilinear,          &
                               weights_file_face_centre_to_v_bilinear,          &
-                              stash_list, num_snow_layers, num_surface_types,  &
+                              stash_list, num_ice_cats,                        &
+                              num_snow_layers, num_surface_types,              &
                               lbtim_list,                                      &
                               lbproc_list,                                     &
                               um_version_int,                                  &
@@ -182,6 +185,12 @@ if (trim(target_grid_namelist) == 'unset') then
   call log_event(self%message, LOG_LEVEL_ERROR)
 end if
 
+if (num_ice_cats == um_imdi) then
+  self%status = 1
+  self%message='Number of ice categories is unset'
+  call log_event(self%message, LOG_LEVEL_INFO)
+end if
+
 if (num_snow_layers == um_imdi) then
   self%status = 1
   self%message='Number of snow layers is unset'
@@ -216,6 +225,7 @@ self%weights_file_face_centre_to_u_bilinear =                                  &
                                  weights_file_face_centre_to_u_bilinear
 self%weights_file_face_centre_to_v_bilinear =                                  &
                                  weights_file_face_centre_to_v_bilinear
+self%num_ice_cats = num_ice_cats
 self%num_snow_layers = num_snow_layers
 self%num_surface_types = num_surface_types
 self%um_version_int = um_version_int
