@@ -5,4 +5,11 @@
 {# ########################################################################### #}
 {% do LOG.debug("Entered site/meto/jedi_lfric_tests/tasks_jedi_lfric_tests_ex1a.cylc") %}
 
+{% if task_ns.conf_name == "forecast_nwp_gal9-C48_MG" %}
+    {% do task_dict.update({
+        "memory": [40, "GB"],
+    }) %}
+
+{% endif %}
+
 {% do LOG.debug("Finised in site/meto/jedi_lfric_tests/tasks_jedi_lfric_tests_ex1a.cylc") %}

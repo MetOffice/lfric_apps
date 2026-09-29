@@ -1684,7 +1684,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   real(r_um) :: exner_theta_top ! Exner pressure at top theta level
 
   ! switches to indicate whether derived humidity fields are required by UKCA
-  logical :: l_req_rel_humid 
+  logical :: l_req_rel_humid
   logical :: l_req_rel_humid_clear_sky
   logical :: l_req_svp
   logical :: l_req_p_theta_lev
@@ -2983,7 +2983,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
         end do
       end do
 
-    end if 
+    end if
 
     if (l_req_rel_humid) then
       allocate( rel_humid(seg_len, 1, nlayers) )
@@ -4246,7 +4246,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
     m_fields = size(env_names_fullhtphot_real)
     allocate(environ_fullhtphot_real( seg_len, 1, nlayers, n_phot_spc, m_fields ))
-    
+
     do m = 1, m_fields
       if ( env_names_fullhtphot_real(m) == fldname_photol_rates ) then
         ! Photol rates
@@ -4265,7 +4265,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
         call log_event( log_scratch_space, LOG_LEVEL_ERROR )
       end if
     end do    ! m_fields
-    
+
   else
     ! Allocate to minimal size and initialise
     allocate(environ_fullhtphot_real( 1, 1, 1, 1, 0 ))

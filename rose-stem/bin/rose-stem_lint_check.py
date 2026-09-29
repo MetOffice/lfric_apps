@@ -36,7 +36,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
     source = os.path.abspath(args.source)
-    command = f"cylc lint {source} -n S007 -n S012 -n S013 -n S014"
+    command = f"cylc lint {source} -n S007 -n S012 -n S013 -n S014 -n S002"
     result = run_command(command)
     try:
         nissues = int(re.search(r"found (\d+) issue", result.stdout).group(1))

@@ -24,16 +24,41 @@
         "tsteps": 20,
     }) %}
 
-{% elif task_ns.conf_name == "forecast_gh-si-for-linear-C12" %}
-
+{% elif task_ns.conf_name == "forecast_nwp_gal9-C12" %}
+    # This is based on the lfric_atm: nwp_gal9-C12 configuration
     {% do task_dict.update({
         "app_name": "jedi_forecast",
-        "opt_confs": ["gh-si-for-linear"],
+        "opt_confs": ["um_dump"],
         "resolution": "C12",
         "ancil_resolution": "C12",
-        "DT": 90,
+        "DT": 1800,
         "tsteps": 13,
         "mpi_parts": 6,
+    }) %}
+
+{% elif task_ns.conf_name == "forecast_nwp_gal9_da-C12" %}
+    # This is based on the lfric_atm: nwp_gal9-C12_da configuration
+    # This includes the IAU
+    {% do task_dict.update({
+        "app_name": "jedi_forecast",
+        "opt_confs": ["da"],
+        "resolution": "C12",
+        "ancil_resolution": "C12",
+        "DT": 1800,
+        "tsteps": 13,
+        "mpi_parts": 6,
+    }) %}
+
+{% elif task_ns.conf_name == "forecast_nwp_gal9-C48_MG" %}
+    # This is based on the lfric_atm: nwp_gal9-C48_MG configuration
+    {% do task_dict.update({
+        "app_name": "jedi_forecast",
+        "opt_confs": ["um_dump","JEDI_C48","test_diags"],
+        "resolution": "C48_MG",
+        "ancil_resolution": "C48",
+        "DT": 1800,
+        "tsteps": 13,
+        "mpi_parts": 24,
     }) %}
 
 {% elif task_ns.conf_name == "forecast_pseudo_default-C12" %}
@@ -280,12 +305,6 @@
         "tsteps": 13,
         "mpi_parts": 1176,
         "threads": 4,
-    }) %}
-
-{% elif task_ns.conf_name == "integration_tests" %}
-
-    {% do task_dict.update({
-        "placeholder": true,
     }) %}
 
 {% elif task.startswith("build") %}
