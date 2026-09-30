@@ -16,8 +16,9 @@ module zenith_delay_alg_mod
   use initialise_diagnostics_mod,  only: init_diag => init_diagnostic_field
   use mr_indices_mod,              only: nummr, imr_v
   use moist_dyn_mod,               only: num_moist_factors, total_mass
-  use planet_constants_mod,        only: p_zero, recip_kappa_def, r, g,    &
-                                         grcp, c_virtual, repsilon
+  use planet_config_mod,           only: p_zero, rd, gravity,                 &
+                                         repsilon => epsilon
+  use planet_constants_mod,        only: recip_kappa_def, grcp, c_virtual
   use sci_geometric_constants_mod, only: get_height_fv
   use fs_continuity_mod,           only: Wtheta, W3
 
@@ -57,9 +58,9 @@ contains
     type( field_type ), pointer :: height_w3
     type( field_type ), pointer :: height_wth
 
-    ! Planet constants converted to the kind expected by the kernel
-    real(kind=r_def) :: p_zero_in, r_in, g_in
-    real(kind=r_def) :: grcp_in, c_virtual_in, repsilon_in
+    ! Derived planet constants are only held at the physics kind, so these
+    ! are converted to the kind expected by the kernel
+    real(kind=r_def) :: grcp_in, c_virtual_in
 
     nullify(height_w3, height_wth)
 
@@ -69,20 +70,16 @@ contains
       height_w3  => get_height_fv(config, exner_w3%get_mesh(), W3)
       height_wth => get_height_fv(config, exner_wth%get_mesh(), Wtheta)
 
-      p_zero_in    = real(p_zero, r_def)
-      r_in         = real(r, r_def)
-      g_in         = real(g, r_def)
       grcp_in      = real(grcp, r_def)
       c_virtual_in = real(c_virtual, r_def)
-      repsilon_in  = real(repsilon, r_def)
 
       call invoke( zenith_delay_kernel_type(exner_w3, exner_wth,           &
                                             mr(imr_v),                     &
                                             moist_dyn(total_mass),         &
                                             height_w3, height_wth,         &
-                                            p_zero_in, recip_kappa_def,    &
-                                            r_in, g_in, grcp_in,           &
-                                            c_virtual_in, repsilon_in,     &
+                                            p_zero, recip_kappa_def,       &
+                                            rd, gravity, grcp_in,          &
+                                            c_virtual_in, repsilon,        &
                                             zenith_total_delay) )
       call zenith_total_delay%write_field()
 
