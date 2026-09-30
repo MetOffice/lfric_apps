@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Claude Code (Claude Opus 5.5), 2026-09-30.
+
 !> @brief Calculate diagnostics on pressure levels.
 
 module pres_lev_diags_alg_mod
@@ -21,9 +24,9 @@ module pres_lev_diags_alg_mod
   use fs_continuity_mod,       only: W3, WTheta
   use mr_indices_mod,          only: nummr, imr_v
   use moist_dyn_mod,           only: num_moist_factors, total_mass
-  use planet_config_mod,       only: p_zero, kappa, gravity, cp
-  use planet_constants_mod,    only: ex_power, repsilon
-  use conversions_mod,         only: zerodegc
+  use planet_config_mod,       only: p_zero, kappa, gravity, cp, epsilon
+  use planet_constants_mod,    only: ex_power
+  use science_conversions_mod, only: zero_degrees_celsius
 
   implicit none
 
@@ -43,15 +46,15 @@ contains
   !!          for climate averaging.
   !> @param[in]  config          Application namelist configuration object
   !> @param[in]  derived_fields  Group of derived fields
+  !> @param[in]  cloud_fields    Group of cloud fields
   !> @param[in]  theta_wth       Potential temperature
   !> @param[in]  exner_w3        Exner pressure
   !> @param[in]  mr              Mixing ratio bundle
   !> @param[in]  moist_dyn       Moist_dynamics factors (for 1+sum(m_x))
-  !> @param[in]  cloud_fields    Group of cloud fields
   !> @param[out] plev_geopot     Geopotential height on pressure levels
-  subroutine pres_lev_diags_alg(config,                              &
-                                derived_fields, theta_wth, exner_w3, &
-                                mr, moist_dyn, cloud_fields, plev_geopot)
+  subroutine pres_lev_diags_alg(config, derived_fields, cloud_fields, &
+                                theta_wth, exner_w3, mr, moist_dyn,   &
+                                plev_geopot)
 
     use psykal_lite_phys_mod, only: invoke_pres_interp_kernel_type,  &
                                     invoke_heaviside_kernel_type,    &
@@ -67,10 +70,10 @@ contains
     type(config_type), intent(in) :: config
 
     type( field_collection_type ), intent(in) :: derived_fields
+    type( field_collection_type ), intent(in) :: cloud_fields
     type( field_type ), intent(in)  :: theta_wth, exner_w3
     type( field_type ), intent(in)  :: mr(nummr)
     type( field_type ), intent(in)  :: moist_dyn(num_moist_factors)
-    type( field_collection_type ), intent(in) :: cloud_fields
     type( field_type ), intent(out) :: plev_geopot
     ! Internal variables
     type( field_type ), pointer     :: exner_wth
@@ -89,7 +92,7 @@ contains
     type( field_type ) :: plev_icing_pot, icing_temp, icing_qv, icing_rh, &
          plev_icing_rh, plev_icing_temp, plev_icing_cloud
     integer(i_def) :: nplev
-    real(r_def) :: minus_g, repsilon_r_def, zerodegc_r_def
+    real(r_def) :: minus_g
     real(r_def), allocatable :: plevs(:)
 
     logical(l_def) :: plev_heaviside_flag, plev_temp_flag,             &
@@ -317,8 +320,6 @@ contains
     if (plev_icing_pot_flag .and. use_xios_io) then
 
       call cloud_fields%get_field('bulk_fraction', bulk_fraction)
-      repsilon_r_def = real(repsilon, r_def)
-      zerodegc_r_def = real(zerodegc, r_def)
 
       ! Relative humidity on model levels
       call theta_wth%copy_field_properties(icing_temp)
@@ -328,7 +329,7 @@ contains
                   X_divideby_Y(icing_qv, mr(imr_v), moist_dyn(total_mass)), &
                   icing_pot_rh_kernel_type(icing_rh, icing_temp, exner_wth, &
                                            icing_qv, p_zero, kappa,         &
-                                           repsilon_r_def, zerodegc_r_def), &
+                                           epsilon, zero_degrees_celsius),  &
                   name="icing_pot_rh")
 
       ! Relative humidity, temperature and cloud fraction on pressure levels
@@ -347,7 +348,7 @@ contains
 
       call invoke(icing_pot_kernel_type(plev_icing_pot, plev_icing_rh,      &
                                         plev_icing_temp, plev_icing_cloud, &
-                                        nplev, zerodegc_r_def),            &
+                                        nplev, zero_degrees_celsius),      &
                 name="icing_pot")
       call plev_icing_pot%write_field()
 
