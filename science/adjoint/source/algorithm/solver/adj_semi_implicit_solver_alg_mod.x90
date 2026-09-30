@@ -410,8 +410,7 @@ contains
 
     ! Compute theta increment since solver does not provide one
     call invoke( name="adj_si_solver_2",                                                 &
-                 adj_dg_inc_matrix_vector_kernel_type( rhs_tmp, inc_uvw_rsol, ptheta2 ), &
-                 setval_c( rhs_tmp, 0.0_r_solver ) )
+                 adj_dg_inc_matrix_vector_kernel_type( rhs_tmp, inc_uvw_rsol, ptheta2 ) )
 
     ! Get the theta and rho increments
     div => get_im3_div_r_solver(mesh_id)
@@ -429,11 +428,11 @@ contains
 
     ! Compute rho increment since solver does not provide one
     call invoke( name="adj_si_solver_4",                                  &
-                 a_times_x( div_u, tau_r_dt, inc_rho_rsol ),              &
-                 setval_x( rhs_rsol(igh_d), inc_rho_rsol ),               &
+                 a_times_X( div_u, tau_r_dt, inc_rho_rsol ),              &
+                 setval_X( rhs_rsol(igh_d), inc_rho_rsol ),               &
                  adj_dg_matrix_vector_kernel_type( div_u, f_star, div ),  &
-                 inc_x_times_y( f_star, rho_at_u ),                       &
-                 inc_x_plus_y( inc_uvw_rsol, f_star ) )
+                 inc_X_times_Y( f_star, rho_at_u ),                       &
+                 inc_X_plus_Y( inc_uvw_rsol, f_star ) )
 
     ! Get the velocity increments and if necessary combine them
     if (split_w) then
@@ -492,12 +491,10 @@ contains
         call rhs_tmp%initialise(vector_space=rhs_rsol(igh_u)%get_function_space())
         p2theta => get_p2theta()
         call invoke( name="adj_si_solver_6",                                             &
-                     setval_c( rhs_tmp, 0.0_r_solver ),                                  &
                      enforce_bc_kernel_type(rhs_rsol(igh_u)),                            &
-                     inc_X_plus_Y( rhs_tmp, rhs_rsol(igh_u) ),                           &
+                     setval_X( rhs_tmp, rhs_rsol(igh_u) ),                               &
                      inc_X_times_Y( rhs_tmp, m2_diag ),                                  &
                      adj_matrix_vector_kernel_type( rhs_tmp, rhs_rsol(igh_t), p2theta ), &
-                     setval_c( rhs_tmp, 0.0_r_solver ),                                  &
                      adj_dg_inc_matrix_vector_kernel_type( rhs_rsol(igh_p), rhs_rsol(igh_t), p3theta ) )
       end if
 
@@ -511,7 +508,6 @@ contains
     call invoke_inc_rdefX_plus_rsolverY( rhs(igh_p), rhs_rsol(igh_p) )
     call invoke_inc_rdefX_plus_rsolverY( rhs(igh_t), rhs_rsol(igh_t) )
     call invoke_inc_rdefX_plus_rsolverY( rhs(igh_d), rhs_rsol(igh_d) )
-    call invoke(setval_c( rhs_rsol(igh_u), 0.0_r_solver ))
 
     if (eliminate_variables == eliminate_variables_analytic) then
       call log_event( "adj_semi_implicit_solver_type%step: eliminate_variables_analytic not coded", LOG_LEVEL_ERROR )
