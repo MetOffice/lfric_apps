@@ -17,7 +17,6 @@ module limited_area_lbc_alg_mod
   use mesh_mod,                       only: mesh_type
   use mr_indices_mod,                 only: nummr, mr_names, imr_v, &
                                             imr_cl, imr_s, imr_r
-  use mesh_mod,                       only: mesh_type
   use limited_area_constants_mod,     only: get_boundary_mask_fe, &
                                             get_boundary_mask_fv, &
                                             get_blend_mask,       &

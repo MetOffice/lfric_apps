@@ -20,7 +20,8 @@ module tl_ffsl_hori_alg_mod
                                               get_face_selector_ns
   use integer_field_mod,                only: integer_field_type
   use log_mod,                          only: log_event, LOG_LEVEL_ERROR
-  use mesh_mod,                         only: mesh_type
+  use mesh_mod,                         only: mesh_type, topology_periodic,    &
+                                              geometry_spherical
   use r_tran_field_mod,                 only: r_tran_field_type
   use timing_mod,                       only: start_timing, stop_timing,       &
                                               tik, LPROF
@@ -48,9 +49,7 @@ module tl_ffsl_hori_alg_mod
   use fv_divergence_2d_kernel_mod,      only: fv_divergence_2d_kernel_type
 
   ! Configuration options
-  use base_mesh_config_mod,             only: topology,                        &
-                                              topology_fully_periodic,         &
-                                              geometry, geometry_spherical
+  use base_mesh_config_mod,             only: topology, geometry
   use linear_config_mod,                only: transport_efficiency
   use transport_config_mod,             only:                                  &
                                           panel_edge_treatment,                &
@@ -433,7 +432,7 @@ contains
     ! Whether computation is on the cubed sphere
     is_cubed_sphere = (                                                        &
         geometry == geometry_spherical                                         &
-        .and. topology == topology_fully_periodic                              &
+        .and. topology == topology_periodic                                    &
     )
 
     if (is_cubed_sphere) then
@@ -704,7 +703,7 @@ contains
     ! Whether computation is on the cubed sphere
     is_cubed_sphere = (                                                        &
         geometry == geometry_spherical                                         &
-        .and. topology == topology_fully_periodic                              &
+        .and. topology == topology_periodic                                    &
     )
 
     if (is_cubed_sphere) then
