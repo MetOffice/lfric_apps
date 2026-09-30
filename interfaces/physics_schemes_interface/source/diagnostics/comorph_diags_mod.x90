@@ -145,6 +145,9 @@ contains
                                     conv_rain_3d,           &
                                     conv_snow_3d,           &
                                     cca_2d,                 &
+                                    ls_rain,                &
+                                    ls_snow,                &
+                                    conv_ppn_frac,          &
                                     lowest_cv_base,         &
                                     lowest_cv_top,          &
                                     cv_base,                &
@@ -185,7 +188,10 @@ contains
                                        conv_snow,     &
                                        conv_rain_3d,  &
                                        conv_snow_3d,  &
-                                       cca_2d
+                                       cca_2d,        &
+                                       ls_rain,       &
+                                       ls_snow,       &
+                                       conv_ppn_frac
     ! local diagnostic fields to output
     type( field_type ), intent(in)  :: lowest_cv_base,         &
                                        lowest_cv_top,          &
@@ -204,6 +210,8 @@ contains
                                        cloud_base_icao_height, &
                                        cloud_top_icao_height
     integer(tik)  :: id
+
+    type(field_type) :: tmp_ppn_diag, ls_ppn_frac
 
     if ( LPROF ) call start_timing( id, 'diags.comorph' )
 
@@ -226,11 +234,26 @@ contains
     call massflux_up%write_field('convection__massflux_up')
     call massflux_down%write_field('convection__massflux_down')
     call cape_diluted%write_field('convection__cape_diluted')
-    call conv_rain%write_field('convection__conv_rain')
-    call conv_snow%write_field('convection__conv_snow')
     call conv_rain_3d%write_field('convection__conv_rain_3d')
     call conv_snow_3d%write_field('convection__conv_snow_3d')
     call cca_2d%write_field('convection__cca_2d')
+    call conv_ppn_frac%write_field('convection__conv_ppn_frac')
+
+    ! Adjust the convective and large-scale precipitaion diagnostics to
+    ! account for the convective fraction
+    call conv_ppn_frac%copy_field_properties(tmp_ppn_diag)
+    ! Convective rain is conv_ppn_frac * ls_X
+    call invoke(X_times_Y(tmp_ppn_diag, conv_ppn_frac, ls_rain))
+    call tmp_ppn_diag%write_field('convection__conv_rain')
+    call invoke(X_times_Y(tmp_ppn_diag, conv_ppn_frac, ls_snow))
+    call tmp_ppn_diag%write_field('convection__conv_snow')
+    ! Large-scale rain is (1 - conv_ppn_frac) * ls_X
+    call conv_ppn_frac%copy_field_properties(ls_ppn_frac)
+    call invoke(a_minus_X(ls_ppn_frac, 1.0_r_def, conv_ppn_frac))
+    call invoke(X_times_Y(tmp_ppn_diag, ls_ppn_frac, ls_rain))
+    call tmp_ppn_diag%write_field('microphysics__ls_rain')
+    call invoke(X_times_Y(tmp_ppn_diag, ls_ppn_frac, ls_snow))
+    call tmp_ppn_diag%write_field('microphysics__ls_snow')
 
     ! Diagnostics computed outside the kernel
     ! 2D

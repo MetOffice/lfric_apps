@@ -103,7 +103,8 @@ contains
                                  ageofair_reset_level = 10,                                &
                                  panel_edge_treatment=panel_edge_treatment_none,           &
                                  panel_edge_high_order = .false.,                          &
-                                 special_edges_monotone = (/1/)                            &
+                                 special_edges_monotone = (/1/),                           &
+                                 native_w2_wind_transport = .false.                        &
                                  )
     call feign_base_mesh_config( file_prefix='foo',                   &
                                  prime_mesh_name='unit_test',         &
