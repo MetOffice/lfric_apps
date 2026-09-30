@@ -41,24 +41,6 @@ real(kind=r_bl), intent(out)   :: y(nn)    ! output array
 ! Local Variables
 integer             :: i        ! Loop index
 
-real(kind=r_bl), save ::                                                &
-   c01,                                                                        &
-        ! expansion coefficient of x
-   c03,                                                                        &
-        ! expansion coefficient of x**3
-   c05,                                                                        &
-        ! expansion coefficient of x**5
-   c07,                                                                        &
-        ! expansion coefficient of x**7
-   c09,                                                                        &
-        ! expansion coefficient of x**9
-   c11,                                                                        &
-        ! expansion coefficient of x**11
-   c13,                                                                        &
-        ! expansion coefficient of x**13
-   factor
-        ! common factor to all the coefficients
-
 real(kind=r_bl) ::                                                             &
    x01,                                                                        &
        ! x with upper limit
@@ -75,9 +57,6 @@ real(kind=r_bl) ::                                                             &
    x12
        ! x powered by 12
 
-logical, save       :: first = .true.
-                                ! flag to indication first run
-
 real(kind=r_bl), parameter ::                                           &
    erfmax = 1.0
        ! upper limit of the value to avoid it outside domain
@@ -89,6 +68,15 @@ real(kind=r_bl), parameter ::                                           &
        ! |x|>1.65 are sticked to erfmax and yield no meaningful results,
        ! so this poses no problem.
 
+real(kind=r_bl), parameter :: factor =  2.0 / sqrt(pi)
+real(kind=r_bl), parameter :: c01 = factor * 1.0
+real(kind=r_bl), parameter :: c03 = factor * 1.0 /    3.0
+real(kind=r_bl), parameter :: c05 = factor * 1.0 /   10.0
+real(kind=r_bl), parameter :: c07 = factor * 1.0 /   42.0
+real(kind=r_bl), parameter :: c09 = factor * 1.0 /  216.0
+real(kind=r_bl), parameter :: c11 = factor * 1.0 / 1320.0
+real(kind=r_bl), parameter :: c13 = factor * 1.0 / 9360.0
+
 integer(kind=jpim), parameter :: zhook_in  = 0
 integer(kind=jpim), parameter :: zhook_out = 1
 real(kind=jprb)               :: zhook_handle
@@ -97,17 +85,6 @@ character(len=*), parameter :: RoutineName='MYM_ERRFUNC'
 
 if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
-if (first) then
-  factor =  2.0 / sqrt(pi)
-  c01 = factor * 1.0
-  c03 = factor * 1.0 /    3.0
-  c05 = factor * 1.0 /   10.0
-  c07 = factor * 1.0 /   42.0
-  c09 = factor * 1.0 /  216.0
-  c11 = factor * 1.0 / 1320.0
-  c13 = factor * 1.0 / 9360.0
-  first = .false.
-end if
 do i = 1, nn
   x01 = max(min(x(i), argmax), -argmax)
   x02 = x01 * x01

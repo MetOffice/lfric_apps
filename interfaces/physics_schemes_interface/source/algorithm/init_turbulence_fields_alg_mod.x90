@@ -12,6 +12,9 @@ module init_turbulence_fields_alg_mod
   use field_mod,                       only: field_type
   use integer_field_mod,               only: integer_field_type
   use field_collection_mod,            only: field_collection_type
+  use log_mod,                         only: log_event, &
+                                             log_scratch_space, &
+                                             LOG_LEVEL_ERROR
 
   implicit none
 
@@ -27,8 +30,12 @@ contains
   !> @param[in,out] turbulence_fields Collection of fields for turbulence scheme
   subroutine init_turbulence_fields_alg(turbulence_fields)
 
-    use blayer_config_mod, only: bl_scheme, bl_scheme_Kprof, bl_scheme_HoC, &
-                                 bdy_tke, bdy_tke_deardorff, shcu_buoy
+    use timestepping_config_mod,   only: method, method_no_timestepping, &
+                                         method_jules
+    use section_choice_config_mod, only: boundary_layer, boundary_layer_um
+    use blayer_config_mod,         only: bl_scheme, bl_scheme_Kprof, &
+                                         bl_scheme_HoC, bdy_tke, &
+                                         bdy_tke_deardorff, shcu_buoy
 
     implicit none
 
@@ -89,22 +96,14 @@ contains
     call turbulence_fields%get_field('ent_we_lim_dsc', ent_we_lim_dsc)
     call turbulence_fields%get_field('ent_t_frac_dsc', ent_t_frac_dsc)
     call turbulence_fields%get_field('ent_zrzi_dsc', ent_zrzi_dsc)
-
-    if (bl_scheme == bl_scheme_Kprof) then
-      call turbulence_fields%get_field('wvar', wvar)
-      call turbulence_fields%get_field('dsldzm', dsldzm)
-      call turbulence_fields%get_field('mix_len_bm', mix_len_bm)
-    else if (bl_scheme == bl_scheme_HoC) then
-      call turbulence_fields%get_field('rhokm_bl', rhokm_bl)
-      if (bdy_tke /= bdy_tke_deardorff) then
-        call turbulence_fields%get_field('tsq_bl', tsq_bl)
-        call turbulence_fields%get_field('qsq_bl', qsq_bl)
-        call turbulence_fields%get_field('cov_bl', cov_bl)
-      end if
-      if (shcu_buoy) then
-        call turbulence_fields%get_field('zhpar_shcu', zhpar_shcu)
-      end if
-    end if
+    call turbulence_fields%get_field('wvar', wvar)
+    call turbulence_fields%get_field('dsldzm', dsldzm)
+    call turbulence_fields%get_field('mix_len_bm', mix_len_bm)
+    call turbulence_fields%get_field('rhokm_bl', rhokm_bl)
+    call turbulence_fields%get_field('tsq_bl', tsq_bl)
+    call turbulence_fields%get_field('qsq_bl', qsq_bl)
+    call turbulence_fields%get_field('cov_bl', cov_bl)
+    call turbulence_fields%get_field('zhpar_shcu', zhpar_shcu)
 
     ! Set turbulence fields to fixed values for use in SCM testing
     ! or when no values is provided by the um2lfric dump
@@ -127,21 +126,29 @@ contains
                  setval_c(ent_t_frac_dsc, 0.0_r_def), &
                  setval_c(ent_zrzi_dsc,   0.0_r_def), &
                  setval_c(gradrinr,       0.0_r_def) )
- 
-    if (bl_scheme == bl_scheme_Kprof) then
-      call invoke( setval_c(wvar,           0.0_r_def), &
-                   setval_c(dsldzm,         0.0_r_def), &
-                   setval_c(mix_len_bm,     0.0_r_def) )
-    else if (bl_scheme == bl_scheme_HoC) then
-      call invoke( setval_c(rhokm_bl,       0.0_r_def) )
-      if (bdy_tke /= bdy_tke_deardorff) then
-        call invoke( setval_c(tsq_bl,       0.0_r_def), &
-                     setval_c(qsq_bl,       0.0_r_def), &
-                     setval_c(cov_bl,       0.0_r_def) )
-      end if
-      if (shcu_buoy) then
-        call invoke( setval_c(zhpar_shcu,   0.0_r_def) )
-      end if
+
+    if (method /= method_no_timestepping .and. method /= method_jules .and. &
+        boundary_layer == boundary_layer_um) then
+      select case (bl_scheme)
+      case (bl_scheme_Kprof)
+        call invoke( setval_c(wvar,           0.0_r_def), &
+                     setval_c(dsldzm,         0.0_r_def), &
+                     setval_c(mix_len_bm,     0.0_r_def) )
+      case (bl_scheme_HoC)
+        call invoke( setval_c(rhokm_bl,       0.0_r_def) )
+        if (bdy_tke /= bdy_tke_deardorff) then
+          call invoke( setval_c(tsq_bl,       0.0_r_def), &
+                       setval_c(qsq_bl,       0.0_r_def), &
+                       setval_c(cov_bl,       0.0_r_def) )
+        end if
+        if (shcu_buoy) then
+          call invoke( setval_c(zhpar_shcu,   0.0_r_def) )
+        end if
+      case default
+        write( log_scratch_space, '(A)' ) &
+            'An unexpected boundary layer scheme is being used.'
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      end select
     end if
 
   end subroutine init_turbulence_fields_alg

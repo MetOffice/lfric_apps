@@ -41,7 +41,8 @@ module bl_hoc_exp_alg_mod
   use print_field_stats_alg_mod, only: print_field_stats_alg
 
   ! xios output
-  use bl_hoc_exp_diags_mod, only: initialise_diags_for_bl_hoc_exp, &
+  use bl_hoc_exp_diags_mod, only: bl_hoc_diags_flag_type, &
+                                  initialise_diags_for_bl_hoc_exp, &
                                   output_diags_for_bl_hoc_exp
 
   implicit none
@@ -197,6 +198,7 @@ contains
                           sm25, sh25, dbdz, dvdzm
     type( field_type) :: rdz_wth, taux_land, tauy_land, taux_ssi, tauy_ssi
     type( field_type ) :: mr_ice
+    type( bl_hoc_diags_flag_type ) :: diags_flag
 
     integer(i_def) :: ncells
     integer(tik)   :: id
@@ -321,7 +323,8 @@ contains
     dz_wth           => get_dz_at_wtheta(config, mesh)
 
     ! Initialise diagnostics
-    call initialise_diags_for_bl_hoc_exp( master_length,                       &
+    call initialise_diags_for_bl_hoc_exp( diags_flag,                          &
+                                          master_length,                       &
                                           rhogamu_bl, rhogamv_bl,              &
                                           rhogamt_bl, rhogamq_bl,              &
                                           tke_shr_prod, tke_boy_prod,          &
@@ -466,7 +469,8 @@ contains
     ! output BL diagnostics
     if (config%io%write_diag() .and. config%io%use_xios_io()) then
 
-      call output_diags_for_bl_hoc_exp(ntml, cumulus, bl_type_ind,             &
+      call output_diags_for_bl_hoc_exp(diags_flag,                             &
+                                       ntml, cumulus, bl_type_ind,             &
                                        tke_bl, tsq_bl, qsq_bl, cov_bl,         &
                                        master_length, gradrinr,                &
                                        rhokm_bl, rhokh_bl,                     &

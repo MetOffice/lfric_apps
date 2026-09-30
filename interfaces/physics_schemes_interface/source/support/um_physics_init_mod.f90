@@ -318,6 +318,8 @@ module um_physics_init_mod
   use io_config_mod, only: checkpoint_read
 
   use initialization_config_mod, only: init_option, init_option_checkpoint_dump
+  use timestepping_config_mod, only: timestepping_method => method, &
+                                     method_no_timestepping, method_jules
 
   ! Other LFRic modules used
   use constants_mod,        only: i_def, l_def, r_um, i_um, r_def, r_bl
@@ -751,7 +753,8 @@ contains
         l_skyview = .true.
       end if
 
-      if (bl_scheme == bl_scheme_Kprof) then
+      select case (bl_scheme)
+      case (bl_scheme_Kprof)
         i_bl_vn = i_bl_vn_9c
 
         a_ent_shr_nml = real(a_ent_shr, r_bl)
@@ -849,7 +852,7 @@ contains
         l_converge_ga       = l_converge_ga_in
         num_sweeps_bflux    = num_sweeps_bflux_in
 
-      else if (bl_scheme == bl_scheme_HoC) then
+      case (bl_scheme_HoC)
         i_bl_vn = i_bl_vn_1a
 
         ishear_bl = off
@@ -929,7 +932,15 @@ contains
         tke_cm_fa = 0.1_r_bl
         tke_dlen = ddf_length
 
-      end if
+      case default
+        if ( timestepping_method /= method_no_timestepping .and.               &
+             timestepping_method /= method_jules ) then
+          write( log_scratch_space, '(A)' )                                    &
+            'An unexpected boundary layer scheme is being used.'
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
+
+      end select
     end if
 
     ! ----------------------------------------------------------------
@@ -1719,7 +1730,8 @@ contains
       turb_startlev_vert  = 2
       turb_endlev_vert    = bl_levels
 
-      if ( bl_scheme == bl_scheme_Kprof ) then
+      select case ( bl_scheme )
+      case ( bl_scheme_Kprof )
 
         ! Options which are bespoke to the choice of scheme
         select case ( blending_Kprof )
@@ -1744,7 +1756,7 @@ contains
           blending_option   = blend_gridindep_fa
         end select
 
-      else if ( bl_scheme == bl_scheme_HoC ) then
+      case ( bl_scheme_HoC )
 
         select case ( blending_HoC )
 
@@ -1766,7 +1778,15 @@ contains
           l_use_l_sq        = use_l_sq
         end select
 
-      end if
+      case default
+        if ( timestepping_method /= method_no_timestepping .and.               &
+             timestepping_method /= method_jules ) then
+          write( log_scratch_space, '(A)' )                                    &
+            'An unexpected boundary layer scheme is being used.'
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
+
+      end select
 
     else ! not Smagorinsky
 

@@ -26,7 +26,10 @@ module slow_physics_alg_mod
                                        cv_scheme_gregory_rowntree, &
                                        cv_scheme_comorph
   use constants_mod,             only: i_def, r_def, l_def
-  use log_mod,                   only: LOG_LEVEL_INFO
+  use log_mod,                   only: log_event,         &
+                                       log_scratch_space, &
+                                       LOG_LEVEL_INFO,    &
+                                       LOG_LEVEL_ERROR
   use lfric_xios_write_mod,      only: write_field_generic
   use mesh_mod,                  only: mesh_type
   use driver_modeldb_mod,        only: modeldb_type
@@ -880,7 +883,8 @@ contains
                          surface_fields, soil_fields, snow_fields,           &
                          aerosol_fields, recip_l_mo_sea, rhostar,            &
                          t1_sd_2d, q1_sd_2d)
-      if (bl_scheme == bl_scheme_Kprof) then
+      select case (bl_scheme)
+      case (bl_scheme_Kprof)
         call bl_exp_alg(modeldb%config,                                     &
                         theta, rho, exner, mr_n,                            &
                         derived_fields, radiation_fields,                   &
@@ -889,7 +893,7 @@ contains
                         surface_fields,                                     &
                         recip_l_mo_sea, rhostar,                            &
                         t1_sd_2d, q1_sd_2d, clock)
-      else if (bl_scheme == bl_scheme_HoC) then
+      case (bl_scheme_HoC)
         call bl_hoc_exp_alg(modeldb%config,                                    &
                             theta, rho, exner, mr_n,                           &
                             derived_fields,                                    &
@@ -898,7 +902,11 @@ contains
                             surface_fields,                                    &
                             leonard_klm_tke, leonard_klh_tke,                  &
                             clock)
-      end if
+      case default
+        write( log_scratch_space, '(A)' )                                      &
+          'An unexpected boundary layer scheme is being used.'
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      end select
     end if
 
     !--------------------------------------------------------------------
