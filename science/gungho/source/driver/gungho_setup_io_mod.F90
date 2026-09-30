@@ -13,11 +13,13 @@ module gungho_setup_io_mod
   use constants_mod,             only: r_def, i_def, str_def, &
                                        str_max_filename, r_second
   use driver_modeldb_mod,        only: modeldb_type
+  use field_collection_mod,      only: field_collection_type
   use file_mod,                  only: FILE_MODE_READ, &
                                        FILE_MODE_WRITE
   use lfric_xios_file_mod,       only: lfric_xios_file_type, &
                                        OPERATION_TIMESERIES, &
                                        CONVENTION_CF
+  use lfric_xios_constants_mod,  only: lx_day
   use lfric_xios_write_mod,      only: create_checkpoint_list
   use linked_list_mod,           only: linked_list_type
   use log_mod,                   only: log_event, log_level_error, &
@@ -118,6 +120,7 @@ module gungho_setup_io_mod
                                        ls_option_file,            &
                                        sst_source,                &
                                        sst_source_start_dump,     &
+                                       sst_source_surf,           &
                                        sea_ice_source,            &
                                        sea_ice_source_start_dump, &
                                        coarse_aerosol_ancil,      &
@@ -214,10 +217,39 @@ module gungho_setup_io_mod
     integer(i_def)                  :: i
     integer(i_def)                  :: time_point
 
+    type(field_collection_type), pointer :: sst_ancil_fields
+    type(field_collection_type), pointer :: aerosol_ancil_fields
+
     integer(i_def)                  :: theta_forcing
     integer(i_def)                  :: wind_forcing
     ! Only proceed if XIOS is being used for I/O
     if (.not. use_xios_io) return
+
+    nullify(sst_ancil_fields)
+    nullify(aerosol_ancil_fields)
+    if (ancil_option == ancil_option_updating) then
+      if (.not. present(modeldb)) then
+        call log_event("init_gungho_files requires modeldb in updating ancillary mode", &
+                       log_level_error)
+      end if
+
+      if (sst_source /= sst_source_start_dump) then
+        if (.not. modeldb%fields%field_collection_exists("sst_ancil_fields")) then
+          call log_event("Missing required field collection: sst_ancil_fields", &
+                         log_level_error)
+        end if
+        sst_ancil_fields => modeldb%fields%get_field_collection("sst_ancil_fields")
+      end if
+
+      if ( ( glomap_mode == glomap_mode_dust_and_clim ) .or.    &
+           ( glomap_mode == glomap_mode_climatology   ) ) then
+        if (.not. modeldb%fields%field_collection_exists("aerosol_ancil_fields")) then
+          call log_event("Missing required field collection: aerosol_ancil_fields", &
+                         log_level_error)
+        end if
+        aerosol_ancil_fields => modeldb%fields%get_field_collection("aerosol_ancil_fields")
+      end if
+    end if
 
     ! Get time configuration in integer form
     read(timestep_start,*,iostat=rc)  ts_start
@@ -377,9 +409,18 @@ module gungho_setup_io_mod
             write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                     trim(sst_ancil_path)
           end if
-          call files_list%insert_item( lfric_xios_file_type( ancil_fname,      &
-                                                         xios_id="sst_ancil", &
-                                                         io_mode=FILE_MODE_READ ) )
+          if (ancil_option == ancil_option_updating) then
+            call files_list%insert_item( lfric_xios_file_type( ancil_fname,      &
+                                                           xios_id="sst_ancil", &
+                                                           io_mode=FILE_MODE_READ, &
+                                                           operation=OPERATION_TIMESERIES, &
+                                                           update_freq=merge(0, 1*lx_day, sst_source == sst_source_surf), &
+                                                           fields_in_file=sst_ancil_fields ) )
+          else
+            call files_list%insert_item( lfric_xios_file_type( ancil_fname,      &
+                                                           xios_id="sst_ancil", &
+                                                           io_mode=FILE_MODE_READ ) )
+          end if
         end if
 
         ! Set sea ice ancil filename from namelist
@@ -470,9 +511,18 @@ module gungho_setup_io_mod
           end if
           write(ancil_fname,'(A)') trim(aerosol_ancil_directory)//'/'// &
                                    trim(aerosols_ancil_path)
-          call files_list%insert_item( lfric_xios_file_type( ancil_fname,      &
-                                                         xios_id="aerosols_ancil", &
-                                                         io_mode=FILE_MODE_READ ) )
+          if (ancil_option == ancil_option_updating) then
+            call files_list%insert_item( lfric_xios_file_type( ancil_fname,      &
+                                                           xios_id="aerosols_ancil", &
+                                                           io_mode=FILE_MODE_READ, &
+                                                           operation=OPERATION_TIMESERIES, &
+                                                           update_freq=1*lx_day, &
+                                                           fields_in_file=aerosol_ancil_fields ) )
+          else
+            call files_list%insert_item( lfric_xios_file_type( ancil_fname,      &
+                                                           xios_id="aerosols_ancil", &
+                                                           io_mode=FILE_MODE_READ ) )
+          end if
         end if
 
       end if ! updating or a new run

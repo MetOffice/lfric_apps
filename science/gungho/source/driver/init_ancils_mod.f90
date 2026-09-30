@@ -101,17 +101,22 @@ contains
   !           collection then reads them.
   !> @param[in,out] depository    The depository field collection
   !> @param[in,out] ancil_fields  Collection for ancillary fields
+  !> @param[in,out] sst_ancil_fields Collection bound to the SST file
+  !> @param[in,out] aerosol_ancil_fields Collection bound to the aerosol file
   !> @param[in] mesh              The current 3d mesh
   !> @param[in] twod_mesh         The current 2d mesh
   !> @param[in] aerosol_mesh      Aerosol 3d mesh
   !> @param[in] aerosol_twod_mesh Aerosol 2d mesh
-  subroutine create_fd_ancils( depository, ancil_fields, mesh, &
+  subroutine create_fd_ancils( depository, ancil_fields, sst_ancil_fields, &
+                               aerosol_ancil_fields, mesh, &
                                twod_mesh, aerosol_mesh, aerosol_twod_mesh, ancil_times_list )
 
     implicit none
 
     type( field_collection_type ), intent( inout ) :: depository
     type( field_collection_type ), intent( inout )   :: ancil_fields
+    type( field_collection_type ), intent( inout )   :: sst_ancil_fields
+    type( field_collection_type ), intent( inout )   :: aerosol_ancil_fields
 
     type( mesh_type ), intent(in), pointer :: mesh
     type( mesh_type ), intent(in), pointer :: twod_mesh
@@ -123,10 +128,8 @@ contains
     ! Time axis objects for different ancil groups - must be saved to be
     ! available after function call
     type(time_axis_type), save :: sea_time_axis
-    type(time_axis_type), save :: sst_time_axis
     type(time_axis_type), save :: sea_ice_time_axis
     type(time_axis_type), save :: snow_time_axis
-    type(time_axis_type), save :: aerosol_time_axis
     type(time_axis_type), save :: albedo_vis_time_axis
     type(time_axis_type), save :: albedo_nir_time_axis
     type(time_axis_type), save :: pft_time_axis
@@ -226,19 +229,9 @@ contains
     end if
 
     if (sst_source /= sst_source_start_dump) then
-      if (sst_source == sst_source_surf) then
-        call sst_time_axis%initialise("sst_time", file_id="sst_ancil", &
-                                      interp_flag=.false., pop_freq="daily", &
-                                      window_size=1)
-
-      else !sst_source == 'ancil'
-        call sst_time_axis%initialise("sst_time", file_id="sst_ancil", &
-                                      interp_flag=interp_flag, pop_freq="daily")
-      end if
       call setup_ancil_field("tstar_sea", depository, ancil_fields, mesh, &
-                              twod_mesh, twod=.true.,                   &
-                              time_axis=sst_time_axis)
-      call ancil_times_list%insert_item(sst_time_axis)
+                              twod_mesh, twod=.true.)
+      call add_ancil_field_reference("tstar_sea", depository, sst_ancil_fields)
     end if
 
     !=====  SEA ICE ANCILS  =====
@@ -402,69 +395,63 @@ contains
       call ancil_times_list%insert_item(murk_time_axis)
     end if
 
-    if ( ( glomap_mode == glomap_mode_climatology ) .or. &
-         ( glomap_mode == glomap_mode_dust_and_clim ) ) then
-      call aerosol_time_axis%initialise( "aerosols_time",          &
-                                         file_id="aerosols_ancil", &
-                                         interp_flag=interp_flag,  &
-                                         pop_freq="daily" )
+     if ( ( glomap_mode == glomap_mode_climatology ) .or. &
+        ( glomap_mode == glomap_mode_dust_and_clim ) ) then
       call setup_ancil_field("acc_sol_bc", depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
+                      twod_mesh)
+      call add_ancil_field_reference("acc_sol_bc", depository, aerosol_ancil_fields)
       call setup_ancil_field("acc_sol_om", depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
+                      twod_mesh)
+      call add_ancil_field_reference("acc_sol_om", depository, aerosol_ancil_fields)
       call setup_ancil_field("acc_sol_su", depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
+                      twod_mesh)
+      call add_ancil_field_reference("acc_sol_su", depository, aerosol_ancil_fields)
       call setup_ancil_field("acc_sol_ss", depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
+                      twod_mesh)
+      call add_ancil_field_reference("acc_sol_ss", depository, aerosol_ancil_fields)
       call setup_ancil_field("n_acc_sol",  depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
+                      twod_mesh)
+      call add_ancil_field_reference("n_acc_sol", depository, aerosol_ancil_fields)
       call setup_ancil_field("ait_sol_bc", depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
+                      twod_mesh)
+      call add_ancil_field_reference("ait_sol_bc", depository, aerosol_ancil_fields)
       call setup_ancil_field("ait_sol_om", depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
+                      twod_mesh)
+      call add_ancil_field_reference("ait_sol_om", depository, aerosol_ancil_fields)
       call setup_ancil_field("ait_sol_su", depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
+                      twod_mesh)
+      call add_ancil_field_reference("ait_sol_su", depository, aerosol_ancil_fields)
       call setup_ancil_field("n_ait_sol",  depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
+                      twod_mesh)
+      call add_ancil_field_reference("n_ait_sol", depository, aerosol_ancil_fields)
       call setup_ancil_field("ait_ins_bc", depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
+                      twod_mesh)
+      call add_ancil_field_reference("ait_ins_bc", depository, aerosol_ancil_fields)
       call setup_ancil_field("ait_ins_om", depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
+                      twod_mesh)
+      call add_ancil_field_reference("ait_ins_om", depository, aerosol_ancil_fields)
       call setup_ancil_field("n_ait_ins",  depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
+                      twod_mesh)
+      call add_ancil_field_reference("n_ait_ins", depository, aerosol_ancil_fields)
       call setup_ancil_field("cor_sol_bc", depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
+                      twod_mesh)
+      call add_ancil_field_reference("cor_sol_bc", depository, aerosol_ancil_fields)
       call setup_ancil_field("cor_sol_om", depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
+                      twod_mesh)
+      call add_ancil_field_reference("cor_sol_om", depository, aerosol_ancil_fields)
       call setup_ancil_field("cor_sol_su", depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
+                      twod_mesh)
+      call add_ancil_field_reference("cor_sol_su", depository, aerosol_ancil_fields)
       call setup_ancil_field("cor_sol_ss", depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
+                      twod_mesh)
+      call add_ancil_field_reference("cor_sol_ss", depository, aerosol_ancil_fields)
       call setup_ancil_field("n_cor_sol",  depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
+                      twod_mesh)
+      call add_ancil_field_reference("n_cor_sol", depository, aerosol_ancil_fields)
 
       ! The following fields will need including when dust is available in the
       ! ancillary file:
       !   acc_sol_du, cor_sol_du, n_acc_ins, acc_ins_du, n_cor_ins, cor_ins_du
-
-      call ancil_times_list%insert_item(aerosol_time_axis)
     end if
 
     !=====  EMISSION ANCILS (dust only) =====
@@ -985,6 +972,26 @@ contains
     end if
 
   end subroutine create_fd_ancils_idealised
+
+  subroutine add_ancil_field_reference( name, depository, target_fields )
+
+    implicit none
+
+    character(*),                   intent(in)    :: name
+    type( field_collection_type ),  intent(inout) :: depository
+    type( field_collection_type ),  intent(inout) :: target_fields
+
+    type(field_type),                pointer :: fld_ptr => null()
+    class(pure_abstract_field_type), pointer :: abs_fld_ptr => null()
+
+    call depository%get_field(name, fld_ptr)
+    abs_fld_ptr => fld_ptr
+    call target_fields%add_reference_to_field(abs_fld_ptr)
+
+    nullify(fld_ptr)
+    nullify(abs_fld_ptr)
+
+  end subroutine add_ancil_field_reference
 
   !> @details Adds fields to the ancil collection, sets up their read and write
   !>      behaviour and creates them in the depository if they do not yet exist
