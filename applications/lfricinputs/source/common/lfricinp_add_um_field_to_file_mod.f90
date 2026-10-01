@@ -128,7 +128,7 @@ lookup_int(lbhrd) = fixed_length_header(t1_hour)
 lookup_int(lbmind) = fixed_length_header(t1_minute)
 lookup_int(lbsecd) = fixed_length_header(t1_second)
 lookup_int(lbtim) = lbtim_from_conf
-lookup_int(lbft) = 0 ! Forecast time, difference between datatime and
+lookup_int(lbft) = um_imdi ! Forecast time, difference between datatime and
                      ! validity time
 
 lookup_int(lbcode) = 1 ! harcode to lat/long non-rotated
@@ -165,6 +165,8 @@ lookup_real_tmp(bplat) = real_constants(rh_polelat)
 lookup_real_tmp(bplon) = real_constants(rh_polelong)
 lookup_real_tmp(bdx) = real_constants(rh_deltaEW)
 lookup_real_tmp(bdy) = real_constants(rh_deltaNS)
+lookup_real_tmp(bgor) = 0.0_real64 ! Not used - set to zero
+lookup_real_tmp(bacc) = -99.0_real64 ! WGDOS packing - set to -99.0 denoting unpacked data
 
 
 lookup_int(lbpack) = 2 ! Currently only support 32 bit packing
@@ -200,9 +202,9 @@ else
 end if
 
 ! Reserved slots (unused)
-lookup_int(lbrsvd1) = 0
-lookup_int(lbrsvd2) = 0
-lookup_int(lbrsvd3) = 0
+lookup_int(lbrsvd1) = um_imdi
+lookup_int(lbrsvd2) = um_imdi
+lookup_int(lbrsvd3) = um_imdi
 ! Ensemble number - set to 0 for deterministic
 lookup_int(lbrsvd4) = 0
 
@@ -220,8 +222,8 @@ lookup_int(lbuser7) = 1
 lookup_real_tmp(bdatum) = 0.0_real64
 
 ! Reserved for future use
-lookup_real_tmp(brsvd3) = 0.0_real64
-lookup_real_tmp(brsvd4) = 0.0_real64
+lookup_real_tmp(brsvd3) = um_rmdi
+lookup_real_tmp(brsvd4) = um_rmdi
 
 ! Check vertical coordinate type
 if (lookup_int(lbvc) >= 126 .and. lookup_int(lbvc) <= 139 &
@@ -233,6 +235,7 @@ if (lookup_int(lbvc) >= 126 .and. lookup_int(lbvc) <= 139 &
   lookup_real_tmp(bhrlev)=0.0_real64
   lookup_real_tmp(bulev)=0.0_real64
   lookup_real_tmp(bhulev)=0.0_real64
+
 else if (lookup_int(lbvc) == 65) then ! Standard hybrid height levels
   ! height of model level k above mean sea level is
   !       z(i,j,k) = Zsea(k) + C(k)*Zorog(i,j)
