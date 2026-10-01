@@ -86,7 +86,7 @@ def transform(fin, name):
     return fout
 
 
-def transform_and_write(my_grid):
+def transform_and_write(my_grid, src_or_dst):
     """Transform arrays and write netcdf output"""
     rank = len(my_grid.shape)
     mrank = my_grid.shape
@@ -100,7 +100,7 @@ def transform_and_write(my_grid):
  input data')
 
     corners = 4
-    fileout = my_grid.vname+'.nc'
+    fileout = my_grid.vname+'_'+src_or_dst+'.nc'
     outfile = Dataset(fileout, 'w')
     outfile.createDimension('grid_rank', numpy.int32(rank))
     outfile.createDimension('grid_size', numpy.int32(grid_size))

@@ -174,12 +174,12 @@
 
     {% do task_dict.update({
         "opt_confs": ["oasis","src_C12_L70","dst_C24"],
-        "resolution": "C24_C12",
-        "dst_mesh": "C24_C12",
-        "dst_name": "C24",
+        "resolution": ["C24_MG", "C12_MG"],
+        "dst_mesh": "C24_MG",
+        "dst_name": "dynamics",
         "dst_type": "global",
-        "src_mesh": "C24_C12",
-        "src_name": "C12",
+        "src_mesh": "C12_MG",
+        "src_name": "dynamics",
         "src_type": "global",
         "mpi_parts": 6,
     }) %}
