@@ -115,8 +115,8 @@ field_counter = 0
 
 ! PLEASE KEEP THIS LIST OF SUPPORTED STASHCODES in NUMERICAL ORDER
 if (winds_on_w3) then
-  call map_field_name(stashcode_u, 'ew_wind')                        ! stash 2
-  call map_field_name(stashcode_v, 'ns_wind')                        ! stash 3
+  call map_field_name(stashcode_u, 'u_in_w3')                        ! stash 2
+  call map_field_name(stashcode_v, 'v_in_w3')                        ! stash 3
 else
   call map_field_name(stashcode_u, 'h_wind')                         ! stash 2&3
                                                  !combined into single W2H field
@@ -137,7 +137,7 @@ call map_field_name(stashcode_orog, 'surface_altitude')              ! stash 33
 call map_field_name(stashcode_sea_ice_temp, 'sea_ice_temperature')   ! stash 49
 call map_field_name(stashcode_ozone, 'ozone')                        ! stash 60
 call map_field_name(stashcode_total_aero, 'total_aero')              ! stash 90
-call map_field_name(stashcode_w, 'upward_wind')                      ! stash 150
+call map_field_name(stashcode_w, 'w_in_wth')                         ! stash 150
 call map_field_name(stashcode_cpl_sw_rad_sea,'cpl_sw_rad')           ! stash 171
 call map_field_name(stashcode_cpl_sw_surf_sea,'cpl_sw_surf')         ! stash 172
 call map_field_name(stashcode_cpl_lw_rad_sea,'cpl_lw_rad')           ! stash 173

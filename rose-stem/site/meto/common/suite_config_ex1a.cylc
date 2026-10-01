@@ -6,7 +6,7 @@
 {% do LOG.debug("Entered site/meto/common/suite_config_ex1a.cylc") %}
 
 {% if site_vars.ex_trustzone == "collab" %}
-{% set ex1a_base = 'module use /projects/metoff/spackadmin.mon/releases/2025.12.18/ngms' %}
+{% set ex1a_base = 'module use /projects/metoff/spackadmin.mon/releases/2026.7.1/ngms' %}
 {% else %}
 {% set ex1a_base = 'module use /common/internal/spack/releases/2026.7.1/ngms' %}
 {% endif %}
@@ -45,9 +45,6 @@
         platform = {{site_vars.host_ex}}
         [[[environment]]]
             BUILD_ROOT = ${TMPDIR}
-            HYPERTHREADS    = 1
-            CORES_PER_NODE  = {{site_vars.node_cores}}
-            NUMA_REGIONS_PER_NODE = 2
             LUSTRE_FILESYSTEM = true
             ROSE_LAUNCHER = 'mpiexec'
             OMP_STACKSIZE=1g
@@ -58,6 +55,7 @@
     [[EX1A_BUILD]]
         [[[environment]]]
             TRANSMUTE_INCLUDE_METHOD = specify_include
+            PSYCLONE_MODE=server
         [[[environment]]]
             USE_LEGACY_TIMER=true
             USE_TIMING_WRAPPER=true
@@ -147,6 +145,9 @@
         inherit=EX1A_BASE
         [[[directives]]]
             -l tmpsize=6GB
+{% if site_vars["ex_trustzone"] == "collab" %}
+            -q = collabshared
+{% endif %}
 
     [[EX1A_TECH_TESTS]]
         inherit=EX1A_TECH_BASE
