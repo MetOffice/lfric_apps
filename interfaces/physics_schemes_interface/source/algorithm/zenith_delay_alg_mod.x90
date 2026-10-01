@@ -16,9 +16,9 @@ module zenith_delay_alg_mod
   use initialise_diagnostics_mod,  only: init_diag => init_diagnostic_field
   use mr_indices_mod,              only: nummr, imr_v
   use moist_dyn_mod,               only: num_moist_factors, total_mass
-  use planet_config_mod,           only: p_zero, rd, gravity,                 &
+  use planet_config_mod,           only: p_zero, rd, gravity, one_over_kappa, &
                                          repsilon => epsilon
-  use planet_constants_mod,        only: recip_kappa_def, grcp, c_virtual
+  use planet_constants_mod,        only: grcp, c_virtual
   use sci_geometric_constants_mod, only: get_height_fv
   use fs_continuity_mod,           only: Wtheta, W3
 
@@ -77,7 +77,7 @@ contains
                                             mr(imr_v),                     &
                                             moist_dyn(total_mass),         &
                                             height_w3, height_wth,         &
-                                            p_zero, recip_kappa_def,       &
+                                            p_zero, one_over_kappa,        &
                                             rd, gravity, grcp_in,          &
                                             c_virtual_in, repsilon,        &
                                             zenith_total_delay) )
