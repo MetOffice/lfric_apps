@@ -13,6 +13,8 @@ module analytic_orography_field_spherical_mod_test
   use global_mesh_mod,            only : global_mesh_type
   use analytic_orography_mod,     only : orography_profile
   use ugrid_mesh_data_mod,        only : ugrid_mesh_data_type
+  use extrusion_config_mod,       only : method_uniform, &
+                                         stretching_method_linear
 
   use funit
 
@@ -40,6 +42,7 @@ module analytic_orography_field_spherical_mod_test
 
   real(r_def), parameter :: radius        = 6371229.0_r_def
   real(r_def), parameter :: domain_height = 10000.0_r_def
+  real(r_def), parameter :: stretching_height = 1.0_r_def
 
   integer(i_def), parameter :: nlayers     = 10_i_def
   integer(i_def), parameter :: total_ranks = 1_i_def
@@ -60,8 +63,6 @@ contains
     use agnesi_orography_spherical_mod, only : agnesi_spherical_type
     use base_mesh_config_mod,           only : geometry_spherical, &
                                                topology_fully_periodic
-    use extrusion_config_mod,           only : method_uniform, &
-                                               stretching_method_linear
     use finite_element_config_mod,      only : cellshape_quadrilateral, &
                                                coord_system_xyz,        &
                                                coord_space_wchi
@@ -95,7 +96,7 @@ contains
                                  planet_radius=radius,        &
                                  domain_height=domain_height, &
                                  number_of_layers=nlayers,    &
-                                 stretching_height=1.0_r_def, &
+                                 stretching_height=stretching_height,        &
                                  stretching_method=stretching_method_linear, &
                                  eta_values=(/0.5_r_def/) )
 
@@ -270,6 +271,8 @@ contains
                                            ndf, undf, map,                     &
                                            height_flat_surface,                &
                                            height_domain_top,                  &
+                                           stretching_height,                  &
+                                           stretching_method_linear,           &
                                            chi_1_in, chi_2_in, chi_3_in,       &
                                            chi_1_cart, chi_2_cart, chi_3_cart, &
                                            panel_id )
