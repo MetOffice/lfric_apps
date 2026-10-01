@@ -69,13 +69,9 @@
 {% elif USE_EXCD is defined and USE_EXCD %}
     {% do site_vars.update({"host_ex": "excd"}) %}
 {% else %}
-    {# randomly choose either ab or cd #}
-    {% from "random" import randint %}
-    {% if randint(1,2) < 2 %}
+  
         {% do site_vars.update({"host_ex": "exab"}) %}
-    {% else %}
-        {% do site_vars.update({"host_ex": "excd"}) %}
-    {% endif %}
+   
 {% endif %}
 {% do LOG.info("Host EX: " + site_vars.host_ex) %}
 
