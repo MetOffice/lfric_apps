@@ -467,10 +467,8 @@ contains
       ndata = (2*stencil_depth + 1)**2
 
       if (geometry /= geometry_spherical) then
-        call log_event(                                                        &
-                'Spectral nudging only implemented for spherical geometry',    &
-                LOG_LEVEL_ERROR                                                &
-        )
+        call log_event("Spectral nudging only implemented for spherical " //   &
+                       "geometry", LOG_LEVEL_ERROR)
       end if
 
       if ( LPROF ) call start_timing( id, 'runtime_constants.physics' )

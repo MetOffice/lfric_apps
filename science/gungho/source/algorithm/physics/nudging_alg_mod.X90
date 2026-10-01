@@ -133,11 +133,8 @@ contains
     coarse_mesh_id = coarse_mesh%get_id()
     if (coarse_mesh_id /= field_ref%get_mesh_id()) then
 
-      call log_event(                                                          &
-              "nudging_alg: reference field is not on the mesh " //            &
-              "specified for nudging",                                         &
-              LOG_LEVEL_ERROR                                                  &
-      )
+      call log_event("nudging_alg: reference field is not on the mesh " //     &
+                     "specified for nudging", LOG_LEVEL_ERROR)
     end if
 
     ! Initialise coarse fields
@@ -167,14 +164,13 @@ contains
     ! ------------------------------------------------------------------------ !
     case (nudging_method_newtonian)
       ! Simply nudge towards reference field, with no spectral impact
-      call invoke(                                                             &
-          setval_c(coarse_increment, 0.0_r_def)                                &
-      )
-      call invoke_newtonian_nudging_kernel_type(                               &
-              coarse_increment, coarse_field_in, field_ref,                    &
-              vertical_weights, tropopause_level,                              &
-              min_level, max_level, time_weight, nvert                         &
-      )
+      call invoke( setval_c(coarse_increment, 0.0_r_def) )
+      call invoke_newtonian_nudging_kernel_type(coarse_increment,              &
+                                                coarse_field_in, field_ref,    &
+                                                vertical_weights,              &
+                                                tropopause_level,              &
+                                                min_level, max_level,          &
+                                                time_weight, nvert)
 
     ! ------------------------------------------------------------------------ !
     ! Convolution
@@ -183,17 +179,17 @@ contains
       ! Filter difference using a convolution in physical space
       convolution_weights => get_convolution_weights(config, coarse_mesh)
       call coarse_field_diff%initialise(fs, halo_depth=spectral_stencil_extent)
-      call invoke(                                                             &
-          X_minus_Y(coarse_field_diff, field_ref, coarse_field_in),            &
-          ! Compute convolution
-          setval_c(coarse_increment, 0.0_r_def)                                &
-      )
-      call invoke_convolution_2d_kernel_type(                                  &
-              coarse_increment, coarse_field_diff, spectral_stencil_extent,    &
-              vertical_weights, convolution_weights,                           &
-              tropopause_level, min_level, max_level, time_weight, nvert       &
-      )
-
+      call invoke( X_minus_Y(coarse_field_diff, field_ref, coarse_field_in),   &
+                   ! Compute convolution
+                   setval_c(coarse_increment, 0.0_r_def) )
+      call invoke_convolution_2d_kernel_type(coarse_increment,                 &
+                                             coarse_field_diff,                &
+                                             spectral_stencil_extent,          &
+                                             vertical_weights,                 &
+                                             convolution_weights,              &
+                                             tropopause_level,                 &
+                                             min_level, max_level,             &
+                                             time_weight, nvert)
     end select
 
     ! ------------------------------------------------------------------------ !
@@ -201,9 +197,8 @@ contains
     ! ------------------------------------------------------------------------ !
 
     if (coarse_nudging) then
-      call prolong_scalar_simple(                                              &
-          increment, coarse_increment, recovery_order_linear                   &
-      )
+      call prolong_scalar_simple(increment, coarse_increment,                  &
+                                 recovery_order_linear)
     else
       call invoke( setval_X(increment, coarse_increment) )
     end if
@@ -240,10 +235,8 @@ contains
     if (time_hours < nudging_spinup_start) then
       spinup_factor = 0.0_r_def
     else if (time_hours < nudging_spinup_end) then
-      spinup_factor = (                                                        &
-        (time_hours - nudging_spinup_start)                                    &
-        / (nudging_spinup_end - nudging_spinup_start)                          &
-      )
+      spinup_factor = ( (time_hours - nudging_spinup_start)                    &
+                         / (nudging_spinup_end - nudging_spinup_start) )
     else if (time_hours < nudging_stop_time) then
       spinup_factor = 1.0_r_def
     else
@@ -312,10 +305,8 @@ contains
         theta_trop => theta
       end if
 
-      call locate_tropopause_alg(                                              &
-              config, trop_level, theta_trop, exner_trop,                      &
-              nudging_twod_mesh, trop_diag=.false.                             &
-      )
+      call locate_tropopause_alg(config, trop_level, theta_trop, exner_trop,   &
+                                 nudging_twod_mesh, trop_diag=.false.)
       call invoke( int_inc_max_aX(nudging_min_tropopause_level, trop_level) )
 #else
       call invoke( int_setval_c(trop_level, nudging_min_tropopause_level) )
@@ -387,22 +378,20 @@ contains
     ! ------------------------------------------------------------------------ !
     if (.not. (theta_forcing == theta_forcing_nudging .or.                     &
                 wind_forcing == wind_forcing_nudging) ) then
-      call log_event(                                                          &
-          "set_nudging_reference_fields: nudging to external data. This " //   &
-          "is currently only implemented to nudge both theta and wind",        &
-          LOG_LEVEL_ERROR                                                      &
-      )
+      call log_event("set_nudging_reference_fields: nudging to external " //   &
+                     "data. This is currently only implemented to nudge " //   &
+                     "both theta and wind", LOG_LEVEL_ERROR)
     end if
 
     if (nudging_source == nudging_source_ecmwf) then
       ! Get external fields
-      call derived_fields%get_field('temperature_nudging_ext_ref', T_nudging_ext_ref)
+      call derived_fields%get_field('temperature_nudging_ext_ref',             &
+                                    T_nudging_ext_ref)
       call derived_fields%get_field('u_nudging_ext_ref', u_nudging_ext_ref)
       call derived_fields%get_field('v_nudging_ext_ref', v_nudging_ext_ref)
       call derived_fields%get_field('exner_in_wth', exner_in_wth)
-      call derived_fields%get_field(                                           &
-          'surface_pressure_nudging_ext_ref', surfp_nudging_ext_ref            &
-      )
+      call derived_fields%get_field('surface_pressure_nudging_ext_ref',        &
+                                    surfp_nudging_ext_ref)
 
       ! Map Exner fields to coarse mesh, if required
       if (coarse_nudging) then
@@ -417,19 +406,21 @@ contains
       end if
 
       ! Vertical remapping of external fields to model levels
-      call invoke(                                                             &
-          nudging_ecmwf_vert_interp_kernel_type(                               &
-              theta_ref, u_in_w3_ref, v_in_w3_ref,                             &
-              T_nudging_ext_ref, u_nudging_ext_ref, v_nudging_ext_ref,         &
-              exner_in_wth, exner_in_w3, surfp_nudging_ext_ref,                &
-              p_zero, kappa, num_ref_data_levels                               &
-          )                                                                    &
-      )
+      call invoke( nudging_ecmwf_vert_interp_kernel_type(theta_ref,            &
+                                                         u_in_w3_ref,          &
+                                                         v_in_w3_ref,          &
+                                                         T_nudging_ext_ref,    &
+                                                         u_nudging_ext_ref,    &
+                                                         v_nudging_ext_ref,    &
+                                                         exner_in_wth,         &
+                                                         exner_in_w3,          &
+                                                         surfp_nudging_ext_ref,&
+                                                         p_zero, kappa,        &
+                                                         num_ref_data_levels) )
     else
-      call log_event(                                                          &
-          "set_nudging_reference_fields: nudging_source is only currently " // &
-          "implemented for nudging_source_ecmwf",  LOG_LEVEL_ERROR             &
-      )
+      call log_event("set_nudging_reference_fields: nudging_source is " //     &
+                     "only currently implemented for nudging_source_ecmwf",    &
+                     LOG_LEVEL_ERROR)
     end if
 
   end subroutine set_nudging_reference_fields
