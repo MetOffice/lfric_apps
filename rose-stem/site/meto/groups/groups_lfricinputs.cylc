@@ -210,8 +210,9 @@
         "um2lfric_ex1a_nwp_gal9_C224",
     ],
     "lfric2um_ex1a_developer": [
-        "lfricinputs_lfric2um-aquaplanet-C48L38_N48L38_ex1a_gnu_fast-debug-64bit",
-        "lfricinputs_lfric2um-umlam-C48L70_N512L70_ex1a_gnu_full-debug-64bit",
+        "lfricinputs_lfric2um-aquaplanet-C48L38_N48L38_ex1a_cce_full-debug-64bit",
+        "lfricinputs_lfric2um-aquaplanet-C48L38_N48L38_ex1a_cce_fast-debug-64bit",
+        "lfricinputs_lfric2um-umlam-C48L70_N512L70_ex1a_cce_full-debug-64bit",
     ],
     "lfric2um_ex1a": [
         "lfric2um_ex1a_developer",
@@ -219,8 +220,8 @@
         "lfricinputs_lfric2um-umlam-C48L70_N512L70_ex1a_gnu_fast-debug-64bit",
     ],
     "lfric2um_ex1a_weekly": [
-        "lfricinputs_lfric2um-performance-C224L70_N512L70_ex1a_gnu_full-debug-64bit",
-        "lfricinputs_lfric2um-performance-C224L70_N512L70_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_lfric2um-performance-C224L70_N512L70_ex1a_cce_production-64bit",
+        "lfricinputs_lfric2um-performance-C224L70_N512L70_ex1a_gnu_production-64bit",
     ],
     "scintelapi_ex1a_developer": [
         "lfricinputs_scintelapi-basic-C48L38_C48L38_ex1a_gnu_fast-debug-64bit",
