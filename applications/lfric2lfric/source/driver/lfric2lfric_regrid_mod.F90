@@ -102,7 +102,8 @@ contains
     integer(kind=i_def), parameter :: dst = 1
     integer(kind=i_def), parameter :: src = 2
 
-
+    integer(kind=i_def) :: field_regrid_method
+    
     ! Obtain namelist parameters
     mesh_names(dst) = modeldb%config%lfric2lfric%destination_mesh_name()
     mesh_names(src) = modeldb%config%lfric2lfric%source_mesh_name()
@@ -137,16 +138,22 @@ contains
     end if
 
     ! Main loop over fields to be processed
-    call iter%initialise(source_fields)
+    call iter%initialise(target_fields)
     do
       ! Locate the field to be processed in the field collections
       if ( .not.iter%has_next() ) exit
       field => iter%next()
       field_name = field%get_name()
 
-      call source_fields%get_field(field_name, field_src)
       call target_fields%get_field(field_name, field_dst)
 
+      if ( source_fields%field_exists(trim(field_name)) ) then
+        call source_fields%get_field(field_name, field_src)
+        field_regrid_method = regrid_method
+      else
+        field_regrid_method = regrid_method_lfric2lfric
+      end if
+      
       write(log_scratch_space, '(A,A)') "Processing lfric field ", &
                                            trim(field_name)
       call log_event(log_scratch_space, log_level_info)
@@ -172,7 +179,7 @@ contains
       end if
 
       ! Regrid source field depending on regrid method
-      select case (regrid_method)
+      select case (field_regrid_method)
         case (regrid_method_map)
           if (fs_id == W2) then
             call lfric2lfric_map_regrid(u_in_w3_dst, u_in_w3_src)

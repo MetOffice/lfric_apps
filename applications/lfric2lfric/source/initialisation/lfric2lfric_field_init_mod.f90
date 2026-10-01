@@ -159,6 +159,7 @@ contains
     cp_read_behaviour  => checkpoint_read_xios
     cp_write_behaviour => checkpoint_write_xios
 
+    if (trim(field_name) /= 'random_seed') then
     if ( .NOT. field_collection%field_exists(field_name) ) then
       ! Get function space from metadata
       vector_space => space_from_metadata(trim(prefix)//trim(field_name), &
@@ -183,6 +184,7 @@ contains
       ! Add to field_colleciton
       call field_collection%add_field(field)
     endif
+   end if
 
   end subroutine field_maker
 
