@@ -227,13 +227,16 @@ lookup_real_tmp(brsvd4) = 0.0_real64
 if (lookup_int(lbvc) >= 126 .and. lookup_int(lbvc) <= 139 &
      .or. lookup_int(lbvc) == 5 .or. lookup_int(lbvc) == 0 .or. &
      lookup_int(lbvc) == 275 ) then
-  ! Special codes inc single level, set to 0.0
+  ! Special codes inc single level
+
+  ! set level heights to 0.0
   lookup_real_tmp(blev)=0.0_real64
   lookup_real_tmp(bhlev)=0.0_real64
   lookup_real_tmp(brlev)=0.0_real64
   lookup_real_tmp(bhrlev)=0.0_real64
   lookup_real_tmp(bulev)=0.0_real64
   lookup_real_tmp(bhulev)=0.0_real64
+
 else if (lookup_int(lbvc) == 65) then ! Standard hybrid height levels
   ! height of model level k above mean sea level is
   !       z(i,j,k) = Zsea(k) + C(k)*Zorog(i,j)

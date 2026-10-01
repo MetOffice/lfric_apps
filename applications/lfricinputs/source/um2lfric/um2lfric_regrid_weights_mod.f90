@@ -110,7 +110,7 @@ case( p_points, ozone_points, land_compressed, p_points_values_over_sea )
         unspecified = .false.
 
         write(log_scratch_space, '((A,I4))')                          &
-           "Will use nearest neigbour interpolation for stashcode: ", &
+           "Will use nearest neighbour interpolation for stashcode: ", &
            stashcode
         call log_event(log_scratch_space, LOG_LEVEL_INFO)
         exit

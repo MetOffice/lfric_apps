@@ -131,7 +131,7 @@ case( p_points, ozone_points, land_compressed, p_points_values_over_sea )
     do i_stash = 1,nn_fields
       if (stashcode == specify_nearest_neighbour(i_stash)) then
         write(log_scratch_space, '((A,I4))')                            &
-           "Will use nearest neigbour interpolation for stashcode: ",   &
+           "Will use nearest neighbour interpolation for stashcode: ",   &
            stashcode
         call log_event(log_scratch_space, LOG_LEVEL_INFO)
 
