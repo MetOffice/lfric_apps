@@ -86,7 +86,7 @@ def transform(fin, name):
     return fout
 
 
-def transform_and_write(my_grid, src_or_dst):
+def transform_and_write(my_grid, src_or_dst=''):
     """Transform arrays and write netcdf output"""
     rank = len(my_grid.shape)
     mrank = my_grid.shape

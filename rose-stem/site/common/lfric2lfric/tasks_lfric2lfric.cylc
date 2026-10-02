@@ -108,8 +108,8 @@
 {% elif task_ns.conf_name == "clim_gal9-C24_C12_1cpu" %}
 
     {% do task_dict.update({
-        "opt_confs": ["src_C12_L70","dst_C24"],
-        "resolution": "C24_C12",
+        "opt_confs": ["src_C12_L70","src_C12","dst_C24"],
+        "resolution": "C24_MG",
         "dst_mesh": "",
         "dst_name": "",
         "dst_type": "",
@@ -121,8 +121,8 @@
 {% elif task_ns.conf_name == "clim_gal9-C24_C12_6cpu" %}
 
     {% do task_dict.update({
-        "opt_confs": ["src_C12_L70","dst_C24"],
-        "resolution": "C24_C12",
+        "opt_confs": ["src_C12_L70","src_C12","dst_C24"],
+        "resolution": "C24_MG",
         "dst_mesh": "",
         "dst_name": "",
         "dst_type": "",
@@ -135,12 +135,12 @@
 
     {% do task_dict.update({
         "opt_confs": ["oasis","src_C12_L70","dst_C24"],
-        "resolution": "C24_C12",
-        "dst_mesh": "C24_C12",
-        "dst_name": "C24",
+        "resolution": ["C24_MG","C12_MG"],
+        "dst_mesh": "C24_MG",
+        "dst_name": "dynamics",
         "dst_type": "global",
-        "src_mesh": "C24_C12",
-        "src_name": "C12",
+        "src_mesh": "C12_MG",
+        "src_name": "dynamics",
         "src_type": "global",
     }) %}
 
@@ -148,12 +148,12 @@
 
     {% do task_dict.update({
         "opt_confs": ["oasis","src_C12_L70","dst_seuk","src_L70_80km","dst_L38_40km"],
-        "resolution": ["C24_C12", "seuk_MG"],
+        "resolution": ["C12_MG", "seuk_MG"],
         "dst_mesh": "seuk_MG",
         "dst_name": "dynamics",
         "dst_type": "regional",
-        "src_mesh": "C24_C12",
-        "src_name": "C12",
+        "src_mesh": "C12_MG",
+        "src_name": "dynamics",
         "src_type": "global",
     }) %}
 
@@ -161,12 +161,12 @@
 
     {% do task_dict.update({
         "opt_confs": ["oasis","src_C12_L70","dst_C12","src_L70_80km","dst_L38_40km"],
-        "resolution": ["C24_C12", "C12"],
-        "dst_mesh": "C12",
+        "resolution": ["C12_MG"],
+        "dst_mesh": "C12_MG",
         "dst_name": "dynamics",
         "dst_type": "global",
-        "src_mesh": "C24_C12",
-        "src_name": "C12",
+        "src_mesh": "C12_MG",
+        "src_name": "dynamics",
         "src_type": "global",
     }) %}
 
@@ -188,12 +188,12 @@
 
     {% do task_dict.update({
         "opt_confs": ["oasis","src_C12_L70","dst_seuk"],
-        "resolution": ["C24_C12", "seuk_MG"],
+        "resolution": ["C12_MG", "seuk_MG"],
         "dst_mesh": "seuk_MG",
         "dst_name": "dynamics",
         "dst_type": "regional",
-        "src_mesh": "C24_C12",
-        "src_name": "C12",
+        "src_mesh": "C12_MG",
+        "src_name": "dynamics",
         "src_type": "global",
         "xios_min_buffer_size": 2097152,
     }) %}
@@ -202,12 +202,12 @@
 
     {% do task_dict.update({
         "opt_confs": [ "oasis","src_C12_L70","dst_seuk","multi-cpu"],
-        "resolution": ["C24_C12", "seuk_MG"],
+        "resolution": ["C12_MG", "seuk_MG"],
         "dst_mesh": "seuk_MG",
         "dst_name": "dynamics",
         "dst_type": "regional",
-        "src_mesh": "C24_C12",
-        "src_name": "C12",
+        "src_mesh": "C12_MG",
+        "src_name": "dynamics",
         "src_type": "global",
         "mpi_parts": 4,
         "xios_min_buffer_size": 2097152,
@@ -217,12 +217,12 @@
 
     {% do task_dict.update({
         "opt_confs": ["oasis","src_C12_L70","dst_seuk","lbc"],
-        "resolution": ["C24_C12", "seuk_MG"],
+        "resolution": ["C12_MG", "seuk_MG"],
         "dst_mesh": "seuk_MG",
         "dst_name": "dynamics-lbc",
         "dst_type": "regional",
-        "src_mesh": "C24_C12",
-        "src_name": "C12",
+        "src_mesh": "C12_MG",
+        "src_name": "dynamics",
         "src_type": "global",
         "xios_min_buffer_size": 2097152,
     }) %}
@@ -231,12 +231,12 @@
 
     {% do task_dict.update({
         "opt_confs": ["oasis","src_C12_L70","dst_seuk","lbc","multi-cpu"],
-        "resolution": ["C24_C12", "seuk_MG"],
+        "resolution": ["C12_MG", "seuk_MG"],
         "dst_mesh": "seuk_MG",
         "dst_name": "dynamics-lbc",
         "dst_type": "regional",
-        "src_mesh": "C24_C12",
-        "src_name": "C12",
+        "src_mesh": "C12_MG",
+        "src_name": "dynamics",
         "src_type": "global",
         "mpi_parts": 4,
         "xios_min_buffer_size": 2097152,
