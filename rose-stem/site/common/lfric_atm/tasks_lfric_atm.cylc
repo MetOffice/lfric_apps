@@ -24,6 +24,22 @@
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
+{% elif task_ns.conf_name == "nwp_gal10-chebyshev-C12" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["um_dump","chebyshev"],
+        "resolution": "C12",
+        "DT": 1800,
+        "tsteps": 144,
+        "crun": 2,
+        "crun_compare": false,
+        "metadata_test": true,
+        "mpi_parts": 6,
+        "kgo_checks": ["checksum"],
+        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
+    }) %}
+
+
 {% elif task_ns.conf_name == "nwp_gal9-C48_MG" %}
 
     {% do task_dict.update({
@@ -221,7 +237,7 @@
         "memory_plot_ex": true,
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9-chebyshev-C224_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10-chebyshev-C224_MG" %}
 
     {% do task_dict.update({
         "opt_confs": ["um_dump","june_case","chebyshev"],
@@ -576,7 +592,7 @@
         "plot_str": "plot_map.py -encorr $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
-{% elif task_ns.conf_name == "clim_gal9-chebyshev-C48_MG" %}
+{% elif task_ns.conf_name == "clim_gal10-chebyshev-C48_MG" %}
 
     {% do task_dict.update({
         "opt_confs": ["climate","um_dump","chebyshev"],
@@ -1293,20 +1309,6 @@
         "opt_confs": ["um_dump","oper_diags_hres"],
     }) %}
 
-{% endif %}
-
-{% if task_ns.conf_name.startswith("nwp_gal9-C896_MG-chebyshev") %}
-
-    {% do task_dict.update({
-        "opt_confs": ["um_dump","chebyshev"],
-    }) %}
-{% endif %}
-
-{% if task_ns.conf_name.startswith("nwp_gal9-98node-C896_MG-chebyshev") %}
-
-    {% do task_dict.update({
-        "opt_confs": ["um_dump","chebyshev", "oper_diags_hres"],
-    }) %}
 {% endif %}
 
 {% do LOG.debug("Finished in site/common/lfric_atm/tasks_lfric_atm.cylc") %}
