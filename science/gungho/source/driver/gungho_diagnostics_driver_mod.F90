@@ -3,6 +3,8 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Claude Code (Claude Opus 5.5), 2026-09-29.
 
 !> @brief Outputs diagnostics from gungho/lfric_atm
 
@@ -99,6 +101,9 @@ contains
     ! For aviation diagnostics
 #ifdef UM_PHYSICS
     type( field_type ) :: plev_geopot  ! Set by pres_lev_diags_alg().
+
+    ! For pressure level diagnostics
+    type(field_collection_type), pointer :: cloud_fields
 #endif
 
     type(field_type), pointer :: theta
@@ -338,8 +343,9 @@ contains
       ! Call PMSL algorithm
       call pmsl_alg(modeldb%config, exner, derived_fields, theta, twod_mesh)
       ! Pressure level diagnostics
-      call pres_lev_diags_alg(modeldb%config, derived_fields, theta, exner, &
-                              mr, moist_dyn, plev_geopot)
+      cloud_fields => modeldb%fields%get_field_collection("cloud_fields")
+      call pres_lev_diags_alg(modeldb%config, derived_fields, cloud_fields, &
+                              theta, exner, mr, moist_dyn, plev_geopot)
       ! Wet bulb freezing level
       call freeze_lev_alg(modeldb%config,theta, mr, moist_dyn, exner_in_wth)
       ! Aviation diagnostics

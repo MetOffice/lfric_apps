@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Claude Code (Claude Opus 5.5), 2026-09-29.
+
 !> @brief Provides an implementation of the Psy layer for physics
 
 !> @details Contains hand-rolled versions of the Psy layer that can be used for
@@ -1154,4 +1157,90 @@ z0h_eff_proxy%data, chr10m_proxy%data, ocn_cpl_point_proxy%data, ndf_wtheta, &
       !
       !
     END SUBROUTINE invoke_thetaw_kernel_type
+  !---------------------------------------------------------------------
+  !> Contains the PSy-layer to build the pressure level diagnostics
+  !> These require passing an array "plevs" into each kernel
+  !> which is currently unsupported by PSyclone
+  !> see https://github.com/stfc/PSyclone/issues/1312
+  !> Hence this module could be removed once the PSyclone ticket is
+  !> completed
+    SUBROUTINE invoke_in_cloud_turb_pot_kernel_type(theta_wth, exner_wth, height_wth, cloud_wth, nplev, plevs, plev_turb_pot, &
+&p_zero, kappa, cp, recip_epsilon)
+      USE in_cloud_turb_pot_kernel_mod, ONLY: in_cloud_turb_pot_code
+      USE mesh_mod, ONLY: mesh_type
+      REAL(KIND=r_def), intent(in) :: p_zero, kappa, cp, recip_epsilon
+      INTEGER(KIND=i_def), intent(in) :: nplev
+      REAL(KIND=r_def), intent(in) :: plevs(nplev)
+      TYPE(field_type), intent(in) :: theta_wth, exner_wth, height_wth, cloud_wth, plev_turb_pot
+      INTEGER(KIND=i_def) :: cell
+      INTEGER(KIND=i_def) :: loop0_start, loop0_stop
+      INTEGER(KIND=i_def) :: nlayers
+      REAL(KIND=r_def), pointer, dimension(:) :: plev_turb_pot_data => null()
+      REAL(KIND=r_def), pointer, dimension(:) :: cloud_wth_data => null()
+      REAL(KIND=r_def), pointer, dimension(:) :: height_wth_data => null()
+      REAL(KIND=r_def), pointer, dimension(:) :: exner_wth_data => null()
+      REAL(KIND=r_def), pointer, dimension(:) :: theta_wth_data => null()
+      TYPE(field_proxy_type) :: theta_wth_proxy, exner_wth_proxy, height_wth_proxy, cloud_wth_proxy, plev_turb_pot_proxy
+      INTEGER(KIND=i_def), pointer :: map_adspc1_theta_wth(:,:) => null(), map_adspc2_plev_turb_pot(:,:) => null()
+      INTEGER(KIND=i_def) :: ndf_adspc1_theta_wth, undf_adspc1_theta_wth, ndf_adspc2_plev_turb_pot, undf_adspc2_plev_turb_pot
+      INTEGER(KIND=i_def) :: max_halo_depth_mesh
+      TYPE(mesh_type), pointer :: mesh => null()
+      !
+      ! Initialise field and/or operator proxies
+      !
+      theta_wth_proxy = theta_wth%get_proxy()
+      theta_wth_data => theta_wth_proxy%data
+      exner_wth_proxy = exner_wth%get_proxy()
+      exner_wth_data => exner_wth_proxy%data
+      height_wth_proxy = height_wth%get_proxy()
+      height_wth_data => height_wth_proxy%data
+      cloud_wth_proxy = cloud_wth%get_proxy()
+      cloud_wth_data => cloud_wth_proxy%data
+      plev_turb_pot_proxy = plev_turb_pot%get_proxy()
+      plev_turb_pot_data => plev_turb_pot_proxy%data
+      !
+      ! Initialise number of layers
+      !
+      nlayers = theta_wth_proxy%vspace%get_nlayers()
+      !
+      ! Create a mesh object
+      !
+      mesh => theta_wth_proxy%vspace%get_mesh()
+      max_halo_depth_mesh = mesh%get_halo_depth()
+      !
+      ! Look-up dofmaps for each function space
+      !
+      map_adspc1_theta_wth => theta_wth_proxy%vspace%get_whole_dofmap()
+      map_adspc2_plev_turb_pot => plev_turb_pot_proxy%vspace%get_whole_dofmap()
+      !
+      ! Initialise number of DoFs for adspc1_theta_wth
+      !
+      ndf_adspc1_theta_wth = theta_wth_proxy%vspace%get_ndf()
+      undf_adspc1_theta_wth = theta_wth_proxy%vspace%get_undf()
+      !
+      ! Initialise number of DoFs for adspc2_plev_turb_pot
+      !
+      ndf_adspc2_plev_turb_pot = plev_turb_pot_proxy%vspace%get_ndf()
+      undf_adspc2_plev_turb_pot = plev_turb_pot_proxy%vspace%get_undf()
+      !
+      ! Set-up all of the loop bounds
+      !
+      loop0_start = 1
+      loop0_stop = mesh%get_last_edge_cell()
+      !
+      ! Call kernels and communication routines
+      !
+      DO cell=loop0_start,loop0_stop
+        !
+        CALL in_cloud_turb_pot_code(nlayers, theta_wth_data, exner_wth_data, height_wth_data, cloud_wth_data, nplev, plevs, &
+&plev_turb_pot_data, p_zero, kappa, cp, recip_epsilon, ndf_adspc1_theta_wth, undf_adspc1_theta_wth, map_adspc1_theta_wth(:,cell), &
+&ndf_adspc2_plev_turb_pot, undf_adspc2_plev_turb_pot, map_adspc2_plev_turb_pot(:,cell))
+      END DO
+      !
+      ! Set halos dirty/clean for fields modified in the above loop
+      !
+      CALL plev_turb_pot_proxy%set_dirty()
+      !
+      !
+    END SUBROUTINE invoke_in_cloud_turb_pot_kernel_type
 end module psykal_lite_phys_mod

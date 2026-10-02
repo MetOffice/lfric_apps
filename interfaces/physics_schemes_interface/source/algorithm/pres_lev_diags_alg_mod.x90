@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Claude Code (Claude Opus 5.5), 2026-09-29.
+
 !> @brief Calculate diagnostics on pressure levels.
 
 module pres_lev_diags_alg_mod
@@ -21,7 +24,8 @@ module pres_lev_diags_alg_mod
   use fs_continuity_mod,       only: W3, WTheta
   use mr_indices_mod,          only: nummr, imr_v
   use moist_dyn_mod,           only: num_moist_factors, total_mass
-  use planet_config_mod,       only: p_zero, kappa, gravity, cp
+  use planet_config_mod,       only: p_zero, kappa, gravity, cp, &
+                                     recip_epsilon
   use planet_constants_mod,    only: ex_power
 
   implicit none
@@ -42,20 +46,23 @@ contains
   !!          for climate averaging.
   !> @param[in]  config          Application namelist configuration object
   !> @param[in]  derived_fields  Group of derived fields
+  !> @param[in]  cloud_fields    Group of cloud fields
   !> @param[in]  theta_wth       Potential temperature
   !> @param[in]  exner_w3        Exner pressure
   !> @param[in]  mr              Mixing ratio bundle
   !> @param[in]  moist_dyn       Moist_dynamics factors (for 1+sum(m_x))
   !> @param[out] plev_geopot     Geopotential height on pressure levels
   subroutine pres_lev_diags_alg(config,                              &
-                                derived_fields, theta_wth, exner_w3, &
+                                derived_fields, cloud_fields,        &
+                                theta_wth, exner_w3,                 &
                                 mr, moist_dyn, plev_geopot)
 
     use psykal_lite_phys_mod, only: invoke_pres_interp_kernel_type,  &
                                     invoke_heaviside_kernel_type,    &
                                     invoke_geo_on_pres_kernel_type,  &
                                     invoke_temp_on_pres_kernel_type, &
-                                    invoke_thetaw_kernel_type
+                                    invoke_thetaw_kernel_type,       &
+                                    invoke_in_cloud_turb_pot_kernel_type
 
     implicit none
 
@@ -63,6 +70,7 @@ contains
     type(config_type), intent(in) :: config
 
     type( field_collection_type ), intent(in) :: derived_fields
+    type( field_collection_type ), intent(in) :: cloud_fields
     type( field_type ), intent(in)  :: theta_wth, exner_w3
     type( field_type ), intent(in)  :: mr(nummr)
     type( field_type ), intent(in)  :: moist_dyn(num_moist_factors)
@@ -75,11 +83,12 @@ contains
     type( field_type ), pointer     :: wetrho_in_wth
     type( field_type ), pointer     :: height_w3
     type( field_type ), pointer     :: height_wth
+    type( field_type ), pointer     :: bulk_fraction
 
     ! Define fields
     type( field_type ) :: plev_heaviside, plev_temp, plev_u, plev_v, &
          plev_w, temp, omega, plev_omega, plev_mv, plev_qv, qv, &
-         plev_thetaw, plev_temp_save
+         plev_thetaw, plev_temp_save, plev_in_cloud_turb_pot
     integer(i_def) :: nplev
     real(r_def) :: minus_g
     real(r_def), allocatable :: plevs(:)
@@ -89,7 +98,8 @@ contains
          plev_u_flag, plev_u_clim_flag, plev_v_flag, plev_v_clim_flag, &
          plev_w_flag, plev_w_clim_flag, plev_omega_clim_flag,          &
          plev_mv_clim_flag, plev_qv_clim_flag,                         &
-         plev_geopot_flag, plev_geopot_clim_flag, plev_thetaw_flag
+         plev_geopot_flag, plev_geopot_clim_flag, plev_thetaw_flag,    &
+         plev_in_cloud_turb_pot_flag
 
     ! Aviation diagnostics require plev_geopot.
     logical(l_def) :: aviation_geopot_flag
@@ -299,6 +309,22 @@ contains
                                           p_zero, kappa)
         call plev_geopot%write_field('plev__geopot_clim')
       end if
+
+    end if
+
+    ! In-cloud turbulence potential on pressure levels
+    plev_in_cloud_turb_pot_flag = init_diag(plev_in_cloud_turb_pot, &
+                                            'plev__in_cloud_turb_pot')
+    if (plev_in_cloud_turb_pot_flag .and. use_xios_io) then
+
+      call cloud_fields%get_field('bulk_fraction', bulk_fraction)
+      call invoke_in_cloud_turb_pot_kernel_type(theta_wth, exner_wth,     &
+                                                height_wth, bulk_fraction, &
+                                                nplev, plevs,              &
+                                                plev_in_cloud_turb_pot,    &
+                                                p_zero, kappa, cp,         &
+                                                recip_epsilon)
+      call plev_in_cloud_turb_pot%write_field()
 
     end if
 
