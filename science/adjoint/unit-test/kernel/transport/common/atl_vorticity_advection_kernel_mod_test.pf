@@ -7,7 +7,7 @@
 !>@brief Unit test file for the adjoint of the vorticity advection.
 module atl_vorticity_advection_kernel_mod_test
 
-  use constants_mod,         only: i_def, r_def, imdi
+  use constants_mod,         only: i_def, r_def
   use funit
 
   use finite_element_config_mod, &
@@ -132,7 +132,7 @@ contains
              rehabilitate=.true.,               &
              vorticity_in_w1=.false. )
 
-    call init_chi_transforms(imdi, imdi)
+    call init_chi_transforms()
 
     ! Get infrastructure support data
     !=====================================
