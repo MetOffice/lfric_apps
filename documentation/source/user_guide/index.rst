@@ -13,3 +13,4 @@ User Guide
 
     applications/index
     checkpointing/index
+    mixing/index

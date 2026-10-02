@@ -29,7 +29,7 @@ contains
   !> @param[in]     dt      The model timestep length
   subroutine lipschitz_damping_alg(config, u, dt)
 
-    use constants_mod,                 only: r_def, i_def, tik
+    use constants_mod,                 only: r_def, i_def
     use field_mod,                     only: field_type
     use mesh_mod,                      only: mesh_type
     use function_space_mod,            only: function_space_type
@@ -37,7 +37,8 @@ contains
     use fs_continuity_mod,             only: W3
     use sci_geometric_constants_mod,   only: get_detj_at_w3_fv
     use lipschitz_damping_kernel_mod,  only: lipschitz_damping_kernel_type
-    use timing_mod,                    only: start_timing, stop_timing, LPROF
+    use timing_mod,                    only: start_timing, stop_timing,        &
+                                             tik, LPROF
     use log_mod,                       only: log_event, log_at_level,          &
                                              LOG_LEVEL_INFO, log_scratch_space
 
