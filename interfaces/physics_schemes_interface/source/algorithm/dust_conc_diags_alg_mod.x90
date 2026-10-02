@@ -20,7 +20,6 @@ module dust_conc_diags_alg_mod
   use field_mod,                   only: field_type
   use fs_continuity_mod,           only: W3
   use initialise_diagnostics_mod,  only: init_diag => init_diagnostic_field
-  use io_config_mod,               only: use_xios_io
   use log_mod,                     only: log_event, LOG_LEVEL_WARNING
   use planet_config_mod,           only: p_zero, kappa, rd
   use section_choice_config_mod,   only: aerosol, aerosol_um
@@ -65,7 +64,7 @@ contains
     band_flag = init_diag(dust_conc_2000_5000ft, &
                           'aviation__dust_conc_2000_5000ft')
 
-    if ((surface_flag .or. band_flag) .and. use_xios_io) then
+    if (surface_flag .or. band_flag) then
 
       ! The dust concentration diagnostics require prognostic GLOMAP dust,
       ! which is only advected when aerosol=um and glomap_mode is ukca or
