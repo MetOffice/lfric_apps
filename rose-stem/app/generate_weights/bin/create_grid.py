@@ -100,6 +100,9 @@ def transform_and_write(my_grid, src_or_dst=''):
  input data')
 
     corners = 4
+    # The inclusion of src_or_dst in the filename is required for
+    # lfric2lfric weights generation, when the source and destination
+    # meshes have the same mygrid.vname.
     fileout = my_grid.vname+'_'+src_or_dst+'.nc'
     outfile = Dataset(fileout, 'w')
     outfile.createDimension('grid_rank', numpy.int32(rank))
