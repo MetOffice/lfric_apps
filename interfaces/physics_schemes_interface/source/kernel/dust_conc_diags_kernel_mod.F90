@@ -138,28 +138,27 @@ contains
 
     real(kind=r_def), intent(in) :: p_zero, kappa, rd
 
-    ! Conversion from mass mixing ratio times air density (kg m-3) to
-    ! micrograms per cubic metre, then from micrograms to grams per
-    ! cubic metre, kept as two explicit steps to mirror the UM source.
-    real(kind=r_def), parameter :: kg_to_micg = 1.0e9_r_def
-    real(kind=r_def), parameter :: micg_to_g  = 1.0e-6_r_def
+    ! Conversion from micrograms to grams per cubic metre. The kilograms
+    ! to micrograms step is applied in total_dust_conc, keeping the two
+    ! conversions as separate explicit steps as the UM source does.
+    real(kind=r_def), parameter :: micg_to_g = 1.0e-6_r_def
 
     ! 2000 and 5000 feet in metres, and the nominal depth of that band.
     real(kind=r_def), parameter :: bottom_of_layer = 609.6_r_def
     real(kind=r_def), parameter :: top_of_layer    = 1524.0_r_def
     real(kind=r_def), parameter :: layer_thickness = 914.4_r_def
 
-    real(kind=r_def) :: pressure, temperature, rho_air, conc_tot
+    real(kind=r_def) :: conc_tot
     real(kind=r_def) :: ref_height, upper, lower, thickness, conc
 
     integer(kind=i_def) :: k
 
     if ( .not. associated(dust_conc_surface, empty_real_data) ) then
-      pressure    = p_zero * exner_in_wth(map_wth(1)+1)**(1.0_r_def/kappa)
-      temperature = theta(map_wth(1)+1) * exner_in_wth(map_wth(1)+1)
-      rho_air     = pressure / (rd * temperature)
-      conc_tot    = (acc_ins_du(map_wth(1)+1) + cor_ins_du(map_wth(1)+1)) * &
-                    rho_air * kg_to_micg
+      conc_tot = total_dust_conc( acc_ins_du(map_wth(1)+1),   &
+                                  cor_ins_du(map_wth(1)+1),   &
+                                  theta(map_wth(1)+1),        &
+                                  exner_in_wth(map_wth(1)+1), &
+                                  p_zero, kappa, rd )
       dust_conc_surface(map_2d(1)) = conc_tot * micg_to_g
     end if
 
@@ -168,11 +167,11 @@ contains
       conc = 0.0_r_def
 
       do k = 2, nlayers-1
-        pressure    = p_zero * exner_in_wth(map_wth(1)+k)**(1.0_r_def/kappa)
-        temperature = theta(map_wth(1)+k) * exner_in_wth(map_wth(1)+k)
-        rho_air     = pressure / (rd * temperature)
-        conc_tot    = (acc_ins_du(map_wth(1)+k) + cor_ins_du(map_wth(1)+k)) * &
-                      rho_air * kg_to_micg
+        conc_tot = total_dust_conc( acc_ins_du(map_wth(1)+k),   &
+                                    cor_ins_du(map_wth(1)+k),   &
+                                    theta(map_wth(1)+k),        &
+                                    exner_in_wth(map_wth(1)+k), &
+                                    p_zero, kappa, rd )
 
         upper = height_w3(map_w3(1)+k)   - ref_height
         lower = height_w3(map_w3(1)+k-1) - ref_height
@@ -192,5 +191,47 @@ contains
     end if
 
   end subroutine dust_conc_diags_code
+
+  !> @brief Total dust concentration on a single level, in micrograms per
+  !>        cubic metre.
+  !> @details Mirrors the UM's total dust concentration calculation: the
+  !>          summed insoluble dust mass mixing ratios times air density,
+  !>          scaled from kilograms to micrograms. Air density is taken as
+  !>          pressure over the dry gas constant times temperature, as the
+  !>          UM does, rather than read from a density field. Both
+  !>          diagnostics call this, so the single UM formula keeps a
+  !>          single definition here and the two cannot drift apart.
+  !>
+  !> @param[in] acc_ins  Accumulation-mode insoluble dust mmr
+  !> @param[in] cor_ins  Coarse-mode insoluble dust mmr
+  !> @param[in] theta    Potential temperature
+  !> @param[in] exner    Exner pressure
+  !> @param[in] p_zero   Reference surface pressure
+  !> @param[in] kappa    Ratio of rd to cp
+  !> @param[in] rd       Gas constant for dry air
+  !> @return    conc     Total dust concentration in micrograms per m3
+  pure function total_dust_conc( acc_ins, cor_ins, theta, exner, &
+                                 p_zero, kappa, rd ) result(conc)
+
+    implicit none
+
+    real(kind=r_def), intent(in) :: acc_ins, cor_ins
+    real(kind=r_def), intent(in) :: theta, exner
+    real(kind=r_def), intent(in) :: p_zero, kappa, rd
+
+    real(kind=r_def) :: conc
+
+    ! Conversion from mass mixing ratio times air density, in kilograms
+    ! per cubic metre, to micrograms per cubic metre.
+    real(kind=r_def), parameter :: kg_to_micg = 1.0e9_r_def
+
+    real(kind=r_def) :: pressure, temperature, rho_air
+
+    pressure    = p_zero * exner**(1.0_r_def/kappa)
+    temperature = theta * exner
+    rho_air     = pressure / (rd * temperature)
+    conc        = (acc_ins + cor_ins) * rho_air * kg_to_micg
+
+  end function total_dust_conc
 
 end module dust_conc_diags_kernel_mod
