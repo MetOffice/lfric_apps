@@ -17,6 +17,7 @@
         "lfric_atm_nwp_gal10_short-C12_azspice_gnu_fast-debug-32bit",
     ],
     "lfric_atm_nwp_azspice_extra": [
+        "lfric_atm_nwp_gal10_vernier-C12_azspice_vernier-gnu_production-32bit",
         "lfric_atm_nwp_gal10-C48_MG_azspice_gnu_fast-debug-32bit",
         "lfric_atm_nwp_gal10_debug-C48_MG_azspice_gnu_full-debug-32bit",
         "lfric_atm_nwp_gal10_coarse_aero-C48_MG_azspice_gnu_fast-debug-32bit",
