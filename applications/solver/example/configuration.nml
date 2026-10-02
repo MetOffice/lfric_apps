@@ -106,6 +106,7 @@ tolerance=1.0e-6,
 &mixing
   viscosity = .false.
   viscosity_mu = 0.0
+  lipschitz_damping = .false.
   smagorinsky = .false.
   mix_factor = 0.0
 /

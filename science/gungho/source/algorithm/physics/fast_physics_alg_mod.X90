@@ -2,6 +2,8 @@
 ! (c) Crown copyright 2017 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
+! Some of the content of this file has been produced with the assistance of
+! Met Office Github Copilot Enterprise
 !-----------------------------------------------------------------------------
 !>@brief Calls to the fast physics schemes
 module fast_physics_alg_mod
@@ -67,8 +69,10 @@ module fast_physics_alg_mod
                             only: enforce_lower_bound_kernel_type
   use moisture_conservation_alg_mod, &
                             only: moisture_conservation_alg
-  use mixing_config_mod,    only: smagorinsky
+  use mixing_config_mod,    only: smagorinsky, lipschitz_damping
   use smagorinsky_alg_mod,  only: smagorinsky_alg
+  use lipschitz_damping_alg_mod, &
+                            only: lipschitz_damping_alg
   use timestepping_config_mod, &
                             only : outer_iterations
   use evap_condense_kernel_mod, &
@@ -482,6 +486,13 @@ contains
       call invoke(inc_X_plus_Y(theta_latest, dtheta_cld),     &
                   inc_X_plus_Y(mr(imr_v),   dmr_cld(imr_v)), &
                   inc_X_plus_Y(mr(imr_cl),  dmr_cld(imr_cl)))
+    end if
+
+    !--------------------------------------------------------------------
+    ! Lipschitz damping of the physics wind increment
+    !--------------------------------------------------------------------
+    if (lipschitz_damping) then
+      call lipschitz_damping_alg(config, u_latest, dt)
     end if
 
     ! Calculate total physics increment

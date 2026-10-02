@@ -1,0 +1,165 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+! Some of the content of this file has been produced with the assistance of
+! Met Office Github Copilot Enterprise
+!-----------------------------------------------------------------------------
+
+!> Test the Lipschitz damping wind field calculation.
+!>
+module lipschitz_damping_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+  @TestCase
+  type, extends(TestCase), public :: lipschitz_damping_test_type
+    private
+    real(kind=r_def), allocatable :: u_out(:)
+    real(kind=r_def), allocatable :: u_in(:)
+    real(kind=r_def), allocatable :: detj_at_w3(:)
+
+    integer(kind=i_def), allocatable :: map_w2(:)
+    integer(kind=i_def), allocatable :: map_w3(:)
+
+  contains
+    procedure setUp
+    procedure tearDown
+    procedure test_all
+  end type lipschitz_damping_test_type
+
+    integer(kind=i_def), parameter :: nlayers = 1
+    integer(kind=i_def), parameter :: ndf_w2  = 6
+    integer(kind=i_def), parameter :: undf_w2 = ndf_w2
+    integer(kind=i_def), parameter :: ndf_w3  = 1
+    integer(kind=i_def), parameter :: undf_w3 = ndf_w3
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(lipschitz_damping_test_type), intent(inout) :: this
+    integer(kind=i_def) :: i
+
+    allocate( this%u_out(undf_w2) )
+    allocate( this%u_in(undf_w2) )
+    allocate( this%detj_at_w3(undf_w3) )
+    allocate( this%map_w2(ndf_w2) )
+    allocate( this%map_w3(ndf_w3) )
+
+    this%map_w2 = (/ (i, i=1,ndf_w2) /)
+    this%map_w3 = 1
+
+    this%detj_at_w3 = 1.0_r_def
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(lipschitz_damping_test_type), intent(inout) :: this
+
+    deallocate( this%u_out )
+    deallocate( this%u_in )
+    deallocate( this%detj_at_w3 )
+    deallocate( this%map_w2 )
+    deallocate( this%map_w3 )
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( this )
+
+    use lipschitz_damping_kernel_mod, only : lipschitz_damping_code
+
+    implicit none
+
+    class(lipschitz_damping_test_type), intent(inout) :: this
+
+    real(kind=r_def), parameter :: tol = 1.0e-6_r_def
+    real(kind=r_def), parameter :: dt  = 1.0_r_def
+
+    ! The 6 W2 dofs are ordered: 1=W, 2=S, 3=E, 4=N, 5=B, 6=T
+
+    ! Case 1: both 1D and 3D Lipschitz numbers are within bounds, so the
+    ! wind field is left unmodified
+    this%u_in = (/ 0.0_r_def, 0.0_r_def, 0.2_r_def, &
+                  -0.1_r_def, 0.0_r_def, 0.1_r_def /)
+    this%u_out = 0.0_r_def
+
+    call lipschitz_damping_code( nlayers,                      &
+                                 this%u_out,                   &
+                                 this%u_in,                    &
+                                 this%detj_at_w3,              &
+                                 dt,                           &
+                                 ndf_w2, undf_w2, this%map_w2, &
+                                 ndf_w3, undf_w3, this%map_w3 )
+
+    @assertEqual(this%u_out(1), 0.0_r_def, tol)
+    @assertEqual(this%u_out(2), 0.0_r_def, tol)
+    @assertEqual(this%u_out(3), 0.2_r_def, tol)
+    @assertEqual(this%u_out(4), -0.1_r_def, tol)
+    @assertEqual(this%u_out(5), 0.0_r_def, tol)
+    @assertEqual(this%u_out(6), 0.1_r_def, tol)
+
+    ! Case 2: the x-direction 1D Lipschitz number exceeds 1, so the
+    ! outflowing W/E components are scaled back to bring it down to 1.
+    ! The y- and z-direction numbers are negative, so the 3D number
+    ! (recomputed from the clamped winds) stays within 0.5 and is untouched
+    this%u_in = (/ -0.3_r_def, 0.0_r_def, 0.9_r_def, &
+                    0.3_r_def, 0.3_r_def, 0.0_r_def /)
+    this%u_out = 0.0_r_def
+
+    call lipschitz_damping_code( nlayers,                      &
+                                 this%u_out,                   &
+                                 this%u_in,                    &
+                                 this%detj_at_w3,              &
+                                 dt,                           &
+                                 ndf_w2, undf_w2, this%map_w2, &
+                                 ndf_w3, undf_w3, this%map_w3 )
+
+    @assertEqual(this%u_out(1), -0.25_r_def, tol)
+    @assertEqual(this%u_out(2), 0.0_r_def, tol)
+    @assertEqual(this%u_out(3), 0.75_r_def, tol)
+    @assertEqual(this%u_out(4), 0.3_r_def, tol)
+    @assertEqual(this%u_out(5), 0.3_r_def, tol)
+    @assertEqual(this%u_out(6), 0.0_r_def, tol)
+
+    ! Case 3: the x-direction 1D Lipschitz number exceeds 1 and, even after
+    ! clamping it back to 1, the 3D number (with y- and z-directions left
+    ! at zero) still exceeds 0.5, so a further, combined reduction is
+    ! applied to the W/E components
+    this%u_in = (/ -0.3_r_def, 0.0_r_def, 0.9_r_def, &
+                    0.0_r_def, 0.0_r_def, 0.0_r_def /)
+    this%u_out = 0.0_r_def
+
+    call lipschitz_damping_code( nlayers,                      &
+                                 this%u_out,                   &
+                                 this%u_in,                    &
+                                 this%detj_at_w3,              &
+                                 dt,                           &
+                                 ndf_w2, undf_w2, this%map_w2, &
+                                 ndf_w3, undf_w3, this%map_w3 )
+
+    @assertEqual(this%u_out(1), -0.125_r_def, tol)
+    @assertEqual(this%u_out(2), 0.0_r_def, tol)
+    @assertEqual(this%u_out(3), 0.375_r_def, tol)
+    @assertEqual(this%u_out(4), 0.0_r_def, tol)
+    @assertEqual(this%u_out(5), 0.0_r_def, tol)
+    @assertEqual(this%u_out(6), 0.0_r_def, tol)
+
+  end subroutine test_all
+
+end module lipschitz_damping_kernel_mod_test

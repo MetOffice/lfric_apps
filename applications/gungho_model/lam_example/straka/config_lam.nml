@@ -98,6 +98,7 @@ test='cold_bubble_y',
 &initialization
 ancil_option='none',
 lbc_option='gungho_file',
+lipschitz_damping=.false.,
 init_option='analytic',
 zero_w2v_wind=.false.,
 /
@@ -164,6 +165,7 @@ si_tolerance=1.0e-3,
 split_w=.false.,
 /
 &mixing
+lipschitz_damping=.false.,
 smagorinsky=.false.,
 viscosity=.true.,
 viscosity_mu=75.0,

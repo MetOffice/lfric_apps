@@ -53,6 +53,7 @@ contains
                               smag_l_calc   = smag_l_calc_UseDx, &
                               leonard_term  = .false.,           &
                               leonard_kl    = 4.0_r_def,         &
+                              lipschitz_damping = .false.,       &
                               conservative_diffusion = .false.,  &
                               density_weighted = .false.,        &
                               max_diff_factor = 1.0_r_def )

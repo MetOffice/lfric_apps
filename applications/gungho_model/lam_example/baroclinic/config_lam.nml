@@ -101,6 +101,7 @@ test='deep_baroclinic_wave',
 &initialization
 ancil_option='none',
 lbc_option='gungho_file',
+lipschitz_damping=.false.,
 init_option='analytic',
 zero_w2v_wind=.false.,
 /
@@ -167,6 +168,7 @@ si_tolerance=1.0e-1,
 split_w=.true.,
 /
 &mixing
+lipschitz_damping=.false.,
 smagorinsky=.false.,
 viscosity=.false.,
 viscosity_mu=0.0,

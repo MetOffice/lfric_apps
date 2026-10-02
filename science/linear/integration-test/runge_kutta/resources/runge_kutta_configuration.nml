@@ -88,6 +88,7 @@ test='gravity_wave',
 ancil_option='none',
 init_option='analytic',
 lbc_option='none',
+lipschitz_damping=.false.,
 ls_option='analytic',
 zero_w2v_wind=.false.,
 /
@@ -166,6 +167,7 @@ si_tolerance=1.0e-3,
 split_w=.true.,
 /
 &mixing
+lipschitz_damping=.false.,
 smagorinsky=.false.,
 viscosity=.false.,
 viscosity_mu=0.0,

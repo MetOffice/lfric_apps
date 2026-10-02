@@ -337,6 +337,7 @@ ancil_option = 'none'
 init_option  = 'analytic'
 lbc_option   = 'none'
 ls_option    = 'none'
+lipschitz_damping = .false.
 coarse_aerosol_ancil=.false.
 zero_w2v_wind=.false.,
 /

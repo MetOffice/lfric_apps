@@ -110,6 +110,7 @@ coarse_aerosol_ancil=.false.
 ancil_option='none',
 init_option='analytic',
 lbc_option='none',
+lipschitz_damping=.false.,
 ls_option='analytic',
 read_w2h_wind=.false.,
 zero_w2v_wind=.false.,
@@ -193,6 +194,7 @@ split_w=.true.,
 /
 &mixing
 leonard_term=.false.,
+lipschitz_damping=.false.,
 smagorinsky=.false.,
 viscosity=.false.,
 viscosity_mu=0.0,

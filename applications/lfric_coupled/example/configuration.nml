@@ -119,6 +119,7 @@ test='dry_cbl',
 &initialization
 ancil_option='none',
 init_option='analytic',
+lipschitz_damping=.false.,
 zero_w2v_wind=.false.,
 /
 &initial_density
@@ -610,6 +611,7 @@ si_tolerance=1.0e-3,
 split_w=.true.,
 /
 &mixing
+lipschitz_damping=.false.,
 smagorinsky=.false.,
 viscosity=.false.,
 viscosity_mu=0.0,

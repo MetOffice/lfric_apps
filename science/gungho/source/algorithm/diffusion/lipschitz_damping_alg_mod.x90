@@ -1,0 +1,65 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+! Some of the content of this file has been produced with the assistance of
+! Met Office Github Copilot Enterprise
+!-----------------------------------------------------------------------------
+
+!> @brief Damps a wind field wherever its Lipschitz numbers exceed threshold.
+
+module lipschitz_damping_alg_mod
+
+  use config_mod, only: config_type
+
+  implicit none
+
+  private
+
+  public :: lipschitz_damping_alg
+
+contains
+
+  !> @brief Damps a wind field wherever its Lipschitz numbers exceed threshold.
+  !> @details Zeroes a local increment field, applies the Lipschitz damping
+  !>          kernel, and accumulates the result back into the prognostic wind
+  !>          field.
+  !> @param[in]     config  Application namelist configuration object
+  !> @param[in,out] u       Wind field to damp
+  !> @param[in]     dt      The model timestep length
+  subroutine lipschitz_damping_alg(config, u, dt)
+
+    use constants_mod,                only: r_def, i_def, tik
+    use field_mod,                    only: field_type
+    use mesh_mod,                     only: mesh_type
+    use sci_geometric_constants_mod,  only: get_detj_at_w3_fv
+    use lipschitz_damping_kernel_mod, only: lipschitz_damping_kernel_type
+    use timing_mod,                   only: start_timing, stop_timing, LPROF
+
+    implicit none
+
+    type(config_type), intent(in)    :: config
+    type(field_type),  intent(inout) :: u
+    real(kind=r_def),  intent(in)    :: dt
+
+    type(field_type)          :: u_out
+    type(field_type), pointer :: detj_at_w3
+    type(mesh_type),  pointer :: mesh
+
+    integer(kind=tik) :: id
+
+    if ( LPROF ) call start_timing( id, 'lipschitz_damping' )
+
+    mesh => u%get_mesh()
+    detj_at_w3 => get_detj_at_w3_fv(mesh)
+
+    call u_out%initialise( u%get_function_space() )
+    call invoke( setval_c(u_out, 0.0_r_def),                                   &
+                 lipschitz_damping_kernel_type(u_out, u, detj_at_w3, dt),      &
+                 setval_X(u, u_out) )
+
+    if ( LPROF ) call stop_timing( id, 'lipschitz_damping' )
+
+  end subroutine lipschitz_damping_alg
+
+end module lipschitz_damping_alg_mod

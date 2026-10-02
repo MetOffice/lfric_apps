@@ -31,3 +31,22 @@ class vnXX_txxx(MacroUpgrade):
         # Add settings
         return config, self.reports
 """
+
+
+class vn32_t841(MacroUpgrade):
+    """Upgrade macro for ticket #841 by Thomas Bendall."""
+
+    BEFORE_TAG = "vn3.2"
+    AFTER_TAG = "vn3.2_t841"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        # Add lipschitz_damping option to mixing namelist
+        self.add_setting(
+            config, ["namelist:mixing", "lipschitz_damping"], ".false."
+        )
+        # Add lipschitz_damping option to initialization namelist
+        self.add_setting(
+            config, ["namelist:initialization", "lipschitz_damping"], ".false."
+        )
+        return config, self.reports

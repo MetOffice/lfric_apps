@@ -62,6 +62,7 @@ module gungho_init_fields_mod
                                                  lbc_option_analytic,         &
                                                  lbc_option_gungho_file,      &
                                                  lbc_option_um2lfric_file,    &
+                                                 lipschitz_damping,           &
                                                  zero_w2v_wind,               &
                                                  sst_source,                  &
                                                  sst_source_start_dump,       &
@@ -94,6 +95,7 @@ module gungho_init_fields_mod
   use init_gungho_lbcs_alg_mod,           only : init_lbcs_file_alg,    &
                                                  init_lbcs_analytic_alg
   use init_physics_prognostics_alg_mod,   only : init_physics_prognostics_alg
+  use lipschitz_damping_alg_mod,          only : lipschitz_damping_alg
   use derived_config_mod,                 only : l_esm_couple
   use ageofair_alg_mod,                   only : init_ageofair
   use transport_config_mod,               only : transport_ageofair
@@ -687,6 +689,7 @@ subroutine create_model_data( modeldb,           &
     integer(i_def) :: wind_forcing
 
     integer(i_def) :: i
+    real(r_def) :: dt
 #ifdef UM_PHYSICS
     integer(i_def) :: ensemble_number
     real(r_def), allocatable :: power_law(:)
@@ -929,6 +932,10 @@ subroutine create_model_data( modeldb,           &
 
       if (.not. checkpoint_read .and. zero_w2v_wind) then
         call set_any_dof_alg(u, T, 0.0_r_def)
+      end if
+      if (.not. checkpoint_read .and. lipschitz_damping) then
+        dt = real(modeldb%clock%get_seconds_per_step(), r_def)
+        call lipschitz_damping_alg(modeldb%config, u, dt)
       end if
       call map_physics_fields_alg(modeldb%config, u,      &
                                   exner, rho, theta,      &
