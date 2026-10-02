@@ -258,10 +258,10 @@
         "kgo_checks": [],
     }) %}
 
-{% elif task_ns.conf_name == "relax_theta-BiP4x4-600x400" %}
+{% elif task_ns.conf_name == "relax_profile-BiP4x4-600x400" %}
 
     {% do task_dict.update({
-        "opt_confs": ["relax_theta"],
+        "opt_confs": ["relax_profile"],
         "resolution": "BiP4x4-600x400",
         "DT": 60,
         "tsteps": 90,
