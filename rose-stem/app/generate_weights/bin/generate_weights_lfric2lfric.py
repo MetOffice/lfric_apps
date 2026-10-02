@@ -42,8 +42,8 @@ class INTER:
         
     def set_arguments(self):
         """Set ESMF regrid command line options"""
-        options = ' -s ' + self.src_grid_name + ".nc"
-        options = options + ' -d ' + self.dst_grid_name + ".nc"
+        options = ' -s ' + self.src_grid_name + '_src' + ".nc"
+        options = options + ' -d ' + self.dst_grid_name + '_dst' + ".nc"
         options = options + ' --dst_loc center'
         options = options + ' --src_loc center'
         options = options + ' --64bit_offset --check -m ' + self.method
@@ -150,8 +150,13 @@ if __name__ == "__main__":
     print('DESTINATION grid ')
 
     print('Save SRC -> DST grid info')
-    transform_and_write(SRC_GRID)
-    transform_and_write(DST_GRID)
+    # The 'src' and 'dst' variables mean the files are
+    # saved as self.src_grid_name + '_src' + ".nc"
+    # and self.dst_grid_name + '_dst' + ".nc"
+    # and in particular this allows for the source and
+    # destination meshes to have the same name.
+    transform_and_write(SRC_GRID,'src')
+    transform_and_write(DST_GRID,'dst')
 
     MY_INTER = INTER()
     MY_INTER.set_regrid_info()
