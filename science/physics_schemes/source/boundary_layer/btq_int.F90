@@ -42,55 +42,55 @@ integer, intent(in) ::                                                         &
  bl_levels              ! in No. of atmospheric levels for which
 
 real(kind=r_bl), intent(in) ::                                                 &
- z_tq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),          &
- z_uv(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,bl_levels+1),        &
- bq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),            &
+ z_tq(tdims%i_start:tdims%i_end,bl_levels),                                    &
+ z_uv(pdims%i_start:pdims%i_end,bl_levels+1),                                  &
+ bq(tdims%i_start:tdims%i_end,bl_levels),                                      &
                             ! in A buoyancy parameter for clear air
                             !    on p,T,q-levels (full levels).
- bt(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),            &
+ bt(tdims%i_start:tdims%i_end,bl_levels),                                      &
                             ! in A buoyancy parameter for clear air
                             !    on p,T,q-levels (full levels).
- bq_cld(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
+ bq_cld(tdims%i_start:tdims%i_end,                                             &
         bl_levels),                                                            &
                             ! in A buoyancy parameter for cloudy air
                             !    on p,T,q-levels (full levels).
- bt_cld(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
+ bt_cld(tdims%i_start:tdims%i_end,                                             &
         bl_levels),                                                            &
                             ! in A buoyancy parameter for cloudy air
                             !    on p,T,q-levels (full levels).
- a_qs(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),          &
+ a_qs(tdims%i_start:tdims%i_end,bl_levels),                                    &
                             ! in Saturated lapse rate factor
                             !    on p,T,q-levels (full levels).
- a_dqsdt(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                  &
+ a_dqsdt(tdims%i_start:tdims%i_end,                                            &
          bl_levels)
                             ! in Saturated lapse rate factor
                             !    on p,T,q-levels (full levels).
 
 ! out fields
 real(kind=r_bl), intent(out) ::                                                &
- bqm(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,bl_levels),           &
+ bqm(pdims%i_start:pdims%i_end,bl_levels),                                     &
                             ! out A buoyancy parameter for clear air
                             !    on intermediate levels (half levels):
                             !    (*,K) elements are k+1/2 values.
- btm(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,bl_levels),           &
+ btm(pdims%i_start:pdims%i_end,bl_levels),                                     &
                             ! out A buoyancy parameter for clear air
                             !    on intermediate levels (half levels):
                             !    (*,K) elements are k+1/2 values.
- bqm_cld(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                  &
+ bqm_cld(pdims%i_start:pdims%i_end,                                            &
          bl_levels),                                                           &
                             ! out A buoyancy parameter for cloudy air
                             !    on intermediate levels (half levels):
                             !    (*,K) elements are k+1/2 values.
- btm_cld(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                  &
+ btm_cld(pdims%i_start:pdims%i_end,                                            &
          bl_levels),                                                           &
                             ! out A buoyancy parameter for cloudy air
                             !    on intermediate levels (half levels):
                             !    (*,K) elements are k+1/2 values.
- a_qsm(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,bl_levels),         &
+ a_qsm(pdims%i_start:pdims%i_end,bl_levels),                                   &
                             ! out Saturated lapse rate factor
                             !    on intermediate levels (half levels):
                             !    (*,K) elements are k+1/2 values.
- a_dqsdtm(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                 &
+ a_dqsdtm(pdims%i_start:pdims%i_end,                                           &
           bl_levels)
                             ! out Saturated lapse rate factor
                             !    on intermediate levels (half levels):
@@ -108,7 +108,7 @@ real(kind=r_bl) ::                                                             &
  weight1,weight2,weight3
 
 integer ::                                                                     &
- i,j,                                                                          &
+ i,                                                                            &
              ! Loop counter (horizontal field index).
  k       ! Loop counter (vertical level index).
 
@@ -123,35 +123,33 @@ if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 ! 1.  Loop round levels.
 !-----------------------------------------------------------------------
 !$OMP PARALLEL do DEFAULT(none) SCHEDULE(STATIC)                               &
-!$OMP             private(weight1,weight2,weight3,wkm1,wk,i,j,k)               &
+!$OMP             private(weight1,weight2,weight3,wkm1,wk,i,k)                 &
 !$OMP             SHARED(btm,bt,bqm,bq,btm_cld,bt_cld,bqm_cld,bq_cld,          &
 !$OMP                    a_qsm,a_qs,a_dqsdtm,a_dqsdt,                          &
 !$OMP                    bl_levels,pdims,z_tq,z_uv)
 do k = 2, bl_levels
-  do j = pdims%j_start, pdims%j_end
-    do i = pdims%i_start, pdims%i_end
+  do i = pdims%i_start, pdims%i_end
 
-      !---------------------------------------------------------------
-      ! 1.1 Calculate buoyancy parameters at half levels,
-      !     i.e. at level K-1/2, if current level is level K.
-      !---------------------------------------------------------------
-      weight1 = one / ( z_tq(i,j,k) -                                          &
-                       z_tq(i,j,k-1))
-      weight2 = z_tq(i,j,k) -                                                  &
-                z_uv(i,j,k)
-      weight3 = z_uv(i,j,k) -                                                  &
-                z_tq(i,j,k-1)
-      wkm1 = weight3 * weight1
-      wk = weight2 * weight1
+    !---------------------------------------------------------------
+    ! 1.1 Calculate buoyancy parameters at half levels,
+    !     i.e. at level K-1/2, if current level is level K.
+    !---------------------------------------------------------------
+    weight1 = one / ( z_tq(i,k) -                                              &
+                      z_tq(i,k-1))
+    weight2 = z_tq(i,k) -                                                      &
+              z_uv(i,k)
+    weight3 = z_uv(i,k) -                                                      &
+              z_tq(i,k-1)
+    wkm1 = weight3 * weight1
+    wk = weight2 * weight1
 
-      btm(i,j,k-1) = wkm1*bt(i,j,k) + wk*bt(i,j,k-1)
-      bqm(i,j,k-1) = wkm1*bq(i,j,k) + wk*bq(i,j,k-1)
-      btm_cld(i,j,k-1) = wkm1*bt_cld(i,j,k) + wk*bt_cld(i,j,k-1)
-      bqm_cld(i,j,k-1) = wkm1*bq_cld(i,j,k) + wk*bq_cld(i,j,k-1)
-      a_qsm(i,j,k-1) = wkm1*a_qs(i,j,k) + wk*a_qs(i,j,k-1)
-      a_dqsdtm(i,j,k-1) = wkm1*a_dqsdt(i,j,k) + wk*a_dqsdt(i,j,k-1)
+    btm(i,k-1) = wkm1*bt(i,k) + wk*bt(i,k-1)
+    bqm(i,k-1) = wkm1*bq(i,k) + wk*bq(i,k-1)
+    btm_cld(i,k-1) = wkm1*bt_cld(i,k) + wk*bt_cld(i,k-1)
+    bqm_cld(i,k-1) = wkm1*bq_cld(i,k) + wk*bq_cld(i,k-1)
+    a_qsm(i,k-1) = wkm1*a_qs(i,k) + wk*a_qs(i,k-1)
+    a_dqsdtm(i,k-1) = wkm1*a_dqsdt(i,k) + wk*a_dqsdt(i,k-1)
 
-    end do !
   end do !
 end do ! bl_levels
 !$OMP end PARALLEL do
