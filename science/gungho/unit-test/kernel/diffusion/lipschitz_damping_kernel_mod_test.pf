@@ -24,6 +24,7 @@ module lipschitz_damping_kernel_mod_test
     real(kind=r_def), allocatable :: u_out(:)
     real(kind=r_def), allocatable :: u_in(:)
     real(kind=r_def), allocatable :: detj_at_w3(:)
+    real(kind=r_def), allocatable :: breached(:)
 
     integer(kind=i_def), allocatable :: map_w2(:)
     integer(kind=i_def), allocatable :: map_w3(:)
@@ -53,6 +54,7 @@ contains
     allocate( this%u_out(undf_w2) )
     allocate( this%u_in(undf_w2) )
     allocate( this%detj_at_w3(undf_w3) )
+    allocate( this%breached(undf_w3) )
     allocate( this%map_w2(ndf_w2) )
     allocate( this%map_w3(ndf_w3) )
 
@@ -73,6 +75,7 @@ contains
     deallocate( this%u_out )
     deallocate( this%u_in )
     deallocate( this%detj_at_w3 )
+    deallocate( this%breached )
     deallocate( this%map_w2 )
     deallocate( this%map_w3 )
 
@@ -103,6 +106,7 @@ contains
                                  this%u_out,                   &
                                  this%u_in,                    &
                                  this%detj_at_w3,              &
+                                 this%breached,                &
                                  dt,                           &
                                  ndf_w2, undf_w2, this%map_w2, &
                                  ndf_w3, undf_w3, this%map_w3 )
@@ -113,6 +117,7 @@ contains
     @assertEqual(this%u_out(4), -0.1_r_def, tol)
     @assertEqual(this%u_out(5), 0.0_r_def, tol)
     @assertEqual(this%u_out(6), 0.1_r_def, tol)
+    @assertEqual(this%breached(1), 0.0_r_def, tol)
 
     ! Case 2: the x-direction 1D Lipschitz number exceeds 1, so the
     ! outflowing W/E components are scaled back to bring it down to 1.
@@ -126,6 +131,7 @@ contains
                                  this%u_out,                   &
                                  this%u_in,                    &
                                  this%detj_at_w3,              &
+                                 this%breached,                &
                                  dt,                           &
                                  ndf_w2, undf_w2, this%map_w2, &
                                  ndf_w3, undf_w3, this%map_w3 )
@@ -136,6 +142,7 @@ contains
     @assertEqual(this%u_out(4), 0.3_r_def, tol)
     @assertEqual(this%u_out(5), 0.3_r_def, tol)
     @assertEqual(this%u_out(6), 0.0_r_def, tol)
+    @assertEqual(this%breached(1), 1.0_r_def, tol)
 
     ! Case 3: the x-direction 1D Lipschitz number exceeds 1 and, even after
     ! clamping it back to 1, the 3D number (with y- and z-directions left
@@ -149,6 +156,7 @@ contains
                                  this%u_out,                   &
                                  this%u_in,                    &
                                  this%detj_at_w3,              &
+                                 this%breached,                &
                                  dt,                           &
                                  ndf_w2, undf_w2, this%map_w2, &
                                  ndf_w3, undf_w3, this%map_w3 )
@@ -159,6 +167,7 @@ contains
     @assertEqual(this%u_out(4), 0.0_r_def, tol)
     @assertEqual(this%u_out(5), 0.0_r_def, tol)
     @assertEqual(this%u_out(6), 0.0_r_def, tol)
+    @assertEqual(this%breached(1), 1.0_r_def, tol)
 
   end subroutine test_all
 

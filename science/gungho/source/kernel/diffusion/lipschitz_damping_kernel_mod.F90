@@ -21,7 +21,7 @@ module lipschitz_damping_kernel_mod
   use argument_mod,          only : arg_type,                                  &
                                     GH_FIELD, GH_SCALAR,                       &
                                     GH_REAL,                                   &
-                                    GH_READ, GH_INC,                           &
+                                    GH_READ, GH_INC, GH_WRITE,                 &
                                     CELL_COLUMN
   use constants_mod,         only : r_def, i_def
   use fs_continuity_mod,     only : W2, W3
@@ -38,10 +38,11 @@ module lipschitz_damping_kernel_mod
   !> @details Contains the metadata needed by the PSy layer for this kernel.
   type, public, extends(kernel_type) :: lipschitz_damping_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/                                        &
-        arg_type(GH_FIELD,  GH_REAL, GH_INC,  W2),                             &
-        arg_type(GH_FIELD,  GH_REAL, GH_READ, W2),                             &
-        arg_type(GH_FIELD,  GH_REAL, GH_READ, W3),                             &
+    type(arg_type) :: meta_args(5) = (/                                        &
+        arg_type(GH_FIELD,  GH_REAL, GH_INC,   W2),                            &
+        arg_type(GH_FIELD,  GH_REAL, GH_READ,  W2),                            &
+        arg_type(GH_FIELD,  GH_REAL, GH_READ,  W3),                            &
+        arg_type(GH_FIELD,  GH_REAL, GH_WRITE, W3),                            &
         arg_type(GH_SCALAR, GH_REAL, GH_READ)                                  &
     /)
     integer :: operates_on = CELL_COLUMN
@@ -62,6 +63,8 @@ contains
 !> @param[in,out] u_out       Output wind field, damped
 !> @param[in]     u_in        Input wind field
 !> @param[in]     detj_at_w3  Cell volume, V, used to form the Lipschitz numbers
+!> @param[in,out] breached    1 where a Lipschitz number breached a threshold,
+!!                            0 otherwise
 !> @param[in]     dt          The model timestep length.
 !> @param[in]     ndf_w2      Number of degrees of freedom per cell for W2
 !> @param[in]     undf_w2     Total num DoFs in this partition for W2
@@ -71,7 +74,7 @@ contains
 !> @param[in]     map_w3      Dofmap for W3
 subroutine lipschitz_damping_code(nlayers,                                     &
                                   u_out, u_in,                                 &
-                                  detj_at_w3, dt,                              &
+                                  detj_at_w3, breached, dt,                    &
                                   ndf_w2, undf_w2, map_w2,                     &
                                   ndf_w3, undf_w3, map_w3)
 
@@ -87,6 +90,7 @@ subroutine lipschitz_damping_code(nlayers,                                     &
   real(kind=r_def),    intent(inout) :: u_out(undf_w2)
   real(kind=r_def),    intent(in)    :: u_in(undf_w2)
   real(kind=r_def),    intent(in)    :: detj_at_w3(undf_w3)
+  real(kind=r_def),    intent(inout) :: breached(undf_w3)
   real(kind=r_def),    intent(in)    :: dt
 
   ! This is based on the lowest order W2 dof map
@@ -111,6 +115,7 @@ subroutine lipschitz_damping_code(nlayers,                                     &
   real(kind=r_def), dimension(0:nlayers-1) :: excess, total
   real(kind=r_def), dimension(0:nlayers-1) :: contrib_e, contrib_w, contrib_s
   real(kind=r_def), dimension(0:nlayers-1) :: contrib_n, contrib_t, contrib_b
+  real(kind=r_def), dimension(0:nlayers-1) :: breach
 
   real(kind=r_def), parameter :: threshold_1d = 1.0_r_def
   real(kind=r_def), parameter :: threshold_3d = 0.5_r_def
@@ -175,6 +180,12 @@ subroutine lipschitz_damping_code(nlayers,                                     &
   ! and clamped in the same way as the 1D numbers above
   L3D(:) = (ue(:) - uw(:) + us(:) - un(:) + ut(:) - ub(:))*dt/vol(:)
 
+  ! Flag cells where any threshold was breached, before the 3D clamp below
+  breach(:) = merge( 1.0_r_def, 0.0_r_def,                                     &
+                     Lx(:) > threshold_1d .or. Ly(:) > threshold_1d .or.       &
+                     Lz(:) > threshold_1d .or. L3D(:) > threshold_3d )
+  breached(w3_idx : w3_idx+nl) = breach(:)
+
   excess(:) = max(L3D(:) - threshold_3d, 0.0_r_def)*vol(:)/dt
   contrib_e(:) = max(ue(:), 0.0_r_def)
   contrib_w(:) = max(-uw(:), 0.0_r_def)
@@ -193,8 +204,7 @@ subroutine lipschitz_damping_code(nlayers,                                     &
     ub(:) = ub(:) + (contrib_b(:)/total(:))*excess(:)
   end where
 
-  ! The kernel output is the increment needed to go from the input wind to
-  ! the damped wind computed above
+  ! Increment the output field based on the new wind components
   u_out(w_idx : w_idx+nl) = u_out(w_idx : w_idx+nl) + uw(:)
   u_out(s_idx : s_idx+nl) = u_out(s_idx : s_idx+nl) + us(:)
   u_out(e_idx : e_idx+nl) = u_out(e_idx : e_idx+nl) + ue(:)
