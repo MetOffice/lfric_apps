@@ -34,18 +34,18 @@
 
      <!-- Checkpoint group -->
      <field_group id="checkpoint_fields" freq_op="1ts" operation="once"  enabled=".FALSE." >
-       <field id="checkpoint_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" domain_ref="checkpoint_W3" />
-       <field id="checkpoint_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_u" name="u" long_name="wind" unit="m s-1" domain_ref="checkpoint_W2" />
-       <field id="checkpoint_tracer_con" name="tracer_con" long_name="tracer_con" standard_name="tracer_con" unit="kg/kg" domain_ref="checkpoint_W3" />
-       <field id="checkpoint_tracer_adv" name="tracer_adv" long_name="tracer_adv" standard_name="tracer_adv" unit="kg/kg" domain_ref="checkpoint_W3" />
-       <field id="checkpoint_constant" name="constant" long_name="constant" standard_name="constant" unit="kg/kg" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_m_v" name="m_v" long_name="m_v" unit="kg/kg" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_w2_vector" name="w2_vector" long_name="transported_vector" unit="m s-1" domain_ref="checkpoint_W2" />
-       <field id="checkpoint_w3_aerosol" name="w3_aerosol" long_name="w3_aerosol" unit="kg/kg" domain_ref="checkpoint_W3" />
-       <field id="checkpoint_wt_aerosol" name="wt_aerosol" long_name="wt_aerosol" unit="kg/kg" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_aerosol_wind" name="uaerosol_wind" long_name="aerosol_wind" unit="m s-1" domain_ref="checkpoint_W2" />
-       <field id="checkpoint_divergence" name="divergence" long_name="wind_divergence" standard_name="wind_divergence" unit="s-1" domain_ref="checkpoint_W3" />
+       <field id="checkpoint_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" domain_ref="legacy_W3" />
+       <field id="checkpoint_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" domain_ref="legacy_Wtheta" />
+       <field id="checkpoint_u" name="u" long_name="wind" unit="m s-1" domain_ref="legacy_W2" />
+       <field id="checkpoint_tracer_con" name="tracer_con" long_name="tracer_con" standard_name="tracer_con" unit="kg/kg" domain_ref="legacy_W3" />
+       <field id="checkpoint_tracer_adv" name="tracer_adv" long_name="tracer_adv" standard_name="tracer_adv" unit="kg/kg" domain_ref="legacy_W3" />
+       <field id="checkpoint_constant" name="constant" long_name="constant" standard_name="constant" unit="kg/kg" domain_ref="legacy_Wtheta" />
+       <field id="checkpoint_m_v" name="m_v" long_name="m_v" unit="kg/kg" domain_ref="legacy_Wtheta" />
+       <field id="checkpoint_w2_vector" name="w2_vector" long_name="transported_vector" unit="m s-1" domain_ref="legacy_W2" />
+       <field id="checkpoint_w3_aerosol" name="w3_aerosol" long_name="w3_aerosol" unit="kg/kg" domain_ref="legacy_W3" />
+       <field id="checkpoint_wt_aerosol" name="wt_aerosol" long_name="wt_aerosol" unit="kg/kg" domain_ref="legacy_Wtheta" />
+       <field id="checkpoint_aerosol_wind" name="uaerosol_wind" long_name="aerosol_wind" unit="m s-1" domain_ref="legacy_W2" />
+       <field id="checkpoint_divergence" name="divergence" long_name="wind_divergence" standard_name="wind_divergence" unit="s-1" domain_ref="legacy_W3" />
      </field_group>
 
      <!-- Main diagnostic group -->
@@ -123,18 +123,18 @@
        <!-- file definition for checkpoint read -->
       <file id="lfric_checkpoint_read" name="lfric_checkpoint" mode="read" output_freq="1ts" cyclic="true" enabled=".FALSE.">
        <field_group id="lfric_checkpoint_read_field_group" >
-       <field id="restart_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" operation="instant" domain_ref="checkpoint_W3" />
-       <field id="restart_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_tracer_con" name="tracer_con" long_name="tracer_con" standard_name="tracer_con" unit="kg/kg" operation="instant" domain_ref="checkpoint_W3" />
-       <field id="restart_tracer_adv" name="tracer_adv" long_name="tracer_adv" standard_name="tracer_adv" unit="kg/kg" operation="instant" domain_ref="checkpoint_W3" />
-       <field id="restart_constant" name="constant" long_name="constant" standard_name="constant" unit="kg/kg" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_m_v" name="m_v" long_name="m_v" standard_name="m_v" unit="kg/kg" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_u" name="u" long_name="wind" unit="m s-1" operation="instant" domain_ref="checkpoint_W2" />
-       <field id="restart_w2_vector" name="w2_vector" long_name="transported_vector" unit="m s-1" operation="instant" domain_ref="checkpoint_W2" />
-       <field id="restart_divergence" name="divergence" long_name="wind_divergence" standard_name="wind_divergence" unit="s-1" operation="instant" domain_ref="checkpoint_W3" />
-       <field id="restart_wt_aerosol" name="wt_aerosol" long_name="wt_aerosol" standard_name="wt_aerosol" unit="kg/kg" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_w3_aerosol" name="w3_aerosol" long_name="w3_aerosol" standard_name="w3_aerosol" unit="kg/kg" operation="instant" domain_ref="checkpoint_W3" />
-       <field id="restart_aerosol_wind" name="aerosol_wind" long_name="aerosol_wind" unit="m s-1" operation="instant" domain_ref="checkpoint_W2" />
+       <field id="restart_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" operation="instant" domain_ref="legacy_W3" />
+       <field id="restart_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" operation="instant" domain_ref="legacy_Wtheta" />
+       <field id="restart_tracer_con" name="tracer_con" long_name="tracer_con" standard_name="tracer_con" unit="kg/kg" operation="instant" domain_ref="legacy_W3" />
+       <field id="restart_tracer_adv" name="tracer_adv" long_name="tracer_adv" standard_name="tracer_adv" unit="kg/kg" operation="instant" domain_ref="legacy_W3" />
+       <field id="restart_constant" name="constant" long_name="constant" standard_name="constant" unit="kg/kg" operation="instant" domain_ref="legacy_Wtheta" />
+       <field id="restart_m_v" name="m_v" long_name="m_v" standard_name="m_v" unit="kg/kg" operation="instant" domain_ref="legacy_Wtheta" />
+       <field id="restart_u" name="u" long_name="wind" unit="m s-1" operation="instant" domain_ref="legacy_W2" />
+       <field id="restart_w2_vector" name="w2_vector" long_name="transported_vector" unit="m s-1" operation="instant" domain_ref="legacy_W2" />
+       <field id="restart_divergence" name="divergence" long_name="wind_divergence" standard_name="wind_divergence" unit="s-1" operation="instant" domain_ref="legacy_W3" />
+       <field id="restart_wt_aerosol" name="wt_aerosol" long_name="wt_aerosol" standard_name="wt_aerosol" unit="kg/kg" operation="instant" domain_ref="legacy_Wtheta" />
+       <field id="restart_w3_aerosol" name="w3_aerosol" long_name="w3_aerosol" standard_name="w3_aerosol" unit="kg/kg" operation="instant" domain_ref="legacy_W3" />
+       <field id="restart_aerosol_wind" name="aerosol_wind" long_name="aerosol_wind" unit="m s-1" operation="instant" domain_ref="legacy_W2" />
        </field_group>
      </file>
 

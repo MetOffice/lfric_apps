@@ -4,11 +4,22 @@
     <domain domain_ref="face"/>
     <axis axis_ref="vert_axis_full_levels"/>
   </grid>
+  <grid id="var_full_face_grid_cf">
+    <domain domain_ref="face_cf"/>
+    <axis axis_ref="vert_axis_full_levels"/>
+  </grid>
   <grid id="var_face">
     <domain domain_ref="face"/>
   </grid>
+  <grid id="var_face_cf">
+    <domain domain_ref="face_cf"/>
+  </grid>
   <grid id="var_face_aod_wavel">
     <domain domain_ref="face"/>
+    <axis axis_ref="aod_wavel"/>
+  </grid>
+  <grid id="var_face_aod_wavel_cf">
+    <domain domain_ref="face_cf"/>
     <axis axis_ref="aod_wavel"/>
   </grid>
 </grid_definition>

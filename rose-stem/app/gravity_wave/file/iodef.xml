@@ -34,9 +34,9 @@
 
      <!-- Checkpoint group -->
      <field_group id="checkpoint_fields" freq_op="1ts" operation="once"  enabled=".FALSE." >
-       <field id="checkpoint_pressure" name="pressure" long_name="air_pressure" standard_name="air_pressure" unit="Pa" domain_ref="checkpoint_W3" />
-       <field id="checkpoint_buoyancy" name="buoyancy" long_name="buoyancy" unit="kg m s-2" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_wind" name="wind" long_name="wind" unit="m s-1" domain_ref="checkpoint_W2" />
+       <field id="checkpoint_pressure" name="pressure" long_name="air_pressure" standard_name="air_pressure" unit="Pa" domain_ref="legacy_W3" />
+       <field id="checkpoint_buoyancy" name="buoyancy" long_name="buoyancy" unit="kg m s-2" domain_ref="legacy_Wtheta" />
+       <field id="checkpoint_wind" name="wind" long_name="wind" unit="m s-1" domain_ref="legacy_W2" />
      </field_group>
 
      <!-- Main diagnostic group -->
@@ -75,9 +75,9 @@
        <!-- file definition for checkpoint read -->
       <file id="lfric_checkpoint_read" name="lfric_checkpoint" mode="read" output_freq="1ts" cyclic="true" enabled=".FALSE.">
        <field_group id="lfric_checkpoint_read_field_group" >
-       <field id="restart_pressure" name="pressure" long_name="air_pressure" standard_name="air_pressure" unit="Pa" operation="instant" domain_ref="checkpoint_W3" />
-       <field id="restart_buoyancy" name="buoyancy" long_name="buoyancy" unit="kg m s-2" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_wind" name="wind" long_name="wind" unit="m s-1" operation="instant" domain_ref="checkpoint_W2" />
+       <field id="restart_pressure" name="pressure" long_name="air_pressure" standard_name="air_pressure" unit="Pa" operation="instant" domain_ref="legacy_W3" />
+       <field id="restart_buoyancy" name="buoyancy" long_name="buoyancy" unit="kg m s-2" operation="instant" domain_ref="legacy_Wtheta" />
+       <field id="restart_wind" name="wind" long_name="wind" unit="m s-1" operation="instant" domain_ref="legacy_W2" />
        </field_group>
       </file>
 
