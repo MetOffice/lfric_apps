@@ -8,7 +8,7 @@
 !>
 module kinetic_energy_gradient_kernel_mod_test
 
-  use constants_mod, only : i_def, r_def, imdi
+  use constants_mod, only : i_def, r_def
 
   use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w0_m3x3_q3x3x3_size, &
                                                   get_w2_m3x3_q3x3x3_size, &
@@ -95,7 +95,7 @@ contains
                                    solver_moisture_conservation=.true.,    &
                                    vector_invariant=.false.)
 
-    call init_chi_transforms(imdi, imdi)
+    call init_chi_transforms()
 
   end subroutine setUp
 

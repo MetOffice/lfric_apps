@@ -98,7 +98,7 @@ contains
                                    solver_moisture_conservation=.true.,    &
                                    vector_invariant=.true.)
 
-    call init_chi_transforms(geometry_planar, topology_fully_periodic)
+    call init_chi_transforms()
 
   end subroutine setUp
 

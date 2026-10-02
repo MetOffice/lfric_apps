@@ -124,7 +124,7 @@ contains
             scaling_factor=1.0_r_def                                           &
     )
 
-    call init_chi_transforms(geometry_spherical, topology_non_periodic)
+    call init_chi_transforms()
 
   end subroutine setUp
 
