@@ -33,6 +33,7 @@ export PSYCLONE_PHYSICS_FILES = \
                                 jules_imp_kernel_mod \
                                 kmkh \
                                 kmkhz_9c_wtrac \
+                                lw_inc_kernel_mod \
                                 lw_kernel_mod \
                                 lsp_prognostic_tnuc_kernel_mod \
                                 mphys_kernel_mod \
@@ -43,6 +44,7 @@ export PSYCLONE_PHYSICS_FILES = \
                                 pc2_initiation_kernel_mod \
                                 pc2_conv_coupling_kernel_mod \
                                 smith_kernel_mod \
+                                sw_inc_kernel_mod \
                                 sw_kernel_mod \
                                 sw_rad_tile_kernel_mod \
                                 tracer_mix_kernel_mod \

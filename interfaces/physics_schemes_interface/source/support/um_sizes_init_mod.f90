@@ -39,14 +39,16 @@ contains
     use theta_field_sizes, only: t_i_length, t_j_length, &
                                  u_i_length, u_j_length, &
                                  v_i_length, v_j_length
-    use tuning_segments_mod, only: bl_segment_size, precip_segment_size, &
-                                   ussp_seg_size, gw_seg_size, &
-                                   conv_gr_segment_size, &
-                                   sw_seg_limit_size, lw_seg_limit_size
-    use physics_config_mod,  only : ls_ppn_segment, gw_segment, &
-                                    bl_segment, ussp_segment, &
-                                    configure_segments, conv_gr_segment, &
-                                    sw_segment_limit, lw_segment_limit
+    use tuning_segments_mod, only: bl_segment_size, precip_segment_size,       &
+                                   ussp_seg_size, gw_seg_size,                 &
+                                   conv_gr_segment_size,                       &
+                                   sw_seg_limit_size, sw_inc_seg_limit_size,   &
+                                   lw_seg_limit_size, lw_inc_seg_limit_size
+    use physics_config_mod,  only : ls_ppn_segment, gw_segment,                &
+                                    bl_segment, ussp_segment,                  &
+                                    configure_segments, conv_gr_segment,       &
+                                    sw_segment_limit, sw_inc_segment_limit,    &
+                                    lw_segment_limit, lw_inc_segment_limit
     use log_mod, only : log_event, log_scratch_space, LOG_LEVEL_ERROR
 
     implicit none
@@ -180,6 +182,36 @@ contains
         case default
           ! Default behaviour is to set to row_length
           lw_seg_limit_size = row_length
+
+      end select
+      select case (sw_inc_segment_limit)
+        case (:-1)
+          write(log_scratch_space,'(A)') &
+                'Invalid value: specified lw segment limit is -ve.'
+          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+
+        case (1:)
+          ! Set the value from the namelist
+          sw_inc_seg_limit_size = sw_inc_segment_limit
+
+        case default
+          ! Default behaviour is to set to row_length
+          sw_inc_seg_limit_size = row_length
+
+      end select
+      select case (lw_inc_segment_limit)
+        case (:-1)
+          write(log_scratch_space,'(A)') &
+                'Invalid value: specified lw segment limit is -ve.'
+          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+
+        case (1:)
+          ! Set the value from the namelist
+          lw_inc_seg_limit_size = lw_inc_segment_limit
+
+        case default
+          ! Default behaviour is to set to row_length
+          lw_inc_seg_limit_size = row_length
 
       end select
     else
