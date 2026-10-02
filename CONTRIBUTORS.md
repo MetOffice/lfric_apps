@@ -60,3 +60,4 @@
 | mo-snishimoto       | Shusuke Nishimoto  | Met Office                       | 2026-07-21 |
 | mo-cjsmith          | Chris Smith        | Met Office                       | 2026-09-02 |
 | mo-joshuacolclough  | Joshua Colclough   | Met Office                       | 2026-08-11 |
+| JMEdwardsXtr        | John Edwards       | Met Office                       | 2026-09-25 |
