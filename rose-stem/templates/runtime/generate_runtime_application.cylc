@@ -89,6 +89,12 @@
                         "_weightgen_script" %}
 {% endif %}
 
+{# Set up memory profiling flag #}
+{% set memory_profile = false %}
+{% if "memory_plot_ex" in task_values and task_values["memory_plot_ex"] and task_ns.platform == "ex1a" %}
+    {% set memory_profile = true %}
+{% endif %}
+
 {# Set the pre-script command for canned tests #}
 {% set canned_prescript = "cp -r $SOURCE_DIRECTORY/"~task_values["example_dir"]~"/* "~
                           "$CYLC_TASK_WORK_DIR" %}
@@ -182,9 +188,7 @@
             RANKS_DEPTH_PAD         = {{task_values["task_ranks_depth_pad"]}}
             LOG_SOLE_RANK           = {{task_values["log_to_rank_zero_only"]}}
             WEIGHT_LOC              = {{weight_loc}}
-{% if "memory_plot_ex" in task_values %}
-            MEMORY_PROFILE          = {{task_values["memory_plot_ex"]}}
-{% endif %}
+            MEMORY_PROFILE          = {{memory_profile}}
 
 {% if task_ns.application == "lfricinputs" %}
     {% include "templates/runtime/lfricinputs_task_environment.cylc" %}

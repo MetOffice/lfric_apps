@@ -9,7 +9,8 @@ module um2lfric_regrid_and_output_data_mod
 use, intrinsic :: iso_fortran_env, only: real64, int64
 
 ! lfricinputs modules
-use lfricinp_lfric_driver_mod,               only: model_clock, lfric_fields
+use lfricinp_lfric_driver_mod,               only: model_clock, lfric_fields,  &
+                                                   io_context
 use lfricinp_datetime_mod,                   only: datetime_type
 
 ! um2lfric modules
@@ -22,8 +23,7 @@ use lfric_xios_write_mod,          only: write_state
 
 ! External libraries
 use xios,                          only: xios_date_convert_to_string,          &
-                                         xios_get_current_date, xios_date,     &
-                                         xios_context_finalize
+                                         xios_get_current_date, xios_date
 use mod_wait,                      only: init_wait
 
 implicit none
@@ -77,12 +77,12 @@ do time_step = datetime % first_step, datetime % last_step
 
 end do
 
+call log_event('Finalise XIOS context', LOG_LEVEL_INFO)
 ! Finalizes XIOS file context thus forcing data out of IO buffers
-call xios_context_finalize()
+call io_context%finalise_xios_context()
 ! We have closed the context on our end, but we need to make sure that XIOS
 ! has closed the files for all servers before we process them
 call init_wait()
-call log_event('Finalise XIOS context', LOG_LEVEL_INFO)
 
 ! Post process correct output file by offsetting time axis by one time step
 call adjust_time_axis(time_axis_offset = datetime % seconds_per_step)

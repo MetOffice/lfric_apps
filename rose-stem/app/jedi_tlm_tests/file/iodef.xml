@@ -56,7 +56,7 @@
     <file_definition type="one_file" time_counter="none">
 
       <file id="read_model_data" name="read_model_data" output_freq="1ts" convention="UGRID" enabled=".FALSE." mode="read">
-        <field_group id="read_model_data_field_group" freq_op="1ts" enabled=".TRUE." operation="instant" freq_offset="1ts" >
+        <field_group id="read_fields" freq_op="1ts" enabled=".TRUE." operation="instant" freq_offset="1ts" >
           <field id="read_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
           <field id="read_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
           <field id="read_exner" name="exner" long_name="exner_pressure" unit="1" grid_ref="half_level_face_grid" />
@@ -77,7 +77,7 @@
       </file>
 
       <file id="read_inc_model_data" name="read_inc_model_data" output_freq="1ts" convention="UGRID" enabled=".FALSE." mode="read">
-        <field_group id="read_inc_model_data_field_group" freq_op="1ts" enabled=".TRUE." operation="instant" freq_offset="1ts" >
+        <field_group id="read_inc_fields" freq_op="1ts" enabled=".TRUE." operation="instant" freq_offset="1ts" >
           <field id="read_inc_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
           <field id="read_inc_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
           <field id="read_inc_exner" name="exner" long_name="exner_pressure" unit="1" grid_ref="half_level_face_grid" />
@@ -212,7 +212,7 @@
        <!--<field id="readls_h_u3" name="ls_u3" long_name="Upward wind derived from LS values of vertical flux (in computational space)" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" />-->
        <!--<field id="h_readls_h_u" name="h_readls_h_u" long_name="Horizontal flux (in computational space) derived from LS values of horizontal flux" standard_name="horizontal_flux" unit="m s-1" grid_ref="half_level_edge_grid" />-->
        <!--<field id="v_readls_h_u" name="v_readls_h_u" long_name="Vertical flux (in computational space) derived from LS values of horizontal flux" standard_name="vertical_flux" unit="m s-1" grid_ref="full_level_face_grid" />-->
-      
+
        <field id="theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
        <field id="m_v" name="m_v" long_name="m_v" unit="kg/kg" grid_ref="full_level_face_grid" />
        <field id="m_cl" name="m_cl" long_name="m_cl" unit="kg/kg" grid_ref="full_level_face_grid" />
@@ -452,6 +452,8 @@
       </variable_group>
 
       <variable_group id = "parameters" >
+        <variable id="transport_protocol" type="string" >p2p</variable>
+       <variable id = "services_use_window_manager" type="bool">false</variable>
         <variable id = "using_server" type = "bool" >true</variable>
         <variable id = "info_level" type = "int" >$XIOS_INFO_LEVEL</variable>
         <variable id = "print_file" type="bool">$XIOS_PRINT_FILE</variable>

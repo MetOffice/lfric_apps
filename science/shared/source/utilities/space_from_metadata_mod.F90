@@ -10,6 +10,7 @@ module space_from_metadata_mod
   use log_mod,                         only: log_event,         &
                                              log_scratch_space, &
                                              log_level_trace,   &
+                                             log_level_debug,   &
                                              log_level_error
   use constants_mod,                   only: i_def, l_def, str_def
   use mesh_mod,                        only: mesh_type
@@ -72,9 +73,13 @@ contains
     character(:), allocatable :: newstring
     character(5), parameter :: arrow_prefix = ' --> '
     if ( string(1:5) == arrow_prefix ) then
-    newstring = string(6:)
+      newstring = string(6:)
+      write(log_scratch_space, *)                                             &
+        'trim_string_start_arrow in space_from_metadata ' //                  &
+        'converted: `' // string // '` to: ' // newstring // '`'
+      call log_event(log_scratch_space, log_level_debug)
     else
-    newstring = string
+      newstring = string
     end if
   end function trim_string_start_arrow
 
@@ -170,14 +175,17 @@ contains
     character(*), intent(in) :: axis_ref
     character(str_def) :: flavour
 
-    if (grid_ref /= "") then
-      if (domain_ref /= "") then
-        write(log_scratch_space, *)                                           &
-        'field ' // trim(xios_id) //                                          &
-        'with grid_ref and domain_ref : ' //                                  &
-        grid_ref // ' ' // domain_ref
-        call log_event(log_scratch_space, log_level_error)
-      end if
+    ! if (grid_ref /= "") then
+    !   if (domain_ref /= "") then
+    !     write(log_scratch_space, *)                                           &
+    !       'field ' // trim(xios_id) //                                        &
+    !       ' with grid_ref: `' // trim(grid_ref) //                            &
+    !       '` and domain_ref : ' // trim(domain_ref) // '`' //                 &
+    !       ' grid_ref and domain_ref are not both able to be defined.'         &
+    !       ' configuration banned in space_from_metadata_mod.get_field_flavour.'
+    !     call log_event(log_scratch_space, log_level_error)
+    !   end if
+    if (domain_ref == "") then
       if (axis_ref /= "") then
         flavour = vanilla_multi
       else
