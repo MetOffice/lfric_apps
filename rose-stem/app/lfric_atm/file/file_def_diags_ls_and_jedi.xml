@@ -10,7 +10,7 @@
       <field field_ref="aerosol__n_cor_ins" />
       <field field_ref="cloud__bulk_fraction" />
       <field field_ref="cloud__cloud_amount_maxrnd" />
-      <field field_ref="cloud__cloud_base_altitude" />
+      <field field_ref="cloud__cloud_base_2p5_okta" />
       <field field_ref="cloud__frozen_fraction" />
       <field field_ref="cloud__liquid_fraction" />
       <field field_ref="cloud__low_cloud_base_altitude" />
