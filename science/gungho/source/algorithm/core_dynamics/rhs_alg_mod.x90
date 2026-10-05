@@ -94,8 +94,8 @@ contains
   !> @param[in]     compute_rhs_t_d Compute rhs for the potential temperature
   !!                                and density
   !> @param[in]     model_clock     Time in the model
-  subroutine rhs_alg( config, rhs, alpha_dt, base_state, state, moist_dyn, compute_eos, &
-                      compute_rhs_t_d, dlayer_rhs, model_clock )
+  subroutine rhs_alg( config, rhs, alpha_dt, base_state, state, moist_dyn, &
+                      compute_eos, compute_rhs_t_d, dlayer_rhs, model_clock )
 
     implicit none
 
@@ -181,12 +181,13 @@ contains
 
     mesh => base_state(igh_u)%get_mesh()
 
-    geopotential => get_geopotential(mesh%get_id())
+    geopotential => get_geopotential(config, mesh)
     mm_wtheta    => get_mass_matrix_fv(config, mesh, Wtheta)
 
     ! Using modified velocity mass matrix if needing damping layer
     if (dlayer_rhs) then
-      mm_vel => get_w2_mass_matrix(config, mesh, w2_damping_layer_matrix, model_clock)
+      mm_vel => get_w2_mass_matrix(config, mesh, w2_damping_layer_matrix, &
+                                   model_clock)
     else
       mm_vel => get_mass_matrix_fv(config, mesh, W2)
     end if
@@ -253,8 +254,8 @@ contains
 
   !> @brief rhs algorithm for any generic setup
   subroutine rhs_general_alg( config, rhs, alpha_dt, base_state, state, &
-                              moist_dyn, compute_eos,                   &
-                              compute_rhs_t_d, dlayer_rhs, model_clock )
+                              moist_dyn, compute_eos, compute_rhs_t_d,  &
+                              dlayer_rhs, model_clock )
 
     implicit none
 
@@ -313,7 +314,7 @@ contains
     mesh_id = base_state(igh_u)%get_mesh_id()
     mesh => base_state(igh_u)%get_mesh()
 
-    geopotential => get_geopotential(mesh%get_id())
+    geopotential => get_geopotential(config, mesh)
     mm_wtheta    => get_mass_matrix_fe(config, mesh, Wtheta)
     chi          => get_coordinates(mesh)
     panel_id     => get_panel_id(mesh)

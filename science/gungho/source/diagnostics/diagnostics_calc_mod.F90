@@ -112,16 +112,17 @@ end subroutine write_divergence_diagnostic
 !-------------------------------------------------------------------------------
 !>  @brief    Handles hydrostatic balance diagnostic processing
 !!
-!!  @details  Handles hydrostatic balance diagnostic processing
+!>  @details  Handles hydrostatic balance diagnostic processing
 !!
-!!> @param[in] config        Application configuration object
-!!> @param[in] mesh          Mesh
-!!> @param[in] theta_field   The theta field
-!!> @param[in] exner_field   The exner field
-!-------------------------------------------------------------------------------
+!> @param[in] config           Application configuration object
+!> @param[in] mesh             Mesh
+!> @param[in] theta_field      The theta field
+!> @param[in] moist_dyn_field  The moist dynamics factors
+!> @param[in] exner_field      The exner field
 
-subroutine write_hydbal_diagnostic( config, mesh, theta_field, moist_dyn_field, &
-                                    exner_field )
+!-------------------------------------------------------------------------------
+subroutine write_hydbal_diagnostic( config, mesh, theta_field, &
+                                    moist_dyn_field, exner_field )
 
   use logging_config_mod, only: run_log_level, run_log_level_debug
 

@@ -51,4 +51,4 @@ socrates-spectral:
 
 ukca:
     source: git@github.com:MetOffice/ukca.git
-    ref: 9fc2b6da8701f4904911b561a2738e3f16c4e501
+    ref: c372b366cf3cedd7b53610094cbf1ba429860fa4
