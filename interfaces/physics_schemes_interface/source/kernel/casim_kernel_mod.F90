@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Met Office Claude Code Enterprise.
+!-----------------------------------------------------------------------------
 !> @brief Interface to CASIM microphysics scheme.
 
 module casim_kernel_mod
@@ -33,7 +36,7 @@ private
 
 type, public, extends(kernel_type) :: casim_kernel_type
   private
-  type(arg_type) :: meta_args(41) = (/                                      &
+  type(arg_type) :: meta_args(48) = (/                                      &
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! mv_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! ml_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! mi_wth
@@ -42,6 +45,7 @@ type, public, extends(kernel_type) :: casim_kernel_type
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! ms_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! cfl_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! cff_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! bcf_wth
        arg_type(GH_FIELD, GH_REAL, GH_READWRITE,  WTHETA),                  & ! nl_mphys
        arg_type(GH_FIELD, GH_REAL, GH_READWRITE,  WTHETA),                  & ! nr_mphys
        arg_type(GH_FIELD, GH_REAL, GH_READWRITE,  WTHETA),                  & ! ni_mphys
@@ -52,6 +56,9 @@ type, public, extends(kernel_type) :: casim_kernel_type
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! exner_in_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                           & ! wetrho_in_w3
        arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                           & ! dry_rho_in_w3
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! dry_rho_in_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                           & ! u_in_w3
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                           & ! v_in_w3
        arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),                           & ! height_w3
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! height_wth
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                       & ! dmv_wth
@@ -60,6 +67,9 @@ type, public, extends(kernel_type) :: casim_kernel_type
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                       & ! dmr_wth
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                       & ! dmg_wth
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                       & ! dms_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE,  WTHETA),                  & ! dcfl_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE,  WTHETA),                  & ! dcff_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE,  WTHETA),                  & ! dbcf_wth
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1),    & ! ls_rain_2d
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1),    & ! ls_snow_2d
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1),    & ! ls_graup_2d
@@ -102,6 +112,7 @@ contains
 !> @param[in]     ms_wth              Snow mass mixing ratio
 !> @param[in]     cfl_wth             Liquid cloud fraction
 !> @param[in]     cff_wth             Ice cloud fraction
+!> @param[in]     bcf_wth             Bulk cloud fraction
 !> @param[in,out] nl_mphys            CASIM cloud-droplet number concentration
 !> @param[in,out] nr_mphys            CASIM rain-drop number concentration
 !> @param[in,out] ni_mphys            CASIM cloud-ice number concentration
@@ -112,6 +123,9 @@ contains
 !> @param[in]     exner_in_wth        Exner pressure in potential temperature space
 !> @param[in]     wetrho_in_w3        Wet density in density space
 !> @param[in]     dry_rho_in_w3       Dry density in density space
+!> @param[in]     dry_rho_in_wth      Dry density in potential temperature space
+!> @param[in]     u_in_w3             'Zonal' wind in density space
+!> @param[in]     v_in_w3             'Meridional' wind in density space
 !> @param[in]     height_w3           Height of density space levels above surface
 !> @param[in]     height_wth          Height of theta levels above surface
 !> @param[in,out] dmv_wth             Increment to vapour mass mixing ratio
@@ -120,6 +134,9 @@ contains
 !> @param[in,out] dmr_wth             Increment to rain mass mixing ratio
 !> @param[in,out] dmg_wth             Increment to graupel mass mixing ratio
 !> @param[in,out] dms_wth             Increment to snow mass mixing ratio
+!> @param[in,out] dcfl_wth            Increment to liquid cloud fraction
+!> @param[in,out] dcff_wth            Increment to ice cloud fraction
+!> @param[in,out] dbcf_wth            Increment to bulk cloud fraction
 !> @param[in,out] ls_rain_2d          Large scale rain from twod_fields
 !> @param[in,out] ls_snow_2d          Large scale snow from twod_fields
 !> @param[in,out] ls_graup_2d         Large scale graupel from twod_fields
@@ -157,16 +174,19 @@ contains
 subroutine casim_code( nlayers,                     &
                        mv_wth,   ml_wth,   mi_wth,  &
                        mr_wth,   mg_wth,   ms_wth,  &
-                       cfl_wth,  cff_wth,           &
+                       cfl_wth,  cff_wth,  bcf_wth, &
                        nl_mphys, nr_mphys,          &
                        ni_mphys, ns_mphys, ng_mphys,&
                        w_phys,                      &
                        theta_in_wth,                &
                        exner_in_wth, wetrho_in_w3,  &
                        dry_rho_in_w3,               &
+                       dry_rho_in_wth,              &
+                       u_in_w3, v_in_w3,            &
                        height_w3, height_wth,       &
                        dmv_wth,  dml_wth,  dmi_wth, &
                        dmr_wth,  dmg_wth,  dms_wth, &
+                       dcfl_wth, dcff_wth, dbcf_wth,&
                        ls_rain_2d, ls_snow_2d,      &
                        ls_graup_2d, lsca_2d,        &
                        ls_rain_3d, ls_snow_3d,      &
@@ -205,7 +225,13 @@ subroutine casim_code( nlayers,                     &
     use mphys_air_density_mod,      only: mphys_air_density
     use mphys_radar_mod,            only: ref_lim
     use variable_precision,         only: wp
-    use thresholds,            only: ql_tidy
+    use thresholds,                 only: ql_tidy, qi_tidy, cfliq_small
+
+    ! Needed for the PC2 cloud fraction response to the CASIM increments
+    use cderived_mod,               only: delta_lambda, delta_phi
+    use cloud_inputs_mod,           only: i_cld_vn, cff_spread_rate
+    use pc2_constants_mod,          only: i_cld_pc2
+    use qsat_mod,                   only: qsat_mix
 
     implicit none
 
@@ -222,14 +248,17 @@ subroutine casim_code( nlayers,                     &
     real(kind=r_def), intent(in),  dimension(undf_wth) :: ms_wth
     real(kind=r_def), intent(in),  dimension(undf_wth) :: cfl_wth
     real(kind=r_def), intent(in),  dimension(undf_wth) :: cff_wth
+    real(kind=r_def), intent(in),  dimension(undf_wth) :: bcf_wth
     real(kind=r_def), intent(in),  dimension(undf_wth) :: w_phys
     real(kind=r_def), intent(in),  dimension(undf_wth) :: theta_in_wth
     real(kind=r_def), intent(in),  dimension(undf_wth) :: exner_in_wth
     real(kind=r_def), intent(in),  dimension(undf_wth) :: height_wth
     real(kind=r_def), intent(in),  dimension(undf_w3)  :: wetrho_in_w3
     real(kind=r_def), intent(in),  dimension(undf_w3)  :: dry_rho_in_w3
+    real(kind=r_def), intent(in),  dimension(undf_w3)  :: u_in_w3
+    real(kind=r_def), intent(in),  dimension(undf_w3)  :: v_in_w3
     real(kind=r_def), intent(in),  dimension(undf_w3)  :: height_w3
-
+    real(kind=r_def), intent(in),  dimension(undf_wth) :: dry_rho_in_wth
     real(kind=r_def), intent(inout), dimension(undf_wth) :: nl_mphys
     real(kind=r_def), intent(inout), dimension(undf_wth) :: nr_mphys
     real(kind=r_def), intent(inout), dimension(undf_wth) :: ni_mphys
@@ -241,6 +270,9 @@ subroutine casim_code( nlayers,                     &
     real(kind=r_def), intent(inout), dimension(undf_wth) :: dmr_wth
     real(kind=r_def), intent(inout), dimension(undf_wth) :: dmg_wth
     real(kind=r_def), intent(inout), dimension(undf_wth) :: dms_wth
+    real(kind=r_def), intent(inout), dimension(undf_wth) :: dcfl_wth
+    real(kind=r_def), intent(inout), dimension(undf_wth) :: dcff_wth
+    real(kind=r_def), intent(inout), dimension(undf_wth) :: dbcf_wth
     real(kind=r_def), intent(inout), dimension(undf_2d)  :: ls_rain_2d
     real(kind=r_def), intent(inout), dimension(undf_2d)  :: ls_snow_2d
     real(kind=r_def), intent(inout), dimension(undf_2d)  :: ls_graup_2d
@@ -319,8 +351,51 @@ subroutine casim_code( nlayers,                     &
     logical :: supercooled_layer(nlayers)
 
     !-------------------------------------------------------------------------
+    ! PC2 cloud fraction response to the CASIM increments
+    !-------------------------------------------------------------------------
+    ! Use the PC2 shear method to generate an ice cloud fraction increment
+    ! (the same increment code as in lsp_fall).
+    logical, parameter :: l_use_pc2_iceshear = .true.
+    ! Use Wood and Field (2000, JAS) to provide an initial increment to the ice
+    ! cloud fraction if the current fraction is zero but ice or snow is present.
+    logical, parameter :: l_use_wf2000_inc = .true.
+
+    ! Relative humidity limits for the Wood and Field cloud fraction: the upper
+    ! limit is the point at which the cloud fraction reaches one, the lower is
+    ! the onset of cloud fraction formation.
+    real(r_def), parameter :: rh_cfrac_upper = 1.15_r_def
+    real(r_def), parameter :: rh_cfrac_lower = 0.95_r_def
+    real(r_def), parameter :: rcp_rhcfrac_upper_lower =                        &
+                                  1.0_r_def / (rh_cfrac_upper - rh_cfrac_lower)
+
+    ! The horizontal grid is quasi-uniform, so the metric term that the UM
+    ! applies when converting a grid spacing in radians to a length is one.
+    real(r_def), parameter :: fv_cos_theta_latitude = 1.0_r_def
+
+    real(r_def) :: mwfv          ! Mass weighted fallspeed from the level above
+    real(r_def) :: ice_above     ! Frozen water content of the level above
+    real(r_def) :: frac_dep      ! Fraction of the layer depth fallen through
+    real(r_def) :: overhang      ! Ice cloud overhang between levels
+    real(r_def) :: dudz, dvdz    ! Wind differences across the layer
+    real(r_def) :: shear         ! Magnitude of the vertical wind shear
+    real(r_def) :: horiz_scale   ! Horizontal grid box scale
+    real(r_def) :: lateral_disp  ! Lateral displacement of the falling ice
+    real(r_def) :: cff_perimeter ! Perimeter of the ice cloud edge
+    real(r_def) :: deltacff      ! Change in ice cloud fraction
+    real(r_def) :: deltacf       ! Change in bulk cloud fraction
+    real(r_def) :: x_cff         ! Frozen plus vapour content over saturation
+    real(r_def) :: qsi           ! Saturation mixing ratio with respect to ice
+    real(r_def) :: t_pc2         ! Temperature after the CASIM increments
+
+    real(r_def), dimension(nlayers) :: cff_work_pc2, cfl_work_pc2, cf_work_pc2
+
+    logical :: l_pc2_response   ! PC2 is the active cloud scheme
+
+    !-------------------------------------------------------------------------
     ! End of Declarations
     !-------------------------------------------------------------------------
+
+    l_pc2_response = ( i_cld_vn == i_cld_pc2 )
 
     ! Configure optional diagnostics
     casdiags % l_graupfall_3d = ls_graup_3d_flag
@@ -329,8 +404,9 @@ subroutine casim_code( nlayers,                     &
     if (casim_cdnc_opt == casim_cdnc_opt_fixed) then
       do k = 0, nlayers
         if (cfl_wth(map_wth(1) + k) > 0.001_r_def) then
-          cloud_drop_no_conc(map_wth(1) + k) = max(nl_mphys(map_wth(1) + k) / &
-                                                   cfl_wth(map_wth(1) + k), &
+          cloud_drop_no_conc(map_wth(1) + k) = max(nl_mphys(map_wth(1) + k) * &
+                                              dry_rho_in_wth(map_wth(1) + k)/ &
+                                                   cfl_wth(map_wth(1) + k),   &
                                                    min_cdnc_sea_ice)
         else
           cloud_drop_no_conc(map_wth(1) + k) = min_cdnc_sea_ice
@@ -343,7 +419,9 @@ subroutine casim_code( nlayers,                     &
       ! after that has happened, hence why it needs to happen here.
       do k = 1, nlayers
         if (ml_wth(map_wth(1) + k) > ql_tidy) then
-          nl_mphys( map_wth(1) + k) = cloud_drop_no_conc(map_wth(1) + k) * cfl_wth(map_wth(1) + k)
+          nl_mphys( map_wth(1) + k) = cloud_drop_no_conc(map_wth(1) + k)  &
+                                      * cfl_wth(map_wth(1) + k)           &
+                                      / dry_rho_in_wth(map_wth(1) + k)
         else
           nl_mphys( map_wth(1) + k) = 0.0_r_def
         end if
@@ -563,6 +641,164 @@ subroutine casim_code( nlayers,                     &
     ni_mphys( map_wth(1) + 0) = ni_mphys( map_wth(1) + 1)
     ns_mphys( map_wth(1) + 0) = ns_mphys( map_wth(1) + 1)
     ng_mphys( map_wth(1) + 0) = ng_mphys( map_wth(1) + 1)
+
+    !-------------------------------------------------------------------------
+    ! Calculation of increments to the PC2 cloud scheme
+    !-------------------------------------------------------------------------
+    ! Note that the UM species qcf, qcf2 and qgraup map onto the LFRic snow,
+    ! ice and graupel mixing ratios respectively.
+    if (l_pc2_response) then
+
+      !---------------------------------------------------------------------
+      ! Increment ice cloud fractions
+      !---------------------------------------------------------------------
+      if (l_use_pc2_iceshear) then
+        ! use the same method as in lsp_fall to compute an
+        ! ice cloud fraction increment based on wind shear
+
+        do k = nlayers-1, 1, -1  ! start 1 level below the top
+
+          ice_above = ms_wth(map_wth(1) + k+1) + mi_wth(map_wth(1) + k+1) +    &
+                      dms_wth(map_wth(1) + k+1) + dmi_wth(map_wth(1) + k+1)
+
+          ! mwfv is fallspeed from above.
+          if (ice_above > qi_tidy) then
+            mwfv = casdiags % snowonly_3d(1,1,k+1) / ice_above
+          else
+            mwfv = 0.0_r_def
+          end if
+          frac_dep = mwfv * timestep / deltaz(1,1,k)
+
+          ! Ensure frac_dep is positive and <=1
+          frac_dep = min(max(frac_dep, 0.0_r_def), 1.0_r_def)
+
+          !--------------------------------------------------------------
+          ! Calculate the amount of cloud overhang between levels
+          !--------------------------------------------------------------
+          overhang = max(cff_wth(map_wth(1) + k+1) +  &
+                         dcff_wth(map_wth(1) + k+1) - &
+                         cff_wth(map_wth(1) + k),     &
+                         0.0_r_def)
+
+          ! using real shear method from lsp_fall_ice
+          ! Increase the overhang depending on the vertical
+          ! shear of the model wind.
+
+          ! Magnitude of vertical shear of the horizontal wind.
+          ! |dU/dz| = SQRT( dudz^2 + dvdz^2 )
+          dudz = ( u_in_w3(map_w3(1) + k) - u_in_w3(map_w3(1) + k-1) )
+          dvdz = ( v_in_w3(map_w3(1) + k) - v_in_w3(map_w3(1) + k-1) )
+          shear = sqrt( (dudz*dudz) + (dvdz*dvdz) )
+
+          ! The horizontal scale is taken as the square root
+          ! of the area of the grid box.
+          horiz_scale = sqrt (   r_theta_levels(1,1,k) * delta_lambda          &
+                               * r_theta_levels(1,1,k) * delta_phi             &
+                               * fv_cos_theta_latitude     )
+
+          ! Calculate the horizontal distance (in metres) the ice
+          ! has moved across
+          lateral_disp = shear * timestep
+
+          ! Convert the lateral displacement of the falling ice
+          ! cloud fraction to an increase in ice cloud fraction
+          ! overhang by considering the size of the grid-box.
+          overhang = overhang + ( lateral_disp / horiz_scale )
+
+          !--------------------------------------------------------------
+          ! Calculate change in ice cloud fraction
+          !--------------------------------------------------------------
+          ! The overhanging cloud gets advected down a
+          ! certain fraction of the depth of the layer. Now assume the
+          ! cloud fills the whole depth of the layer and
+          ! reduce the lateral extent while conserving cloud volume.
+          deltacff = min(frac_dep * overhang, &
+                         1.0_r_def - cff_wth(map_wth(1) + k))
+
+          ! Augment the change in ice cloud fraction to account
+          ! for the lateral spreading out of ice cloud (e.g. cirrus).
+          ! This will increase CFF while keeping IWC the same.
+          !
+          ! Cloud can only spread out from its edges, so work out the
+          ! perimeter of the cloud edge as a function of cloud fraction.
+          cff_perimeter = ( 2.0_r_def * cff_wth(map_wth(1) + k) )              &
+                        - ( 2.0_r_def * cff_wth(map_wth(1) + k)                &
+                                      * cff_wth(map_wth(1) + k) )
+
+          deltacff = deltacff + (cff_spread_rate * cff_perimeter * timestep)
+          deltacff = min(deltacff, 1.0_r_def - cff_wth(map_wth(1) + k))
+
+          if (cff_wth(map_wth(1) + k) < 1.0_r_def) then
+            !------------------------------------------------------------
+            ! Total cloud fraction will be increased, assuming minimum
+            ! overlap
+            !------------------------------------------------------------
+            deltacf = min(deltacff, 1.0_r_def - bcf_wth(map_wth(1) + k))
+          else
+            deltacf = 0.0_r_def
+          end if
+
+          dcff_wth(map_wth(1) + k) = dcff_wth(map_wth(1) + k) + deltacff
+          dbcf_wth(map_wth(1) + k) = dbcf_wth(map_wth(1) + k) + deltacf
+
+        end do ! k
+      end if ! l_use_pc2_iceshear
+
+      if (l_use_wf2000_inc) then
+        ! if ice cloud fraction is zero and there is
+        ! ice then compute an increment
+
+        do k = 1, nlayers
+
+          t_pc2 = exner_in_wth(map_wth(1) + k) *                               &
+                  ( theta_in_wth(map_wth(1) + k) + theta_inc(map_wth(1) + k) )
+
+          ! LFRic runs with mixing ratio physics throughout
+          call qsat_mix( qsi, t_pc2, real(p_casim(k,1,1), r_def) )
+
+          cff_work_pc2(k) = cff_wth(map_wth(1) + k) + dcff_wth(map_wth(1) + k)
+          cfl_work_pc2(k) = cfl_wth(map_wth(1) + k) + dcfl_wth(map_wth(1) + k)
+          cf_work_pc2(k)  = bcf_wth(map_wth(1) + k) + dbcf_wth(map_wth(1) + k)
+
+          ! Work out ice increments
+          if ( ms_wth(map_wth(1) + k) + mi_wth(map_wth(1) + k) +               &
+               dms_wth(map_wth(1) + k) + dmi_wth(map_wth(1) + k)               &
+               > qi_tidy ) then
+
+            if (cff_work_pc2(k) < cfliq_small) then
+              ! if no ice cloud fraction then make some.
+              x_cff = ( ms_wth(map_wth(1) + k) + mi_wth(map_wth(1) + k) +      &
+                        dms_wth(map_wth(1) + k) + dmi_wth(map_wth(1) + k) +    &
+                        mv_wth(map_wth(1) + k) + dmv_wth(map_wth(1) + k) ) / qsi
+
+              if (x_cff <= rh_cfrac_lower) cff_work_pc2(k) = 0.0_r_def
+              if ((x_cff > rh_cfrac_lower) .and. (x_cff < rh_cfrac_upper))     &
+                  cff_work_pc2(k) = (x_cff - rh_cfrac_lower)                   &
+                                    * rcp_rhcfrac_upper_lower
+              if (x_cff >= rh_cfrac_upper) cff_work_pc2(k) = 1.0_r_def
+
+            end if  ! no ice cloud fraction present - make some
+          else
+            cff_work_pc2(k) = 0.0_r_def
+          end if
+
+          ! Finalise PC2 increments
+          cf_work_pc2(k) = min(1.0_r_def, cfl_work_pc2(k) + cff_work_pc2(k))
+
+          dcff_wth(map_wth(1) + k) = cff_work_pc2(k) - cff_wth(map_wth(1) + k)
+          dcfl_wth(map_wth(1) + k) = cfl_work_pc2(k) - cfl_wth(map_wth(1) + k)
+          dbcf_wth(map_wth(1) + k) = cf_work_pc2(k)  - bcf_wth(map_wth(1) + k)
+
+        end do ! k
+      end if  ! l_use_wf2000_inc
+
+      ! Increment level 0 the same as level 1
+      !  (as done for the other increments above)
+      dcfl_wth(map_wth(1) + 0) = dcfl_wth(map_wth(1) + 1)
+      dcff_wth(map_wth(1) + 0) = dcff_wth(map_wth(1) + 1)
+      dbcf_wth(map_wth(1) + 0) = dbcf_wth(map_wth(1) + 1)
+
+    end if  ! l_pc2_response
 
     ! Copy ls_rain, ls_snow and ls_graup
     ls_rain_2d(map_2d(1))  = casdiags % SurfaceRainR(1,1)
