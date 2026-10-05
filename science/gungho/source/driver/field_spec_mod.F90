@@ -317,7 +317,7 @@ contains
   !> via the decomposition implemented by the routines split_complex_prognostics /
   !> combine_complex_prognostics in gungho_init_fields_mod.X90.
   !> @param[in] fs         Function space enumerator
-  !> @param[in] legacy     Are we using legacy checkpoint domains (checkpoint_W2, etc.)?
+  !> @param[in] legacy     Are we using legacy checkpoint domains (legacy_W2, etc.)?
   !> @return               True if and only if space is supported
   function space_has_xios_io(fs, legacy) result(flag)
     use fs_continuity_mod,              only : W1, W2

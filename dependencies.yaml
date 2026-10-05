@@ -30,8 +30,8 @@ lfric_apps:
     ref:
 
 lfric_core:
-    source: git@github.com:MetOffice/lfric_core.git
-    ref: 17d81d9de528d779f70549225aa6382ca04c3a52
+    source: git@github.com:EdHone/lfric_core.git
+    ref: ugrid-ckp-flag
 
 moci:
     source: git@github.com:MetOffice/moci.git

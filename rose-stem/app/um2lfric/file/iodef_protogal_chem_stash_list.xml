@@ -114,7 +114,7 @@
 	<field id="dust1_mmr" name="dust1_mmr" long_name="Dust Division 1 Mass Mixing Ratio" unit="kg/kg" grid_ref="full_level_face_grid" />
 	<field id="dust2_mmr" name="dust2_mmr" long_name="Dust Division 2 Mass Mixing Ratio" unit="kg/kg" grid_ref="full_level_face_grid" />
 	<field id="qt" name="qt" long_name="Total Specific Humidity" unit="1" grid_ref="full_level_face_grid" />
-	<field id="exner" name="exner_inc" long_name="Exner Pressure" unit="kg m-1 s-2" domain_ref="checkpoint_W3"/>
+	<field id="exner" name="exner_inc" long_name="Exner Pressure" unit="kg m-1 s-2" domain_ref="legacy_W3"/>
 
         <!--Chemistry fields -->
         <field id="o3p" name="o3p" long_name="mass_fraction_of_oxygen_ground_state_in_air" unit="1" grid_ref="full_level_face_grid" />
@@ -236,7 +236,7 @@
 	<field id="frozen_soil_moisture" name="frozen_soil_moisture" long_name="Frozen soil moisture proportion" unit="1" grid_ref="soil_levels_face_grid" />
 	<field id="soil_wet_frac" name="soil_wet_frac" long_name="Soil wet fraction" unit="1" domain_ref="face" />
 	<field id="tstar_sea" name="tstar_sea" long_name="Sea surface temperature" unit="K" domain_ref="face" />
-	<field id="land_mask" name="land_mask" long_name="land_mask" unit="1" domain_ref="checkpoint_W3" />
+	<field id="land_mask" name="land_mask" long_name="land_mask" unit="1" domain_ref="legacy_W3" />
       </field_group>
 
     </field_definition>
