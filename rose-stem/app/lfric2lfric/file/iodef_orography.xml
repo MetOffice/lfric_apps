@@ -63,6 +63,8 @@
 
         <!-- Turbulence fields -->
         <field id="checkpoint_zh" name="zh" long_name="boundary_layer_depth" unit="m" prec="8" domain_ref="face" operation="once" />
+	<field id="checkpoint_surface_altitude" name="surface_altitude" long_name="Surface altitude" unit="m" operation="once" domain_ref="face"/>
+
 
       </file>
     </file_definition>

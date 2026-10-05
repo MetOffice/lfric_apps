@@ -144,6 +144,32 @@
         "src_type": "global",
     }) %}
 
+{% elif task_ns.conf_name == "oasis_C12L70_to_seukL38" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["oasis","src_C12_L70","dst_seuk","src_L70_80km","dst_L38_40km"],
+        "resolution": ["C24_C12", "seuk_MG"],
+        "dst_mesh": "seuk_MG",
+        "dst_name": "dynamics",
+        "dst_type": "regional",
+        "src_mesh": "C24_C12",
+        "src_name": "C12",
+        "src_type": "global",
+    }) %}
+
+{% elif task_ns.conf_name == "oasis_C12L70_to_C12L38" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["oasis","src_C12_L70","dst_C12","src_L70_80km","dst_L38_40km"],
+        "resolution": ["C24_C12", "C12"],
+        "dst_mesh": "C12",
+        "dst_name": "dynamics",
+        "dst_type": "global",
+        "src_mesh": "C24_C12",
+        "src_name": "C12",
+        "src_type": "global",
+    }) %}
+
 {% elif task_ns.conf_name == "oasis_clim_gal9-C24_C12_6cpu" %}
 
     {% do task_dict.update({

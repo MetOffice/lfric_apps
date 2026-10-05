@@ -10,10 +10,20 @@
     {# Family for all gen weights tasks for grouping in gui #}
     [[GENERATE_WEIGHTS]]
 
+    {# Generate a resource family for the task #}
+    {% set resource_family = task~"_resources" %}
+    {{ set_task_resources(
+        resource_family,
+        "",
+        task_values["gen_weights_wallclock"],
+        task_values["gen_weights_tasks"],
+        task_values["gen_weights_memory"]
+        ) }}
 
     [[{{task}}]]
         inherit = GENERATE_WEIGHTS, \
-                  {{site_vars["scripts_platform"]|upper}}_WEIGHTS
+                  {{site_vars["scripts_platform"]|upper}}_WEIGHTS, \
+                  {{resource_family|upper}}
 {% if task_ns.application == "lfric2lfric" %}
         script = rose task-run --app-key=generate_weights -O lfric2lfric
 {% else %}
@@ -48,11 +58,6 @@
             GRID_TYPE_UM = {{task_values["target_grid_type"]}}
             GRID_TYPE_LFRIC = {{task_values["source_grid_type"]}}
     {% endif %}
-        [[[directives]]]
-            {{ set_task_resources(
-                task_values["gen_weights_tasks"],
-                task_values["gen_weights_memory"]
-                )}}
 
 
 {% do LOG.debug("Finished in templates/runtime/generate_runtime_gen_weights.cylc") %}
