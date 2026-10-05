@@ -154,14 +154,18 @@
 {% elif task_ns.conf_name == "oasis_clim_gal9_C12-ral_seuk_C16_lam_1cpu" %}
 
     {% do task_dict.update({
-        "opt_confs": ["clim_gal9_ral_seuk","oasis"],
-        "resolution": "C12_C16_lam",
+        "opt_confs": ["C12_C16_lam","clim_gal9_ral_seuk","oasis"],
+        "resolution": "seuk_MG",
         "dst_mesh": "seuk_MG",
         "dst_name": "dynamics",
         "dst_type": "regional",
+	"dst_mask_path": "/data/users/lfricadmin/data/ancils/proto-ral/Ticket3510/seuk/land_sea_mask/qrparm.mask.ugrid.fixed",
+	"dst_mask_name": "land_binary_mask",
         "src_mesh": "C24_C12",
         "src_name": "C12",
         "src_type": "global",
+	"src_mask_path": "/data/users/lfricadmin/data/ancils/basic-gagl/Puku/C12/n96e/orca025/land_sea_mask/qrparm.mask.ugrid",
+	"src_mask_name": "land_binary_mask"
     }) %}
 
 {% elif task_ns.conf_name == "oasis_clim_gal9_C12-ral_seuk_C16_lam_4cpu" %}
