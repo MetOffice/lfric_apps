@@ -21,7 +21,7 @@ module lipschitz_damping_kernel_mod_test
   @TestCase
   type, extends(TestCase), public :: lipschitz_damping_test_type
     private
-    real(kind=r_def), allocatable :: u_out(:)
+    real(kind=r_def), allocatable :: u_inc(:)
     real(kind=r_def), allocatable :: u_in(:)
     real(kind=r_def), allocatable :: detj_at_w3(:)
     real(kind=r_def), allocatable :: breached(:)
@@ -51,7 +51,7 @@ contains
     class(lipschitz_damping_test_type), intent(inout) :: this
     integer(kind=i_def) :: i
 
-    allocate( this%u_out(undf_w2) )
+    allocate( this%u_inc(undf_w2) )
     allocate( this%u_in(undf_w2) )
     allocate( this%detj_at_w3(undf_w3) )
     allocate( this%breached(undf_w3) )
@@ -72,7 +72,7 @@ contains
 
     class(lipschitz_damping_test_type), intent(inout) :: this
 
-    deallocate( this%u_out )
+    deallocate( this%u_inc )
     deallocate( this%u_in )
     deallocate( this%detj_at_w3 )
     deallocate( this%breached )
@@ -100,10 +100,10 @@ contains
     ! wind field is left unmodified
     this%u_in = (/ 0.0_r_def, 0.0_r_def, 0.2_r_def, &
                   -0.1_r_def, 0.0_r_def, 0.1_r_def /)
-    this%u_out = 0.0_r_def
+    this%u_inc = 0.0_r_def
 
     call lipschitz_damping_code( nlayers,                      &
-                                 this%u_out,                   &
+                                 this%u_inc,                   &
                                  this%u_in,                    &
                                  this%detj_at_w3,              &
                                  this%breached,                &
@@ -111,12 +111,12 @@ contains
                                  ndf_w2, undf_w2, this%map_w2, &
                                  ndf_w3, undf_w3, this%map_w3 )
 
-    @assertEqual(this%u_out(1), 0.0_r_def, tol)
-    @assertEqual(this%u_out(2), 0.0_r_def, tol)
-    @assertEqual(this%u_out(3), 0.2_r_def, tol)
-    @assertEqual(this%u_out(4), -0.1_r_def, tol)
-    @assertEqual(this%u_out(5), 0.0_r_def, tol)
-    @assertEqual(this%u_out(6), 0.1_r_def, tol)
+    @assertEqual(this%u_inc(1), 0.0_r_def, tol)
+    @assertEqual(this%u_inc(2), 0.0_r_def, tol)
+    @assertEqual(this%u_inc(3), 0.0_r_def, tol)
+    @assertEqual(this%u_inc(4), 0.0_r_def, tol)
+    @assertEqual(this%u_inc(5), 0.0_r_def, tol)
+    @assertEqual(this%u_inc(6), 0.0_r_def, tol)
     @assertEqual(this%breached(1), 0.0_r_def, tol)
 
     ! Case 2: the x-direction 1D Lipschitz number exceeds 1, so the
@@ -125,10 +125,10 @@ contains
     ! (recomputed from the clamped winds) stays within 0.5 and is untouched
     this%u_in = (/ -0.3_r_def, 0.0_r_def, 0.9_r_def, &
                     0.3_r_def, 0.3_r_def, 0.0_r_def /)
-    this%u_out = 0.0_r_def
+    this%u_inc = 0.0_r_def
 
     call lipschitz_damping_code( nlayers,                      &
-                                 this%u_out,                   &
+                                 this%u_inc,                   &
                                  this%u_in,                    &
                                  this%detj_at_w3,              &
                                  this%breached,                &
@@ -136,12 +136,12 @@ contains
                                  ndf_w2, undf_w2, this%map_w2, &
                                  ndf_w3, undf_w3, this%map_w3 )
 
-    @assertEqual(this%u_out(1), -0.25_r_def, tol)
-    @assertEqual(this%u_out(2), 0.0_r_def, tol)
-    @assertEqual(this%u_out(3), 0.75_r_def, tol)
-    @assertEqual(this%u_out(4), 0.3_r_def, tol)
-    @assertEqual(this%u_out(5), 0.3_r_def, tol)
-    @assertEqual(this%u_out(6), 0.0_r_def, tol)
+    @assertEqual(this%u_inc(1), 0.05_r_def, tol)
+    @assertEqual(this%u_inc(2), 0.0_r_def, tol)
+    @assertEqual(this%u_inc(3), -0.15_r_def, tol)
+    @assertEqual(this%u_inc(4), 0.0_r_def, tol)
+    @assertEqual(this%u_inc(5), 0.0_r_def, tol)
+    @assertEqual(this%u_inc(6), 0.0_r_def, tol)
     @assertEqual(this%breached(1), 1.0_r_def, tol)
 
     ! Case 3: the x-direction 1D Lipschitz number exceeds 1 and, even after
@@ -150,10 +150,10 @@ contains
     ! applied to the W/E components
     this%u_in = (/ -0.3_r_def, 0.0_r_def, 0.9_r_def, &
                     0.0_r_def, 0.0_r_def, 0.0_r_def /)
-    this%u_out = 0.0_r_def
+    this%u_inc = 0.0_r_def
 
     call lipschitz_damping_code( nlayers,                      &
-                                 this%u_out,                   &
+                                 this%u_inc,                   &
                                  this%u_in,                    &
                                  this%detj_at_w3,              &
                                  this%breached,                &
@@ -161,12 +161,12 @@ contains
                                  ndf_w2, undf_w2, this%map_w2, &
                                  ndf_w3, undf_w3, this%map_w3 )
 
-    @assertEqual(this%u_out(1), -0.125_r_def, tol)
-    @assertEqual(this%u_out(2), 0.0_r_def, tol)
-    @assertEqual(this%u_out(3), 0.375_r_def, tol)
-    @assertEqual(this%u_out(4), 0.0_r_def, tol)
-    @assertEqual(this%u_out(5), 0.0_r_def, tol)
-    @assertEqual(this%u_out(6), 0.0_r_def, tol)
+    @assertEqual(this%u_inc(1), 0.175_r_def, tol)
+    @assertEqual(this%u_inc(2), 0.0_r_def, tol)
+    @assertEqual(this%u_inc(3), -0.525_r_def, tol)
+    @assertEqual(this%u_inc(4), 0.0_r_def, tol)
+    @assertEqual(this%u_inc(5), 0.0_r_def, tol)
+    @assertEqual(this%u_inc(6), 0.0_r_def, tol)
     @assertEqual(this%breached(1), 1.0_r_def, tol)
 
   end subroutine test_all

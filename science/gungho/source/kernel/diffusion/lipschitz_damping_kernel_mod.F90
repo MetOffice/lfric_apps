@@ -59,8 +59,8 @@ contains
 
 !> @brief Damps a wind field wherever its 1D or 3D Lipschitz numbers exceed
 !!        given thresholds.
-!> @param[in]     nlayers     Number of layers in the mesh.
-!> @param[in,out] u_out       Output wind field, damped
+!> @param[in]     nlayers     Number of layers in the mesh
+!> @param[in,out] u_inc       Output increment wind field
 !> @param[in]     u_in        Input wind field
 !> @param[in]     detj_at_w3  Cell volume, V, used to form the Lipschitz numbers
 !> @param[in,out] breached    1 where a Lipschitz number breached a threshold,
@@ -73,7 +73,7 @@ contains
 !> @param[in]     undf_w3     Total num DoFs in this partition for W3
 !> @param[in]     map_w3      Dofmap for W3
 subroutine lipschitz_damping_code(nlayers,                                     &
-                                  u_out, u_in,                                 &
+                                  u_inc, u_in,                                 &
                                   detj_at_w3, breached, dt,                    &
                                   ndf_w2, undf_w2, map_w2,                     &
                                   ndf_w3, undf_w3, map_w3)
@@ -87,7 +87,7 @@ subroutine lipschitz_damping_code(nlayers,                                     &
   integer(kind=i_def), intent(in)    :: map_w2(ndf_w2)
   integer(kind=i_def), intent(in)    :: map_w3(ndf_w3)
 
-  real(kind=r_def),    intent(inout) :: u_out(undf_w2)
+  real(kind=r_def),    intent(inout) :: u_inc(undf_w2)
   real(kind=r_def),    intent(in)    :: u_in(undf_w2)
   real(kind=r_def),    intent(in)    :: detj_at_w3(undf_w3)
   real(kind=r_def),    intent(inout) :: breached(undf_w3)
@@ -119,6 +119,8 @@ subroutine lipschitz_damping_code(nlayers,                                     &
 
   real(kind=r_def), parameter :: threshold_1d = 1.0_r_def
   real(kind=r_def), parameter :: threshold_3d = 0.5_r_def
+
+  integer(kind=i_def) :: k
 
   nl = nlayers - 1
 
@@ -193,24 +195,24 @@ subroutine lipschitz_damping_code(nlayers,                                     &
   contrib_n(:) = max(-un(:), 0.0_r_def)
   contrib_t(:) = max(ut(:), 0.0_r_def)
   contrib_b(:) = max(-ub(:), 0.0_r_def)
-  total(:) = contrib_e(:) + contrib_w(:) + contrib_s(:) + contrib_n(:) + &
-             contrib_t(:) + contrib_b(:)
+  total(:) = contrib_e(:) + contrib_w(:) + contrib_s(:) + contrib_n(:)         &
+             + contrib_t(:) + contrib_b(:)
   where (total(:) > 0.0_r_def)
-    ue(:) = ue(:) - (contrib_e(:)/total(:))*excess(:)
-    uw(:) = uw(:) + (contrib_w(:)/total(:))*excess(:)
-    us(:) = us(:) - (contrib_s(:)/total(:))*excess(:)
-    un(:) = un(:) + (contrib_n(:)/total(:))*excess(:)
-    ut(:) = ut(:) - (contrib_t(:)/total(:))*excess(:)
-    ub(:) = ub(:) + (contrib_b(:)/total(:))*excess(:)
+    ue(:) = ue(:) - (contrib_e(:) / total(:)) * excess(:)
+    uw(:) = uw(:) + (contrib_w(:) / total(:)) * excess(:)
+    us(:) = us(:) - (contrib_s(:) / total(:)) * excess(:)
+    un(:) = un(:) + (contrib_n(:) / total(:)) * excess(:)
+    ut(:) = ut(:) - (contrib_t(:) / total(:)) * excess(:)
+    ub(:) = ub(:) + (contrib_b(:) / total(:)) * excess(:)
   end where
 
   ! Increment the output field based on the new wind components
-  u_out(w_idx : w_idx+nl) = u_out(w_idx : w_idx+nl) + uw(:)
-  u_out(s_idx : s_idx+nl) = u_out(s_idx : s_idx+nl) + us(:)
-  u_out(e_idx : e_idx+nl) = u_out(e_idx : e_idx+nl) + ue(:)
-  u_out(n_idx : n_idx+nl) = u_out(n_idx : n_idx+nl) + un(:)
-  u_out(b_idx : b_idx+nl) = u_out(b_idx : b_idx+nl) + ub(:)
-  u_out(t_idx : t_idx+nl) = u_out(t_idx : t_idx+nl) + ut(:)
+  u_inc(w_idx : w_idx+nl) = u_inc(w_idx : w_idx+nl) + uw(:) - u_in(w_idx : w_idx+nl)
+  u_inc(s_idx : s_idx+nl) = u_inc(s_idx : s_idx+nl) + us(:) - u_in(s_idx : s_idx+nl)
+  u_inc(e_idx : e_idx+nl) = u_inc(e_idx : e_idx+nl) + ue(:) - u_in(e_idx : e_idx+nl)
+  u_inc(n_idx : n_idx+nl) = u_inc(n_idx : n_idx+nl) + un(:) - u_in(n_idx : n_idx+nl)
+  u_inc(b_idx : b_idx+nl) = u_inc(b_idx : b_idx+nl) + ub(:) - u_in(b_idx : b_idx+nl)
+  u_inc(t_idx : t_idx+nl) = u_inc(t_idx : t_idx+nl) + ut(:) - u_in(t_idx : t_idx+nl)
 
 end subroutine lipschitz_damping_code
 

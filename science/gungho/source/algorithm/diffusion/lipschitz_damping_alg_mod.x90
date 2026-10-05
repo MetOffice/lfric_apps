@@ -48,7 +48,7 @@ contains
     type(field_type),  intent(inout) :: u
     real(kind=r_def),  intent(in)    :: dt
 
-    type(field_type)                   :: u_out
+    type(field_type)                   :: u_inc
     type(field_type)                   :: breached
     type(field_type),          pointer :: detj_at_w3
     type(mesh_type),           pointer :: mesh
@@ -63,13 +63,13 @@ contains
     detj_at_w3 => get_detj_at_w3_fv(mesh)
 
     w3_fs => function_space_collection%get_fs(mesh, 0, 0, W3)
-    call u_out%initialise( u%get_function_space() )
+    call u_inc%initialise( u%get_function_space() )
     call breached%initialise( w3_fs )
-    call invoke( setval_c(u_out, 0.0_r_def),                                   &
+    call invoke( setval_c(u_inc, 0.0_r_def),                                   &
                  setval_c(breached, 0.0_r_def),                                &
-                 lipschitz_damping_kernel_type(u_out, u, detj_at_w3,           &
+                 lipschitz_damping_kernel_type(u_inc, u, detj_at_w3,           &
                                                breached, dt),                  &
-                 setval_X(u, u_out) )
+                 inc_X_plus_Y(u, u_inc) )
 
     if ( log_at_level(LOG_LEVEL_INFO) ) then
       call invoke( sum_X(breach_count, breached) )
