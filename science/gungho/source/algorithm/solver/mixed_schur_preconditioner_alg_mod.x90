@@ -462,7 +462,6 @@ contains
     type( r_solver_operator_type ), pointer :: div_star
     type( r_solver_field_type )             :: u_inc
     type(r_solver_field_type),      pointer :: w2_mask
-    integer( kind=i_def )                   :: mesh_id
 
     type(mesh_type), pointer :: mesh
 
@@ -478,9 +477,7 @@ contains
     if ( LPROF ) call start_timing( id, 'schur_precon.back_sub' )
 
     exner_inc => self%pressure_x%get_field_from_position(1)
-
-    mesh_id =  self%rhs_u%get_mesh_id()
-    mesh    => self%rhs_u%get_mesh()
+    mesh => self%rhs_u%get_mesh()
 
     ! Create increment fields
 
@@ -493,7 +490,7 @@ contains
       state_uv => state%get_field_from_position( isol_uv )
       state_w  => state%get_field_from_position( isol_w )
       if ( limited_area ) then
-        w2_mask => get_mask_r_solver(W2, mesh_id, prime_mesh_name)
+        w2_mask => get_mask_r_solver(W2, mesh%get_id(), prime_mesh_name)
       else
         call dummy_field%initialise( vector_space = self%rhs_u%get_function_space() )
         w2_mask => dummy_field
@@ -516,7 +513,7 @@ contains
                                                     Hb_lumped_inv),            &
                    enforce_bc_kernel_type(u_inc) )
       if ( limited_area ) then
-        w2_mask => get_mask_r_solver(W2, mesh_id, prime_mesh_name)
+        w2_mask => get_mask_r_solver(W2, mesh%get_id(), prime_mesh_name)
         call invoke( inc_X_times_Y(u_inc, w2_mask) )
       end if
 

@@ -167,10 +167,10 @@ contains
     type(config_type), intent(in) :: config
     type(mesh_type),   intent(in) :: mesh
 
-    real(r_def), intent(inout)            :: l2
-    type(field_type), intent(in)          :: theta
-    type(field_type), intent(in)          :: moist_dyn(num_moist_factors)
-    type(field_type), intent(in)          :: exner
+    real(r_def),       intent(inout) :: l2
+    type(field_type),  intent(in)    :: theta
+    type(field_type),  intent(in)    :: moist_dyn(num_moist_factors)
+    type(field_type),  intent(in)    :: exner
 
     type(field_type), pointer    :: geopotential
     type(field_type)             :: hyd_imbal
