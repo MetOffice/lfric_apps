@@ -571,6 +571,7 @@ contains
         call casim_alg( modeldb%config, mr_n, theta, rho,                &
                         derived_fields, microphysics_fields,             &
                         cloud_fields, aerosol_fields, turbulence_fields, &
+                        convection_fields,                               &
                         mesh, dmr_mphys, dtheta_mphys,                   &
                         dcfl_pc2_mphys, dcff_pc2_mphys, dbcf_pc2_mphys )
       else
@@ -579,7 +580,8 @@ contains
         call um_sizes_init(ncells)
         call mphys_alg( modeldb%config,mr_n, theta, rho, derived_fields,   &
                         microphysics_fields, cloud_fields, aerosol_fields, &
-                        turbulence_fields, orography_fields, f_arr,        &
+                        turbulence_fields, convection_fields,              &
+                        orography_fields, f_arr,                           &
                         dmr_mphys, dtheta_mphys, dcfl_pc2_mphys,           &
                         dcff_pc2_mphys, dbcf_pc2_mphys, dt )
         ! Switch UM back to columns
