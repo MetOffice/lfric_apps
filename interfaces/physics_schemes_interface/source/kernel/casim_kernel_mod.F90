@@ -354,6 +354,9 @@ subroutine casim_code( nlayers,                     &
     ! Use Wood and Field (2000, JAS) to provide an initial increment to the ice
     ! cloud fraction if the current fraction is zero but ice or snow is present.
     logical, parameter :: l_use_wf2000_inc = .true.
+    ! Take the ice cloud fraction back down again where CASIM has sublimated
+    ! ice or snow (the same response lsp_deposition makes in Wilson-Ballard).
+    logical, parameter :: l_use_pc2_icesub = .true.
 
     ! Relative humidity limits for the Wood and Field cloud fraction: the upper
     ! limit is the point at which the cloud fraction reaches one, the lower is
@@ -378,6 +381,8 @@ subroutine casim_code( nlayers,                     &
     real(r_def) :: cff_perimeter ! Perimeter of the ice cloud edge
     real(r_def) :: deltacff      ! Change in ice cloud fraction
     real(r_def) :: deltacf       ! Change in bulk cloud fraction
+    real(r_def) :: dqi_sub       ! Frozen water sublimated over the timestep
+    real(r_def) :: ice_presub    ! Frozen water content before sublimating
     real(r_def) :: x_cff         ! Frozen plus vapour content over saturation
     real(r_def) :: qsi           ! Saturation mixing ratio with respect to ice
     real(r_def) :: t_pc2         ! Temperature after the CASIM increments
@@ -547,6 +552,11 @@ subroutine casim_code( nlayers,                     &
 
     if (l_refl_tot .or. l_refl_1km) casdiags % l_radar = .true.
     if (murk_prognostic) casdiags % l_snowfall_3d = .true.
+
+    ! The ice cloud fraction response below needs the rates at which CASIM
+    ! sublimates ice and snow.
+    casdiags % l_pisub = l_pc2_response
+    casdiags % l_pssub = l_pc2_response
 
     call allocate_diagnostic_space(its, ite, jts, jte, kts, kte)
 
@@ -738,6 +748,62 @@ subroutine casim_code( nlayers,                     &
 
         end do ! k
       end if ! l_use_pc2_iceshear
+
+      if (l_use_pc2_icesub) then
+        ! shrink the ice cloud fraction in step with the ice that CASIM has
+        ! sublimated, the same response lsp_deposition makes
+
+        do k = 1, nlayers
+
+          ! Ice and snow lost to sublimation over the timestep.  CASIM only
+          ! fills these rates in where the layer is subsaturated with respect
+          ! to ice, so they are sinks, but the latent heat given up by
+          ! collection can tip the calculation the other way and leave a
+          ! small rate of the opposite sign behind.
+          dqi_sub = ( casdiags % pisub(1,1,k)                                  &
+                    + casdiags % pssub(1,1,k) ) * timestep
+          dqi_sub = max( dqi_sub, 0.0_r_def )
+
+          ! Frozen water the sublimation acted on: what CASIM has left plus
+          ! what it took away.  Graupel is left out of both this and the
+          ! rates above, as it is everywhere else in this response.
+          ice_presub = ms_wth(map_wth(1) + k) + mi_wth(map_wth(1) + k) +       &
+                       dms_wth(map_wth(1) + k) + dmi_wth(map_wth(1) + k) +     &
+                       dqi_sub
+
+          if (dqi_sub > 0.0_r_def .and. ice_presub > qi_tidy) then
+
+            !--------------------------------------------------------------
+            ! Calculate change in ice cloud fraction
+            !--------------------------------------------------------------
+            ! PC2 holds the ice cloud fraction proportional to the square
+            ! root of the ice content, so taking dqi_sub out of ice_presub
+            ! scales the fraction by the square root of the part left
+            ! behind.  Written this way the fraction can only be scaled by
+            ! something between zero and one, which is what the separate
+            ! limits on the increment in lsp_deposition are there for.  The
+            ! square root is still floored, as CASIM is free to return a
+            ! frozen water content slightly below zero.
+            deltacff = ( cff_wth(map_wth(1) + k) + dcff_wth(map_wth(1) + k) )  &
+                     * ( sqrt( max( 1.0_r_def - dqi_sub/ice_presub,            &
+                                    0.0_r_def ) ) - 1.0_r_def )
+
+            !--------------------------------------------------------------
+            ! Total cloud fraction is reduced by the same amount
+            !--------------------------------------------------------------
+            ! Sublimating ice sits in the part of the gridbox that holds no
+            ! liquid cloud, so the bulk fraction gives up the same area, as
+            ! far as there is any of it left to give up.
+            deltacf = max( deltacff, -( bcf_wth(map_wth(1) + k)                &
+                                      + dbcf_wth(map_wth(1) + k) ) )
+
+            dcff_wth(map_wth(1) + k) = dcff_wth(map_wth(1) + k) + deltacff
+            dbcf_wth(map_wth(1) + k) = dbcf_wth(map_wth(1) + k) + deltacf
+
+          end if
+
+        end do ! k
+      end if ! l_use_pc2_icesub
 
       if (l_use_wf2000_inc) then
         ! if ice cloud fraction is zero and there is
