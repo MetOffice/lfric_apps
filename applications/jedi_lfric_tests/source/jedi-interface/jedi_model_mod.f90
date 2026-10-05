@@ -102,19 +102,6 @@ subroutine model_step(self, state)
   class( jedi_model_type ), target, intent(inout) :: self
   type( jedi_state_type ),          intent(inout) :: state
 
-  ! Local
-  logical :: clock_running
-
-  ! check the clock
-  clock_running = state%modeldb%clock%tick()
-  ! If the clock has finished then it will just get the
-  ! data at the end of the file - this prevents that
-  if ( .not. clock_running ) then
-    write ( log_scratch_space, '(A)' ) &
-            "Model::model_step::The LFRic clock has stopped."
-    call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-  endif
-
   ! step gungho
   call step_nl( state%modeldb )
 

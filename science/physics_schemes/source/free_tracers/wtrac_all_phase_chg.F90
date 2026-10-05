@@ -63,7 +63,7 @@ integer, parameter :: field_kind = real_64
 
 character(len=*), parameter :: RoutineName='WTRAC_ALL_PHASE_CHG_REAL64'
 
-#include "wtrac_all_phase_chg.h"
+#include "include/wtrac_all_phase_chg.h"
 
 return
 end subroutine wtrac_all_phase_chg_real64
@@ -84,7 +84,7 @@ integer, parameter :: field_kind = real_32
 
 character(len=*), parameter :: RoutineName='WTRAC_ALL_PHASE_CHG_REAL32'
 
-#include "wtrac_all_phase_chg.h"
+#include "include/wtrac_all_phase_chg.h"
 
 return
 end subroutine wtrac_all_phase_chg_real32
