@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+!> Some of the content of this file has been produced with the assistance of
+!> Met Office Claude Code Enterprise.
+
 !> @brief Column inputs for the clear air turbulence predictor at one
 !>        pressure level: winds on the level and the vertical wind shear.
 
