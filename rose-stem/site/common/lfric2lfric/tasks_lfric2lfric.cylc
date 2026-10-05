@@ -192,9 +192,13 @@
         "dst_mesh": "seuk_MG",
         "dst_name": "dynamics",
         "dst_type": "regional",
+	"dst_mask_path": "/data/users/lfricadmin/data/ancils/proto-ral/Ticket3510/seuk/land_sea_mask/qrparm.mask.ugrid.fixed",
+	"dst_mask_name": "land_binary_mask",
         "src_mesh": "C24_C12",
         "src_name": "C12",
         "src_type": "global",
+	"src_mask_path": "/data/users/lfricadmin/data/ancils/basic-gagl/Puku/C12/n96e/orca025/land_sea_mask/qrparm.mask.ugrid",
+	"src_mask_name": "land_binary_mask"
         "xios_min_buffer_size": 2097152,
     }) %}
 

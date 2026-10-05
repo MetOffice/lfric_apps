@@ -38,9 +38,13 @@
             DST_GRID_PATH = {{mesh_dir}}/{{task_values["dst_mesh"]}}/mesh_{{task_values["dst_mesh"]}}.nc
             DST_GRID_TYPE = {{task_values["dst_type"]}}
             DST_MESH_NAME = {{task_values["dst_name"]}}
+	    DST_MASK_PATH = {{task_values["dst_mask_path"]}}.nc
+	    DST_MASK_NAME = {{task_values["dst_mask_name"]}}
             SRC_GRID_PATH = {{mesh_dir}}/{{task_values["src_mesh"]}}/mesh_{{task_values["src_mesh"]}}.nc
             SRC_GRID_TYPE = {{task_values["src_type"]}}
             SRC_MESH_NAME = {{task_values["src_name"]}}
+	    SRC_MASK_PATH = {{task_values["src_mask_path"]}}.nc
+	    SRC_MASK_NAME = {{task_values["src_mask_name"]}}
     {% elif task_values["app_name"] == "um2lfric" %}
             WEIGHT_GEN_OPTION = {{task_values["weight_gen_option"]}}
             UM_START_DUMP = {{task_values["source_dump"]}}
