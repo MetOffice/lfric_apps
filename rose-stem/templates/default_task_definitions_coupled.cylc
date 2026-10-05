@@ -25,10 +25,6 @@
     {% do task_dict.update({"expt_calendar": "360day"}) %}
 {% endif %}
 
-{% if "expt_resub" not in task_dict %}
-    {% do task_dict.update({"expt_resub": "12H"}) %}
-{% endif %}
-
 {# Caution: This default assumes running at the MO #}
 {% if "gswp_install_dir" not in task_dict %}
     {% do task_dict.update({"gswp_install_dir": "/common/internal/jules/datasets/gswp2"}) %}
@@ -53,7 +49,7 @@
 {% endif %}
 
 {% if "nemo_rst" not in task_dict %}
-    {% do task_dict.update({"nemo_rst": task_dict["datam"]~"/NEMOhist"}) %}
+    {% do task_dict.update({"nemo_rst": "NEMOhist"}) %}
 {% endif %}
 
 {# Caution: This default assumes running at the MO #}
@@ -113,6 +109,18 @@
 {# Caution: This default assumes running at the MO #}
 {% if "rivers_only_install_dir" not in task_dict %}
     {% do task_dict.update({"rivers_only_install_dir": "$BIG_DATA_DIR/ancils/basic-gc/Ticket2861/C48/n96e/orca025/rivers_trip/rivers_grid"}) %}
+{% endif %}
+
+{% if "river_start" not in task_dict %}
+    {% do task_dict.update({"river_start": "$BIG_DATA_DIR/ancils/basic-gc/Ticket147/C48/n96e/orca025/rivers/river_stor_zero_30424.nc"}) %}
+{% endif %}
+
+{% if "river_storage_ancil" not in task_dict %}
+    {% do task_dict.update({"river_storage_ancil": "$RIV_NUMBER_ANCILLARY/qrclim.rivstor.nc"}) %}
+{% endif %}
+
+{% if "river_rst" not in task_dict %}
+    {% do task_dict.update({"river_rst": "RIVERhist"}) %}
 {% endif %}
 
 {% if "river_nodes" not in task_dict %}

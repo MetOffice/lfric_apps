@@ -383,6 +383,7 @@
   <field id="convection__conv_prec_acc" name="conv_prec_acc" long_name="surface_convective_precipitation_amount" unit="kg m-2" domain_ref="face"> $DT * convection__conv_prec </field>
   <field id="convection__conv_rain_3d" name="conv_rain_3d" long_name="convective_rainfall_rate" unit="kg m-2 s-1" grid_ref="full_level_face_grid" />
   <field id="convection__conv_snow_3d" name="conv_snow_3d" long_name="convective_snowfall_rate" unit="kg m-2 s-1" grid_ref="full_level_face_grid" />
+  <field id="convection__conv_ppn_frac" name="conv_ppn_frac" long_name="fraction_of_large_scale_rain_which_is_convective" unit="1" domain_ref="face" />
   <field id="convection__deep_dt" name="deep_dt" long_name="temperature_increment_from_deep_convection" unit="K s-1" grid_ref="full_level_face_grid" />
   <field id="convection__deep_dq" name="deep_dq" long_name="water_vapour_increment_from_deep_convection" unit="kg kg-1 s-1" grid_ref="full_level_face_grid" />
   <field id="convection__deep_massflux" name="deep_massflux" long_name="massflux_for_deep_convection" unit="Pa s-1" grid_ref="full_level_face_grid" />
