@@ -7,16 +7,30 @@
 !>
 module aviation_diags_alg_mod
 
-  use constants_mod,              only: r_def, i_def, l_def, str_long, RMDI
-  use field_mod,                  only: field_type
-  use field_collection_mod,       only: field_collection_type
-  use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
-
-  use lfric_xios_diag_mod,        only: get_axis_dimension, get_axis_values
-  use log_mod,                    only: log_event, log_level_error
-
   use aviation_thickness_snow_kernel_mod,                                   &
-                                  only: aviation_thickness_snow_kernel_type
+                                      only: aviation_thickness_snow_kernel_type
+  use constants_mod,                  only: r_def, i_def, l_def, str_long, RMDI
+  use dg_matrix_vector_kernel_mod,    only: dg_matrix_vector_kernel_type
+  use field_collection_mod,           only: field_collection_type
+  use field_mod,                      only: field_type
+  use fs_continuity_mod,              only: W2h, W2v, W3
+  use function_space_collection_mod,  only: function_space_collection
+  use initialise_diagnostics_mod,     only: init_diag => init_diagnostic_field
+  use integer_field_mod,              only: integer_field_type
+  use lfric_xios_diag_mod,            only: get_axis_dimension, get_axis_values
+  use log_mod,                        only: log_event, log_level_error
+  use mesh_mod,                       only: mesh_type
+  use operator_mod,                   only: operator_type
+  use planet_config_mod,              only: p_zero, kappa
+  use psykal_lite_phys_mod,           only: invoke_pres_interp_kernel_type
+  use r_tran_operator_mod,            only: r_tran_operator_type
+  use sci_geometric_constants_mod,    only: get_face_selector_ew,          &
+                                            get_face_selector_ns
+  use sci_operator_algebra_kernel_mod,                                      &
+                                      only: operator_setval_x_kernel_type
+  use split_w2_field_kernel_mod,      only: split_w2_field_kernel_type
+  use transport_constants_mod,        only: get_directional_im3_div_r_tran
+  use transport_enumerated_types_mod, only: direction_h
 
   implicit none
 
@@ -28,14 +42,28 @@ contains
   !> @brief Calculate aviation diagnostics.
   !> @param[in]     plev_geopot        Geopotential height at pressure levels in m.
   !>                                   including cloud base and top pressures.
-  subroutine aviation_diags_alg(plev_geopot)
+  !> @param[in]     wind              3D wind field on W2
+  !> @param[in]     exner_w3          Exner pressure on W3
+  !> @param[in]     main_mesh         Primary mesh pointer
+  !> @param[in]     element_order_h   Element order in the horizontal
+  !> @param[in]     element_order_v   Element order in the vertical
+  subroutine aviation_diags_alg(plev_geopot,                                &
+          wind, exner_w3, main_mesh, element_order_h, element_order_v)
     implicit none
 
     ! Arguments
-    type(field_type), intent(in)               :: plev_geopot
+    type(field_type),    intent(in)          :: plev_geopot
+    type(field_type),    intent(in)          :: wind
+    type(field_type),    intent(in)          :: exner_w3
+    type(mesh_type),     intent(in), pointer :: main_mesh
+    integer(kind=i_def), intent(in)          :: element_order_h, element_order_v
 
     ! Calculate geopotential thickness and snow probbability.
     call from_plev_geopot(plev_geopot)
+
+    ! Calculate uv wind divergence.
+    call write_horizontal_divergence_diagnostic( &
+        wind, exner_w3, main_mesh, element_order_h, element_order_v)
 
   end subroutine aviation_diags_alg
 
@@ -158,5 +186,86 @@ contains
 
   end subroutine from_plev_geopot
 
+
+  !> @brief Calculate and write horizontal divergence on pressure levels.
+  !> @param[in]     wind              3D wind field on W2
+  !> @param[in]     exner_w3          Exner pressure on W3
+  !> @param[in]     main_mesh         Primary mesh pointer
+  !> @param[in]     element_order_h   Element order in the horizontal
+  !> @param[in]     element_order_v   Element order in the vertical
+  subroutine write_horizontal_divergence_diagnostic( &
+          wind, exner_w3, main_mesh, element_order_h, element_order_v)
+
+    implicit none
+
+    ! Arguments
+    type(field_type),    intent(in)          :: wind
+    type(field_type),    intent(in)          :: exner_w3
+    type(mesh_type),     intent(in), pointer :: main_mesh
+    integer(kind=i_def), intent(in)          :: element_order_h, element_order_v
+
+    ! Locals
+    type(field_type)                         :: wind_h, wind_v
+    type(field_type)                         :: div_ml, div_pl
+    type(r_tran_operator_type), pointer      :: div_op_r_tran
+    type(operator_type)                      :: div_op
+
+    type(integer_field_type), pointer        :: face_selector_ew
+    type(integer_field_type), pointer        :: face_selector_ns
+
+    integer(i_def)                           :: nplev
+    real(r_def), allocatable                 :: plevs(:)
+    logical(l_def)                           :: div_flag
+
+
+    ! Has this diagnostic been requested for this timestep?
+    div_flag = init_diag(div_pl, 'aviation__uv_wind_divergence')
+    if (.not. div_flag) return
+
+    ! Get the horizontal div operator matrix for this mesh.
+    ! We get transport precision because there's no r_def version.
+    div_op_r_tran => get_directional_im3_div_r_tran( wind%get_mesh_id(), &
+                                                     direction_h )
+
+    ! Convert the operator to r_def precision.
+    call div_op%initialise( div_op_r_tran%get_fs_to(), &
+                            div_op_r_tran%get_fs_from() )
+    call invoke( operator_setval_x_kernel_type( div_op, div_op_r_tran ) )
+
+    ! Split the 3d wind into horizontal and vertical components.
+    face_selector_ew => get_face_selector_ew(wind%get_mesh())
+    face_selector_ns => get_face_selector_ns(wind%get_mesh())
+
+    call wind_h%initialise( function_space_collection%get_fs( &
+        main_mesh, element_order_h, element_order_v, W2h ))
+    call wind_v%initialise( function_space_collection%get_fs( &
+        main_mesh, element_order_h, element_order_v, W2v ))
+
+    call invoke( split_w2_field_kernel_type( &
+        wind_h, wind_v, wind, face_selector_ew, face_selector_ns ))
+
+
+    ! Multiply the wind by the div operator matrix to get the div.
+    call div_ml%initialise( function_space_collection%get_fs( &
+        main_mesh, element_order_h, element_order_v, W3 ))
+    call invoke(dg_matrix_vector_kernel_type(div_ml, wind_h, div_op))
+
+    ! Units are s**-1, for convenience scaled by 1.0E6
+    ! (see UM's STASHmaster-meta.conf, code 20005).
+    call invoke(inc_a_times_X(1.0e6_r_def, div_ml))
+
+
+    ! Convert from model levels to pressure levels.
+    nplev = get_axis_dimension('pressure_levels_xi3')
+    allocate(plevs(nplev))
+    plevs = get_axis_values('pressure_levels_xi3', nplev)
+    call invoke_pres_interp_kernel_type(div_ml, exner_w3, nplev, plevs, &
+                                        div_pl, p_zero, kappa)
+
+    ! Write and clean up.
+    call div_pl%write_field()
+    deallocate(plevs)
+
+  end subroutine write_horizontal_divergence_diagnostic
 
 end module aviation_diags_alg_mod
