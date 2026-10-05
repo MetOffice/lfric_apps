@@ -181,11 +181,11 @@ module lfric2lfric_init_mod
         prefix = 'lbc_'
       end if
 
-      do i = 1, num_fields
-        call field_maker( field_collection, &
-                          config_list(i),   &
-                          interm_mesh,      &
-                          interm_twod_mesh, &
+      do i = 1, num_fields_dst
+        call field_maker( field_collection,   &
+                          config_list_dst(i), &
+                          interm_mesh,        &
+                          interm_twod_mesh,   &
                           prefix )
       end do
     end if
