@@ -25,6 +25,7 @@ module split_w2_to_ws_kernel_mod
   use fs_continuity_mod,     only: W2, W2h, Wtheta
   use kernel_mod,            only: kernel_type
   use reference_element_mod, only: W, E, N, S, B
+  use sci_face_selector_support_mod, only : face_from_face_selector
 
   implicit none
 
@@ -132,20 +133,13 @@ subroutine split_w2_to_ws_code(nlayers,                    &
   real(kind=r_def),    dimension(3,ndf_wx,ndf_wt), intent(in) :: diff_basis_wx_on_wt
 
   ! Internal variables
-  integer(kind=i_def) :: k, df, id1, id2
-  integer(kind=i_def), parameter :: local_dofs_x(2) = (/ W, E /)
-  integer(kind=i_def), parameter :: local_dofs_y(2) = (/ S, N /)
+  integer(kind=i_def) :: j, k, df, id1, id2
   real(kind=r_def) :: dx_z, dy_z, dz_z
 
-  do df = 1, face_selector_ew(map_w3_2d(1))
-    id1 = map_w2h(local_dofs_x(df))
-    id2 = map_w2(local_dofs_x(df))
-    uv_w2h(id1:id1+nlayers-1) = uvw(id2:id2+nlayers-1) &
-                              /da(id2:id2+nlayers-1)
-  end do
-  do df = 1, face_selector_ns(map_w3_2d(1))
-    id1 = map_w2h(local_dofs_y(df))
-    id2 = map_w2(local_dofs_y(df))
+  do j = 1, ABS(face_selector_ew(map_w3_2d(1))) + ABS(face_selector_ns(map_w3_2d(1)))
+    df = face_from_face_selector(j, face_selector_ew(map_w3_2d(1)), face_selector_ns(map_w3_2d(1)))
+    id1 = map_w2h(df)
+    id2 = map_w2(df)
     uv_w2h(id1:id1+nlayers-1) = uvw(id2:id2+nlayers-1) &
                               /da(id2:id2+nlayers-1)
   end do
