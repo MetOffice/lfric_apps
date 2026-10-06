@@ -145,10 +145,10 @@ contains
     ! Arguments
     !----------------------------------------------------------------------
     integer(i_def), intent(in) :: nlayers, max_pos_cells, seg_len !nlayers, total cells (whether orogrogaphically relevant or not), segment length
-    integer(i_def), intent(in), dimension(seg_len) :: cell_index 
+    integer(i_def), intent(in), dimension(seg_len) :: cell_index
     integer(i_def), intent(in) :: ndf_w3, ndf_wth, ndf_2d
     integer(i_def), intent(in) :: undf_w3, undf_wth, undf_2d
-    integer(i_def), intent(in), dimension(ndf_w3, max_pos_cells)  :: map_w3 
+    integer(i_def), intent(in), dimension(ndf_w3, max_pos_cells)  :: map_w3
     integer(i_def), intent(in), dimension(ndf_wth, max_pos_cells) :: map_wth
     integer(i_def), intent(in), dimension(ndf_2d, max_pos_cells)  :: map_2d
 
@@ -336,7 +336,7 @@ contains
       orog_f3(i)  = 0.0_r_um
       orog_amp(i) = 0.0_r_um
     end do !i
-    
+
     ! Recasting of LFRic to UM namelist inputs
     fbcd         = real(cd_flow_blocking, r_um)
     gsharp       = real(gwd_scaling, r_um)
@@ -446,7 +446,7 @@ contains
         dtemp_orog_gwd(map_wth(1,cell_index(i)) + k) = real(dtemp_dt_orog_gwd(i,k)*timestep, r_def)
       end do ! k
     end do !i
-    
+
     ! Set level 0 increment such that theta increment will equal level 1
     do i = 1, seg_len
       dtemp_orog_blk(map_wth(1,cell_index(i)) + 0) = real(dtemp_dt_blk(i,1)*timestep, r_def)   &
@@ -478,7 +478,7 @@ contains
         end do
       end if
     end do !i
-    
+
   end subroutine orographic_drag_kernel_code
 
 end module orographic_drag_kernel_mod

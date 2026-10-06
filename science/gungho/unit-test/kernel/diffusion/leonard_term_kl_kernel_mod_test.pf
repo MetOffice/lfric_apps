@@ -53,9 +53,12 @@ contains
                               smag_l_calc   = smag_l_calc_UseDx, &
                               leonard_term  = .false.,           &
                               leonard_kl    = 4.0_r_def,         &
+                              leonard_inc_ice = .false.,         &
+                              leonard_inc_with_bl = .false.,     &
                               conservative_diffusion = .false.,  &
                               density_weighted = .false.,        &
-                              max_diff_factor = 1.0_r_def )
+                              max_diff_factor = 1.0_r_def,       &
+                              fullstress    = .false. )
 
     call feign_finite_element_config(      &
         cellshape=cellshape_quadrilateral, &
