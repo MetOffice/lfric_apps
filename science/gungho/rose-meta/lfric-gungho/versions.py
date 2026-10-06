@@ -24,9 +24,6 @@ class vnXX_txxx(MacroUpgrade):
     # Upgrade macro for <TICKET> by <Author>
     BEFORE_TAG = "vnX.X"
     AFTER_TAG = "vnX.X_txxx"
-    def upgrade(self, config, meta_config=None):
-        # Add settings
-        return config, self.reports
 """
 
 
@@ -148,4 +145,15 @@ class vn32_t760(MacroUpgrade):
             config, ["namelist:initial_vapour", "profile_variable"], "'mr'"
         )
 
+        return config, self.reports
+
+
+class vn32_t754(MacroUpgrade):
+    """Upgrade macro for PR #754 by Chris Smith."""
+
+    BEFORE_TAG = "vn3.2_t725"
+    AFTER_TAG = "vn3.2_t754"
+
+    def upgrade(self, config, meta_config=None):
+        self.add_setting(config, ["namelist:initialization", "regrav_interp"], ".false.")
         return config, self.reports
