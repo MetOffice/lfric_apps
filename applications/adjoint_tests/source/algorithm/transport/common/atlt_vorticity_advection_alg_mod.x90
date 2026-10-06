@@ -1,0 +1,171 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Module containing adjoint test for atl_vorticity_advection_kernel
+module atlt_vorticity_advection_alg_mod
+
+  use config_mod,                    only : config_type
+  use field_mod,                     only : field_type
+  use function_space_mod,            only : function_space_type
+  use mesh_mod,                      only : mesh_type
+  use function_space_collection_mod, only : function_space_collection
+  use fs_continuity_mod,             only : W1, W2, W3
+  use constants_mod,                 only : i_def, r_def, EPS
+  use quadrature_rule_gaussian_mod,  only : quadrature_rule_gaussian_type
+  use quadrature_xyoz_mod,           only : quadrature_xyoz_type
+  use log_mod,                       only : log_event,         &
+                                            log_scratch_space, &
+                                            LOG_LEVEL_ERROR,   &
+                                            LOG_LEVEL_INFO,    &
+                                            LOG_LEVEL_DEBUG
+
+  implicit none
+
+  public :: atlt_vorticity_advection_alg
+
+  contains
+  !=============================================================================
+  !> @brief   Adjoint test for atl_vorticity_advection.
+  !> @details Passes if adjoint is transpose of tangent linear.
+  !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
+  !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  config       Application namelist configuration object
+  !> @param[in]  mesh         Mesh object
+  !> @param[in]  chi          Coordinate field
+  !> @param[in]  panel_id     The panel id
+  subroutine atlt_vorticity_advection_alg(config, mesh, chi, panel_id)
+
+    use tl_vorticity_advection_kernel_mod,  only : tl_vorticity_advection_kernel_type
+    use atl_vorticity_advection_kernel_mod, only : atl_vorticity_advection_kernel_type
+
+    implicit none
+
+    ! Arguments
+    type(config_type),              intent(in) :: config
+    type(mesh_type), pointer,       intent(in) :: mesh
+    type(field_type), dimension(3), intent(in) :: chi
+    type(field_type),               intent(in) :: panel_id
+
+    ! Arguments for tl and adj calls
+    type(field_type)                    :: r_u
+    type(field_type)                    :: wind
+    type(field_type)                    :: vorticity
+    type(field_type)                    :: ls_wind
+    type(field_type)                    :: ls_vorticity
+    type(quadrature_xyoz_type)          :: qr_xyoz
+    type(quadrature_rule_gaussian_type) :: quadrature_rule
+
+    ! Copies of input fields used in inner products
+    type(field_type) :: r_u_input
+    type(field_type) :: wind_input
+    type(field_type) :: vorticity_input
+
+    ! Variables for initialising fields
+    type(function_space_type), pointer :: vector_space_w1_ptr
+    type(function_space_type), pointer :: vector_space_w2_ptr
+    type(function_space_type), pointer :: vector_space_w3_ptr
+    integer(kind=i_def)                :: element_order_h
+    integer(kind=i_def)                :: element_order_v
+
+    ! Inner products
+    real(kind=r_def) :: r_u_inner_prod
+    real(kind=r_def) :: wind_inner_prod
+    real(kind=r_def) :: vorticity_inner_prod
+    real(kind=r_def) :: r_u_sf
+    real(kind=r_def) :: wind_sf
+    real(kind=r_def) :: vorticity_sf
+    real(kind=r_def) :: inner1
+    real(kind=r_def) :: r_u_r_u_input_inner_prod
+    real(kind=r_def) :: wind_wind_input_inner_prod
+    real(kind=r_def) :: vorticity_vorticity_input_inner_prod
+    real(kind=r_def) :: inner2
+
+    ! Test parameters and variables
+    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def)            :: machine_tol
+    real(kind=r_def)            :: relative_diff
+
+    element_order_h = config%finite_element%element_order_h()
+    element_order_v = config%finite_element%element_order_v()
+    vector_space_w1_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W1)
+    vector_space_w2_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2)
+    vector_space_w3_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W3)
+    call r_u%initialise(vector_space=vector_space_w2_ptr, name='r_u')
+    call wind%initialise(vector_space=vector_space_w2_ptr, name='wind')
+    call vorticity%initialise(vector_space=vector_space_w1_ptr, name='vorticity')
+    call ls_wind%initialise(vector_space=vector_space_w2_ptr, name='ls_wind')
+    call ls_vorticity%initialise(vector_space=vector_space_w1_ptr, name='ls_vorticity')
+    qr_xyoz = quadrature_xyoz_type(element_order_h + 3, element_order_h + 3, element_order_v + 3, quadrature_rule)
+
+    call r_u%copy_field_properties(r_u_input)
+    call wind%copy_field_properties(wind_input)
+    call vorticity%copy_field_properties(vorticity_input)
+    r_u_inner_prod = 0.0_r_def
+    wind_inner_prod = 0.0_r_def
+    vorticity_inner_prod = 0.0_r_def
+
+    ! Initialise arguments and call the tangent-linear kernel.
+    call invoke( setval_random(r_u), setval_x(r_u_input, r_u),                   &
+                 setval_random(wind), setval_x(wind_input, wind),                &
+                 setval_random(vorticity), setval_x(vorticity_input, vorticity), &
+                 setval_random(ls_wind), setval_random(ls_vorticity),            &
+                 tl_vorticity_advection_kernel_type(r_u, wind, vorticity,        &
+                                                    ls_wind, ls_vorticity,       &
+                                                    chi, panel_id, qr_xyoz),     &
+                 x_innerproduct_x(r_u_inner_prod, r_u),                          &
+                 x_innerproduct_x(wind_inner_prod, wind),                        &
+                 x_innerproduct_x(vorticity_inner_prod, vorticity) )
+
+    write( log_scratch_space, * ) "atlt_vorticity_advection inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write( log_scratch_space, * ) "r_u inner product = ", r_u_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write( log_scratch_space, * ) "wind inner product = ", wind_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write( log_scratch_space, * ) "vorticity inner product = ", vorticity_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    r_u_sf = 1.0_r_def / (r_u_inner_prod + EPS)
+    wind_sf = 1.0_r_def / (wind_inner_prod + EPS)
+    vorticity_sf = 1.0_r_def / (vorticity_inner_prod + EPS)
+
+    inner1 = 0.0_r_def
+    inner1 = inner1 + r_u_inner_prod * r_u_sf
+    inner1 = inner1 + wind_inner_prod * wind_sf
+    inner1 = inner1 + vorticity_inner_prod * vorticity_sf
+
+    r_u_r_u_input_inner_prod = 0.0_r_def
+    wind_wind_input_inner_prod = 0.0_r_def
+    vorticity_vorticity_input_inner_prod = 0.0_r_def
+    call invoke( inc_a_times_X( r_u_sf, r_u ),                                   &
+                 inc_a_times_X( wind_sf, wind ),                                 &
+                 inc_a_times_X( vorticity_sf, vorticity ),                       &
+                 atl_vorticity_advection_kernel_type(r_u, wind, vorticity,       &
+                                                     ls_wind, ls_vorticity,      &
+                                                     chi, panel_id, qr_xyoz),    &
+                 x_innerproduct_y(r_u_r_u_input_inner_prod, r_u, r_u_input),     &
+                 x_innerproduct_y(wind_wind_input_inner_prod, wind, wind_input), &
+                 x_innerproduct_y(vorticity_vorticity_input_inner_prod,          &
+                                  vorticity, vorticity_input) )
+
+    inner2 = 0.0_r_def
+    inner2 = inner2 + r_u_r_u_input_inner_prod
+    inner2 = inner2 + wind_wind_input_inner_prod
+    inner2 = inner2 + vorticity_vorticity_input_inner_prod
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing(max(abs(inner1), abs(inner2)))
+    relative_diff = abs(inner1 - inner2) / machine_tol
+    if (relative_diff < overall_tolerance) then
+      write(log_scratch_space, *) "PASSED tl_vorticity_advection_kernel_type:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+    else
+      write(log_scratch_space, *) "FAILED tl_vorticity_advection_kernel_type:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+  end subroutine atlt_vorticity_advection_alg
+
+end module atlt_vorticity_advection_alg_mod
