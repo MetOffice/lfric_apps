@@ -277,10 +277,10 @@ subroutine apply_wind_metrics_code(nlayers,                    &
                       + metrics_uvw(map_w2(W)+k-1) + metrics_uvw(map_w2(E)+k-1))
     v_av = 0.25_r_def * ( metrics_uvw(map_w2(S)+k) + metrics_uvw(map_w2(N)+k) &
                       + metrics_uvw(map_w2(S)+k-1) + metrics_uvw(map_w2(N)+k-1))
-    dx = 0.25_r_def * (da(map_w2(S)+k)+da(map_w2(N)+k)+&
-                       da(map_w2(S)+k-1)+da(map_w2(N)+k-1)) / dz_z
-    dy = 0.25_r_def * (da(map_w2(W)+k)+da(map_w2(E)+k)+&
-                       da(map_w2(W)+k-1)+da(map_w2(E-1)+k)) / dz_z
+    dx = 0.25_r_def * (da(map_w2(S)+k)   + da(map_w2(N)+k)+&
+                       da(map_w2(S)+k-1) + da(map_w2(N)+k-1)) / dz_z
+    dy = 0.25_r_def * (da(map_w2(W)+k)   + da(map_w2(E)+k)+&
+                       da(map_w2(W)+k-1) + da(map_w2(E)+k-1)) / dz_z
 
     metrics_uvw(map_w2(B)+k) = metrics_uvw(map_w2(B)+k)/da(map_w2(B)+k)*dx*dy &
                              - u_av*dx_z/dz_z + v_av*dy_z/dz_z
