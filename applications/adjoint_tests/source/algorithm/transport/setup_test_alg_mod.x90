@@ -49,7 +49,7 @@ module setup_test_alg_mod
     implicit none
 
     ! Arguments
-    type(mesh_type),                  pointer, intent(in) :: mesh
+    type(mesh_type),                        intent(in)    :: mesh
     type(transport_metadata_type), pointer, intent(inout) :: transport_metadata
     type(field_type),                       intent(inout) :: field_n
     type(function_space_type),     pointer, intent(inout) :: vector_space_fnfs_ptr
@@ -111,7 +111,7 @@ module setup_test_alg_mod
 
     ! Arguments
     type(config_type),                     intent(in) :: config
-    type(mesh_type),              pointer, intent(in) :: mesh
+    type(mesh_type),                       intent(in) :: mesh
     type(model_clock_type),                intent(in) :: model_clock
     type(tl_transport_controller_type), intent(inout) :: tl_transport_controller
     type(field_type),                   intent(inout) :: field_n

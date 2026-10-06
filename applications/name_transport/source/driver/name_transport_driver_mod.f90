@@ -37,7 +37,9 @@ module name_transport_driver_mod
                                                 LOG_LEVEL_ERROR,   &
                                                 LOG_LEVEL_INFO,    &
                                                 LOG_LEVEL_TRACE
-  use mesh_mod,                           only: mesh_type
+  use mesh_mod,                           only: mesh_type,       &
+                                                geometry_planar, &
+                                                geometry_spherical
   use mesh_collection_mod,                only: mesh_collection
   use model_clock_mod,                    only: model_clock_type
   use runtime_constants_mod,              only: create_runtime_constants
@@ -56,8 +58,6 @@ module name_transport_driver_mod
                                                 name_transport_final
 
   ! Configuration modules
-  use base_mesh_config_mod,      only: geometry_planar, &
-                                       geometry_spherical
   use finite_element_config_mod, only: coord_system,    &
                                        element_order_h, &
                                        element_order_v
@@ -366,20 +366,23 @@ contains
     ! Output initial conditions
     if (modeldb%clock%is_initialisation() .and. write_diag) then
 
-      call write_vector_diagnostic( 'u', wind, modeldb%clock, &
-                                    mesh, nodal_output_on_w3 )
-      call write_scalar_diagnostic( 'rho', density, modeldb%clock, &
-                                    mesh, nodal_output_on_w3 )
-      call write_scalar_diagnostic( 'tracer_con', tracer_con, modeldb%clock, &
-                                    mesh, nodal_output_on_w3 )
+      call write_vector_diagnostic( modeldb%config, mesh, 'u', wind, &
+                                    modeldb%clock, nodal_output_on_w3 )
+      call write_scalar_diagnostic( modeldb%config, mesh, 'rho', density, &
+                                    modeldb%clock, nodal_output_on_w3 )
+      call write_scalar_diagnostic( modeldb%config, mesh, 'tracer_con', &
+                                    tracer_con, modeldb%clock,  &
+                                    nodal_output_on_w3 )
 
       height_w3  => get_height_fe(modeldb%config, mesh, W3)
       height_wth => get_height_fe(modeldb%config, mesh, Wtheta)
 
-      call write_scalar_diagnostic( 'height_w3', height_w3, modeldb%clock, &
-                                    mesh, nodal_output_on_w3 )
-      call write_scalar_diagnostic( 'height_wth', height_wth, modeldb%clock, &
-                                    mesh, nodal_output_on_w3 )
+      call write_scalar_diagnostic( modeldb%config, mesh, 'height_w3', &
+                                    height_w3, modeldb%clock, &
+                                    nodal_output_on_w3 )
+      call write_scalar_diagnostic( modeldb%config, mesh, 'height_wth', &
+                                    height_wth, modeldb%clock, &
+                                    nodal_output_on_w3 )
 
     end if
 
@@ -457,13 +460,14 @@ contains
     ! Output wind, density and tracer values
     if ( (mod( model_clock%get_step(), diagnostic_frequency ) == 0) &
          .and. write_diag ) then
-      call write_vector_diagnostic( 'u', wind, model_clock, &
-                                    mesh, nodal_output_on_w3 )
-      call write_scalar_diagnostic( 'tracer_con', tracer_con, model_clock, &
-                                    mesh, nodal_output_on_w3 )
+      call write_vector_diagnostic( config, mesh, 'u', wind, &
+                                    model_clock, nodal_output_on_w3 )
+      call write_scalar_diagnostic( config, mesh, 'tracer_con', &
+                                    tracer_con, model_clock, &
+                                    nodal_output_on_w3 )
       if (transport_density) then
-        call write_scalar_diagnostic( 'rho', density, model_clock, &
-                                      mesh, nodal_output_on_w3 )
+        call write_scalar_diagnostic( config, mesh, 'rho', density, &
+                                      model_clock, nodal_output_on_w3 )
       end if
     end if
 
@@ -481,7 +485,8 @@ contains
     character(*),        intent(in)    :: program_name
     class(modeldb_type), intent(inout) :: modeldb
 
-    call name_transport_final( density, tracer_con, transport_density )
+    call name_transport_final( modeldb%config, density, &
+                               tracer_con, transport_density )
 
     !--------------------------------------------------------------------------
     ! Model finalise

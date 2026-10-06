@@ -98,9 +98,8 @@ contains
     implicit none
 
     type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
 
-    type(mesh_type), pointer, intent(in) :: mesh
-    integer(kind=i_def)                  :: mesh_id
     type(function_space_type),   pointer :: w1_k0_fs
     type(function_space_type),   pointer :: w2_k0_fs
     type(function_space_type),   pointer :: w3_k0_fs
@@ -127,13 +126,11 @@ contains
     logical(l_def), parameter :: ign_surf = .false.
     integer(tik)              :: id
 
-    mesh_id = mesh%get_id()
-
     height_w1 => get_height_fv(config, mesh, W1)
     height_w2 => get_height_fv(config, mesh, W2)
     height_w3 => get_height_fv(config, mesh, W3)
     height_wth => get_height_fv(config, mesh, Wtheta)
-    delta_at_wtheta => get_delta_at_wtheta(mesh)
+    delta_at_wtheta => get_delta_at_wtheta(config, mesh)
 
     if ( LPROF ) call start_timing( id, 'runtime_constants.physics' )
 

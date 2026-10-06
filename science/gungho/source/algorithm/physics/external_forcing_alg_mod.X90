@@ -273,7 +273,7 @@ contains
                           LOG_LEVEL_INFO )
 
           w2_rmultiplicity => get_rmultiplicity_fv( W2, mesh%get_id() ) ! 1/multiplicity of w2
-          dA => get_da_at_w2( mesh )
+          dA => get_da_at_w2( config, mesh )
 
           call derived_fields%get_field('u_physics', u_physics)
 
@@ -326,7 +326,7 @@ contains
           height_w1 => get_height_fv(config, mesh, W1)
           height_w2 => get_height_fv(config, mesh, W2)
 
-          dx_at_w2 => get_dx_at_w2(mesh)
+          dx_at_w2 => get_dx_at_w2(config, mesh)
           face_selector_ew => get_face_selector_ew(mesh)
           face_selector_ns => get_face_selector_ns(mesh)
 
@@ -484,7 +484,7 @@ contains
     ! Write out diagnostics (if available)
     !
     if (write_diag .and. use_xios_io) then
-      call write_forcing_diagnostics(du_forcing=du_forcing, output_wind_inc=wind_forcing_done)
+      call write_forcing_diagnostics(config, du_forcing=du_forcing, output_wind_inc=wind_forcing_done)
     end if
 
   end subroutine external_forcing_alg

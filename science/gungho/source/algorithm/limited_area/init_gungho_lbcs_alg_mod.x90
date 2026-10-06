@@ -179,12 +179,12 @@ module init_gungho_lbcs_alg_mod
       ! Map to derived fields, e.g. winds in W2H and Wtheta to W2
       select case( lbc_option )
       case ( lbc_option_gungho_file )
-        call combine_lbc_winds( lbc_fields, extensive=.true. )
+        call combine_lbc_winds( config, lbc_fields, extensive=.true. )
 
       case ( lbc_option_um2lfric_file )
         call lbc_fields%get_field( 'lbc_v_u', lbc_v_u )
         call invoke( setval_c(lbc_v_u, 0.0_r_def) )
-        call combine_lbc_winds( lbc_fields, extensive=.false. )
+        call combine_lbc_winds( config, lbc_fields, extensive=.false. )
         call map_lbc_inputs( config, lbc_fields )
 
       case default
@@ -233,12 +233,12 @@ module init_gungho_lbcs_alg_mod
     ! Map to derived fields, e.g. winds in W2H and Wtheta to W2
     select case( lbc_option )
       case ( lbc_option_gungho_file )
-        call combine_lbc_winds( lbc_fields, extensive=.true. )
+        call combine_lbc_winds( config, lbc_fields, extensive=.true. )
 
       case ( lbc_option_um2lfric_file )
         call lbc_fields%get_field( 'lbc_v_u', lbc_v_u )
         call invoke( setval_c(lbc_v_u, 0.0_r_def) )
-        call combine_lbc_winds( lbc_fields, extensive=.false. )
+        call combine_lbc_winds( config, lbc_fields, extensive=.false. )
         call map_lbc_inputs( config, lbc_fields )
 
       case default
@@ -257,11 +257,13 @@ module init_gungho_lbcs_alg_mod
   !!          winds are read in as Wtheta. This combines them into a
   !!          single W2 field.
   !> @param[in,out] fields  The collection of lbc fields
-  subroutine combine_lbc_winds( fields, extensive )
+  subroutine combine_lbc_winds( config, fields, extensive )
 
     use combine_w2_field_kernel_mod, only: combine_w2_field_kernel_type
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type( field_collection_type ), intent(inout) :: fields
     logical, intent(in)                          :: extensive
@@ -291,7 +293,7 @@ module init_gungho_lbcs_alg_mod
                                                 face_selector_ew,              &
                                                 face_selector_ns) )
     else
-      dA => get_da_at_w2(mesh)
+      dA => get_da_at_w2(config, mesh)
       call invoke( combine_w2_field_kernel_type(wind, h_wind, v_wind,          &
                                                 face_selector_ew,              &
                                                 face_selector_ns),             &

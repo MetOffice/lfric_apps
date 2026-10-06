@@ -265,17 +265,7 @@ contains
     character(str_def) :: time_origin
     character(str_def) :: time_start
 
-    integer(i_def) :: geometry
-    integer(i_def) :: topology
-    integer(i_def) :: coord_system
-    real(r_def)    :: scaled_radius
-
     procedure(event_action), pointer       :: context_advance
-
-    geometry      = modeldb%config%base_mesh%geometry()
-    topology      = modeldb%config%base_mesh%topology()
-    coord_system  = modeldb%config%finite_element%coord_system()
-    scaled_radius = modeldb%config%planet%scaled_radius()
 
     chi_inventory      => get_chi_inventory()
     panel_id_inventory => get_panel_id_inventory()
@@ -301,11 +291,10 @@ contains
 
       allocate(tmp_calendar, source=step_calendar_type(time_origin, time_start))
 
-      call io_context%initialise_xios_context( modeldb%mpi%get_comm(),      &
+      call io_context%initialise_xios_context( modeldb%config,              &
+                                               modeldb%mpi%get_comm(),      &
                                                chi, panel_id,               &
                                                modeldb%clock, tmp_calendar, &
-                                               geometry, topology,          &
-                                               coord_system, scaled_radius, &
                                                start_at_zero=.true. )
       call io_context%close_context_definition()
 

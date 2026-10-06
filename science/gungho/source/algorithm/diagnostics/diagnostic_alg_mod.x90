@@ -9,7 +9,7 @@ module diagnostic_alg_mod
 
   use config_mod,                    only: config_type
   use constants_mod,                 only: i_def, r_def, l_def, str_max_filename
-  use mesh_mod,                      only: mesh_type
+  use mesh_mod,                      only: mesh_type, geometry_spherical
   use function_space_collection_mod, only: function_space_collection
   use fs_continuity_mod,             only: W1, W2, W3, Wtheta, W2H
   use field_mod,                     only: field_type
@@ -35,8 +35,6 @@ module diagnostic_alg_mod
   use initialise_diagnostics_mod,    only: init_diag => init_diagnostic_field
 
   ! Configuration modules
-  use base_mesh_config_mod,      only: geometry, topology, &
-                                       geometry_spherical
   use finite_element_config_mod, only: coord_system, coord_system_native
   use planet_config_mod,         only: scaled_radius, cp
 
@@ -58,20 +56,25 @@ module diagnostic_alg_mod
 contains
 
   !> @details Calculates the l2 error norm for wind divergence
+  !> @param[in]     config      Application configuration object
+  !> @param[in]     mesh        Mesh
   !> @param[in,out] divergence  Divergence field
   !> @param[in,out] l2          l2 norm
-  !> @param[in] u               3D wind field
-  !> @param[in] mesh            Mesh
-  subroutine divergence_diagnostic_alg(divergence, l2, u, mesh)
+  !> @param[in]     u           3D wind field
+  subroutine divergence_diagnostic_alg(config, mesh, divergence, l2, u)
+
     use dg_matrix_vector_kernel_mod,  only: dg_matrix_vector_kernel_type
     use sci_fem_constants_mod,        only: get_im3_div_fe, get_im3_div_fv
     use constants_mod,                only: pi
 
     implicit none
+
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
+
     type(field_type), intent(inout) :: divergence
     real(r_def), intent(inout)      :: l2
     type(field_type), intent(in)    :: u
-    type(mesh_type),  intent(in), pointer :: mesh
 
     type(operator_type), pointer :: div
     integer(kind=i_def)          :: element_order_h
@@ -87,15 +90,15 @@ contains
                                          W3) )
     if (element_order_h > 0 .or. element_order_v > 0) then
       ! Use finite element divergence operator
-      div => get_im3_div_fe(mesh%get_id())
+      div => get_im3_div_fe(config, mesh)
     else
       ! Use finite volume divergence operator
-      div => get_im3_div_fv(mesh%get_id())
+      div => get_im3_div_fv(config, mesh)
     end if
 
     ! Compute l2 norm of area integrated quantity
     call invoke( dg_matrix_vector_kernel_type( divergence, u, div ) )
-    l2 = l2_norm_alg(divergence)
+    l2 = l2_norm_alg(config, divergence)
 
   end subroutine divergence_diagnostic_alg
 
@@ -104,15 +107,19 @@ contains
   !>          It is capable of calculating the error at each timestep by using
   !>          set_rho_alg algorithm which will return the analytic density value
   !>          at each timestep.
-  !> @param[in,out] l2   l2 norm
-  !> @param[in] rho_num  Density
-  !> @param[in] timestep Timestep
-  !> @param[in] dt       The model timestep length
-  subroutine density_diagnostic_alg(l2, rho_num, timestep, dt)
+  !> @param[in]     config   Application configuration object
+  !> @param[in,out] l2       l2 norm
+  !> @param[in]     rho_num  Density
+  !> @param[in]     timestep Timestep
+  !> @param[in]     dt       The model timestep length
+  subroutine density_diagnostic_alg(config, l2, rho_num, timestep, dt)
+
     use field_mod,                    only: field_type
     use set_rho_alg_mod,              only: set_rho_alg
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     real(r_def), intent(inout)   :: l2
     type(field_type), intent(in) :: rho_num
@@ -125,7 +132,7 @@ contains
 
     call set_rho_alg( rho_analytic, timestep, dt )
 
-    l2 = rel_l2_error_alg(rho_num, rho_analytic)
+    l2 = rel_l2_error_alg(config, rho_num, rho_analytic)
 
   end subroutine density_diagnostic_alg
 
@@ -133,13 +140,14 @@ contains
   !> @details An algorithm for calculating the l2 norm for the hydrostatic
   !>          imbalance. It calculates the sum of pressure gradient and
   !>          gravity term at each timestep using the hydrostatic kernel.
+  !> @param[in]     config    Application configuration object
+  !> @param[in]     mesh      Mesh
   !> @param[in,out] l2        l2 norm
-  !> @param[in]     config    Configuration object
   !> @param[in]     theta     Potential temperature
   !> @param[in]     moist_dyn Moist dynamics factors
   !> @param[in]     exner     Exner pressure
-  !> @param[in]     mesh      Mesh
-  subroutine hydbal_diagnostic_alg(config, l2, theta, moist_dyn, exner, mesh)
+  subroutine hydbal_diagnostic_alg(config, mesh, l2, theta, moist_dyn, exner)
+
     use field_mod,                   only: field_type
     use quadrature_xyoz_mod,         only: quadrature_xyoz_type
     use fs_continuity_mod,           only: W2V
@@ -154,12 +162,14 @@ contains
 
 
     implicit none
-    real(r_def),       intent(inout)       :: l2
-    type(field_type),  intent(in)          :: theta
-    type(field_type),  intent(in)          :: moist_dyn(num_moist_factors)
-    type(field_type),  intent(in)          :: exner
-    type(mesh_type),   intent(in), pointer :: mesh
-    type(config_type), intent(in)          :: config
+
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
+
+    real(r_def),       intent(inout) :: l2
+    type(field_type),  intent(in)    :: theta
+    type(field_type),  intent(in)    :: moist_dyn(num_moist_factors)
+    type(field_type),  intent(in)    :: exner
 
     type(field_type), pointer    :: geopotential
     type(field_type)             :: hyd_imbal
@@ -183,7 +193,7 @@ contains
 
     if (element_order_h > 0 .or. element_order_v > 0) then
       ! Use finite element quadrature
-      qr => get_qr_fe()
+      qr => get_qr_fe(config)
     else
       ! Use finite volume quadrature
       qr => get_qr_fv()
@@ -198,12 +208,13 @@ contains
                                           geopotential, cp, qr ),             &
                  enforce_bc_kernel_type( hyd_imbal ) )
 
-    l2 = l2_norm_alg(hyd_imbal)
+    l2 = l2_norm_alg(config, hyd_imbal)
 
   end subroutine hydbal_diagnostic_alg
 
   !> @details Generic diagnostic processing for a scalar field to nodal format
   !>          Allows optional projection to W3
+  !> @param[in]     config            Application configuration object
   !> @param[in,out] output_field      The output field. A 1-element array to satisfy project_output API
   !> @param[in,out] nodal_coordinates Coordinates of the output field
   !> @param[in,out] level             Levels of the output field
@@ -211,11 +222,13 @@ contains
   !> @param[in] field                 The input field
   !> @param[in] mesh                  Mesh object
   !> @param[in] W3_project            Logical to allow projection to W3
-  subroutine scalar_nodal_diagnostic_alg( output_field, nodal_coordinates, &
+  subroutine scalar_nodal_diagnostic_alg( config, output_field, nodal_coordinates, &
                                           level, field_name, field, mesh,  &
                                           W3_project )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(field_type), intent(inout) :: nodal_coordinates(3)
     type(field_type), intent(inout) :: output_field(1)
@@ -223,7 +236,7 @@ contains
     character(len=*), intent(in)    :: field_name
     type(field_type), intent(in)    :: field
 
-    type(mesh_type),  intent(in), pointer :: mesh
+    type(mesh_type),  intent(in)    :: mesh
 
     logical(l_def),   intent(in)    :: W3_project
 
@@ -257,7 +270,7 @@ contains
       else
 
         ! Project the field to the output field
-        call project_output( field, output_field, chi, panel_id, W3 )
+        call project_output( config, field, output_field, chi, panel_id, W3 )
 
       end if
 
@@ -281,12 +294,12 @@ contains
 
     ! Convert field to physical nodal output & sample chi on nodal points
     call invoke( nodal_xyz_coordinates_kernel_type( nodal_coordinates, chi, panel_id, &
-                                                    geometry, topology, coord_system, &
-                                                    scaled_radius ) )
+                                                    mesh%geometry(), mesh%topology(), &
+                                                    coord_system, scaled_radius ) )
 
     ! If in spherical geometry,
     ! convert the coordinate field to (longitude, latitude, radius)
-    if ( geometry == geometry_spherical ) then
+    if ( mesh%geometry() == geometry_spherical ) then
       call invoke( pointwise_convert_xyz2llr_kernel_type(nodal_coordinates) )
     end if
 
@@ -297,13 +310,14 @@ contains
   end subroutine scalar_nodal_diagnostic_alg
 
   !> @details Generic diagnostic processing for a vector field to nodal format
+  !> @param[in,out] config            Application configuration object
   !> @param[in,out] output_field      The output field
   !> @param[in,out] output_dim        Dimension of the output field
   !> @param[in,out] nodal_coordinates Coordinates of the output field
   !> @param[in,out] level             Levels of the output field
   !> @param[in] field_name            Name of the field to be output
   !> @param[in] field                 The input field
-  subroutine vector_nodal_diagnostic_alg(output_field, output_dim, &
+  subroutine vector_nodal_diagnostic_alg(config, output_field, output_dim, &
                                          nodal_coordinates, level, &
                                          field_name, field)
 
@@ -318,7 +332,9 @@ contains
 
     implicit none
 
-    integer(i_def), intent(inout)   :: output_dim
+    type(config_type), intent(in) :: config
+
+    integer(i_def),   intent(inout) :: output_dim
     type(field_type), intent(inout) :: nodal_coordinates(3)
     type(field_type), intent(inout) :: output_field(3)
     type(field_type), intent(inout) :: level
@@ -352,15 +368,17 @@ contains
 
     ! Convert field to physical nodal output & sample chi on nodal points
     call invoke( nodal_xyz_coordinates_kernel_type( nodal_coordinates, chi, panel_id, &
-                                                    geometry, topology, coord_system, &
-                                                    scaled_radius ) )
+                                                    mesh%geometry(), mesh%topology(), &
+                                                    coord_system, scaled_radius ) )
 
     output_fs = field%which_function_space()
 
     ! Apply Piola transform to get collocated components
 
     if ( output_fs == W1 ) then
-      call invoke( convert_hcurl_field_kernel_type(output_field, field, chi, panel_id) )
+      call invoke( convert_hcurl_field_kernel_type(output_field, field, chi, panel_id, &
+                                                   mesh%geometry(), mesh%topology(), &
+                                                   coord_system, scaled_radius) )
       output_dim = 3
     else if ( output_fs == W2 ) then
       optimised_conversion = (                                                 &
@@ -369,9 +387,13 @@ contains
         .and. field%get_element_order_v() == 0                                 &
       )
       if (optimised_conversion) then
-        call invoke( convert_hdiv_native_kernel_type(output_field, field, chi, panel_id) )
+        call invoke( convert_hdiv_native_kernel_type(output_field, field, chi, panel_id, &
+                                                     mesh%geometry(), mesh%topology(), &
+                                                     coord_system, scaled_radius) )
       else
-        call invoke( convert_hdiv_field_kernel_type(output_field, field, chi, panel_id) )
+        call invoke( convert_hdiv_field_kernel_type(output_field, field, chi, panel_id, &
+                                                    mesh%geometry(), mesh%topology(), &
+                                                    coord_system, scaled_radius) )
       end if
       output_dim = 3
     else
@@ -390,9 +412,9 @@ contains
     if ( output_fs == W1 .or. output_fs == W2 ) then
       if ( field%get_element_order_h() > 0 .or. &
            field%get_element_order_v() > 0 ) then
-        rmultiplicity => get_rmultiplicity_fe( output_fs, mesh%get_id() )
+        rmultiplicity => get_rmultiplicity_fe( config, mesh, output_fs )
       else
-        rmultiplicity => get_rmultiplicity_fv( output_fs, mesh%get_id() )
+        rmultiplicity => get_rmultiplicity_fv( output_fs, mesh%get_id())
       end if
 
       do i = 1,output_dim
@@ -403,7 +425,7 @@ contains
     ! Convert the vector spaces to standard SI units
     ! (m/s) in orthogonal directions and, if in spherical geometry,
     !  convert the coordinate field to (longitude, latitude, radius)
-    if ( geometry == geometry_spherical ) then
+    if ( mesh%geometry() == geometry_spherical ) then
       if ( output_fs == W1 .or. output_fs == W2) then
         call invoke( convert_cart2sphere_vector_kernel_type(output_field, nodal_coordinates) )
       end if
@@ -418,19 +440,23 @@ contains
 
   !> @details Generic diagnostic processing for a scalar field output in ugrid format
   !>          Allows optional projection to W3
-  !> @param[in,out] output_field      The output field
-  !> @param[in] field_name            The field name to use for output
-  !> @param[in] field                 The input field
-  !> @param[in] mesh                  Mesh
-  !> @param[in] W3_project            Logical to allow projection to W3
-  subroutine scalar_ugrid_diagnostic_alg( output_field, field_name, field, &
+  !> @param[in]     config        Application configuration object
+  !> @param[in,out] output_field  The output field
+  !> @param[in]     field_name    The field name to use for output
+  !> @param[in]     field         The input field
+  !> @param[in]     mesh          Mesh
+  !> @param[in]     W3_project    Logical to allow projection to W3
+  subroutine scalar_ugrid_diagnostic_alg( config, output_field, field_name, field, &
                                           mesh, W3_project )
 
     implicit none
+
+    type(config_type), intent(in) :: config
+
     type(field_type), intent(inout) :: output_field(1)
     character(len=*), intent(in)    :: field_name
     type(field_type), intent(in)    :: field
-    type(mesh_type),  intent(in), pointer :: mesh
+    type(mesh_type),  intent(in)    :: mesh
     logical(l_def),   intent(in)    :: W3_project
 
     type(field_type), pointer :: chi(:)
@@ -457,7 +483,7 @@ contains
         ! Project the field to the output field
         chi      => get_coordinates(mesh)
         panel_id => get_panel_id(mesh)
-        call project_output( field, output_field, chi, panel_id, W3 )
+        call project_output( config, field, output_field, chi, panel_id, W3 )
 
       end if
 
@@ -474,16 +500,21 @@ contains
   end subroutine scalar_ugrid_diagnostic_alg
 
   !> @details Calculates the diagnostic vorticity from the wind
+  !> @param[in]  config     Application configuration object
   !> @param[out] vorticity  Vorticity ( curl(u) ) to compute
   !> @param[in]  u          3D wind field
   !> @param[in]  timestep   Model timestep number
-  subroutine vorticity_diagnostic_alg(vorticity, u)
+  subroutine vorticity_diagnostic_alg(config, vorticity, u)
+
     use io_config_mod,                  only: use_xios_io
     use compute_vorticity_alg_mod,      only: compute_vorticity_alg
     use finite_element_config_mod,      only: vorticity_in_w1
     use field_parent_mod,               only: write_interface
     use lfric_xios_write_mod,           only: write_field_generic
+
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(field_type), intent(out) :: vorticity
     type(field_type), intent(in)  :: u
@@ -505,7 +536,7 @@ contains
           function_space_collection%get_fs(mesh, element_order_h, &
                                            element_order_v, W2) )
     end if
-    call compute_vorticity_alg(vorticity, u, .false.)
+    call compute_vorticity_alg(config, vorticity, u, .false.)
 
     if ( use_xios_io ) then
       tmp_write_ptr => write_field_generic
@@ -516,17 +547,22 @@ contains
   end subroutine vorticity_diagnostic_alg
 
   !> @details Calculates the diagnostic potential vorticity from the wind
+  !> @param[in] config              Application configuration object
   !> @param[in] potential_vorticity Potential Vorticity (curl(u) + 2*Omega) dot grad(theta)/rho
   !> @param[in] u                   Wind
   !> @param[in] theta               Potential temperature
   !> @param[in] rho                 Density
   !> @param[in] timestep            Model timestep number
-  subroutine potential_vorticity_diagnostic_alg(potential_vorticity, u, theta, rho)
+  subroutine potential_vorticity_diagnostic_alg(config, potential_vorticity, u, theta, rho)
+
     use io_config_mod,                  only: use_xios_io
     use compute_pv_alg_mod,             only: compute_pv_alg
     use field_parent_mod,               only: write_interface
     use lfric_xios_write_mod,           only: write_field_generic
+
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(field_type), intent(out) :: potential_vorticity
     type(field_type), intent(in)  :: u
@@ -541,7 +577,7 @@ contains
     call potential_vorticity%initialise( vector_space =                  &
          function_space_collection%get_fs(mesh, u%get_element_order_h(), &
                                           u%get_element_order_v(), W3) )
-    call compute_pv_alg(potential_vorticity, u, theta, rho)
+    call compute_pv_alg(config, potential_vorticity, u, theta, rho)
 
     if ( use_xios_io ) then
       tmp_write_ptr => write_field_generic
@@ -834,9 +870,7 @@ contains
   !!          it is averaged in time to help indicate whether the model has any
   !!          stability problems.
   !> @param[in] w_in_wth  3D vertical velocity field seen by the model physics
-  !> @param[in] mesh      The primary mesh
-
-  subroutine calc_wbig_diagnostic_alg( w_in_wth, mesh )
+  subroutine calc_wbig_diagnostic_alg( w_in_wth )
 
     use calc_wbig_kernel_mod,             only: calc_wbig_kernel_type
     use io_config_mod,                    only: write_diag, use_xios_io
@@ -846,10 +880,9 @@ contains
     implicit none
 
     ! Set up necessary fields
-    type(field_type), intent(in)          :: w_in_wth
-    type(mesh_type),  intent(in), pointer :: mesh
+    type(field_type), intent(in) :: w_in_wth
 
-    type( field_type ) :: wbig
+    type(field_type) :: wbig
 
     ! Create diagnostic if requested
     if (init_diag(wbig, 'processed__wbig') .and. use_xios_io) then

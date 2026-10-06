@@ -39,7 +39,6 @@ module limited_area_constants_mod
                                                tik, LPROF
 
   ! Configuration
-  use base_mesh_config_mod,              only: geometry, geometry_spherical
   use boundaries_config_mod,             only: normal_only, lbc_method, &
                                                lbc_method_coordinate_based
   use finite_element_config_mod,         only: element_order_h, &

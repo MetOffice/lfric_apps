@@ -147,10 +147,9 @@ contains
                                            alpha,                              &
                                            outer_iterations,                   &
                                            inner_iterations
-    use base_mesh_config_mod,        only: geometry,                           &
+    use base_mesh_config_mod,        only: geometry, topology,                 &
                                            geometry_spherical,                 &
                                            geometry_planar,                    &
-                                           topology,                           &
                                            topology_fully_periodic,            &
                                            topology_non_periodic,              &
                                            prime_mesh_name

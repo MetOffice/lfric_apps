@@ -9,6 +9,7 @@
 module swe_rhs_alg_mod
 
   ! Constants
+  use config_mod,                     only: config_type
   use constants_mod,                  only: r_def, l_def, i_def
   use sci_fem_constants_mod,          only: get_mass_matrix_fe, &
                                             get_div
@@ -28,6 +29,7 @@ module swe_rhs_alg_mod
   use mesh_mod,                       only: mesh_type
   use operator_mod,                   only: operator_type
   use sci_field_vector_mod,           only: field_vector_type
+  use mesh_mod,                       only: geometry_spherical
 
   ! Quadrature and Psykal Lite
   use quadrature_face_mod,            only: quadrature_face_type
@@ -35,8 +37,7 @@ module swe_rhs_alg_mod
   use quadrature_xyoz_mod,            only: quadrature_xyoz_type
 
   ! Configuration Options
-  use base_mesh_config_mod,           only: geometry, &
-                                            geometry_spherical
+  use base_mesh_config_mod,           only: geometry
   use finite_element_config_mod,      only: element_order_h, element_order_v
   use formulation_config_mod,         only: rotating
   use shallow_water_settings_config_mod,                                     &
@@ -60,11 +61,13 @@ contains
   !!       shallow water equations.
   !>@details An algorithm to compute the rhs of the wind, geopotential, and
   !!         (if required) buoyancy equations for the shallow water miniapp.
+  !> @param[in]     config   Appliaction cofiguration object
   !> @param[in,out] rhs      The state vector to compute
   !> @param[in]     alpha_dt The offcentering parameter multiplied by the time step
   !> @param[in]     state    The current model prognostic state
   !> @param[in]     s_geopot The surface geopotential
-  subroutine swe_rhs_alg( rhs,      &
+  subroutine swe_rhs_alg( config,   &
+                          rhs,      &
                           alpha_dt, &
                           state,    &
                           s_geopot )
@@ -84,6 +87,8 @@ contains
 
     implicit none
 
+    type(config_type), intent(in) :: config
+
     ! Form of state and rhs is [u, geopot, buoyancy]
     type(field_vector_type), intent(inout) :: rhs
     real(kind=r_def),        intent(in)    :: alpha_dt
@@ -97,15 +102,15 @@ contains
     class(reference_element_type), pointer :: reference_element => null()
 
     ! Mesh
-    type(mesh_type),  pointer :: mesh => null()
-    type(field_type), pointer :: chi(:) => null()
-    type(field_type), pointer :: panel_id => null()
+    type(mesh_type),  pointer :: mesh
+    type(field_type), pointer :: chi(:)
+    type(field_type), pointer :: panel_id
 
     ! Operators and mass matrices
-    type(operator_type), pointer :: coriolis => null()
-    type(operator_type), pointer :: div      => null()
-    type(operator_type), pointer :: mm_vel   => null()
-    type(operator_type), pointer :: mm_wb    => null()
+    type(operator_type), pointer :: coriolis
+    type(operator_type), pointer :: div
+    type(operator_type), pointer :: mm_vel
+    type(operator_type), pointer :: mm_wb
 
     ! Useful fields and constants
     type(field_type)    :: rhs_u
@@ -117,8 +122,8 @@ contains
     ! Get mesh and operators
     mesh     => rhs%vector(isw_g)%get_mesh()
     chi      => get_coordinates(mesh)
-    div      => get_div(mesh%get_id())
-    coriolis => get_coriolis(mesh%get_id())
+    div      => get_div(config, mesh)
+    coriolis => get_coriolis(config, mesh)
     panel_id => get_panel_id(mesh)
 
     ! Quadrature set up
@@ -134,8 +139,8 @@ contains
     call total_geopot%initialise( vector_space=rhs%vector(isw_g)%get_function_space() )
 
     ! Get mass matrices
-    mm_vel => get_mass_matrix_fe(W2,mesh%get_id())
-    mm_wb  => get_mass_matrix_fe(W3,mesh%get_id())
+    mm_vel => get_mass_matrix_fe(config, mesh, W2)
+    mm_wb  => get_mass_matrix_fe(config, mesh, W3)
 
     ! Set constants
     minus_alpha_dt = - alpha_dt

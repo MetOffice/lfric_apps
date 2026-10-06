@@ -82,7 +82,7 @@ subroutine atl_physics_alg(modeldb,    &
 
   if (LPROF) call start_timing(id, 'atl_physics_alg')
 
-  mm_vel => get_mass_matrix_fe(W2, mesh%get_id())
+  mm_vel => get_mass_matrix_fe(modeldb%config, mesh, W2)
 
   call u%copy_field_properties( u_bl_inc )
   call u%copy_field_properties( u_bl_inc_flux )
@@ -98,7 +98,7 @@ subroutine atl_physics_alg(modeldb,    &
   call copy_bundle( state, state_star, bundle_size ) ! Only state_star(igh_u) is used
   call set_bundle_scalar( 0.0_r_def, state_star, bundle_size )
 
-  dA => get_da_at_w2(mesh)
+  dA => get_da_at_w2(modeldb%config, mesh)
 
   call invoke( setval_c( u_bl_inc_flux, 0.0_r_def ),   &
                setval_c( u_bl_inc, 0.0_r_def ),        &
@@ -132,7 +132,7 @@ subroutine atl_physics_alg(modeldb,    &
                inc_X_plus_Y( state(igh_u), u_star ) )
 
   ! Adj of call mass_matrix_solver_alg(du, rhsu_np1)
-  call mass_matrix_solver_alg( rhsu_np1, du )
+  call mass_matrix_solver_alg( modeldb%config, rhsu_np1, du )
 
   ! Adj of inc_X_plus_Y(rhsu_np1, rhs_adv(igh_u))
   call invoke( inc_X_plus_Y( rhs_adv(igh_u), rhsu_np1 ) )

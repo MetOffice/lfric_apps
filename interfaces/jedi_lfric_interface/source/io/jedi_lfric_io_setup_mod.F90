@@ -148,16 +148,6 @@ contains
     procedure(event_action), pointer :: context_advance
     type(lfric_comm_type)            :: lfric_comm
 
-    integer(i_def) :: geometry
-    integer(i_def) :: topology
-    integer(i_def) :: coord_system
-    real(r_def)    :: scaled_radius
-
-    geometry      = config%base_mesh%geometry()
-    topology      = config%base_mesh%topology()
-    coord_system  = config%finite_element%coord_system()
-    scaled_radius = config%planet%scaled_radius()
-
     allocate( lfric_xios_context_type::io_context, stat=rc )
     if (rc /= 0) then
       call log_event( "Unable to allocate LFRic-XIOS context object", &
@@ -175,11 +165,9 @@ contains
       ! Setup the context
       call io_context%initialise( context_name )
       call lfric_comm%set_comm_mpi_val(communicator)
-      call io_context%initialise_xios_context( lfric_comm,            &
+      call io_context%initialise_xios_context( config, lfric_comm,    &
                                                chi, panel_id,         &
-                                               model_clock, calendar, &
-                                               geometry, topology,    &
-                                               coord_system, scaled_radius )
+                                               model_clock, calendar )
       ! Attach context advancement to the model's clock
       context_advance => advance
       event_actor_ptr => io_context

@@ -22,7 +22,7 @@ module physics_mappings_alg_mod
   use integer_field_mod,                only: integer_field_type
   use log_mod,                          only: LOG_LEVEL_ERROR, log_event, &
                                               LOG_LEVEL_DEBUG
-  use mesh_mod,                         only: mesh_type
+  use mesh_mod,                         only: mesh_type, geometry_spherical
   use quadrature_xyoz_mod,              only: quadrature_xyoz_type
   use quadrature_rule_gaussian_mod,     only: quadrature_rule_gaussian_type
   use physics_config_mod,               only: sample_physics_scalars, &
@@ -46,8 +46,6 @@ module physics_mappings_alg_mod
   use sci_field_minmax_alg_mod,         only: log_field_minmax
 
   ! Configuration modules
-  use base_mesh_config_mod,      only: geometry, topology, &
-                                       geometry_spherical
   use finite_element_config_mod, only: coord_system, &
                                        coord_system_native
   use planet_config_mod,         only: scaled_radius
@@ -126,7 +124,7 @@ contains
       space_dim = 1_i_def
       qr => get_qr_fv()
       call projected_field(1)%initialise( vector_space = target_field%get_function_space() )
-      call galerkin_projection_algorithm( projected_field, source_field, &
+      call galerkin_projection_algorithm( config, projected_field, source_field, &
                                           chi, panel_id, qr )
       call invoke( setval_X(target_field, projected_field(1)) )
     end if
@@ -137,13 +135,17 @@ contains
 
   !> @details An algorithm to map native FE wind fields to the appropriate
   !>          location for the FD physics codes
+  !> @param[in]    config   Application configuration object
   !> @param[inout] u1_field Component of wind in the target space
   !> @param[inout] u2_field Component of wind in the target space
   !> @param[inout] u3_field Component of wind in the target space
   !> @param[in]    source_field Wind field in the source (native) space
-  subroutine map_physics_winds(u1_field, u2_field, u3_field, source_field)
+  subroutine map_physics_winds(config, &
+                               u1_field, u2_field, u3_field, source_field)
 
     implicit none
+
+    type( config_type ), intent(in) :: config
 
     ! Prognostic fields
     type( field_type ), intent( inout ) :: u1_field, u2_field, u3_field
@@ -157,7 +159,13 @@ contains
     type( mesh_type ), pointer            :: mesh
     logical( kind=l_def )                 :: optimised_conversion
 
-    mesh =>  source_field%get_mesh()
+    integer(i_def) :: coord_system
+    real(r_def)    :: scaled_radius
+
+    mesh => source_field%get_mesh()
+
+    coord_system  = config%finite_element%coord_system()
+    scaled_radius = config%planet%scaled_radius()
 
     ! get chi field
     chi      => get_coordinates(mesh)
@@ -179,18 +187,27 @@ contains
         .and. u1_field%get_element_order_v() == 0                              &
       )
       if (optimised_conversion) then
-        call invoke( dg_convert_hdiv_native_kernel_type(wind_map, source_field, chi, panel_id) )
+        call invoke( dg_convert_hdiv_native_kernel_type(        &
+                         wind_map, source_field, chi, panel_id, &
+                         mesh%geometry(), mesh%topology(),      &
+                         coord_system, scaled_radius) )
       else
-        call invoke( dg_convert_hdiv_field_kernel_type(wind_map, source_field, chi, panel_id) )
+        call invoke( dg_convert_hdiv_field_kernel_type(         &
+                         wind_map, source_field, chi, panel_id, &
+                         mesh%geometry(), mesh%topology(),      &
+                         coord_system, scaled_radius) )
       end if
 
-      if ( geometry == geometry_spherical ) then
+      if ( mesh%geometry() == geometry_spherical ) then
         call u1_field%copy_field_properties(physical_chi(1))
         call u1_field%copy_field_properties(physical_chi(2))
         call u1_field%copy_field_properties(physical_chi(3))
-        call invoke( nodal_xyz_coordinates_kernel_type( physical_chi, chi,            &
-                                                        panel_id, geometry, topology, &
-                                                        coord_system, scaled_radius ) )
+        call invoke( nodal_xyz_coordinates_kernel_type( physical_chi, chi, &
+                                                        panel_id,          &
+                                                        mesh%geometry(),   &
+                                                        mesh%topology(),   &
+                                                        coord_system,      &
+                                                        scaled_radius ) )
         call invoke( convert_cart2sphere_vector_kernel_type(wind_map, physical_chi) )
       end if
 
@@ -207,7 +224,7 @@ contains
       call projected_field(1)%initialise( vector_space = u1_field%get_function_space() )
       call projected_field(2)%initialise( vector_space = u2_field%get_function_space() )
       call projected_field(3)%initialise( vector_space = u3_field%get_function_space() )
-      call galerkin_projection_algorithm( projected_field, source_field, &
+      call galerkin_projection_algorithm( config, projected_field, source_field, &
                                           chi, panel_id, qr )
       call invoke( name = "copy_wind_fields2",             &
                    setval_X(u1_field, projected_field(1)), &
@@ -234,7 +251,7 @@ contains
 
     type(field_type), intent(inout)  :: u1_wind, u2_wind, u3_wind
     type(field_type), intent(in)     :: wind
-    type(mesh_type),  intent(in), pointer :: mesh
+    type(mesh_type),  intent(in)     :: mesh
 
     type(field_type), pointer    :: chi(:)
     type(field_type), pointer    :: panel_id
@@ -267,7 +284,8 @@ contains
     ! Convert coordinate field to physical space
 
     call invoke( nodal_xyz_coordinates_kernel_type( physical_chi, chi, panel_id, &
-                                                    geometry, topology,          &
+                                                    mesh%geometry(), &
+                                                    mesh%topology(), &
                                                     coord_system, scaled_radius) )
 
     ! Convert 3D wind field to 3 components using the Piola transform
@@ -278,9 +296,15 @@ contains
       .and. wind%get_element_order_v() == 0                                    &
     )
     if (optimised_conversion) then
-      call invoke( convert_hdiv_native_kernel_type(physical_wind, wind, chi, panel_id) )
+      call invoke( convert_hdiv_native_kernel_type(        &
+                       physical_wind, wind, chi, panel_id, &
+                       mesh%geometry(), mesh%topology(),   &
+                       coord_system, scaled_radius) )
     else
-      call invoke( convert_hdiv_field_kernel_type(physical_wind, wind, chi, panel_id) )
+      call invoke( convert_hdiv_field_kernel_type(         &
+                       physical_wind, wind, chi, panel_id, &
+                       mesh%geometry(), mesh%topology(),   &
+                       coord_system, scaled_radius) )
     end if
 
     ! Scale fields by the reciprocal of multiplicity
@@ -290,7 +314,7 @@ contains
 
     ! Convert to standard SI units (m/s) in orthogonal directions
 
-    if ( geometry == geometry_spherical ) then
+    if ( mesh%geometry() == geometry_spherical ) then
         call invoke( convert_cart2sphere_vector_kernel_type(physical_wind, physical_chi) )
     end if
 
