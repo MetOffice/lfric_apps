@@ -559,6 +559,9 @@ contains
   !> @brief Private routine to set up the list of splitting indices. This lists
   !!        the unique splitting fractions for vertical/horizontal directions
   !> TODO: in future this should take modeldb as an argument
+  !> @param[in] alt_splitting  Optional alternative splitting to include in the
+  !!                           list of splittings, which are otherwise picked
+  !!                           up from the namelist options
   subroutine compute_fraction_idxs(alt_splitting)
 
     use transport_config_mod, only: profile_size, splitting
