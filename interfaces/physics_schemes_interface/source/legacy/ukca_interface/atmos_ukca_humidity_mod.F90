@@ -49,7 +49,7 @@ subroutine atmos_ukca_humidity(row_length, rows, model_levels,                 &
 ! *****************************************************************************
 !!!! NOTE: Corrections are required to calculations below which currently treat
 !!!! specific humidity and water vapour mixing ratio as interchangeable.
-!!!! The necessary corrections are detailed in inline comments. 
+!!!! The necessary corrections are detailed in inline comments.
 !------------------------------------------------------------------------------
 
 use qsat_mod,              only: qsat, qsat_wat_mix
@@ -73,7 +73,7 @@ real, intent(in) :: t_theta_levels(row_length, rows, model_levels)
 real, intent(in) :: p_theta_levels(row_length, rows, model_levels)
   ! Pressure on theta levels (Pa)
 real, intent(in) :: q_mr(row_length, rows, model_levels)
-  ! Water vapour mixing ratio 
+  ! Water vapour mixing ratio
 real, allocatable, intent(in) :: qcf_mr(:,:,:)
   ! Cloud ice mixing ratio (for clear-sky RH only)
 real, allocatable, intent(in) :: cloud_liq_frac(:,:,:)
@@ -90,7 +90,7 @@ real, allocatable, intent(in out) :: svp(:,:,:)
 
 ! Local variables
 
-integer :: i 
+integer :: i
 integer :: j
 integer :: k
 
