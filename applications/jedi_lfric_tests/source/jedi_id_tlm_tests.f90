@@ -217,6 +217,10 @@ program jedi_id_tlm_tests
 
   call log_event( 'Finalising ' // program_name // ' ...', LOG_LEVEL_ALWAYS )
 
+  ! Close contexts before program shutdown
+  call linear_model%jedi_linear_model_final()
+  call geometry%finalise_io_context()
+
   call run%finalise()
 
 end program jedi_id_tlm_tests

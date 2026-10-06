@@ -15,20 +15,26 @@
                             'module load PrgEnv-gnu ; '~
                             'module load gcc/12.2.0 ; '~
                             'module load cray-mpich/8.1.27 ; '~
-                            'module load lfric-gnu/12.2.0/3.2 || true' %}
+                            'module load lfric-gnu/12.2.0/3.2 || true ; '~
+                            'module load xios/3.0.4.0' %}
 
 {% set ex1a_compiler_cce =  'module switch PrgEnv-cray PrgEnv-cray/8.4.0 ; ' ~
                             'module load cpe/23.05 ; '~
                             'module switch cce cce/15.0.0 ; '~
                             'module load cray-mpich/8.1.27 ; '~
-                            'module load lfric-cray/15.0.0/3.2 || true' %}
+                            'module load lfric-cray/15.0.0/3.2 || true ; '~
+                            'module load xios/3.0.4.0' %}
 
-{% set ex1a_coupled_cce = 'module unload xios/2.2701 || true ; ' ~
+{% set ex1a_oasis_cce = 'module load xios/3.0.4.0-oasis || true ; ' ~
+                        'module load oasis || true' %}
+
+{% set ex1a_coupled_cce = 'module unload xios || true ; ' ~
                           'module load cray-hdf5-parallel ; ' ~
                           'module load cray-netcdf-hdf5parallel ; ' ~
-                          'module use /data/users/moci/modules_ngms/modules ; '~
-                          'module load GC6-PrgEnv_ngarch/2026-06-ngarch-cpe23.05-mpich8.1.27/ngarch_wp2_oasis_f87dc4d.lua ; '
+                          'module use /data/users/harry.shepherd/MODULES_XIOS3_COUPLING/modules ; ' ~
+                          'module load GC6-PrgEnv/test_x3_coupled_20260731/xios3_coupled_testing_20260306_c707411.lua ; ' ~
                           'module load scitools' %}
+
 
 {% set ex1a_coupled_run = '. $BIG_DATA_DIR/ancils/lfric_coupled/ocean/ocean_ancil_GO8p0_CORE_forcing_eORCA025 ; ' ~
                           'DIAG_MEAN_PERIOD="INVALID_PERIOD"'%}
@@ -91,6 +97,10 @@
         inherit=EX1A_BASE,EX1A_BUILD,EX1A_CCE
         {{ generate_script("pre-script", [ex1a_base, ex1a_compiler_cce]) }}
 
+    [[EX1A_BUILD_OASIS_CCE]]
+        inherit=EX1A_BASE,EX1A_BUILD,EX1A_CCE
+        {{ generate_script("pre-script", [ex1a_base, ex1a_compiler_cce, ex1a_oasis_cce]) }}
+
     [[EX1A_BUILD_COUPLED_CCE]]
         inherit=EX1A_BASE,EX1A_BUILD,EX1A_CCE
         {{ generate_script("pre-script", [ex1a_base, ex1a_compiler_cce, ex1a_coupled_cce]) }}
@@ -106,6 +116,13 @@
     [[EX1A_RUN_CCE]]
         inherit=EX1A_BASE,EX1A_RUN,EX1A_CCE
         {{ generate_script("pre-script", [ex1a_base, ex1a_compiler_cce, set_ulimit]) }}
+
+    [[EX1A_RUN_OASIS_CCE]]
+        inherit=EX1A_BASE,EX1A_RUN,EX1A_CCE
+        {{ generate_script("pre-script", [ex1a_base,
+                                          ex1a_compiler_cce,
+                                          ex1a_oasis_cce,
+                                          set_ulimit]) }}
 
     [[EX1A_RUN_COUPLED_CCE]]
         inherit=EX1A_BASE,EX1A_RUN,EX1A_CCE
