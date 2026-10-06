@@ -26,6 +26,7 @@ contains
   ! Based on Tetens' formula
   ! QS=3.8/(P*EXP(-17.2693882*(T-273.15)/(T-35.86))-6.109)
   function qsaturation (T, p)
+    !$omp declare target
     implicit none
     real(kind=r_def), intent(in) :: T     ! Temperature in Kelvin
     real(kind=r_def), intent(in) :: p     ! Pressure in mb

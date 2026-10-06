@@ -43,6 +43,7 @@ contains
   subroutine monotonic_edge(field, monotone, min_val, edge_left, edge_right,   &
                             order, bottom_layer, nlayers)
 
+    !$omp declare target
     implicit none
 
     integer(kind=i_def), intent(in)    :: nlayers
@@ -138,6 +139,7 @@ contains
   subroutine subgrid_quadratic_recon(reconstruction, dep, field, edge_left,    &
                                      edge_right, monotone, order, nlayers)
 
+    !$omp declare target
     implicit none
 
     integer(kind=i_def), intent(in)    :: nlayers
