@@ -39,4 +39,13 @@
 {% macro set_memory(mem) %}
 {% endmacro %}
 
+{% macro set_psyclone_transformation(task_values_psyclone_transformation) %}
+{# Set the psyclone transformation #}
+{% if task_values_psyclone_transformation == "default" %}
+    PSYCLONE_TRANSFORMATION = cpu
+{% else %}
+    PSYCLONE_TRANSFORMATION = {{task_values_psyclone_transformation}}
+{% endif %}
+{% endmacro %}
+
 {% do LOG.debug("Finished in site/esnz/macros/macros_cascade.cylc") %}
