@@ -67,6 +67,10 @@
     {% if task_values["use_xios"] and (task_values["app_name"]!='lfric_atm' and task_values["app_name"]!='lfric_atm_coupled') %}
         {% set script_str.name = script_str.name~" --opt-conf-key=xios_server" %}
     {% endif %}
+    {% if task_values["coupled"] and task_values["restart_no"] is not none and
+          task_values["restart_no"] > 0 %}
+        {% set script_str.name = script_str.name~" --opt-conf-key=river_continue" %}
+    {% endif %}
     {% set script_str.name = script_str.name~" --opt-conf-key=suite_controlled" %}
 {% endif %}
 
