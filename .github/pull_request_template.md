@@ -57,6 +57,13 @@ Code Reviewer: <!-- CR id, filled by SSD/CCD (e.g. @octocat) -->
 
 <!-- If AI has been used, please provide more details here -->
 
+## Build / Runtime Environment
+
+Changes made to the build or runtime environment (such as adding new environment variables, changing PSyclone transmutation scripts or picking up updates to the software stack) may need picking up by other LFRic-based suites.
+
+- [ ] This PR makes changes to the build or runtime environment
+- [ ] I have updated the appropriate [Release Notes Wiki page](https://github.com/MetOffice/lfric_internal/wiki) to ensure that my changes are recorded
+
 ## Documentation
 
 - [ ] Where appropriate I have updated documentation related to this change and confirmed that it builds correctly
