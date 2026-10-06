@@ -183,8 +183,8 @@ contains
     ! Perform semi-implicit timestep (i.e., forward code)
     ! --------------------------------------------------------------------------
 
-    call tl_semi_implicit_alg_init( mesh, u, rho, theta, exner, mr,   &
-                                    ls_u, ls_rho, ls_theta, ls_exner, &
+    call tl_semi_implicit_alg_init( modeldb%config, mesh, u, rho, theta, exner, &
+                                    mr, ls_u, ls_rho, ls_theta, ls_exner,       &
                                     ls_mr, ls_moist_dyn, (num_steps == 1) )
 
     call compute_si_operators( modeldb%config, ls_theta, ls_rho, ls_exner, &

@@ -7,6 +7,8 @@
 !> @brief Module for printing mean and root mean square of fields.
 
 module print_meanrms_field_mod
+
+  use config_mod,                      only : config_type
   use constants_mod,                   only : i_def, str_def
   use field_mod,                       only : field_type
   use log_mod,                         only : log_event,         &
@@ -23,15 +25,17 @@ module print_meanrms_field_mod
   contains
 
   !> @brief Prints the mean and root mean square of a field.
+  !> @param[in] config  Application configuration object
   !> @param[in] field   Field to be printed
   !> @param[in] level   Level of logging. If the configured
   !>                    log_level is less than or equal to
   !>                    level, output will be shown.
   !> @param[in] fname   Optional name of field.
-  subroutine print_meanrms_field( field, level, fname )
+  subroutine print_meanrms_field( config, field, level, fname )
 
     implicit none
 
+    type(config_type),     intent( in )           :: config
     type( field_type ),    intent( in )           :: field
     integer( kind=i_def ), intent( in )           :: level
     character (*),         intent( in ), optional :: fname
@@ -47,8 +51,9 @@ module print_meanrms_field_mod
       end if
 
       write( log_scratch_space, '( A, A, A, 2E16.8 )' ) &
-      "mean/rms ", trim( field_name ), " = ",           &
-      mean_alg( field ), root_mean_square_alg( field )
+          "mean/rms ", trim( field_name ), " = ",       &
+          mean_alg(config, field),                      &
+          root_mean_square_alg(config, field)
       call log_event( log_scratch_space, level )
 
     end if

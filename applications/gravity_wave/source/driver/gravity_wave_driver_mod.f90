@@ -121,21 +121,22 @@ contains
           "buoyancy",modeldb%clock%get_step()-1,"")) )
 
   else                                      ! No check point to start from
-     call gw_init_fields_alg(wind, pressure, buoyancy)
+     call gw_init_fields_alg(modeldb%config, wind, pressure, buoyancy)
   end if
 
   ! Initialise the gravity-wave model
-  call gravity_wave_alg_init(mesh, wind, pressure, buoyancy)
+  call gravity_wave_alg_init(modeldb%config, mesh, wind, pressure, buoyancy)
 
   ! Output initial conditions
   ! We only want these once at the beginning of a run
   if (modeldb%clock%is_initialisation() .and. write_diag) then
-    call gravity_wave_diagnostics_driver( mesh,        &
-                                          wind,        &
-                                          pressure,    &
-                                          buoyancy,    &
-                                          modeldb%clock, &
-                                          nodal_output_on_w3)
+    call gravity_wave_diagnostics_driver( modeldb%config, &
+                                          mesh,           &
+                                          wind,           &
+                                          pressure,       &
+                                          buoyancy,       &
+                                          modeldb%clock,  &
+                                          nodal_output_on_w3 )
   end if
 
   end subroutine initialise
@@ -178,12 +179,13 @@ contains
 
       call log_event("Gravity Wave: writing diagnostic output", LOG_LEVEL_INFO)
 
-      call gravity_wave_diagnostics_driver( mesh,        &
-                                            wind,        &
-                                            pressure,    &
-                                            buoyancy,    &
-                                            modeldb%clock, &
-                                            nodal_output_on_w3)
+      call gravity_wave_diagnostics_driver( modeldb%config, &
+                                            mesh,           &
+                                            wind,           &
+                                            pressure,       &
+                                            buoyancy,       &
+                                            modeldb%clock,  &
+                                            nodal_output_on_w3 )
     end if
 
   end subroutine step

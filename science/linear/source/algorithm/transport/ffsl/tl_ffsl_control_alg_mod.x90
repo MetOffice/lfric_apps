@@ -8,6 +8,7 @@
 module tl_ffsl_control_alg_mod
 
   ! Infrastructure
+  use config_mod,                        only: config_type
   use constants_mod,                     only: r_def, i_def, l_def
   use extrusion_mod,                     only: SHIFTED
   use field_mod,                         only: field_type
@@ -61,7 +62,7 @@ module tl_ffsl_control_alg_mod
   !> @param[in,out] tl_transport_controller
   !!                             Object controlling transport
   subroutine tl_ffsl_control_alg( field_np1, field, ls_field, &
-                                  tl_transport_controller)
+                                  tl_transport_controller )
 
     implicit none
 
@@ -110,6 +111,8 @@ module tl_ffsl_control_alg_mod
     type(flux_precomputations_type), pointer :: ls_wind_flux_precomp
     type(flux_precomputations_type), pointer :: pert_wind_flux_precomp
 
+    type(config_type), pointer :: config
+
     if ( LPROF ) call start_timing( id, 'tl_ffsl_control_alg' )
 
     ! ------------------------------------------------------------------------ !
@@ -126,6 +129,8 @@ module tl_ffsl_control_alg_mod
     pert_transport_controller => tl_transport_controller%get_pert_wind_ls_rho_controller()
     ls_wind_flux_precomp      => ls_transport_controller%get_flux_precomputations()
     pert_wind_flux_precomp    => pert_transport_controller%get_flux_precomputations()
+
+    config => transport_controller%get_config()
 
     ! Metadata
     transport_metadata => pert_transport_controller%get_transport_metadata()
@@ -252,7 +257,7 @@ module tl_ffsl_control_alg_mod
       ! If this is not the final step, field_np1 already includes the *advective*
       ! increment, and may be adjusted to enforce min value or in blending zone
       call tl_end_of_conservative_step_alg(                                    &
-          field_np1, field, mass_flux_pert, mass_flux_ls,                      &
+          config, field_np1, field, mass_flux_pert, mass_flux_ls,              &
           ls_wind_flux_precomp, pert_wind_flux_precomp,                        &
           transport_counter, transport_metadata                                &
       )

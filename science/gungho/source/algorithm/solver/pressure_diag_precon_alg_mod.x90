@@ -13,6 +13,7 @@
 
 module pressure_diag_precon_alg_mod
 
+  use config_mod,             only : config_type
   use constants_mod,          only : i_def, r_def
   use fs_continuity_mod,      only : W3
   use log_mod,                only : log_event, &
@@ -68,7 +69,7 @@ contains
   !> @param[in,out] self Instance of type pressure_diag_preconditioner_type
   !> @param[in] x Field vector containing the right hand side of the pressure
   !> @param[in,out] y Field vector containing the solution
-  subroutine apply_pressure_diag_preconditioner(self, x, y)
+  subroutine apply_pressure_diag_preconditioner(self, config, x, y)
 
     use dg_matrix_vector_kernel_mod, only: dg_matrix_vector_kernel_type
     use operator_mod,                only: r_solver_operator_type
@@ -80,6 +81,9 @@ contains
     implicit none
 
     class(pressure_diag_preconditioner_type), intent(inout) :: self
+
+    type(config_type), intent(in) :: config
+
     class(abstract_vector_type),         intent(in)    :: x
     class(abstract_vector_type),         intent(inout) :: y
     type(r_solver_operator_type), pointer              :: m3_inv => null()
@@ -91,7 +95,7 @@ contains
        select type(y)
        type is(r_solver_field_vector_type)
           ! Multiply by inverse of mass matrix
-          m3_inv => get_inverse_mass_matrix_r_solver(W3, y%vector(1)%get_mesh_id())
+          m3_inv => get_inverse_mass_matrix_r_solver(config, y%vector(1)%get_mesh(), W3)
           x_vec => x%get_field_from_position(1)
           y_vec => y%get_field_from_position(1)
           call invoke( dg_matrix_vector_kernel_type(y_vec, x_vec, m3_inv) )

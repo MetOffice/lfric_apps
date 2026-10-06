@@ -152,9 +152,9 @@ contains
     call compute_si_operators( modeldb%config, ls_theta, ls_rho, ls_exner, &
                                model_clock, ls_moist_dyn )
 
-    call create_pressure_preconditioner( rhs, pressure_operator, pressure_preconditioner )
+    call create_pressure_preconditioner( modeldb%config, rhs, pressure_operator, pressure_preconditioner )
 
-    call create_adj_pressure_preconditioner( rhs,                    &
+    call create_adj_pressure_preconditioner( modeldb%config, rhs,    &
                                              adj_lookup_table_cache, &
                                              adj_pressure_operator,  &
                                              adj_pressure_preconditioner )
@@ -175,7 +175,7 @@ contains
     ! Apply the preconditioner (i.e., forward code)
     ! --------------------------------------------------------------------------
 
-    call pressure_preconditioner%apply( vector_x, vector_mx )
+    call pressure_preconditioner%apply( modeldb%config, vector_x, vector_mx )
 
     ! --------------------------------------------------------------------------
     ! Compute <Mx,Mx>
@@ -199,7 +199,7 @@ contains
     ! Adjoint code
     ! --------------------------------------------------------------------------
 
-    call adj_pressure_preconditioner%apply( vector_mx, vector_amx )
+    call adj_pressure_preconditioner%apply(modeldb%config, vector_mx, vector_amx )
 
     ! --------------------------------------------------------------------------
     ! Compute <AMx,x>

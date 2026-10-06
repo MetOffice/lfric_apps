@@ -91,29 +91,37 @@ contains
       ! Output surface geopotential
       call surface_geopot%initialise( vector_space=geopot%get_function_space() )
       call invoke( X_minus_Y(surface_geopot, total_geopot, geopot) )
-      call write_scalar_diagnostic('s_geopot', surface_geopot, &
-                                  modeldb%clock, mesh, nodal_output_on_w3)
-
+      call write_scalar_diagnostic( modeldb%config, mesh,       &
+                                    's_geopot', surface_geopot, &
+                                    modeldb%clock, nodal_output_on_w3)
     end if
 
-    call write_vector_diagnostic('wind', wind, &
-                                 modeldb%clock, mesh, nodal_output_on_w3)
-    call write_scalar_diagnostic('geopot', total_geopot, &
-                                 modeldb%clock, mesh, nodal_output_on_w3)
+    call write_vector_diagnostic( modeldb%config, mesh, &
+                                  'wind', wind,         &
+                                  modeldb%clock, nodal_output_on_w3 )
+
+    call write_scalar_diagnostic( modeldb%config, mesh,   &
+                                  'geopot', total_geopot, &
+                                  modeldb%clock, nodal_output_on_w3)
     if ( thermal_swe ) then
-      call write_scalar_diagnostic('buoyancy', buoyancy, &
-                                  modeldb%clock, mesh, nodal_output_on_w3)
+      call write_scalar_diagnostic( modeldb%config, mesh, &
+                                    'buoyancy', buoyancy, &
+                                    modeldb%clock, nodal_output_on_w3 )
     end if
-    call write_scalar_diagnostic('q', q, &
-                                 modeldb%clock, mesh, nodal_output_on_w3)
+    call write_scalar_diagnostic( modeldb%config, mesh, &
+                                  'q', q,               &
+                                  modeldb%clock, nodal_output_on_w3)
 
     ! Output tracers
-    call write_scalar_diagnostic('tracer_const', tracer_const, &
-                                 modeldb%clock, mesh, nodal_output_on_w3)
-    call write_scalar_diagnostic('tracer_pv', tracer_pv, &
-                                 modeldb%clock, mesh, nodal_output_on_w3)
-    call write_scalar_diagnostic('tracer_step', tracer_step, &
-                                 modeldb%clock, mesh, nodal_output_on_w3)
+    call write_scalar_diagnostic( modeldb%config, mesh,         &
+                                  'tracer_const', tracer_const, &
+                                  modeldb%clock, nodal_output_on_w3 )
+    call write_scalar_diagnostic( modeldb%config, mesh,   &
+                                  'tracer_pv', tracer_pv, &
+                                  modeldb%clock, nodal_output_on_w3 )
+    call write_scalar_diagnostic( modeldb%config, mesh,       &
+                                  'tracer_step', tracer_step, &
+                                  modeldb%clock, nodal_output_on_w3 )
 
   end subroutine shallow_water_diagnostics
 

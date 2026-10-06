@@ -152,8 +152,8 @@ contains
     ! Input fields are r_def fields so preliminary work uses field_types
 
     ! Normalise theta & u residual
-    t_normalisation => get_normalisation( Wtheta, rhs(igh_p)%get_mesh_id() )
-    u_normalisation => get_normalisation( W2, rhs(igh_p)%get_mesh_id() )
+    t_normalisation => get_normalisation( modeldb%config, rhs(igh_p)%get_mesh(), Wtheta )
+    u_normalisation => get_normalisation( modeldb%config, rhs(igh_p)%get_mesh(), W2 )
     call invoke(inc_X_times_Y( rhs(igh_u), u_normalisation ))
 
     if (eliminate_variables == eliminate_variables_analytic) then
@@ -192,12 +192,12 @@ contains
     call compute_si_operators( modeldb%config, ls_theta, ls_rho, ls_exner, &
                                model_clock, ls_moist_dyn )
 
-    call create_pressure_preconditioner( rhs, pressure_operator, pressure_preconditioner )
+    call create_pressure_preconditioner( modeldb%config, rhs, pressure_operator, pressure_preconditioner )
     call create_pressure_solver( pressure_operator, pressure_preconditioner, pressure_solver )
     call create_mixed_preconditioner( rhs, pressure_solver, mixed_preconditioner )
     call create_mixed_solver( mixed_preconditioner, mixed_operator, mixed_solver )
 
-    call create_adj_pressure_preconditioner( rhs, adj_lookup_table_cache, &
+    call create_adj_pressure_preconditioner( modeldb%config, rhs, adj_lookup_table_cache, &
                                              adj_pressure_operator, adj_pressure_preconditioner )
     call create_adj_pressure_solver( adj_pressure_operator, adj_pressure_preconditioner, adj_pressure_solver )
     call create_adj_mixed_preconditioner( rhs, adj_pressure_solver, adj_mixed_preconditioner )
@@ -214,7 +214,7 @@ contains
     ! Apply the mixed_solver (i.e., forward code)
     ! --------------------------------------------------------------------------
 
-    call mixed_solver%apply( vector_mx, vector_x )
+    call mixed_solver%apply( modeldb%config, vector_mx, vector_x )
 
     ! --------------------------------------------------------------------------
     ! Compute <Mx,Mx>
@@ -251,7 +251,7 @@ contains
     ! Adjoint code
     ! --------------------------------------------------------------------------
 
-    call adj_mixed_solver%apply( vector_amx, vector_mx )
+    call adj_mixed_solver%apply( modeldb%config, vector_amx, vector_mx )
 
     ! --------------------------------------------------------------------------
     ! Compute <AMx,x>

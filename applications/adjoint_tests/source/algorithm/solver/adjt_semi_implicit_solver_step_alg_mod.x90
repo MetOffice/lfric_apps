@@ -8,6 +8,7 @@
 module adjt_semi_implicit_solver_step_alg_mod
 
   use adj_solver_lookup_cache_mod,      only: adj_solver_lookup_cache_type
+  use config_mod,                       only: config_type
   use constants_mod,                    only: i_def, r_def, l_def, r_solver, EPS
   use log_mod,                          only: log_event,         &
                                               log_scratch_space, &
@@ -57,7 +58,7 @@ contains
     implicit none
 
     type(modeldb_type),         target, intent(inout) :: modeldb
-    type(mesh_type),           pointer, intent(in)    :: mesh
+    type(mesh_type),                    intent(in)    :: mesh
     type(model_clock_type),             intent(in)    :: model_clock
     type(adj_solver_lookup_cache_type), intent(in)    :: adj_lookup_table_cache
 
@@ -165,7 +166,8 @@ contains
 
     call compute_si_operators( modeldb%config, ls_theta, ls_rho, ls_exner, &
                                model_clock, ls_moist_dyn )
-    call adj_semi_implicit_solver%initialise(rhs, adj_lookup_table_cache)
+    call adj_semi_implicit_solver%initialise(modeldb%config, rhs, &
+                                             adj_lookup_table_cache)
 
     ! Set up moist_dyn_gas_law & mr
     call moist_dyn_gas_law%initialise(vector_space=vector_space_wtheta_ptr)
@@ -189,10 +191,12 @@ contains
     ! Test with first_iteration = .true.
     ! --------------------------------------------------------------------------
 
-    call adjt_semi_implicit_solver_step_alg_common( state, rhs, dry_flux_solver,          &
-                                                    moist_dyn_gas_law, mr,                &
-                                                    state_in, rhs_in, dry_flux_solver_in, &
-                                                    moist_dyn_gas_law_in, mr_in,          &
+    call adjt_semi_implicit_solver_step_alg_common( modeldb%config, state, rhs,  &
+                                                    dry_flux_solver,             &
+                                                    moist_dyn_gas_law, mr,       &
+                                                    state_in, rhs_in,            &
+                                                    dry_flux_solver_in,          &
+                                                    moist_dyn_gas_law_in, mr_in, &
                                                     adj_semi_implicit_solver, .true. )
 
     ! --------------------------------------------------------------------------
@@ -216,10 +220,12 @@ contains
                  setval_x( state(igh_p), state_in(igh_p) ),           &
                  setval_x( state(igh_d), state_in(igh_d) ) )
 
-    call adjt_semi_implicit_solver_step_alg_common( state, rhs, dry_flux_solver,          &
-                                                    moist_dyn_gas_law, mr,                &
-                                                    state_in, rhs_in, dry_flux_solver_in, &
-                                                    moist_dyn_gas_law_in, mr_in,          &
+    call adjt_semi_implicit_solver_step_alg_common( modeldb%config, state, rhs,  &
+                                                    dry_flux_solver,             &
+                                                    moist_dyn_gas_law, mr,       &
+                                                    state_in, rhs_in,            &
+                                                    dry_flux_solver_in,          &
+                                                    moist_dyn_gas_law_in, mr_in, &
                                                     adj_semi_implicit_solver, .false. )
 
     call adj_semi_implicit_solver%finalise()
@@ -229,6 +235,7 @@ contains
   end subroutine adjt_semi_implicit_solver_step_alg
 
   !> @brief Actual code for adjoint test for semi_implicit_solver_alg_mod subroutine step
+  !> @param[in]     config                   Application configuration object
   !> @param[in,out] state                    Prognostic state
   !> @param[in,out] rhs                      Prognostic rhs
   !> @param[in,out] dry_flux_solver          Dry flux solver
@@ -241,13 +248,18 @@ contains
   !> @param[in,out] mr_in                    Input mr
   !> @param[in,out] adj_semi_implicit_solver Adjoint semi-implicit solver
   !> @param[in]     first_iteration          Switch to control which test to do
-  subroutine adjt_semi_implicit_solver_step_alg_common( state, rhs, dry_flux_solver,          &
-                                                        moist_dyn_gas_law, mr,                &
-                                                        state_in, rhs_in, dry_flux_solver_in, &
-                                                        moist_dyn_gas_law_in, mr_in,          &
-                                                        adj_semi_implicit_solver, first_iteration )
+  subroutine adjt_semi_implicit_solver_step_alg_common( config,                      &
+                                                        state, rhs, dry_flux_solver, &
+                                                        moist_dyn_gas_law, mr,       &
+                                                        state_in, rhs_in,            &
+                                                        dry_flux_solver_in,          &
+                                                        moist_dyn_gas_law_in, mr_in, &
+                                                        adj_semi_implicit_solver,    &
+                                                        first_iteration )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Prognostic fields
     type(field_type), dimension(bundle_size), intent(inout) :: state
@@ -287,7 +299,7 @@ contains
     ! Step the semi-implicit solver (i.e., forward code, Mx)
     ! --------------------------------------------------------------------------
 
-    call semi_implicit_solver_alg_step( state, rhs, dry_flux_solver, &
+    call semi_implicit_solver_alg_step( config, state, rhs, dry_flux_solver, &
                                         moist_dyn_gas_law, mr, first_iteration )
 
     ! --------------------------------------------------------------------------
