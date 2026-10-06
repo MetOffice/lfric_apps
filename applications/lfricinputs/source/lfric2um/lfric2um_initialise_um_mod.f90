@@ -193,7 +193,7 @@ int_constants(ih_height_gen) = 2 ! Smooth height generation method
 ! hardcode for now - doesn't exist in lfric yet
 int_constants(ih_1_c_rho_level) = 30
 !  hardcode for now - aquaplanet
-int_constants(ih_land_points) = 0
+! int_constants(ih_land_points) = 0
 int_constants(ih_ozone_levels) = int_constants(ih_model_levels)
 int_constants(ih_convect_levels) = 0
 
