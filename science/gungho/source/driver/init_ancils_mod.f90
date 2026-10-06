@@ -230,7 +230,7 @@ contains
 
     if (sst_source /= sst_source_start_dump) then
       call setup_ancil_field("tstar_sea", depository, ancil_fields, mesh, &
-                              twod_mesh, twod=.true.)
+                              twod_mesh, twod=.true., read_by_file=.true.)
       call add_ancil_field_reference("tstar_sea", depository, sst_ancil_fields)
     end if
 
@@ -398,55 +398,55 @@ contains
      if ( ( glomap_mode == glomap_mode_climatology ) .or. &
         ( glomap_mode == glomap_mode_dust_and_clim ) ) then
       call setup_ancil_field("acc_sol_bc", depository, ancil_fields, mesh,  &
-                      twod_mesh)
+                      twod_mesh, read_by_file=.true.)
       call add_ancil_field_reference("acc_sol_bc", depository, aerosol_ancil_fields)
       call setup_ancil_field("acc_sol_om", depository, ancil_fields, mesh,  &
-                      twod_mesh)
+                      twod_mesh, read_by_file=.true.)
       call add_ancil_field_reference("acc_sol_om", depository, aerosol_ancil_fields)
       call setup_ancil_field("acc_sol_su", depository, ancil_fields, mesh,  &
-                      twod_mesh)
+                      twod_mesh, read_by_file=.true.)
       call add_ancil_field_reference("acc_sol_su", depository, aerosol_ancil_fields)
       call setup_ancil_field("acc_sol_ss", depository, ancil_fields, mesh,  &
-                      twod_mesh)
+                      twod_mesh, read_by_file=.true.)
       call add_ancil_field_reference("acc_sol_ss", depository, aerosol_ancil_fields)
       call setup_ancil_field("n_acc_sol",  depository, ancil_fields, mesh,  &
-                      twod_mesh)
+                      twod_mesh, read_by_file=.true.)
       call add_ancil_field_reference("n_acc_sol", depository, aerosol_ancil_fields)
       call setup_ancil_field("ait_sol_bc", depository, ancil_fields, mesh,  &
-                      twod_mesh)
+                      twod_mesh, read_by_file=.true.)
       call add_ancil_field_reference("ait_sol_bc", depository, aerosol_ancil_fields)
       call setup_ancil_field("ait_sol_om", depository, ancil_fields, mesh,  &
-                      twod_mesh)
+                      twod_mesh, read_by_file=.true.)
       call add_ancil_field_reference("ait_sol_om", depository, aerosol_ancil_fields)
       call setup_ancil_field("ait_sol_su", depository, ancil_fields, mesh,  &
-                      twod_mesh)
+                      twod_mesh, read_by_file=.true.)
       call add_ancil_field_reference("ait_sol_su", depository, aerosol_ancil_fields)
       call setup_ancil_field("n_ait_sol",  depository, ancil_fields, mesh,  &
-                      twod_mesh)
+                      twod_mesh, read_by_file=.true.)
       call add_ancil_field_reference("n_ait_sol", depository, aerosol_ancil_fields)
       call setup_ancil_field("ait_ins_bc", depository, ancil_fields, mesh,  &
-                      twod_mesh)
+                      twod_mesh, read_by_file=.true.)
       call add_ancil_field_reference("ait_ins_bc", depository, aerosol_ancil_fields)
       call setup_ancil_field("ait_ins_om", depository, ancil_fields, mesh,  &
-                      twod_mesh)
+                      twod_mesh, read_by_file=.true.)
       call add_ancil_field_reference("ait_ins_om", depository, aerosol_ancil_fields)
       call setup_ancil_field("n_ait_ins",  depository, ancil_fields, mesh,  &
-                      twod_mesh)
+                      twod_mesh, read_by_file=.true.)
       call add_ancil_field_reference("n_ait_ins", depository, aerosol_ancil_fields)
       call setup_ancil_field("cor_sol_bc", depository, ancil_fields, mesh,  &
-                      twod_mesh)
+                      twod_mesh, read_by_file=.true.)
       call add_ancil_field_reference("cor_sol_bc", depository, aerosol_ancil_fields)
       call setup_ancil_field("cor_sol_om", depository, ancil_fields, mesh,  &
-                      twod_mesh)
+                      twod_mesh, read_by_file=.true.)
       call add_ancil_field_reference("cor_sol_om", depository, aerosol_ancil_fields)
       call setup_ancil_field("cor_sol_su", depository, ancil_fields, mesh,  &
-                      twod_mesh)
+                      twod_mesh, read_by_file=.true.)
       call add_ancil_field_reference("cor_sol_su", depository, aerosol_ancil_fields)
       call setup_ancil_field("cor_sol_ss", depository, ancil_fields, mesh,  &
-                      twod_mesh)
+                      twod_mesh, read_by_file=.true.)
       call add_ancil_field_reference("cor_sol_ss", depository, aerosol_ancil_fields)
       call setup_ancil_field("n_cor_sol",  depository, ancil_fields, mesh,  &
-                      twod_mesh)
+                      twod_mesh, read_by_file=.true.)
       call add_ancil_field_reference("n_cor_sol", depository, aerosol_ancil_fields)
 
       ! The following fields will need including when dust is available in the
@@ -1002,11 +1002,12 @@ contains
   !> @param[in, optional] twod_mesh The current 2d mesh
   !> @param[in, optional] ndata Number of non-spatial dimensions for multi-data
   !>                            field
+  !> @param[in, optional] read_by_file Whether the file object reads this field
   !> @param[in, out, optional] time_axis Time axis associated with ancil field
   !> @param[in, optional] alt_mesh      Alternative 3d mesh for time axis fields
   !> @param[in, optional] alt_twod_mesh Alternative 2d mesh for time axis fields
   subroutine setup_ancil_field( name, depository, ancil_fields, mesh, &
-                                twod_mesh, twod, ndata, ndata_first,  &
+                                twod_mesh, twod, ndata, ndata_first, read_by_file, &
                                 time_axis, alt_mesh, alt_twod_mesh  )
 
     implicit none
@@ -1019,6 +1020,7 @@ contains
     logical(l_def),       optional, intent(in)          :: twod
     integer(i_def),       optional, intent(in)          :: ndata
     logical(l_def),       optional, intent(in)          :: ndata_first
+    logical(l_def),       optional, intent(in)          :: read_by_file
     type(time_axis_type), optional, intent(inout)       :: time_axis
     type( mesh_type ), optional, pointer, intent(in)    :: alt_mesh
     type( mesh_type ), optional, pointer, intent(in)    :: alt_twod_mesh
@@ -1028,6 +1030,7 @@ contains
     integer(i_def)            :: ndat, time_ndat
     logical(l_def)            :: twod_field
     logical(l_def)            :: ndat_first
+    logical(l_def)            :: file_owned
     integer(i_def), parameter :: fs_order_h = 0
     integer(i_def), parameter :: fs_order_v = 0
 
@@ -1053,6 +1056,11 @@ contains
        ndat_first = ndata_first
     else
        ndat_first = .false.
+    end if
+    if (present(read_by_file)) then
+      file_owned = read_by_file
+    else
+      file_owned = .false.
     end if
 
     ! If field does not yet exist, then create it
@@ -1117,7 +1125,10 @@ contains
     ! Get a field pointer from the depository
     call depository%get_field(name, fld_ptr)
 
-    if (.not. present(time_axis)) then
+    if (file_owned) then
+      nullify(tmp_read_ptr)
+      call fld_ptr%set_read_behaviour(tmp_read_ptr)
+    else if (.not. present(time_axis)) then
       !Set up field read behaviour for 2D and 3D fields
       tmp_read_ptr => read_field_generic
       ! Set field read behaviour for target field
