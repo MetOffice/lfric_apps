@@ -55,8 +55,8 @@ module split_transport_utils_mod
   public :: get_first_hori_step
 
   public :: finalise_split_transport_utils
+  public :: compute_fraction_idxs
 
-  private :: compute_fraction_idxs
   private :: splitting_error_message
 
 contains
@@ -559,24 +559,40 @@ contains
   !> @brief Private routine to set up the list of splitting indices. This lists
   !!        the unique splitting fractions for vertical/horizontal directions
   !> TODO: in future this should take modeldb as an argument
-  subroutine compute_fraction_idxs()
+  subroutine compute_fraction_idxs(alt_splitting)
 
     use transport_config_mod, only: profile_size, splitting
 
     implicit none
+
+    ! Optional arguments
+    integer(kind=i_def), intent(in), optional :: alt_splitting
 
     ! Internal arguments
     integer(kind=i_def), allocatable :: tmp_fraction_idxs(:)
     integer(kind=i_def) :: i, j, k, frac, num_unique
     integer(kind=i_def) :: max_num_unique_steps
     integer(kind=i_def) :: num_steps
+    integer(kind=i_def) :: total_splittings
+    integer(kind=i_def) :: splitting_to_use
     logical(kind=l_def) :: found_fraction
+
+    ! Add on optional argument
+    total_splittings = profile_size
+    if (present(alt_splitting)) then
+      total_splittings = total_splittings + 1
+    end if
 
     ! Determine maximum possible number of unique steps ------------------------
     ! Most cautious value is that each step for each variable is unique
     max_num_unique_steps = 0
-    do i = 1, profile_size
-      num_steps = get_num_split_steps(splitting(i))
+    do i = 1, total_splittings
+      if (i <= profile_size) then
+        splitting_to_use = splitting(i)
+      else
+        splitting_to_use = alt_splitting
+      end if
+      num_steps = get_num_split_steps(splitting_to_use)
       max_num_unique_steps = max_num_unique_steps + num_steps
     end do
 
@@ -587,9 +603,14 @@ contains
     tmp_fraction_idxs(:) = 0
 
     ! Loop through all steps for all splittings
-    do i = 1, profile_size
-      do j = 1, get_num_split_steps(splitting(i))
-        frac = get_splitting_fraction(splitting(i), j)
+    do i = 1, total_splittings
+      if (i <= profile_size) then
+        splitting_to_use = splitting(i)
+      else
+        splitting_to_use = alt_splitting
+      end if
+      do j = 1, get_num_split_steps(splitting_to_use)
+        frac = get_splitting_fraction(splitting_to_use, j)
 
         ! Loop through list of unique fractions -- is this one already there?
         found_fraction = .false.
