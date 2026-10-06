@@ -40,6 +40,10 @@ module horizontal_sl_advective_alg_mod
   use horizontal_linear_sl_kernel_mod,  only: horizontal_linear_sl_kernel_type
   use limited_area_lbc_alg_mod,         only: overwrite_blending_zone_rtran
   use remap_on_extended_mesh_alg_mod,   only: remap_on_extended_mesh
+  use horizontal_cubic_sl_w2h_kernel_mod,  &
+                                        only: horizontal_cubic_sl_w2h_kernel_type
+  use horizontal_linear_sl_w2h_kernel_mod, &
+                                        only: horizontal_linear_sl_w2h_kernel_type
 
   ! Pointers to other objects
   use sci_geometric_constants_mod,      only: get_panel_id
@@ -59,6 +63,7 @@ module horizontal_sl_advective_alg_mod
                                           panel_edge_treatment,                &
                                           panel_edge_treatment_extended_mesh,  &
                                           ffsl_unity_3d
+   use fs_continuity_mod,               only: W2H
 
   implicit none
 
@@ -120,6 +125,7 @@ module horizontal_sl_advective_alg_mod
     logical(kind=l_def) :: do_overwrite
     real(kind=r_tran)   :: dt_frac, dt
     real(kind=r_tran)   :: one_over_dt, half_dt
+    integer(kind=i_def), parameter :: dep_pt_depth = 1_i_def
     integer(tik)        :: id
 
     ! Transport objects
@@ -216,11 +222,21 @@ module horizontal_sl_advective_alg_mod
     end if
 
     ! First advective step with linear interpolation
-    call invoke( horizontal_linear_sl_kernel_type( field_xp,                   &
-                                                   field_yp,                   &
-                                                   field_big_halo,             &
-                                                   stencil_extent,             &
-                                                   dep_dist_xy ) )
+    if ( field_xp%which_function_space() == W2h ) then
+      call invoke( horizontal_linear_sl_w2h_kernel_type( field_xp,            &
+                                                         field_yp,            &
+                                                         field_big_halo,      &
+                                                         stencil_extent,      &
+                                                         dep_dist_xy,         &
+                                                         dep_pt_depth ) )
+
+    else
+      call invoke( horizontal_linear_sl_kernel_type( field_xp,        &
+                                                     field_yp,        &
+                                                     field_big_halo,  &
+                                                     stencil_extent,  &
+                                                     dep_dist_xy ) )
+    end if
 
     ! Constants to get increments
     one_over_dt = 1.0_r_tran / dt
@@ -284,15 +300,27 @@ module horizontal_sl_advective_alg_mod
                                                 panel_edge_dist,               &
                                                 hori_monotone ) )
     else
-      call invoke( horizontal_cubic_sl_kernel_type(                            &
-                                                increment_x,                   &
-                                                increment_y,                   &
-                                                field_x_big_halo,              &
-                                                stencil_extent,                &
-                                                field_y_big_halo,              &
-                                                stencil_extent,                &
-                                                dep_dist_xy,                   &
-                                                hori_monotone ) )
+      if ( increment_x%which_function_space() == W2h ) then
+        call invoke( horizontal_cubic_sl_w2h_kernel_type(                      &
+                                                  increment_x,                 &
+                                                  increment_y,                 &
+                                                  field_x_big_halo,            &
+                                                  stencil_extent,              &
+                                                  field_y_big_halo,            &
+                                                  stencil_extent,              &
+                                                  dep_dist_xy, dep_pt_depth,   &
+                                                  hori_monotone ) )
+      else
+        call invoke( horizontal_cubic_sl_kernel_type(                          &
+                                                  increment_x,                 &
+                                                  increment_y,                 &
+                                                  field_x_big_halo,            &
+                                                  stencil_extent,              &
+                                                  field_y_big_halo,            &
+                                                  stencil_extent,              &
+                                                  dep_dist_xy,                 &
+                                                  hori_monotone ) )
+      end if
     end if
 
     ! Collect the increments
