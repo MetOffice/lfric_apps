@@ -1,0 +1,73 @@
+# This file controls which files are being processed by PSyclone,
+# both using PSyclone's transmute ability (transformation generic
+# Fortran files), and its DSL (kernel based) capability.
+
+# First we specify the phases for PSyclone. This allows
+# any apps to run transmute and DSL steps in any order just by
+# changing (or supplying a different) psyclone-info file.
+# In this example, we run a transmute step after the DSL step.
+
+phases:
+  # Define two phases: a DSL phase, then transmutation
+  - dsl
+  - transmute_after_dsl
+
+dsl:
+  comment: "PSylone DSL Phase"
+  api: lfric
+
+  script_dir: ${target}/psykal
+
+  # The first two directives reproduce the default PSyclone triggering used
+  # in LFRic:
+
+  # Run optimisation/.../global.py on all x90 files
+  global.py: \*
+
+  # This represents existing functionality: if there is a file-specific .py
+  # file, use it. The specification of '*' does not trigger an error
+  # if there is no file_specific script (while explicitly putting a name
+  # here as shown in the previous pre_dsl phase will trigger an error, to
+  # catch typos early)
+  file_specific: \*
+
+transmute_after_dsl:
+  # As above
+  comment: "Post-DSL transmute phase"
+  api:
+  script_dir: ${target}/transmute
+
+  global.py:
+    mphys_kernel_mod
+
+  boundary_layer/local.py:
+    /bl_lsp
+    /btq_int
+    /ex_flux_tq
+    /ex_flux_uv
+    /fm_drag
+    /imp_mix
+    /kmkh
+
+  file_specific:
+    /bm_tau_kernel_mod
+    /conv_gr_kernel_mod
+    /gw_ussp_mod
+    /jules_exp_kernel_mod
+    /jules_extra_kernel_mod
+    /jules_imp_kernel_mod
+    /kmkhz_9c_wtrac
+    /lw_kernel_mod
+    /pc2_bl_forced_cu
+    /pc2_bm_initiate
+    /pc2_initiation_ctl
+    /pc2_initiation_kernel_mod
+    /pc2_conv_coupling_kernel_mod
+    /sw_kernel_mod
+    /sw_rad_tile_kernel_mod
+    /ukca_aero_ctl
+    /ukca_chemistry_ctl_full_mod
+    /ukca_main1-ukca_main1
+
+  no_script:
+    /ukca_abdulrazzak_ghan
