@@ -22,8 +22,8 @@ casim:
     ref: 2026.07.1
 
 jules:
-    source: git@github.com:maggiehendry/jules.git
-    ref: maggiehendry-61-extracting-inferno-hardwired-flammability-params
+    source: git@github.com:MetOffice/jules.git
+    ref: 332ca852c65212158708e308f26e157e5bdb93ee
 
 lfric_apps:
     source:
@@ -32,7 +32,7 @@ lfric_apps:
 lfric_core:
     source: git@github.com:MetOffice/lfric_core.git
     ref: d65ef33df9ad33c7f395851147766da170289892
-    
+
 moci:
     source: git@github.com:MetOffice/moci.git
     ref: 2026.07.1
