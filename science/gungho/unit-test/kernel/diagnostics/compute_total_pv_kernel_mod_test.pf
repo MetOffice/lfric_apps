@@ -8,7 +8,7 @@
 !>
 module compute_total_pv_kernel_mod_test
 
-  use constants_mod,                       only : i_def, r_def, PI
+  use constants_mod,                       only : i_def, r_def, PI, rmdi
   use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w0_m3x3_q3x3x3_size, &
                                                   get_w1_m3x3_q3x3x3_size, &
                                                   get_w3_m3x3_q3x3x3_size
@@ -89,7 +89,7 @@ contains
                               p_zero=100000.0_r_def,                  &
                               scaling_factor=1.0_r_def )
 
-    call init_chi_transforms()
+    call init_chi_transforms([rmdi,rmdi], [rmdi,rmdi], rmdi)
 
   end subroutine set_up
 

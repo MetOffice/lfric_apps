@@ -9,7 +9,7 @@
 module analytic_orography_field_spherical_mod_test
 
   use constants_mod,              only : i_def, r_def, l_def, PI, str_def, &
-                                         str_max_filename
+                                         str_max_filename, rmdi
   use global_mesh_mod,            only : global_mesh_type
   use analytic_orography_mod,     only : orography_profile
   use ugrid_mesh_data_mod,        only : ugrid_mesh_data_type
@@ -142,7 +142,7 @@ contains
                                               lambda_focus,         &
                                               phi_focus ) )
 
-    call init_chi_transforms()
+    call init_chi_transforms([rmdi,rmdi], [rmdi,rmdi], rmdi)
 
   end subroutine setUp
 

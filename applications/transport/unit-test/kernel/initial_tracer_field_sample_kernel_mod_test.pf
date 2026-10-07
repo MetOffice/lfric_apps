@@ -7,7 +7,7 @@
 !> Test the initial_tracer_field_sample_kernel
 module initial_tracer_field_sample_kernel_mod_test
 
-  use constants_mod,                       only : r_def, i_def
+  use constants_mod,                       only : r_def, i_def, rmdi
   use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w0_m3x3_q3x3x3_size,   &
                                                   get_w3_m3x3_q3x3x3_size
 
@@ -84,7 +84,7 @@ contains
                                  f_lon_deg=0.0_r_def, perturb_init=.false., &
                                  perturb_magnitude=0, perturb_seed=0 )
 
-    call init_chi_transforms()
+    call init_chi_transforms([rmdi,rmdi], [rmdi,rmdi], rmdi)
 
   end subroutine setUp
 

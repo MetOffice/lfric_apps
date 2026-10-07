@@ -7,7 +7,7 @@
 !> Test the remapping of scalar fields on the cubed-sphere panel extension
 module panel_edge_weights_kernel_mod_test
 
-  use constants_mod, only: l_def, i_def, r_def, pi, r_tran, IMDI
+  use constants_mod, only: l_def, i_def, r_def, pi, r_tran, imdi, rmdi
   use funit
 
   implicit none
@@ -82,7 +82,7 @@ contains
         vorticity_in_w1=.false.                                                &
     )
 
-    call init_chi_transforms()
+    call init_chi_transforms([rmdi,rmdi], [rmdi,rmdi], rmdi)
 
   end subroutine setUp
 

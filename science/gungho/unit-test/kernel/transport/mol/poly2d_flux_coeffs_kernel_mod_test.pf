@@ -7,7 +7,7 @@
 !> Test the computation of 2d flux coefficients
 module poly2d_flux_coeffs_kernel_mod_test
 
-  use constants_mod, only: i_def, r_def, r_tran
+  use constants_mod, only: i_def, r_def, r_tran, rmdi
   use funit
   implicit none
 
@@ -54,7 +54,7 @@ contains
                                        rehabilitate = .true., &
                                        vorticity_in_w1 = .true. )
 
-    call init_chi_transforms()
+    call init_chi_transforms([rmdi,rmdi], [rmdi,rmdi], rmdi)
 
   end subroutine setUp
 

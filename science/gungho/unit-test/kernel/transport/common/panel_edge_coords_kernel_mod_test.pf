@@ -7,7 +7,7 @@
 !> Test the computation of the cubed-sphere panel extension
 module panel_edge_coords_kernel_mod_test
 
-  use constants_mod, only: i_def, r_def, pi, IMDI
+  use constants_mod, only: i_def, r_def, pi, imdi, rmdi
   use funit
 
   implicit none
@@ -82,7 +82,7 @@ contains
         vorticity_in_w1=.false.                                                &
     )
 
-    call init_chi_transforms()
+    call init_chi_transforms([rmdi,rmdi], [rmdi,rmdi], rmdi)
 
   end subroutine setUp
 
