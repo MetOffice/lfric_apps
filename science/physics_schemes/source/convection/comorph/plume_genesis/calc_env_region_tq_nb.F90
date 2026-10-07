@@ -486,14 +486,7 @@ do ic = 1, n_points
 
     ! Apply bounds to qv_icr...
 
-    ! Upper bound is liquid saturation
-    q_lim = ( ( qsat_liq(ic) + supersat(ic) ) * dtv_dqsat_liq(ic)              &
-            + q_vap(ic) * dtv_dqv(ic)                                          &
-            - qc_excess(ic,i_icr) * dtv_dqc(ic) )                              &
-          / ( dtv_dqsat_liq(ic) + dtv_dqv(ic) )
-    q_vap_r(ic,i_icr) = min( q_vap_r(ic,i_icr), q_lim )
-
-    ! Upper bound for dry region is also liquid saturation
+    ! Upper bound for dry region is liquid saturation
     q_lim = ( ( qsat_liq(ic) + supersat(ic) ) * dtv_dqsat_liq(ic)              &
             + q_vap(ic) * dtv_dqv(ic)                                          &
             - qc_excess(ic,i_dry) * dtv_dqc(ic) )                              &
@@ -507,6 +500,13 @@ do ic = 1, n_points
           + ( frac_r(ic,i_dry) / frac_r(ic,i_icr) )                            &
           * ( q_vap_noliq(ic) - q_lim )
     q_vap_r(ic,i_icr) = max( q_vap_r(ic,i_icr), q_lim )
+
+    ! Upper bound for icr region is also liquid saturation
+    q_lim = ( ( qsat_liq(ic) + supersat(ic) ) * dtv_dqsat_liq(ic)              &
+            + q_vap(ic) * dtv_dqv(ic)                                          &
+            - qc_excess(ic,i_icr) * dtv_dqc(ic) )                              &
+          / ( dtv_dqsat_liq(ic) + dtv_dqv(ic) )
+    q_vap_r(ic,i_icr) = min( q_vap_r(ic,i_icr), q_lim )
 
     ! Finally, we must have qv_icr > 0
     q_vap_r(ic,i_icr) = max( q_vap_r(ic,i_icr), zero )
