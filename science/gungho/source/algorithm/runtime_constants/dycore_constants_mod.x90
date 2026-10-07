@@ -439,7 +439,7 @@ contains
         call mm_w2_si_inventory%add_operator(mm_w2_si, fs, fs, mesh)
 
         if ( rotating ) then
-          const = tau_u * real(dt_stored, r_def)
+          const = - tau_u * real(dt_stored, r_def)
         else
           const = 0.0_r_def
         end if
