@@ -362,13 +362,13 @@ contains
 
     type(modeldb_type), intent(inout) :: modeldb
 
-    type(mesh_type), pointer :: mesh      => null()
-    type(mesh_type), pointer :: twod_mesh => null()
+    type(mesh_type), pointer :: mesh
+    type(mesh_type), pointer :: twod_mesh
     integer(kind=i_def)      :: ts_start, rc
     integer(tik)             :: tid_first, tid_rest
 
 #if defined(COUPLED) || defined(UM_PHYSICS)
-    type( field_collection_type ), pointer :: depository => null()
+    type( field_collection_type ), pointer :: depository
 #endif
 
     type( field_collection_type ), pointer :: lbc_fields
@@ -379,7 +379,7 @@ contains
     type( field_collection_type ), pointer :: derived_fields
 
 #ifdef UM_PHYSICS
-    procedure(regridder), pointer :: regrid_operation => null()
+    procedure(regridder), pointer :: regrid_operation
     logical(l_def)                :: regrid_lowest_order
 
     type( field_collection_type ), pointer :: surface_fields
@@ -472,6 +472,7 @@ contains
 
       if ( theta_forcing == theta_forcing_nudging                              &
           .or. wind_forcing == wind_forcing_nudging) then
+
         derived_fields => modeldb%fields%get_field_collection("derived_fields")
         call update_variable_fields(                                           &
             model_axes%nudging_times_list, modeldb%clock, derived_fields       &
