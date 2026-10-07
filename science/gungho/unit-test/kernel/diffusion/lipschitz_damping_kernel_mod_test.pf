@@ -169,6 +169,57 @@ contains
     @assertEqual(this%u_inc(6), 0.0_r_def, tol)
     @assertEqual(this%breached(1), 1.0_r_def, tol)
 
+    ! Case 4: the z-direction 1D Lipschitz number is 1.2, which would have
+    ! breached the shared threshold of 1 used by the other directions, but
+    ! is within the z-direction's own threshold of 1.5, so no clamping
+    ! occurs. The x- and y-directions are negative enough that the 3D
+    ! number also stays within bounds
+    this%u_in = (/ 0.4_r_def, 0.0_r_def, 0.0_r_def, &
+                   0.4_r_def, -0.6_r_def, 0.6_r_def /)
+    this%u_inc = 0.0_r_def
+
+    call lipschitz_damping_code( nlayers,                      &
+                                 this%u_inc,                   &
+                                 this%u_in,                    &
+                                 this%detj_at_w3,              &
+                                 this%breached,                &
+                                 dt,                           &
+                                 ndf_w2, undf_w2, this%map_w2, &
+                                 ndf_w3, undf_w3, this%map_w3 )
+
+    @assertEqual(this%u_inc(1), 0.0_r_def, tol)
+    @assertEqual(this%u_inc(2), 0.0_r_def, tol)
+    @assertEqual(this%u_inc(3), 0.0_r_def, tol)
+    @assertEqual(this%u_inc(4), 0.0_r_def, tol)
+    @assertEqual(this%u_inc(5), 0.0_r_def, tol)
+    @assertEqual(this%u_inc(6), 0.0_r_def, tol)
+    @assertEqual(this%breached(1), 0.0_r_def, tol)
+
+    ! Case 5: the z-direction 1D Lipschitz number is 1.6, which exceeds its
+    ! own threshold of 1.5, so the outflowing T/B components are scaled
+    ! back to bring it down to 1.5. The x- and y-directions are negative
+    ! enough that the 3D number stays within bounds
+    this%u_in = (/ 0.5_r_def, 0.0_r_def, 0.0_r_def, &
+                   0.5_r_def, -0.8_r_def, 0.8_r_def /)
+    this%u_inc = 0.0_r_def
+
+    call lipschitz_damping_code( nlayers,                      &
+                                 this%u_inc,                   &
+                                 this%u_in,                    &
+                                 this%detj_at_w3,              &
+                                 this%breached,                &
+                                 dt,                           &
+                                 ndf_w2, undf_w2, this%map_w2, &
+                                 ndf_w3, undf_w3, this%map_w3 )
+
+    @assertEqual(this%u_inc(1), 0.0_r_def, tol)
+    @assertEqual(this%u_inc(2), 0.0_r_def, tol)
+    @assertEqual(this%u_inc(3), 0.0_r_def, tol)
+    @assertEqual(this%u_inc(4), 0.0_r_def, tol)
+    @assertEqual(this%u_inc(5), 0.05_r_def, tol)
+    @assertEqual(this%u_inc(6), -0.05_r_def, tol)
+    @assertEqual(this%breached(1), 1.0_r_def, tol)
+
   end subroutine test_all
 
 end module lipschitz_damping_kernel_mod_test

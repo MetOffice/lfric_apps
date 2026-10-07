@@ -14,8 +14,9 @@
 !!          Lipschitz numbers. Only the outflow values are modified in a given
 !!          cell, which may increase the Lipschitz number for a neighbouring
 !!          cell (since the inflow there is reduced).
-!!          The thresholds are set to 1 for the 1D Lipschitz number and 0.5
-!!          for the 3D Lipschitz number.
+!!          The thresholds are set to 1 for the x- and y-direction 1D
+!!          Lipschitz numbers, 1.5 for the z-direction 1D Lipschitz number,
+!!          and 0.5 for the 3D Lipschitz number.
 module lipschitz_damping_kernel_mod
 
   use argument_mod,          only : arg_type,                                  &
@@ -118,6 +119,7 @@ subroutine lipschitz_damping_code(nlayers,                                     &
   real(kind=r_def), dimension(0:nlayers-1) :: breach
 
   real(kind=r_def), parameter :: threshold_1d = 1.0_r_def
+  real(kind=r_def), parameter :: threshold_1d_z = 1.5_r_def
   real(kind=r_def), parameter :: threshold_3d = 0.5_r_def
 
   integer(kind=i_def) :: k
@@ -169,7 +171,7 @@ subroutine lipschitz_damping_code(nlayers,                                     &
     un(:) = un(:) + (contrib_n(:)/total(:))*excess(:)
   end where
 
-  excess(:) = max(Lz(:) - threshold_1d, 0.0_r_def)*vol(:)/dt
+  excess(:) = max(Lz(:) - threshold_1d_z, 0.0_r_def)*vol(:)/dt
   contrib_t(:) = max(ut(:), 0.0_r_def)
   contrib_b(:) = max(-ub(:), 0.0_r_def)
   total(:) = contrib_t(:) + contrib_b(:)
@@ -185,7 +187,7 @@ subroutine lipschitz_damping_code(nlayers,                                     &
   ! Flag cells where any threshold was breached, before the 3D clamp below
   breach(:) = merge( 1.0_r_def, 0.0_r_def,                                     &
                      Lx(:) > threshold_1d .or. Ly(:) > threshold_1d .or.       &
-                     Lz(:) > threshold_1d .or. L3D(:) > threshold_3d )
+                     Lz(:) > threshold_1d_z .or. L3D(:) > threshold_3d )
   breached(w3_idx : w3_idx+nl) = breach(:)
 
   excess(:) = max(L3D(:) - threshold_3d, 0.0_r_def)*vol(:)/dt
