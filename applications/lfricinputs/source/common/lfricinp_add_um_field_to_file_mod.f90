@@ -229,12 +229,12 @@ lookup_real_tmp(brsvd4) = 0.0_real64
 if (lookup_int(lbvc) >= 126 .and. lookup_int(lbvc) <= 139 &
      .or. lookup_int(lbvc) == 5 .or. lookup_int(lbvc) == 0 .or. &
      lookup_int(lbvc) == 275 ) then
-
+  ! Special codes inc single level
   write(log_scratch_space, '(A,I0,A)') &
      "Vertical coord type ", lookup_int(lbvc), " treated as single layer"
   call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
 
-  ! Special codes inc single level, set to 0.0
+  ! set level heights to 0.0 - potentially except bulev & bhulev?
   lookup_real_tmp(blev)=0.0_real64
   lookup_real_tmp(bhlev)=0.0_real64
   lookup_real_tmp(brlev)=0.0_real64
