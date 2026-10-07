@@ -25,7 +25,8 @@ module split_w2_to_ws_kernel_mod
   use fs_continuity_mod,     only: W2, W2h, Wtheta
   use kernel_mod,            only: kernel_type
   use reference_element_mod, only: W, E, N, S, B
-  use sci_face_selector_support_mod, only : face_from_face_selector
+  use sci_face_selector_support_mod, &
+                             only: face_from_face_selector
 
   implicit none
 
@@ -134,7 +135,7 @@ subroutine split_w2_to_ws_code(nlayers,                    &
 
   ! Internal variables
   integer(kind=i_def) :: j, k, df, id1, id2
-  real(kind=r_def) :: dx_z, dy_z, dz_z
+  real(kind=r_def)    :: dx_z, dy_z, dz_z
 
   do j = 1, ABS(face_selector_ew(map_w3_2d(1))) + ABS(face_selector_ns(map_w3_2d(1)))
     df = face_from_face_selector(j, face_selector_ew(map_w3_2d(1)), face_selector_ns(map_w3_2d(1)))

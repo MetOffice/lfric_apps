@@ -137,7 +137,6 @@ subroutine apply_wind_metrics_code(nlayers,                    &
   real(kind=r_def) :: rot_mat(3,3), chi_uvw(2), chi_d_uvw(2), deltaAD, denom
   real(kind=r_def) :: uvw_lhs(3), uvw_rhs(3)
   real(kind=r_def) :: dx_z, dy_z, dz_z
-  real(kind=r_def) :: dx, dy
 
   ! The rotation metric contains code for shallow atmosphere geometry,
   ! however the existing shallow switch only controls shallow
@@ -273,17 +272,11 @@ subroutine apply_wind_metrics_code(nlayers,                    &
       dz_z = dz_z + chi3(map_wx(df)+k)*diff_basis_wx(3, df, B)
     end do
 
-    u_av = 0.25_r_def * ( metrics_uvw(map_w2(W)+k) + metrics_uvw(map_w2(E)+k) &
-                      + metrics_uvw(map_w2(W)+k-1) + metrics_uvw(map_w2(E)+k-1))
-    v_av = 0.25_r_def * ( metrics_uvw(map_w2(S)+k) + metrics_uvw(map_w2(N)+k) &
-                      + metrics_uvw(map_w2(S)+k-1) + metrics_uvw(map_w2(N)+k-1))
-    dx = 0.25_r_def * (da(map_w2(S)+k)   + da(map_w2(N)+k)+&
-                       da(map_w2(S)+k-1) + da(map_w2(N)+k-1)) / dz_z
-    dy = 0.25_r_def * (da(map_w2(W)+k)   + da(map_w2(E)+k)+&
-                       da(map_w2(W)+k-1) + da(map_w2(E)+k-1)) / dz_z
-
-    metrics_uvw(map_w2(B)+k) = metrics_uvw(map_w2(B)+k)/da(map_w2(B)+k)*dx*dy &
-                             - u_av*dx_z/dz_z + v_av*dy_z/dz_z
+    u_av = 0.25_r_def * ( metrics_uvw(map_w2(W)+k)   + metrics_uvw(map_w2(E)+k) &
+                        + metrics_uvw(map_w2(W)+k-1) + metrics_uvw(map_w2(E)+k-1) )
+    v_av = 0.25_r_def * ( metrics_uvw(map_w2(S)+k)   + metrics_uvw(map_w2(N)+k) &
+                        + metrics_uvw(map_w2(S)+k-1) + metrics_uvw(map_w2(N)+k-1) )
+    metrics_uvw(map_w2(B)+k) = metrics_uvw(map_w2(B)+k) - u_av*dx_z/dz_z + v_av*dy_z/dz_z
   end do
   metrics_uvw(map_w2(T)+nlayers-1) = 0.0_r_def
 
