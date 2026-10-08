@@ -32,8 +32,9 @@ export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
                                $(CORE_ROOT_DIR)/components/lfric-xios \
                                $(APPS_ROOT_DIR)/science/shared \
                                $(APPS_ROOT_DIR)/interfaces/socrates_interface \
-                               $(APPS_ROOT_DIR)/interfaces/jules_interface \
-                               $(APPS_ROOT_DIR)/interfaces/physics_schemes_interface
+                               $(APPS_ROOT_DIR)/interfaces/physics_schemes_interface \
+                               $(APPS_ROOT_DIR)/science/gungho \
+                               $(APPS_ROOT_DIR)/interfaces/jules_interface
 
 META_VN             ?= HEAD
 export META_FILE_DIR = $(PROJECT_DIR)/rose-meta/lfric-$(PROJECT_NAME)/$(META_VN)

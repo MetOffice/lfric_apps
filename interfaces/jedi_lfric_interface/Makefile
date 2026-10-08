@@ -32,7 +32,7 @@ PROJECT_NAME = jedi_lfric_interface
 export PROFILE ?= fast-debug
 
 # Select option for PSyclone transformation. Select "none" for no transformation.
-export PSYCLONE_TRANSFORMATION ?= minimum
+export PSYCLONE_TRANSFORMATION ?= none
 
 export EXTERNAL_DYNAMIC_LIBRARIES = netcdff netcdf yaxt yaxt_c
 

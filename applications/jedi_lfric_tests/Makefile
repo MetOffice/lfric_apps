@@ -16,7 +16,7 @@ export PROJECT_DIR_NAME = jedi_lfric_tests
 export PROFILE ?= fast-debug
 
 # Select option for PSyclone transformation. Select "none" for no transformation.
-export PSYCLONE_TRANSFORMATION ?= minimum
+export PSYCLONE_TRANSFORMATION ?= none
 
 export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 
@@ -30,15 +30,15 @@ export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
                                $(CORE_ROOT_DIR)/components/science \
                                $(CORE_ROOT_DIR)/components/inventory \
                                $(CORE_ROOT_DIR)/components/lfric-xios \
-                               $(APPS_ROOT_DIR)/interfaces/jedi_lfric_interface \
                                $(APPS_ROOT_DIR)/science/shared \
-                               $(APPS_ROOT_DIR)/interfaces/socrates_interface \
-                               $(APPS_ROOT_DIR)/interfaces/jules_interface \
                                $(APPS_ROOT_DIR)/interfaces/physics_schemes_interface \
                                $(APPS_ROOT_DIR)/science/gungho \
+                               $(APPS_ROOT_DIR)/interfaces/socrates_interface \
+                               $(APPS_ROOT_DIR)/interfaces/jules_interface \
                                $(APPS_ROOT_DIR)/science/linear \
                                $(APPS_ROOT_DIR)/science/adjoint \
-                               $(APPS_ROOT_DIR)/interfaces/coupled_interface
+                               $(APPS_ROOT_DIR)/interfaces/coupled_interface \
+                               $(APPS_ROOT_DIR)/interfaces/jedi_lfric_interface
 
 META_VN             ?= HEAD
 export META_FILE_DIR = $(PROJECT_DIR)/rose-meta/$(PROJECT_NAME)/$(META_VN)
@@ -131,9 +131,9 @@ build: ALWAYS
 	$(call MESSAGE,========================================)
 	$(call MESSAGE,Importing internal dependencies...)
 	$(call MESSAGE,========================================)
-	$(Q)for SUBPROJECT in $(INTERNAL_DEPENDENCIES) ; do \
+	$Qfor SUBPROJECT in $(INTERNAL_DEPENDENCIES) ; do \
 	    $(MAKE) $(QUIET_ARG) -f $$SUBPROJECT/build/import.mk ; \
-    done
+	done
 	$(call MESSAGE,========================================)
 	$(call MESSAGE,Extracting $(PROJECT_NAME))
 	$(call MESSAGE,========================================)
@@ -150,18 +150,6 @@ build: ALWAYS
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/configuration.mk \
 	          SOURCE_DIR=$(APPS_ROOT_DIR)/science/gungho/source \
 	          META_FILE_DIR=$(META_FILE_DIR)
-	$(call MESSAGE,========================================)
-	$(call MESSAGE,PSycloning interface components)
-	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone_psykal.mk \
-	          SOURCE_DIR=$(APPS_ROOT_DIR)/interfaces/coupled_interface/source \
-	          OPTIMISATION_PATH=$(OPTIMISATION_PATH)
-	$(call MESSAGE,========================================)
-	$(call MESSAGE,PSycloning Gungho dynamical core)
-	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone_psykal.mk \
-	          SOURCE_DIR=$(APPS_ROOT_DIR)/science/gungho/source \
-	          OPTIMISATION_PATH=$(OPTIMISATION_PATH)
 	$(call MESSAGE,========================================)
 	$(call MESSAGE,PSycloning $(PROJECT_NAME))
 	$(call MESSAGE,========================================)

@@ -36,16 +36,21 @@ export EXTRA_ROSE_META = jules
 export META_DIR = $(WORKING_DIR)/../rose-meta
 export ROSE_META_DIRS = $(APPS_ROOT_DIR)/rose-meta $(META_DIR)
 
-# Note - socrates_interface must come before jules_interface as there are dependencies on each other.
+# There are dependencies between the components:
+#     socrates_interface depends on physics_schemes_interface
+#     jules_interface depends on socrates_interface
+#
 export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
                                $(CORE_ROOT_DIR)/components/driver \
                                $(CORE_ROOT_DIR)/components/science \
                                $(CORE_ROOT_DIR)/components/inventory \
                                $(CORE_ROOT_DIR)/components/lfric-xios \
                                $(APPS_ROOT_DIR)/science/shared \
+                               $(APPS_ROOT_DIR)/interfaces/physics_schemes_interface \
                                $(APPS_ROOT_DIR)/interfaces/socrates_interface \
                                $(APPS_ROOT_DIR)/interfaces/jules_interface \
-                               $(APPS_ROOT_DIR)/interfaces/physics_schemes_interface
+                               $(APPS_ROOT_DIR)/science/gungho \
+                               $(APPS_ROOT_DIR)/interfaces/coupled_interface
 
 # If the COUPLED compiler directive has been set then add appropriate
 #  coupled model settings
@@ -110,20 +115,6 @@ build: ALWAYS
 	    $(MAKE) $(QUIET_ARG) -f $$SUBPROJECT/build/import.mk ; \
 	done
 	$(call MESSAGE,========================================)
-	$(call MESSAGE,Extracting coupled_interface component)
-	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
-	          SOURCE_DIR=$(APPS_ROOT_DIR)/interfaces/coupled_interface/source
-	$(call MESSAGE,========================================)
-	$(call MESSAGE,Extracting Gungho dynamical core)
-	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
-	          SOURCE_DIR=$(APPS_ROOT_DIR)/science/gungho/source
-	$(call MESSAGE,========================================)
-	$(call MESSAGE,Extracting UM physics )
-	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(APPS_ROOT_DIR)/build/extract/extract_physics.mk
-	$(call MESSAGE,========================================)
 	$(call MESSAGE,Extracting $(PROJECT_NAME))
 	$(call MESSAGE,========================================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
@@ -138,22 +129,6 @@ build: ALWAYS
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/configuration.mk \
 	          SOURCE_DIR=$(APPS_ROOT_DIR)/science/gungho/source \
 	          META_FILE_DIR=$(META_FILE_DIR)
-	$(call MESSAGE,========================================)
-	$(call MESSAGE,PSycloning interface components)
-	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone_psykal.mk \
-	          SOURCE_DIR=$(APPS_ROOT_DIR)/interfaces/coupled_interface/source
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone_psykal.mk \
-	          SOURCE_DIR=$(APPS_ROOT_DIR)/interfaces/jules_interface/source
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone_psykal.mk \
-	          SOURCE_DIR=$(APPS_ROOT_DIR)/interfaces/socrates_interface/source
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone_psykal.mk \
-	          SOURCE_DIR=$(APPS_ROOT_DIR)/interfaces/physics_schemes_interface/source
-	$(call MESSAGE,========================================)
-	$(call MESSAGE,PSycloning Gungho dynamical core)
-	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone_psykal.mk \
-	          SOURCE_DIR=$(APPS_ROOT_DIR)/science/gungho/source
 	$(call MESSAGE,========================================)
 	$(call MESSAGE,PSycloning $(PROJECT_NAME))
 	$(call MESSAGE,========================================)
