@@ -1032,6 +1032,7 @@ contains
     type(field_type)                         :: new_field
     type(function_space_type),       pointer :: vec_space => null()
     procedure(write_interface),      pointer :: tmp_write_ptr => null()
+    procedure(read_interface),       pointer :: tmp_read_ptr => null()
     type(field_type),                pointer :: fld_ptr => null()
     class(pure_abstract_field_type), pointer :: abs_fld_ptr => null()
 
@@ -1048,10 +1049,13 @@ contains
     end if
 
     call depository%get_field(name, fld_ptr)
+    ! The file object copies this method into its read buffers
+    tmp_read_ptr => read_field_generic
+    call fld_ptr%set_read_behaviour(tmp_read_ptr)
     abs_fld_ptr => fld_ptr
     call target_fields%add_reference_to_field(abs_fld_ptr)
 
-    nullify(vec_space, tmp_write_ptr, fld_ptr, abs_fld_ptr)
+    nullify(vec_space, tmp_write_ptr, tmp_read_ptr, fld_ptr, abs_fld_ptr)
 
   end subroutine create_file_owned_field
 
