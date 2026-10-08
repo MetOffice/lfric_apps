@@ -63,19 +63,17 @@ module cat_column_kernel_mod
 contains
 
   !> @brief   Winds on a pressure level and the vertical wind shear there.
-  !> @details Interpolates the cell-centre winds to the requested pressure
-  !>          level (linear in Exner pressure, the same interpolation as
-  !>          pres_interp_kernel_mod uses for every pressure-level
-  !>          diagnostic) and computes the vertical derivative of wind speed
-  !>          with respect to height at that level, using the derivatives of
-  !>          height and of both wind components with respect to pressure
-  !>          from a six-point cubic spline through the model levels. The
-  !>          spline derivative is a direct port of the UM PWS routine
-  !>          DiffP (diff_mod), and the shear is that of the UM routine
-  !>          pws_cat (pws_cat_mod). Results are written into slot kp of the
-  !>          pressure-level output fields; other slots are left unchanged.
-  !>          Columns with fewer than six layers cannot support the spline
-  !>          and receive missing data.
+  !> @details For one column and one pressure level: interpolates the
+  !>          cell-centre winds to press_lev, linearly in Exner pressure,
+  !>          and forms dwdz = sqrt((du/dp)**2 + (dv/dp)**2) / |dz/dp| from
+  !>          a six-point cubic spline through the model levels. Port of UM
+  !>          pws_cat (pws_cat_mod) and DiffP (diff_mod); the UM's C-to-B
+  !>          grid interpolation has no counterpart here, as the W3 winds
+  !>          are already at cell centres.
+  !>
+  !>          Results go into slot kp; other slots are untouched. A column
+  !>          with fewer than six layers cannot support the spline, so its
+  !>          dwdz is missing data.
   !> @param[in]     nlayers    Number of layers
   !> @param[in]     u_in_w3    Zonal wind at cell centres
   !> @param[in]     v_in_w3    Meridional wind at cell centres
@@ -170,12 +168,10 @@ contains
   end subroutine cat_column_code
 
   !> @brief   Interpolate a column profile to a given Exner pressure.
-  !> @details Linear interpolation in Exner pressure between the bracketing
-  !>          levels, holding the top or bottom level value beyond the
-  !>          model top or below the lowest level. This is the same
-  !>          interpolation as pres_interp_code (pres_interp_kernel_mod),
-  !>          restated here for one level so the kernel stays
-  !>          self-contained.
+  !> @details Linear in Exner pressure between the bracketing levels. Above
+  !>          the model top or below the lowest level the end level value is
+  !>          held constant. Matches pres_interp_code
+  !>          (pres_interp_kernel_mod).
   !> @param[in] numlevs     Number of levels in the profile
   !> @param[in] ffield      Profile to interpolate
   !> @param[in] exner       Exner pressure at each level, decreasing with

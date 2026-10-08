@@ -78,24 +78,25 @@ module dutton_cat_kernel_mod
 contains
 
   !> @brief   Dutton clear air turbulence predictor on one pressure level.
-  !> @details Forms the horizontal derivatives of both wind components on
-  !>          the pressure level by centred differences over the four
-  !>          face-neighbouring cells, combines them with the wind and the
-  !>          vertical wind shear into Dutton's empirical indicator, and
-  !>          interpolates that onto a predictor between 0 and 7.5. This is
-  !>          a port of the UM PWS routines DiffX, DiffY (diff_mod) and
-  !>          DuttonCAT (pws_cat_mod). The UM differences along the rows and
-  !>          columns of a regular latitude-longitude grid; here the two
-  !>          opposite neighbour pairs give two directional differences
-  !>          whose displacements, in the local east-north tangent plane of
-  !>          the cell, are solved for the eastward and northward
-  !>          derivatives. On such a grid this reduces to the UM
-  !>          centred-difference operator up to the chord-to-arc factor
-  !>          sin(d)/d in the grid spacing d (5e-5 at one degree). A cell
-  !>          lacking any of the four neighbours (the edge of a
-  !>          limited-area domain) receives missing data, as the UM sets
-  !>          at the edges of its domain, and so does a cell whose vertical
-  !>          shear is missing. Only slot kp of the output is written.
+  !> @details Forms the horizontal wind derivatives on the pressure level
+  !>          from the four face-neighbouring cells, combines them with the
+  !>          wind and the vertical shear into Dutton's empirical indicator,
+  !>          and interpolates that onto a predictor between 0 and 7.5.
+  !>          Port of UM DiffX, DiffY (diff_mod) and DuttonCAT
+  !>          (pws_cat_mod).
+  !>
+  !>          The UM differences along the rows and columns of a regular
+  !>          latitude-longitude grid. The LFRic mesh has no such rows, so
+  !>          each opposite neighbour pair gives one directional difference,
+  !>          and the two displacements, in the cell's local east-north
+  !>          tangent plane, are solved for d/dx and d/dy. On a
+  !>          latitude-longitude grid this recovers the UM operator up to
+  !>          the chord-to-arc factor sin(d)/d (5e-5 at one degree).
+  !>
+  !>          A cell lacking any of the four neighbours, at the edge of a
+  !>          limited-area domain, gets missing data, as the UM sets at its
+  !>          domain edges; so does a cell whose vertical shear is missing.
+  !>          Only slot kp is written.
   !> @param[in]     nlayers        Number of layers
   !> @param[in,out] cat            Clear air turbulence predictor on pressure
   !>                               levels
