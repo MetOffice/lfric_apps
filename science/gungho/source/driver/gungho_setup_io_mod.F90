@@ -20,6 +20,7 @@ module gungho_setup_io_mod
                                        OPERATION_TIMESERIES, &
                                        CONVENTION_CF
   use lfric_xios_constants_mod,  only: lx_day
+  use init_ancils_mod,           only: sst_ancil_names, aerosol_ancil_names
   use lfric_xios_write_mod,      only: create_checkpoint_list
   use linked_list_mod,           only: linked_list_type
   use log_mod,                   only: log_event, log_level_error, &
@@ -414,7 +415,9 @@ module gungho_setup_io_mod
                                                            xios_id="sst_ancil", &
                                                            io_mode=FILE_MODE_READ, &
                                                            operation=OPERATION_TIMESERIES, &
+                                                           cyclic=.true., &
                                                            update_freq=merge(0, 1*lx_day, sst_source == sst_source_surf), &
+                                                           file_variable_names=sst_ancil_names, &
                                                            fields_in_file=sst_ancil_fields ) )
           else
             call files_list%insert_item( lfric_xios_file_type( ancil_fname,      &
@@ -516,7 +519,9 @@ module gungho_setup_io_mod
                                                            xios_id="aerosols_ancil", &
                                                            io_mode=FILE_MODE_READ, &
                                                            operation=OPERATION_TIMESERIES, &
+                                                           cyclic=.true., &
                                                            update_freq=1*lx_day, &
+                                                           file_variable_names=aerosol_ancil_names, &
                                                            fields_in_file=aerosol_ancil_fields ) )
           else
             call files_list%insert_item( lfric_xios_file_type( ancil_fname,      &

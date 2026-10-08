@@ -93,7 +93,26 @@ module init_ancils_mod
 
   public   :: create_fd_ancils,           &
               create_fd_ancils_idealised, &
-              setup_ancil_field
+              create_file_owned_ancils,   &
+              setup_ancil_field,          &
+              sst_ancil_names,            &
+              aerosol_ancil_names
+
+  ! Pairs of (model field name, variable name in the ancillary file)
+  character(len=str_def), parameter :: sst_ancil_names(2,1) = reshape( &
+    [ character(len=str_def) :: "tstar_sea", "surface_temperature" ], [2,1] )
+
+  character(len=str_def), parameter :: aerosol_ancil_names(2,17) = reshape( &
+    [ character(len=str_def) ::                                            &
+      "acc_sol_bc", "AcSoBC_109", "acc_sol_om", "AcSoOC_110",             &
+      "acc_sol_su", "AcSoSU_108", "acc_sol_ss", "AcSoSS_111",             &
+      "n_acc_sol",  "AcSo___107", "ait_sol_bc", "AiSoBC_105",             &
+      "ait_sol_om", "AiSoOC_106", "ait_sol_su", "AiSoSU_104",             &
+      "n_ait_sol",  "AiSo___103", "ait_ins_bc", "AiInBC_120",             &
+      "ait_ins_om", "AiInOC_121", "n_ait_ins",  "AiIn___119",             &
+      "cor_sol_bc", "CoSoBC_115", "cor_sol_om", "CoSoOC_116",             &
+      "cor_sol_su", "CoSoSU_114", "cor_sol_ss", "CoSoSS_117",             &
+      "n_cor_sol",  "CoSo___113" ], [2,17] )
 
 contains
 
@@ -101,22 +120,17 @@ contains
   !           collection then reads them.
   !> @param[in,out] depository    The depository field collection
   !> @param[in,out] ancil_fields  Collection for ancillary fields
-  !> @param[in,out] sst_ancil_fields Collection bound to the SST file
-  !> @param[in,out] aerosol_ancil_fields Collection bound to the aerosol file
   !> @param[in] mesh              The current 3d mesh
   !> @param[in] twod_mesh         The current 2d mesh
   !> @param[in] aerosol_mesh      Aerosol 3d mesh
   !> @param[in] aerosol_twod_mesh Aerosol 2d mesh
-  subroutine create_fd_ancils( depository, ancil_fields, sst_ancil_fields, &
-                               aerosol_ancil_fields, mesh, &
+  subroutine create_fd_ancils( depository, ancil_fields, mesh, &
                                twod_mesh, aerosol_mesh, aerosol_twod_mesh, ancil_times_list )
 
     implicit none
 
     type( field_collection_type ), intent( inout ) :: depository
     type( field_collection_type ), intent( inout )   :: ancil_fields
-    type( field_collection_type ), intent( inout )   :: sst_ancil_fields
-    type( field_collection_type ), intent( inout )   :: aerosol_ancil_fields
 
     type( mesh_type ), intent(in), pointer :: mesh
     type( mesh_type ), intent(in), pointer :: twod_mesh
@@ -177,12 +191,6 @@ contains
     type(time_axis_type), save :: easy_extinction_sw_time_axis
     type(time_axis_type), save :: easy_extinction_lw_time_axis
 
-    ! Aerosol climatology fields held in the aerosol ancillary file
-    character(len=10), parameter :: aerosol_names(17) = [ character(len=10) :: &
-      "acc_sol_bc", "acc_sol_om", "acc_sol_su", "acc_sol_ss", "n_acc_sol",    &
-      "ait_sol_bc", "ait_sol_om", "ait_sol_su", "n_ait_sol",                  &
-      "ait_ins_bc", "ait_ins_om", "n_ait_ins",                                &
-      "cor_sol_bc", "cor_sol_om", "cor_sol_su", "cor_sol_ss", "n_cor_sol" ]
     integer(i_def) :: i_aer
 
     ! Time axis options
@@ -243,7 +251,6 @@ contains
         ! Field is owned by the SST file object, which handles the updates
         call setup_ancil_field("tstar_sea", depository, ancil_fields, mesh, &
                                 twod_mesh, twod=.true., read_by_file=.true.)
-        call add_ancil_field_reference("tstar_sea", depository, sst_ancil_fields)
       else
         if (sst_source == sst_source_surf) then
           call sst_time_axis%initialise("sst_time", file_id="sst_ancil", &
@@ -425,21 +432,19 @@ contains
          ( glomap_mode == glomap_mode_dust_and_clim ) ) then
       if (ancil_option == ancil_option_updating) then
         ! Fields are owned by the aerosol file object, which handles the updates
-        do i_aer = 1, size(aerosol_names)
-          call setup_ancil_field(trim(aerosol_names(i_aer)), depository,   &
-                                 ancil_fields, mesh, twod_mesh,            &
+        do i_aer = 1, size(aerosol_ancil_names, 2)
+          call setup_ancil_field(trim(aerosol_ancil_names(1,i_aer)),       &
+                                 depository, ancil_fields, mesh, twod_mesh, &
                                  read_by_file=.true.)
-          call add_ancil_field_reference(trim(aerosol_names(i_aer)),       &
-                                         depository, aerosol_ancil_fields)
         end do
       else
         call aerosol_time_axis%initialise( "aerosols_time",          &
                                            file_id="aerosols_ancil", &
                                            interp_flag=interp_flag,  &
                                            pop_freq="daily" )
-        do i_aer = 1, size(aerosol_names)
-          call setup_ancil_field(trim(aerosol_names(i_aer)), depository,   &
-                                 ancil_fields, mesh, twod_mesh,            &
+        do i_aer = 1, size(aerosol_ancil_names, 2)
+          call setup_ancil_field(trim(aerosol_ancil_names(1,i_aer)),       &
+                                 depository, ancil_fields, mesh, twod_mesh, &
                                  time_axis=aerosol_time_axis,              &
                                  alt_mesh=aerosol_mesh,                    &
                                  alt_twod_mesh=aerosol_twod_mesh)
@@ -971,25 +976,84 @@ contains
 
   end subroutine create_fd_ancils_idealised
 
-  subroutine add_ancil_field_reference( name, depository, target_fields )
+  !> @details Creates the fields owned by time-varying ancillary file objects
+  !>          and binds them to the collections given to those files. Must be
+  !>          called before the I/O context is closed.
+  !> @param[in,out] depository           The depository field collection
+  !> @param[in,out] sst_ancil_fields     Collection bound to the SST file
+  !> @param[in,out] aerosol_ancil_fields Collection bound to the aerosol file
+  !> @param[in] mesh                     The current 3d mesh
+  !> @param[in] twod_mesh                The current 2d mesh
+  subroutine create_file_owned_ancils( depository, sst_ancil_fields, &
+                                       aerosol_ancil_fields, mesh, twod_mesh )
 
     implicit none
 
-    character(*),                   intent(in)    :: name
-    type( field_collection_type ),  intent(inout) :: depository
-    type( field_collection_type ),  intent(inout) :: target_fields
+    type( field_collection_type ), intent(inout) :: depository
+    type( field_collection_type ), intent(inout) :: sst_ancil_fields
+    type( field_collection_type ), intent(inout) :: aerosol_ancil_fields
+    type( mesh_type ), pointer,    intent(in)    :: mesh
+    type( mesh_type ), pointer,    intent(in)    :: twod_mesh
 
+    integer(i_def) :: i
+
+    if (ancil_option /= ancil_option_updating) return
+
+    if (sst_source /= sst_source_start_dump) then
+      call create_file_owned_field( sst_ancil_names(1,1), depository, &
+                                    sst_ancil_fields, mesh, twod_mesh, .true. )
+    end if
+
+    if ( ( glomap_mode == glomap_mode_climatology ) .or. &
+         ( glomap_mode == glomap_mode_dust_and_clim ) ) then
+      do i = 1, size(aerosol_ancil_names, 2)
+        call create_file_owned_field( aerosol_ancil_names(1,i), depository, &
+                                      aerosol_ancil_fields, mesh, twod_mesh, &
+                                      .false. )
+      end do
+    end if
+
+  end subroutine create_file_owned_ancils
+
+  !> @details Creates a single-data field in the depository if needed and adds
+  !>          a reference to it in the collection owned by a file object
+  subroutine create_file_owned_field( name, depository, target_fields, &
+                                      mesh, twod_mesh, twod )
+
+    implicit none
+
+    character(*),                  intent(in)    :: name
+    type( field_collection_type ), intent(inout) :: depository
+    type( field_collection_type ), intent(inout) :: target_fields
+    type( mesh_type ), pointer,    intent(in)    :: mesh
+    type( mesh_type ), pointer,    intent(in)    :: twod_mesh
+    logical(l_def),                intent(in)    :: twod
+
+    type(field_type)                         :: new_field
+    type(function_space_type),       pointer :: vec_space => null()
+    procedure(write_interface),      pointer :: tmp_write_ptr => null()
     type(field_type),                pointer :: fld_ptr => null()
     class(pure_abstract_field_type), pointer :: abs_fld_ptr => null()
+
+    if ( .not. depository%field_exists(name) ) then
+      if (twod) then
+        vec_space => function_space_collection%get_fs( twod_mesh, 0, 0, W3, 1 )
+      else
+        vec_space => function_space_collection%get_fs( mesh, 0, 0, WTheta, 1 )
+      end if
+      call new_field%initialise( vec_space, name=trim(name) )
+      tmp_write_ptr => write_field_generic
+      call new_field%set_write_behaviour(tmp_write_ptr)
+      call depository%add_field(new_field)
+    end if
 
     call depository%get_field(name, fld_ptr)
     abs_fld_ptr => fld_ptr
     call target_fields%add_reference_to_field(abs_fld_ptr)
 
-    nullify(fld_ptr)
-    nullify(abs_fld_ptr)
+    nullify(vec_space, tmp_write_ptr, fld_ptr, abs_fld_ptr)
 
-  end subroutine add_ancil_field_reference
+  end subroutine create_file_owned_field
 
   !> @details Adds fields to the ancil collection, sets up their read and write
   !>      behaviour and creates them in the depository if they do not yet exist

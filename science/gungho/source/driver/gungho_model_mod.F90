@@ -98,6 +98,7 @@ module gungho_model_mod
 
 #ifdef UM_PHYSICS
   use gas_calc_all_mod,            only : gas_calc_all
+  use init_ancils_mod,             only : create_file_owned_ancils
   use jules_control_init_mod,      only : jules_control_init
   use jules_physics_init_mod,      only : jules_physics_init
   use planet_constants_mod,        only : set_planet_constants
@@ -568,6 +569,9 @@ contains
 
 #ifdef UM_PHYSICS
     type(field_collection_type),  pointer :: radiation_fields
+    type(field_collection_type),  pointer :: ancil_depository
+    type(field_collection_type),  pointer :: sst_ancil_fields
+    type(field_collection_type),  pointer :: aerosol_ancil_fields
 #endif
     integer :: start_index, end_index
 
@@ -996,6 +1000,20 @@ contains
     call basic_initialisations( mesh, modeldb%clock, modeldb%config )
 
     call log_event("Initialising I/O context", LOG_LEVEL_INFO)
+
+    ! Collections of fields read by time-varying ancillary file objects. They
+    ! are needed by the file list, so must exist before the context is closed.
+    call modeldb%fields%add_empty_field_collection("sst_ancil_fields", table_len = 10)
+    call modeldb%fields%add_empty_field_collection("aerosol_ancil_fields", table_len = 40)
+#ifdef UM_PHYSICS
+    if ( use_physics ) then
+      ancil_depository => modeldb%fields%get_field_collection("depository")
+      sst_ancil_fields => modeldb%fields%get_field_collection("sst_ancil_fields")
+      aerosol_ancil_fields => modeldb%fields%get_field_collection("aerosol_ancil_fields")
+      call create_file_owned_ancils( ancil_depository, sst_ancil_fields, &
+                                     aerosol_ancil_fields, mesh, twod_mesh )
+    end if
+#endif
 
     files_init_ptr => init_gungho_files
 
