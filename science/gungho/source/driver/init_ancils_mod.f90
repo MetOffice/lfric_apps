@@ -128,6 +128,8 @@ contains
     ! Time axis objects for different ancil groups - must be saved to be
     ! available after function call
     type(time_axis_type), save :: sea_time_axis
+    type(time_axis_type), save :: sst_time_axis
+    type(time_axis_type), save :: aerosol_time_axis
     type(time_axis_type), save :: sea_ice_time_axis
     type(time_axis_type), save :: snow_time_axis
     type(time_axis_type), save :: albedo_vis_time_axis
@@ -174,6 +176,14 @@ contains
     type(time_axis_type), save :: easy_absorption_lw_time_axis
     type(time_axis_type), save :: easy_extinction_sw_time_axis
     type(time_axis_type), save :: easy_extinction_lw_time_axis
+
+    ! Aerosol climatology fields held in the aerosol ancillary file
+    character(len=10), parameter :: aerosol_names(17) = [ character(len=10) :: &
+      "acc_sol_bc", "acc_sol_om", "acc_sol_su", "acc_sol_ss", "n_acc_sol",    &
+      "ait_sol_bc", "ait_sol_om", "ait_sol_su", "n_ait_sol",                  &
+      "ait_ins_bc", "ait_ins_om", "n_ait_ins",                                &
+      "cor_sol_bc", "cor_sol_om", "cor_sol_su", "cor_sol_ss", "n_cor_sol" ]
+    integer(i_def) :: i_aer
 
     ! Time axis options
     logical(l_def),   parameter :: interp_flag=.true.
@@ -229,9 +239,25 @@ contains
     end if
 
     if (sst_source /= sst_source_start_dump) then
-      call setup_ancil_field("tstar_sea", depository, ancil_fields, mesh, &
-                              twod_mesh, twod=.true., read_by_file=.true.)
-      call add_ancil_field_reference("tstar_sea", depository, sst_ancil_fields)
+      if (ancil_option == ancil_option_updating) then
+        ! Field is owned by the SST file object, which handles the updates
+        call setup_ancil_field("tstar_sea", depository, ancil_fields, mesh, &
+                                twod_mesh, twod=.true., read_by_file=.true.)
+        call add_ancil_field_reference("tstar_sea", depository, sst_ancil_fields)
+      else
+        if (sst_source == sst_source_surf) then
+          call sst_time_axis%initialise("sst_time", file_id="sst_ancil", &
+                                        interp_flag=.false., pop_freq="daily", &
+                                        window_size=1)
+        else !sst_source == 'ancil'
+          call sst_time_axis%initialise("sst_time", file_id="sst_ancil", &
+                                        interp_flag=interp_flag, pop_freq="daily")
+        end if
+        call setup_ancil_field("tstar_sea", depository, ancil_fields, mesh, &
+                                twod_mesh, twod=.true.,                   &
+                                time_axis=sst_time_axis)
+        call ancil_times_list%insert_item(sst_time_axis)
+      end if
     end if
 
     !=====  SEA ICE ANCILS  =====
@@ -395,59 +421,31 @@ contains
       call ancil_times_list%insert_item(murk_time_axis)
     end if
 
-     if ( ( glomap_mode == glomap_mode_climatology ) .or. &
-        ( glomap_mode == glomap_mode_dust_and_clim ) ) then
-      call setup_ancil_field("acc_sol_bc", depository, ancil_fields, mesh,  &
-                      twod_mesh, read_by_file=.true.)
-      call add_ancil_field_reference("acc_sol_bc", depository, aerosol_ancil_fields)
-      call setup_ancil_field("acc_sol_om", depository, ancil_fields, mesh,  &
-                      twod_mesh, read_by_file=.true.)
-      call add_ancil_field_reference("acc_sol_om", depository, aerosol_ancil_fields)
-      call setup_ancil_field("acc_sol_su", depository, ancil_fields, mesh,  &
-                      twod_mesh, read_by_file=.true.)
-      call add_ancil_field_reference("acc_sol_su", depository, aerosol_ancil_fields)
-      call setup_ancil_field("acc_sol_ss", depository, ancil_fields, mesh,  &
-                      twod_mesh, read_by_file=.true.)
-      call add_ancil_field_reference("acc_sol_ss", depository, aerosol_ancil_fields)
-      call setup_ancil_field("n_acc_sol",  depository, ancil_fields, mesh,  &
-                      twod_mesh, read_by_file=.true.)
-      call add_ancil_field_reference("n_acc_sol", depository, aerosol_ancil_fields)
-      call setup_ancil_field("ait_sol_bc", depository, ancil_fields, mesh,  &
-                      twod_mesh, read_by_file=.true.)
-      call add_ancil_field_reference("ait_sol_bc", depository, aerosol_ancil_fields)
-      call setup_ancil_field("ait_sol_om", depository, ancil_fields, mesh,  &
-                      twod_mesh, read_by_file=.true.)
-      call add_ancil_field_reference("ait_sol_om", depository, aerosol_ancil_fields)
-      call setup_ancil_field("ait_sol_su", depository, ancil_fields, mesh,  &
-                      twod_mesh, read_by_file=.true.)
-      call add_ancil_field_reference("ait_sol_su", depository, aerosol_ancil_fields)
-      call setup_ancil_field("n_ait_sol",  depository, ancil_fields, mesh,  &
-                      twod_mesh, read_by_file=.true.)
-      call add_ancil_field_reference("n_ait_sol", depository, aerosol_ancil_fields)
-      call setup_ancil_field("ait_ins_bc", depository, ancil_fields, mesh,  &
-                      twod_mesh, read_by_file=.true.)
-      call add_ancil_field_reference("ait_ins_bc", depository, aerosol_ancil_fields)
-      call setup_ancil_field("ait_ins_om", depository, ancil_fields, mesh,  &
-                      twod_mesh, read_by_file=.true.)
-      call add_ancil_field_reference("ait_ins_om", depository, aerosol_ancil_fields)
-      call setup_ancil_field("n_ait_ins",  depository, ancil_fields, mesh,  &
-                      twod_mesh, read_by_file=.true.)
-      call add_ancil_field_reference("n_ait_ins", depository, aerosol_ancil_fields)
-      call setup_ancil_field("cor_sol_bc", depository, ancil_fields, mesh,  &
-                      twod_mesh, read_by_file=.true.)
-      call add_ancil_field_reference("cor_sol_bc", depository, aerosol_ancil_fields)
-      call setup_ancil_field("cor_sol_om", depository, ancil_fields, mesh,  &
-                      twod_mesh, read_by_file=.true.)
-      call add_ancil_field_reference("cor_sol_om", depository, aerosol_ancil_fields)
-      call setup_ancil_field("cor_sol_su", depository, ancil_fields, mesh,  &
-                      twod_mesh, read_by_file=.true.)
-      call add_ancil_field_reference("cor_sol_su", depository, aerosol_ancil_fields)
-      call setup_ancil_field("cor_sol_ss", depository, ancil_fields, mesh,  &
-                      twod_mesh, read_by_file=.true.)
-      call add_ancil_field_reference("cor_sol_ss", depository, aerosol_ancil_fields)
-      call setup_ancil_field("n_cor_sol",  depository, ancil_fields, mesh,  &
-                      twod_mesh, read_by_file=.true.)
-      call add_ancil_field_reference("n_cor_sol", depository, aerosol_ancil_fields)
+    if ( ( glomap_mode == glomap_mode_climatology ) .or. &
+         ( glomap_mode == glomap_mode_dust_and_clim ) ) then
+      if (ancil_option == ancil_option_updating) then
+        ! Fields are owned by the aerosol file object, which handles the updates
+        do i_aer = 1, size(aerosol_names)
+          call setup_ancil_field(trim(aerosol_names(i_aer)), depository,   &
+                                 ancil_fields, mesh, twod_mesh,            &
+                                 read_by_file=.true.)
+          call add_ancil_field_reference(trim(aerosol_names(i_aer)),       &
+                                         depository, aerosol_ancil_fields)
+        end do
+      else
+        call aerosol_time_axis%initialise( "aerosols_time",          &
+                                           file_id="aerosols_ancil", &
+                                           interp_flag=interp_flag,  &
+                                           pop_freq="daily" )
+        do i_aer = 1, size(aerosol_names)
+          call setup_ancil_field(trim(aerosol_names(i_aer)), depository,   &
+                                 ancil_fields, mesh, twod_mesh,            &
+                                 time_axis=aerosol_time_axis,              &
+                                 alt_mesh=aerosol_mesh,                    &
+                                 alt_twod_mesh=aerosol_twod_mesh)
+        end do
+        call ancil_times_list%insert_item(aerosol_time_axis)
+      end if
 
       ! The following fields will need including when dust is available in the
       ! ancillary file:
