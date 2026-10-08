@@ -162,8 +162,8 @@ contains
 
     use split_transport_utils_mod,      only: get_dry_config,                  &
                                               get_splitting_name,              &
-                                              finalise_split_transport_utils,  &
-                                              compute_fraction_idxs
+                                              compute_fraction_idxs,           &
+                                              finalise_split_utils_fraction_idxs
     use transport_config_mod,           only: ffsl_unity_3d,                   &
                                               adjust_vhv_wind,                 &
                                               substep_transport,               &
@@ -450,7 +450,7 @@ contains
                 ' splitting instead', LOG_LEVEL_WARNING                        &
             )
             ! Reset allocated splitting idxs, including new splitting
-            call finalise_split_transport_utils()
+            call finalise_split_utils_fraction_idxs()
             call compute_fraction_idxs(alt_splitting=splitting_alt)
           else
             call log_event(                                                    &

@@ -55,6 +55,7 @@ module split_transport_utils_mod
   public :: get_first_hori_step
 
   public :: finalise_split_transport_utils
+  public :: finalise_split_utils_fraction_idxs
   public :: compute_fraction_idxs
 
   private :: splitting_error_message
@@ -556,7 +557,7 @@ contains
 
   end function get_first_hori_step
 
-  !> @brief Private routine to set up the list of splitting indices. This lists
+  !> @brief Routine to set up the list of splitting indices. This lists
   !!        the unique splitting fractions for vertical/horizontal directions
   !> TODO: in future this should take modeldb as an argument
   !> @param[in] alt_splitting  Optional alternative splitting to include in the
@@ -702,6 +703,14 @@ contains
 
   end subroutine splitting_error_message
 
+  !> @brief Finalises the fraction indices
+  subroutine finalise_split_utils_fraction_idxs()
+
+    implicit none
+
+    if (allocated(fraction_idxs)) deallocate(fraction_idxs)
+
+  end subroutine finalise_split_utils_fraction_idxs
 
   !> @brief Finalises this module, resetting the dry config variable
   subroutine finalise_split_transport_utils()
