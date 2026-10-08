@@ -192,9 +192,13 @@
         "dst_mesh": "seuk_MG",
         "dst_name": "dynamics",
         "dst_type": "regional",
+	"dst_mask_path": "/data/users/lfricadmin/data/ancils/proto-ral/Ticket3510/seuk/land_sea_mask/qrparm.mask.ugrid.fixed",
+	"dst_mask_name": "land_binary_mask",
         "src_mesh": "C24_C12",
         "src_name": "C12",
         "src_type": "global",
+	"src_mask_path": "/data/users/lfricadmin/data/ancils/basic-gagl/Puku/C12/n96e/orca025/land_sea_mask/qrparm.mask.ugrid",
+	"src_mask_name": "land_binary_mask",
         "xios_min_buffer_size": 2097152,
     }) %}
 
@@ -240,6 +244,26 @@
         "src_type": "global",
         "mpi_parts": 4,
         "xios_min_buffer_size": 2097152,
+    }) %}
+
+{% elif task_ns.conf_name == "oasis_C224_to_seuk" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["oasis","src_C224_L70", "dst_seuk"],
+        "resolution": ["seuk","C224_MG"],
+        "dst_mesh": "seuk",
+        "dst_name": "seuk",
+        "dst_type": "regional",
+        "dst_mask_path": "/data/users/lfricadmin/data/ancils/proto-ral/Ticket3510/seuk/land_sea_mask/qrparm.mask.ugrid.fixed",
+        "dst_mask_name": "land_binary_mask",
+        "src_mesh": "C224_MG",
+        "src_name": "dynamics",
+        "src_type": "global",
+        "src_mask_path": "/data/users/lfricadmin/data/ancils/basic-gal/yak/C224/land_sea_mask/etop01/qrparm.mask",
+        "src_mask_name": "land_binary_mask",
+        "mpi_parts": 216,
+	"log_level": "debug",
+	"xios_min_buffer_size": 2097152,
     }) %}
 
 {% elif task_ns.conf_name == "canned" %}

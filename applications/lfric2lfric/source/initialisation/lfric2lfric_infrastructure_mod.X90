@@ -174,7 +174,7 @@ contains
     character(len=str_def)                 :: mesh_names(2)
     character(len=str_def),    allocatable :: mesh_names_dst_ext(:)
 
-    character(len=str_max_filename) :: start_dump_filename
+    character(len=str_max_filename) :: start_dump_filename, target_example_filename
     character(len=str_max_filename) :: source_file_lbc
 
     ! lfric2lfric namelist parameters
@@ -270,6 +270,7 @@ contains
     source_geometry     = modeldb%config%lfric2lfric%source_geometry()
     source_topology     = modeldb%config%lfric2lfric%source_topology()
     start_dump_filename = modeldb%config%files%start_dump_filename()
+    target_example_filename = modeldb%config%lfric2lfric%target_example_file()
 
     coord_system    = modeldb%config%finite_element%coord_system()
     element_order_h = modeldb%config%finite_element%element_order_h()
@@ -588,13 +589,13 @@ contains
     !=======================================================================
     if (mode == mode_ics) then
       call init_lfric2lfric( modeldb, context_src, context_dst,                  &
-                             start_dump_filename, mode,                          &
+                             start_dump_filename, target_example_filename, mode, &
                              source_collection_name, mesh_src,    twod_mesh_src, &
                              interm_collection_name, mesh_interm, twod_mesh_dst, &
                              target_collection_name, mesh_dst,    twod_mesh_dst )
     else if (mode == mode_lbc) then
       call init_lfric2lfric( modeldb, context_src, context_dst,                  &
-                             source_file_lbc, mode,                              &
+                             source_file_lbc, target_example_filename, mode,     &
                              source_collection_name, mesh_src,    twod_mesh_src, &
                              interm_collection_name, mesh_interm, twod_mesh_dst, &
                              target_collection_name, mesh_dst,    twod_mesh_dst )
