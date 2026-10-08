@@ -756,7 +756,7 @@ end subroutine diags_super_expand
 subroutine diags_super_combine( n_diags_super, l_weight, index_ic,             &
                                 diags_super_a, diags_super_m )
 
-use comorph_constants_mod, only: real_cvprec, one, min_float
+use comorph_constants_mod, only: real_cvprec, zero, one, min_float
 
 implicit none
 
@@ -791,18 +791,17 @@ do i_ds = 1, n_diags_super
 
     do ic = 1, diags_super_a % cmpr % n_points
       ic2 = index_ic(ic)
-      ! Add contribution from diags_super_a to the combined total mass
-      diags_super_m % super(ic2,i_ds) = diags_super_m % super(ic2,i_ds)        &
-                                      + diags_super_a % super(ic,i_ds)
-      ! Calculate mass-fraction weight to be applied to subsequent diagnostics
-      weight_a(ic) = diags_super_a % super(ic,i_ds)                            &
-              / max( diags_super_m % super(ic2,i_ds), min_float )
-    end do
-    do ic = 1, diags_super_a % cmpr % n_points
-      ic2 = index_ic(ic)
-      ! Force weight to be exactly 1.0 at points where the mass-fluxes are
-      ! equal (needed for reproducibility on different decompositions).
-      if ( diags_super_a%super(ic,i_ds) == diags_super_m%super(ic2,i_ds) ) then
+      if ( diags_super_m % super(ic2,i_ds) > zero ) then
+        ! Add contribution from diags_super_a to the combined total mass
+        diags_super_m % super(ic2,i_ds) = diags_super_m % super(ic2,i_ds)      &
+                                        + diags_super_a % super(ic,i_ds)
+        ! Calculate mass-fraction weight to be applied to subsequent diagnostics
+        weight_a(ic) = diags_super_a % super(ic,i_ds)                          &
+                     / max( diags_super_m % super(ic2,i_ds), min_float )
+      else
+        ! Existing value in "_m" is zero; force weight to be exactly 1.0
+        ! (needed for reproducibility on different decompositions).
+        diags_super_m % super(ic2,i_ds) = diags_super_a % super(ic,i_ds)
         weight_a(ic) = one
       end if
     end do

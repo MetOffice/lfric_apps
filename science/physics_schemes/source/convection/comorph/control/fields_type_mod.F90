@@ -150,6 +150,13 @@ character(len=name_length), allocatable :: field_names(:)
 ! (e.g. mixing-ratios are not allowed to go negative)
 logical, allocatable :: field_positive(:)
 
+! Min and max plausible values for each field, used in run-time checks
+real(kind=real_cvprec), allocatable :: field_min(:)
+real(kind=real_cvprec), allocatable :: field_max(:)
+! Min and max values when in conserved-variable form
+real(kind=real_cvprec), allocatable :: field_min_cons(:)
+real(kind=real_cvprec), allocatable :: field_max_cons(:)
+
 
 contains
 
@@ -165,7 +172,8 @@ use comorph_constants_mod, only: l_cv_rain, l_cv_cf, l_cv_snow, l_cv_graup,    &
                                  cond_params, k_bot_conv, k_top_conv,          &
                                  i_cond_cl, i_cond_rain,                       &
                                  i_cond_cf, i_cond_snow, i_cond_graup,         &
-                                 tracer_positive
+                                 tracer_positive,                              &
+                                 max_float, zero, one, cp_dry
 
 implicit none
 
@@ -243,6 +251,10 @@ allocate( dummy_full(1,1,k_bot_conv:k_top_conv) )
 ! Allocate lists
 allocate( field_names(n_fields+n_tracers) )
 allocate( field_positive(n_fields+n_tracers) )
+allocate( field_min(n_fields+n_tracers) )
+allocate( field_max(n_fields+n_tracers) )
+allocate( field_min_cons(n_fields+n_tracers) )
+allocate( field_max_cons(n_fields+n_tracers) )
 
 ! Set the field names...
 field_names(i_wind_u) = "wind_u"
@@ -287,6 +299,62 @@ if ( n_tracers > 0 ) then
       field_positive(i_tracers(i_field)) = tracer_positive(i_field)
     end do
   end if
+end if
+
+! Set min and max plausible values for each field
+! Winds
+do i_field = i_wind_u, i_wind_w
+  field_min(i_field) = -100.0_real_cvprec
+  field_max(i_field) =  100.0_real_cvprec
+end do
+! Temperature: use bounds of the qsat look-up table
+field_min(i_temperature) = zero  ! 183.15_real_cvprec
+field_max(i_temperature) = 338.15_real_cvprec
+! q_vap: max 50 g kg-1?
+field_min(i_q_vap) = zero
+field_max(i_q_vap) = 0.05_real_cvprec
+! Condensate: max 50 g kg-1?
+do i_field = i_qc_first, i_qc_last
+  field_min(i_field) = zero
+  field_max(i_field) = 0.05_real_cvprec
+end do
+! Cloud fractions: Should be between 0 and 1.
+if ( l_cv_cloudfrac ) then
+  do i_field = i_cf_first, i_cf_last
+    field_min(i_field) = zero
+    field_max(i_field) = one
+  end do
+end if
+! Tracers: don't know so just set to +/- max possible float
+if ( n_tracers > 0 ) then
+  do i_field = 1, n_tracers
+    field_min(i_tracers(i_field)) = -max_float
+    field_max(i_tracers(i_field)) =  max_float
+  end do
+  if ( allocated(tracer_positive) ) then
+    ! If host-model has specified tracers positive-only, reset min value
+    ! to zero for those tracers
+    do i_field = 1, n_tracers
+      if ( tracer_positive(i_field) )  field_min(i_tracers(i_field)) = zero
+    end do
+  end if
+end if
+
+! Max and min limits for fields in conserved-variable form:
+! Initialise the same as above
+do i_field = 1, n_fields + n_tracers
+  field_min_cons(i_field) = field_min(i_field)
+  field_max_cons(i_field) = field_max(i_field)
+end do
+! Winds are scaled by 1+qt but that doesn't change it much.
+! Temperature is scaled by cp:
+field_min_cons(i_temperature) = field_min(i_temperature) * cp_dry
+field_max_cons(i_temperature) = field_max(i_temperature) * cp_dry
+! Cloud fractions are scaled by Tv:
+if ( l_cv_cloudfrac ) then
+  do i_field = i_cf_first, i_cf_last
+    field_max_cons(i_field) = field_max(i_field) * field_max(i_temperature)
+  end do
 end if
 
 

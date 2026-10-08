@@ -122,9 +122,9 @@ else
              * ( prev_rho_dry(ic) / next_rho_dry(ic) ) )**third
     end do
 
-  end select  ! ( par_radius_vol_method )
+  end select  ! ( par_radius_evol_method )
 
-end if  ! ( par_radius_evol_method==par_radius_evol_const )
+end if  ! ( .NOT. par_radius_evol_method==par_radius_evol_const )
 
 ! Limit the parcel radius to not fall below a hardwired
 ! safety-limit (some calculations that use it run into

@@ -113,7 +113,6 @@ real(kind=real_cvprec) :: interp
 ! String containing info to print in error messages
 character(len=name_length) :: call_string
 character(len=name_length) :: field_name
-logical :: l_positive
 
 ! Loop counters
 integer :: ic, i_field
@@ -253,15 +252,9 @@ if ( i_check_bad_values_cmpr > i_check_bad_none ) then
 
   ! Parcel initial perturbations
   do i_field = i_wind_u, i_q_vap
-    ! Perturbations can be +ive or -ive, except w' which must be positive
-    if ( i_field==i_wind_w) then
-      l_positive = .true.
-    else
-      l_positive = .false.
-    end if
     field_name = "turb_pert_k_" // trim(adjustl(field_names(i_field)))
     call check_bad_values_cmpr( cmpr_init, k, turb_pert_k(:,i_field),          &
-                                call_string, field_name, l_positive )
+                                call_string, field_name )
   end do
 
 end if  ! ( i_check_bad_values_cmpr > i_check_bad_none )

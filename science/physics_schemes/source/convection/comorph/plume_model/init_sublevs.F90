@@ -161,7 +161,7 @@ do ic = 1, n_points
 
 end do
 
-! For safety, reset delta_tv_next to zero in statically-unstable
+! For safety, reset delta_tv to zero in statically-unstable
 ! layers so we just use explicit value of env Tv for detrainment.
 ! Expected sign depends on whether this is updraft or downdraft
 if ( l_down ) then
