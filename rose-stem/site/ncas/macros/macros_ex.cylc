@@ -51,6 +51,7 @@
                             wallclock,
                             mpi_ranks,
                             memory,
+                            tmpsize,
                             threads=1,
                             xios_nodes=0,
                             ocean_nodes=0,

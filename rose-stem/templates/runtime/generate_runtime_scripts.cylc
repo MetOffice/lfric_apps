@@ -31,9 +31,9 @@
 {# Generate a resource family for the task #}
 {% set resource_family = task~"_resources" %}
 {% if "local_build_test" in task %}
-    {{ set_task_resources(resource_family, inherit.str, 15, 6, [1, "GB"]) }}
+    {{ set_task_resources(resource_family, inherit.str, 15, 6, [1, "GB"], none) }}
 {% else %}
-    {{ set_task_resources(resource_family, inherit.str, 15, 1, [1, "GB"]) }}
+    {{ set_task_resources(resource_family, inherit.str, 15, 1, [1, "GB"], none) }}
 {% endif %}
 
 {# ######################## #}

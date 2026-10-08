@@ -22,7 +22,8 @@
     inherit.str,
     task_values["build_wallclock"],
     task_values["build_cpus"],
-    task_values["build_memory"]
+    task_values["build_memory"],
+    task_values["tmpsize"],
     ) }}
 
 {# Set the psyclone transformation #}

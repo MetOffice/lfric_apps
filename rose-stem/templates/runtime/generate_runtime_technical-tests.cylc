@@ -14,6 +14,9 @@
     {% set mode = "integration-tests" %}
 {% endif %}
 
+{# Temporarily override working dir for unit/integration tests #}
+{% set working_dir = "$CYLC_WORKFLOW_SHARE_DIR/"~build_segment%}
+
 {% if task.startswith("build") %}
 {# generate the runtime section for unit/integration build tasks #}
 
@@ -30,7 +33,8 @@
         inherit.str,
         task_values["build_wallclock"],
         task_values["build_cpus"],
-        task_values["build_memory"]
+        task_values["build_memory"],
+        task_values["tmpsize"],
         ) }}
 
     {# Build Script #}
@@ -70,7 +74,8 @@
         inherit.str,
         task_values["tech-tests_wallclock"],
         task_values["tech-tests_cpus"],
-        task_values["tech-tests_memory"]
+        task_values["tech-tests_memory"],
+        task_values["tmpsize"],
         ) }}
 
     {# Run script #}

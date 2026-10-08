@@ -51,7 +51,8 @@
         inherit.str,
         task_values["tech-tests_wallclock"],
         task_values["tech-tests_cpus"],
-        task_values["tech-tests_memory"]
+        task_values["tech-tests_memory"],
+        task_values["tmpsize"],
         ) }}
 
     [[{{task}}]]
@@ -74,7 +75,8 @@
         inherit.str,
         task_values["tech-tests_wallclock"],
         task_values["tech-tests_cpus"],
-        task_values["tech-tests_memory"]
+        task_values["tech-tests_memory"],
+        task_values["tmpsize"],
         ) }}
 
     {% set rose_ana_run_task = "run"~task.replace("rose_ana", "") %}
@@ -101,7 +103,8 @@
         inherit.str,
         task_values["tech-tests_wallclock"],
         task_values["tech-tests_cpus"],
-        task_values["tech-tests_memory"]
+        task_values["tech-tests_memory"],
+        task_values["tmpsize"],
         ) }}
 
     [[{{task}}]]
@@ -125,7 +128,8 @@
         inherit.str,
         task_values["tech-tests_wallclock"],
         task_values["tech-tests_cpus"],
-        task_values["tech-tests_memory"]
+        task_values["tech-tests_memory"],
+        task_values["tmpsize"],
         ) }}
 
     {% set perturb_output = task_output_dir %}
@@ -152,7 +156,8 @@
         inherit.str,
         task_values["tech-tests_wallclock"],
         task_values["tech-tests_cpus"],
-        task_values["tech-tests_memory"]
+        task_values["tech-tests_memory"],
+        task_values["tmpsize"],
         ) }}
 
     [[{{task}}]]
