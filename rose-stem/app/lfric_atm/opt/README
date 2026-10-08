@@ -41,10 +41,14 @@ Science settings
 - coma9 - ComorphA9 configuration
 - comatb - Modifications to Coma9 for 5km trailblazer setup
 - comorph_dev - development ComorphB configuration
-- da - with IAU from data assimilation
-- eda - with IAU from ensemble data assimilation (with multi-context IO),
-        including use of SST perturbations and land surface increments
-- eda_jada - with IAU from JADA control-pert ensemble data assimilation
+- da - with IAU applying data assimilation increments instantaneously,
+     - and additive inflation elements throughout the forecast run
+- eda - with IAU applying data assimilation increments over a time window,
+      - and additive inflation elements throughout the forecast run
+        Includes use of SST perturbations and land surface increments
+- eda_jada - with IAU from JADA control-pert ensemble data assimilation, using
+           - mixed time behaviour for increments coming from the control and
+           - perturbed ensemble members
 - hh_solve - Helmholtz only sovler (no mixed solve)
 - llcs - Use Lambert-Lewis simple convection scheme
 - mol - use MoL transport scheme

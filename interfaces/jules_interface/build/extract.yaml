@@ -26,6 +26,7 @@ jules:
     - src/control/shared/jules_deposition_mod.F90
     - src/control/shared/jules_forcing_mod.F90
     - src/control/shared/jules_hydrology_mod.F90
+    - src/control/shared/jules_inferno_mod.F90
     - src/control/shared/jules_irrig_mod.F90
     - src/control/shared/jules_mod.F90
     - src/control/shared/jules_model_environment_mod.F90
