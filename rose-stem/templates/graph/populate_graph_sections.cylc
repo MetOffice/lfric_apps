@@ -178,6 +178,8 @@
                                 task_ns.platform~"_"~
                                 site_vars["mesh_build"][task_ns.platform] %}
         {% endif %}
+        {% do mesh_run_tasks.append(mesh_run_task) %}
+
 {# If the task is the mesh run task then use the task dictionary #}
 {# Otherwise use an empty dict to be populated later #}
         {% if mesh_run_task not in tasks_to_run %}

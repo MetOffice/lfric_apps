@@ -145,7 +145,7 @@ contains
     real(r_def), allocatable :: phi(:)
 
     real(kind=r_def) :: p, t, m
-    real(r_def) :: cv, chi3_av, phi0
+    real(r_def) :: cv, chi3_av
 
     nlayers=3
     call get_w0_m3x3_q3x3x3_size( ndf_w0, undf_w0, ncells, &
@@ -227,7 +227,6 @@ contains
     moist_int(:) = 0.0_r_def
 
     cv = cp - rd
-    phi0 = 19.0_r_def
 
     cell = 1
     call compute_energetics_code(                                &
@@ -241,7 +240,6 @@ contains
                                  mr_v, mr_cl, mr_r,              &
                                  mr_ci, mr_s, mr_g,              &
                                  phi,                            &
-                                 phi0,                           &
                                  chi1,                           &
                                  chi2,                           &
                                  chi3,                           &
@@ -262,7 +260,7 @@ contains
                                  )
 
     ! Potential energy
-    p = rho(1)*( phi0 + gravity*0.5_r_def*dz )*dx*dy*dz
+    p = rho(1)*( gravity*0.5_r_def*dz )*dx*dy*dz
     ! Internal energy
     t = rho(1)*( cv*theta(1)*exner(1) )*dx*dy*dz
     ! Latent heat of water
