@@ -30,8 +30,10 @@ lfric_apps:
     ref:
 
 lfric_core:
-    source: git@github.com:MetOffice/lfric_core.git
-    ref: d65ef33df9ad33c7f395851147766da170289892
+    source: cazldt000007:/home/users/matthew.hambley/Projects/CorePPonImport
+    ref:
+#    source: git@github.com:MetOffice/lfric_core.git
+#    ref: d65ef33df9ad33c7f395851147766da170289892
 
 moci:
     source: git@github.com:MetOffice/moci.git

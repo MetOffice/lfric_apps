@@ -1,0 +1,155 @@
+#!/usr/bin/env python3
+##############################################################################
+# (c) Crown copyright 2026 Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+##############################################################################
+"""
+Uses PSyAd to generate kernel adjoint and test algorithm.
+
+This is a fairly unpleasant hack but since PSyAd is being phased out it solves
+a problem until it can be removed.
+
+This tool is needed because PSyAd enforces a naming scheme which involves
+modifying the start of file names. Something which Make is not designed to
+do - it appends to the end of file names.
+"""
+from argparse import ArgumentParser
+from pathlib import Path
+from shutil import copyfile
+from subprocess import CalledProcessError, run
+from sys import stdout, stderr
+from typing import Any, Optional
+
+
+def execute(command: list[str | Path]) -> None:
+    print('---')
+    print(' '.join([str(arg) for arg in command]))
+    print('---')
+    result = run(command, capture_output=True, encoding='utf8')
+    if result.returncode != 0:
+        print(result.stdout, file=stdout)
+        print(result.stderr, file=stderr)
+        raise CalledProcessError(
+            result.returncode, command, result.stdout, result.stderr
+        )
+
+
+def process(psyad_config_file: Path,
+            kernel_file: Path,
+            patch_dir: Path,
+            build_dir: Path,
+            work_dir: Path,
+            active_variables: list[str],
+            algorithm_dir: Optional[Path] = None) -> None:
+    """
+    Processes the kernel file to produce adjoint kernel and adjoint test
+    algorithm.
+    """
+    incoming_dir = work_dir / 'incoming'
+    incoming_dir.mkdir(exist_ok=True, parents=True)
+    # Kernels are patched (or not) on their way into the workspace.
+    #
+    patched_kernel_file = kernel_file
+    patch_file = patch_dir / 'kernel' / kernel_file.with_suffix('.patch').name
+    if patch_file.exists():
+        print(f"Pre-patching <{kernel_file.name}>")
+        patched_kernel_file = incoming_dir / f'{kernel_file.name}.patched'
+        execute(['patch', kernel_file, patch_file, '-o', patched_kernel_file])
+
+    process_dir = work_dir / 'process'
+    process_dir.mkdir(exist_ok=True, parents=True)
+    # PSyAd is run to generate adjoint kernel and adjoint test algorithm.
+    #
+    print(f"PSyAd <{patched_kernel_file.name}> {', '.join(active_variables)}")
+    is_tangent_linear = kernel_file.name.startswith('tl_')
+    kernel_name = kernel_file.stem.removesuffix('_kernel_mod').removeprefix('tl_')
+    generated_adjoint_file = process_dir / f'{"atl_" if is_tangent_linear else "adj_"}{kernel_name}_kernel_mod.f90'
+    generated_test_file = process_dir / f'{"atlt_" if is_tangent_linear else "adjt_"}{kernel_name}_alg_mod.x90'
+    command = ['psyad', '-api', 'lfric',
+               '-oad', str(generated_adjoint_file)]
+    if algorithm_dir is not None:
+        command.extend(['-otest', str(generated_test_file)])
+    command.extend(['-c', str(psyad_config_file), '-a'])
+    command.extend(active_variables)
+    command.extend(['--', str(patched_kernel_file)])
+    execute(command)
+
+    relative_path = kernel_file.relative_to(build_dir)
+
+    # Kernels are patched (or not) on their way back to the build tree.
+    #
+    patch_file = patch_dir / 'kernel' / generated_adjoint_file.with_suffix('.patch').name
+    destination_file = build_dir / relative_path.parent / generated_adjoint_file.name
+    if patch_file.exists():
+        print(f"Post-patching kernel <{generated_adjoint_file.name}>")
+        execute(
+            ['patch', generated_adjoint_file, patch_file, '-o', destination_file]
+        )
+    else:
+        copyfile(generated_adjoint_file, destination_file)
+
+    # Only proceed with post-processing algorithms if they are needed.
+    #
+    if algorithm_dir is not None:
+        #
+        # Algorithms are patched (or not) in the work directory so the can be
+        # PSycloned into the build directory.
+        #
+        patch_file = patch_dir / 'algorithm' / generated_test_file.with_suffix('.patch').name
+        destination_file = work_dir / 'outgoing' / relative_path.parent / generated_test_file.name
+        destination_file.parent.mkdir(parents=True, exist_ok=True)
+        if patch_file:
+            print(f"Post-patching test <{generated_test_file.name}>")
+            execute(
+                ['patch', generated_test_file, patch_file, '-o', destination_file]
+            )
+        else:
+            copyfile(generated_test_file, destination_file)
+
+    # We create this file as a signal to make, it modifies the end of the
+    # filename so make can handle it cleanly
+    signal_file = kernel_file.parent / (kernel_file.name + '.adjoint')
+    signal_file.touch()
+
+
+def cli() -> dict[str, Any]:
+    parser = ArgumentParser()
+    parser.add_argument('--algorithm-dir', metavar='ALGORITHM_DIR', type=Path,
+                        help="Directory generated algorithms will sit under.")
+    parser.add_argument('configuration_file', metavar='CONFIG_FILE', type=Path,
+                        help="PSyAd configuration file to read")
+    parser.add_argument('kernel_source', metavar='KERNEL_FILE', type=Path,
+                        help="Filename of kernel source file to read.")
+    parser.add_argument('patch_dir', metavar='PATCH_DIR', type=Path,
+                        help="Directory to search for patches.")
+    parser.add_argument('build_dir', metavar='OUTPUT_DIR', type=Path,
+                        help="Directory adjoint and test source will end up.")
+    parser.add_argument('workspace', metavar='WORK_DIR', type=Path,
+                        help="Directory to use as scratch space.")
+    #
+    # Put no others after this one...
+    #
+    parser.add_argument('active_variables', metavar='NAME',
+                        nargs='+',
+                        help="Active variable names.")
+    return vars(parser.parse_args())
+
+
+if __name__ == '__main__':
+    arguments = cli()
+    if arguments['algorithm_dir']:
+        process(arguments['configuration_file'],
+                arguments['kernel_source'],
+                arguments['patch_dir'],
+                arguments['build_dir'],
+                arguments['workspace'],
+                arguments['active_variables'],
+                arguments['algorithm_dir'])
+    else:  # Without tests
+        process(arguments['configuration_file'],
+                arguments['kernel_source'],
+                arguments['patch_dir'],
+                arguments['build_dir'],
+                arguments['workspace'],
+                arguments['active_variables'])

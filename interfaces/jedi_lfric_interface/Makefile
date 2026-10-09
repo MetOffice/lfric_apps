@@ -31,6 +31,9 @@ PROJECT_NAME = jedi_lfric_interface
 
 export PROFILE ?= fast-debug
 
+# Select option for PSyclone transformation. Select "none" for no transformation.
+export PSYCLONE_TRANSFORMATION ?= none
+
 export EXTERNAL_DYNAMIC_LIBRARIES = netcdff netcdf yaxt yaxt_c
 
 export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
@@ -40,15 +43,22 @@ export META_DIR = $(WORKING_DIR)/../rose-meta
 export ROSE_META_DIRS = $(APPS_ROOT_DIR)/rose-meta $(META_DIR)
 
 export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
-                               $(CORE_ROOT_DIR)/components/driver \
-                               $(CORE_ROOT_DIR)/components/science \
                                $(CORE_ROOT_DIR)/components/inventory \
+                               $(CORE_ROOT_DIR)/components/science \
+                               $(CORE_ROOT_DIR)/components/driver \
                                $(CORE_ROOT_DIR)/components/lfric-xios \
-                               $(APPS_ROOT_DIR)/science/gungho \
-                               $(APPS_ROOT_DIR)/science/adjoint
+                               $(APPS_ROOT_DIR)/science/gungho
 
 META_VN       ?= HEAD
 META_FILE_DIR  = $(PROJECT_DIR)/rose-meta/$(PROJECT_NAME)/$(META_VN)
+
+# Check PSyclone transformation option is valid
+ifneq ("$(PSYCLONE_TRANSFORMATION)","none")
+  export OPTIMISATION_PATH ?= $(wildcard optimisation/$(PSYCLONE_TRANSFORMATION))
+  ifeq ("$(wildcard $(OPTIMISATION_PATH)/psykal/global.py)","")
+    $(error PSyclone transformation dir "$(PSYCLONE_TRANSFORMATION)" does not have a global.py script)
+  endif
+endif
 
 .PHONY: default
 default: unit-tests integration-tests
@@ -88,14 +98,9 @@ document-api: api-documentation
 #
 unit-tests/%: export BIN_DIR ?= $(PROJECT_DIR)/test
 unit-tests/%: export CXX_LINK = YES
-unit-tests/%: export FFLAGS += -D UNIT_TEST
-unit-tests/%: export IMPORT_PARTS = $(CORE_ROOT_DIR)/infrastructure \
-                                    $(CORE_ROOT_DIR)/components/driver \
-                                    $(CORE_ROOT_DIR)/components/science \
-                                    $(CORE_ROOT_DIR)/components/inventory \
-                                    $(CORE_ROOT_DIR)/components/lfric-xios \
-                                    $(APPS_ROOT_DIR)/science/gungho
+unit-tests/%: export IMPORT_PARTS = $(INTERNAL_DEPENDENCIES)
 unit-tests/%: export META_FILE_DIR = rose-meta/jedi_lfric_interface/HEAD
+unit-tests/%: export PRE_PROCESS_MACROS+=UNIT_TEST
 unit-tests/%: export PROGRAMS = jedi_lfric_unit_tests
 unit-tests/%: export PROJECT = jedi_lfric
 unit-tests/%: export SOURCE_DIR = source
@@ -110,9 +115,7 @@ unit-tests/build: extract_meta unit-tests/build
 #
 integration-tests/%: export BIN_DIR      ?= $(PROJECT_DIR)/test
 integration-tests/%: export FFLAGS       += -DINT_TEST
-integration-tests/%: export IMPORT_PARTS  = $(CORE_ROOT_DIR)/infrastructure \
-                                            $(CORE_ROOT_DIR)/components/science \
-                                            $(APPS_ROOT_DIR)/science/gungho
+integration-tests/%: export IMPORT_PARTS  = $(INTERNAL_DEPENDENCIES)
 integration-tests/%: export META_FILE_DIR = rose-meta/jedi_lfric_interface/HEAD
 integration-tests/%: export PROGRAMS = jedi_lfric_integration_tests
 integration-tests/%: export PROJECT       = $(PROJECT_NAME)

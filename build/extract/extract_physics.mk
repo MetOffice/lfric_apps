@@ -20,4 +20,13 @@
 
 extract:
 	# Retrieve and preprocess the UKCA and CASIM code
-	python $(APPS_ROOT_DIR)/build/extract/extract_science.py -d $(APPS_ROOT_DIR)/dependencies.yaml -w $(WORKING_DIR) -e $(APPS_ROOT_DIR)/build/extract/extract.yaml
+	python $(APPS_ROOT_DIR)/build/extract/extract_science.py \
+        -d $(APPS_ROOT_DIR)/dependencies.yaml \
+        -w $(WORKING_DIR)/../foo \
+        -e $(APPS_ROOT_DIR)/build/extract/extract.yaml
+	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
+        SOURCE_DIR=$(WORKING_DIR)/../foo/casim/src \
+        WORKING_DIR=$(WORKING_DIR)/casim
+	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
+        SOURCE_DIR=$(WORKING_DIR)/../foo/ukca/src \
+        WORKING_DIR=$(WORKING_DIR)/ukca
