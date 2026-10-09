@@ -149,7 +149,7 @@ contains
     ! Note: Calling 'init_chi_transforms' is only valid for meshes which have a
     !       spherical geometry and coordinate system. While it may not be relevant
     !       to this mesh, it is called due to an unknown interaction which changes
-    !       results. If it is not applicable to this mesh, it should be remove once
+    !       results. If it is not applicable to this mesh, it should be removed once
     !       this issue is resolved.
     call init_chi_transforms( geostrophic_north_pole, &
                               null_island, &
