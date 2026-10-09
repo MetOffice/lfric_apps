@@ -36,7 +36,7 @@
 {% set set_ulimit = 'ulimit -s unlimited -c unlimited; '~
                     'ulimit -a '%}
 
-{% set ex1a_scitools = 'module load scitools/production-os47-1' %}
+{% set ex1a_scitools = 'module load scitools/production-os48-1' %}
 {% set ex1a_tech = '' %}
 
 {% set ex1a_perftools = 'module load perftools' %}
@@ -180,7 +180,7 @@
         inherit = EX1A_BASE
         pre-script = """
                      module load nccmp/1.9.1.0
-                     module load scitools/production-os47-1
+                     module load scitools/production-os48-1
                      module load um_tools/2025.10.1/openmp
                      export ROSE_PYTHONPATH="$PYTHONPATH"
                      module list 2>&1
