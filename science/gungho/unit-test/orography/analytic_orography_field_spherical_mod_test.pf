@@ -9,7 +9,7 @@
 module analytic_orography_field_spherical_mod_test
 
   use constants_mod,              only : i_def, r_def, l_def, PI, str_def, &
-                                         str_max_filename, rmdi
+                                         str_max_filename
   use global_mesh_mod,            only : global_mesh_type
   use analytic_orography_mod,     only : orography_profile
   use ugrid_mesh_data_mod,        only : ugrid_mesh_data_type
@@ -82,6 +82,10 @@ contains
 
     class(analytic_orography_field_spherical_test_type), intent(inout) :: this
 
+    real(r_def), parameter :: geostrophic_north_pole(2) = [0.0_r_def, PI/2.0_r_def]
+    real(r_def), parameter :: null_island(2) = [0.0_r_def, 0.0_r_def]
+    real(r_def), parameter :: equator_latitude = 0.0_r_def
+
     ! Set mesh configuration
     call feign_base_mesh_config(                                    &
                          file_prefix     = file_prefix,             &
@@ -142,7 +146,14 @@ contains
                                               lambda_focus,         &
                                               phi_focus ) )
 
-    call init_chi_transforms([rmdi,rmdi], [rmdi,rmdi], rmdi)
+    ! Note: Calling 'init_chi_transforms' is only valid for meshes which have a
+    !       spherical geometry and coordinate system. While it may not be relevant
+    !       to this mesh, it is called due to an unknown interaction which changes
+    !       results. If it is not applicable to this mesh, it should be remove once
+    !       this issue is resolved.
+    call init_chi_transforms( geostrophic_north_pole, &
+                              null_island, &
+                              equator_latitude )
 
   end subroutine setUp
 

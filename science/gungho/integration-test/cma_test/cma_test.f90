@@ -30,7 +30,7 @@ program cma_test
                                              test_cma_diag_DhMDhT
   use config_mod,                     only : config_type
   use constants_mod,                  only : i_def, r_def, i_def, l_def,  &
-                                             r_solver, pi, str_def, rmdi, &
+                                             r_solver, pi, str_def,       &
                                              str_max_filename
   use derived_config_mod,             only : set_derived_config
   use extrusion_mod,                  only : extrusion_type, &
@@ -64,6 +64,10 @@ program cma_test
                                              final_chi_transforms
 
   implicit none
+
+  real(r_def), parameter :: geostrophic_north_pole(2) = [0.0_r_def, PI/2.0_r_def]
+  real(r_def), parameter :: null_island(2) = [0.0_r_def, 0.0_r_def]
+  real(r_def), parameter :: equator_latitude = 0.0_r_def
 
   ! MPI communicator
   type(lfric_comm_type) :: comm
@@ -321,8 +325,6 @@ program cma_test
                     alt_name=twod_names )
   call assign_mesh_maps(twod_names)
 
-  call init_chi_transforms([rmdi,rmdi], [rmdi,rmdi], rmdi)
-
   ! Work out grid spacing, which should be of order 1
   mesh => mesh_collection%get_mesh(prime_mesh_name)
   ncells_2d_local = mesh%get_ncells_2d()
@@ -332,6 +334,15 @@ program cma_test
      call log_event( "Geometry has to be spherical", &
                      LOG_LEVEL_ERROR )
   end if
+
+  ! Note: Calling 'init_chi_transforms' is only valid for meshes which have a
+  !       spherical geometry and coordinate system. While it may not be relevant
+  !       to this mesh, it is called due to an unknown interaction which changes
+  !       results. If it is not applicable to this mesh, it should be remove once
+  !       this issue is resolved.
+  call init_chi_transforms( geostrophic_north_pole, &
+                            null_island, &
+                            equator_latitude )
 
   ! Work out total number of cells
   call global_mpi%global_sum(ncells_2d_local, ncells_2d)

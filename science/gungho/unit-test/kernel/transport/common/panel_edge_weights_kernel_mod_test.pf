@@ -7,7 +7,7 @@
 !> Test the remapping of scalar fields on the cubed-sphere panel extension
 module panel_edge_weights_kernel_mod_test
 
-  use constants_mod, only: l_def, i_def, r_def, pi, r_tran, imdi, rmdi
+  use constants_mod, only: l_def, i_def, r_def, pi, r_tran, imdi
   use funit
 
   implicit none
@@ -44,6 +44,10 @@ contains
     implicit none
 
     class(panel_edge_weights_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: geostrophic_north_pole(2) = [0.0_r_def, PI/2.0_r_def]
+    real(r_def), parameter :: null_island(2) = [0.0_r_def, 0.0_r_def]
+    real(r_def), parameter :: equator_latitude = 0.0_r_def
 
     call feign_base_mesh_config(                                               &
         file_prefix='foo',                                                     &
@@ -82,7 +86,14 @@ contains
         vorticity_in_w1=.false.                                                &
     )
 
-    call init_chi_transforms([rmdi,rmdi], [rmdi,rmdi], rmdi)
+    ! Note: Calling 'init_chi_transforms' is only valid for meshes which have a
+    !       spherical geometry and coordinate system. While it may not be relevant
+    !       to this mesh, it is called due to an unknown interaction which changes
+    !       results. If it is not applicable to this mesh, it should be remove once
+    !       this issue is resolved.
+    call init_chi_transforms( geostrophic_north_pole, &
+                              null_island, &
+                              equator_latitude )
 
   end subroutine setUp
 
