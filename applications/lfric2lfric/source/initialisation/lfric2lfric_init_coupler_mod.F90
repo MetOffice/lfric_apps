@@ -35,28 +35,28 @@ module lfric2lfric_init_coupler_mod
 #ifdef MCT
   !> @details Initialises coupling partitions and variables for the
   !>          source fields
-  !> @param[in]     mesh Representation of the mesh the code will run on
   !> @param[in]     coupler Name of the coupling component
+  !> @param[in]     name_cpl        The field name
   !> @param[in]     element_order_h The polynomial order of the set of
   !>                                compatible finite element in the
   !>                                horizontal
   !> @param[in]     element_order_v The polynomial order of the set of
   !>                                compatible finite element in the
   !>                                vertical
+  !> @param[in]     mesh Representation of the mesh the code will run on
   !> @param[in,out] modeldb The structure that holds model state
-  subroutine lfric2lfric_init_coupler_src(mesh, coupler, element_order_h, &
-                                          element_order_v, modeldb)
+  subroutine lfric2lfric_init_coupler_src(coupler, name_cpl, element_order_h, &
+                                          element_order_v, mesh, modeldb, partition)
 
     implicit none
 
-    type(mesh_type), pointer, intent(in)     :: mesh
     character(*),             intent(in)     :: coupler
+    character(*),             intent(in)     :: name_cpl
     integer(i_def),           intent(in)     :: element_order_h
     integer(i_def),           intent(in)     :: element_order_v
+    type(mesh_type), pointer, intent(in)     :: mesh
     type(modeldb_type),       intent(inout)  :: modeldb
-
-    ! Field name
-    character(str_def)                   :: name_cpl
+    logical, intent(in):: partition
 
     ! Coupling fields
     type(field_collection_type), pointer :: cpl_snd_2d => null()
@@ -70,10 +70,9 @@ module lfric2lfric_init_coupler_mod
 
     type(coupling_type), pointer         :: coupling_ptr
 
-
     ! Create prognostic fields
     ! Creates a field in the W3 function space (fully discontinuous field)
-    name_cpl = "src_face"
+    !name_cpl = "src_face"
     call field_cpl%initialise( vector_space = &
                     function_space_collection%get_fs(mesh,             &
                                 element_order_h, element_order_v, W3), &
@@ -84,60 +83,62 @@ module lfric2lfric_init_coupler_mod
     call depository%add_field(field_cpl)
 
     ! Set up collections to hold 2d coupling fields
-    if (.not. modeldb%fields%field_collection_exists("cpl_snd_2d"))  &
+    if (.not. modeldb%fields%field_collection_exists( "cpl_snd_2d"))  &
       call modeldb%fields%add_empty_field_collection("cpl_snd_2d" ,  &
                                                 table_len = 30)
-    if (.not. modeldb%fields%field_collection_exists("dummy"))  &
-      call modeldb%fields%add_empty_field_collection("dummy" ,  &
+    if (.not. modeldb%fields%field_collection_exists( "dummy"))  &
+      call modeldb%fields%add_empty_field_collection( "dummy" ,  &
                                                 table_len = 30)
-    if (.not. modeldb%fields%field_collection_exists("cpl_snd_0d"))  &
-      call modeldb%fields%add_empty_field_collection("cpl_snd_0d" ,  &
+    if (.not. modeldb%fields%field_collection_exists( "cpl_snd_0d"))  &
+      call modeldb%fields%add_empty_field_collection( "cpl_snd_0d" ,  &
                                                 table_len = 30)
 
     cpl_snd_2d => modeldb%fields%get_field_collection("cpl_snd_2d")
     cpl_rcv_2d => modeldb%fields%get_field_collection("dummy")
-    cpl_snd_0d => modeldb%fields%get_field_collection("cpl_snd_0d")
+    cpl_snd_0d => modeldb%fields%get_field_collection( "cpl_snd_0d")
 
     ! Set lfric fields as either the source entry
-    call depository%get_field(trim(name_cpl), field)
+    call depository%get_field(TRIM(name_cpl), field)
     ! Add that field to the coupling send field collection for 2d fields
     field_ptr => field
     call cpl_snd_2d%add_reference_to_field(field_ptr)
 
     ! Extract the coupling object from the modeldb key-value pair collection
     coupling_ptr => get_coupling_from_collection(modeldb%values, trim(coupler))
-    call coupling_ptr%define_partitions(modeldb%mpi,mesh)
-    call coupling_ptr%define_variables( cpl_snd_2d, &
+    if (partition) then
+       call coupling_ptr%define_partitions(modeldb%mpi,mesh)
+       call coupling_ptr%define_variables( cpl_snd_2d, &
                                         cpl_rcv_2d, &
                                         cpl_snd_0d )
-
+    end if
+     
   end subroutine lfric2lfric_init_coupler_src
 
 
   !> @details Initialises coupling partitions and variables for the
   !>          destination fields
-  !> @param[in]     mesh Representation of the mesh the code will run on
   !> @param[in]     coupler Name of the coupling component
+  !> @param[in]     name_cpl        The field name  
   !> @param[in]     element_order_h The polynomial order of the set of
   !>                                compatible finite element in the
   !>                                horizontal
   !> @param[in]     element_order_v The polynomial order of the set of
   !>                                compatible finite element in the
   !>                                vertical
-  !> @param[in,out] modeldb The structure that holds model state
-  subroutine lfric2lfric_init_coupler_dst(mesh, coupler, element_order_h,    &
-                                          element_order_v, modeldb)
+  !> @param[in]     mesh Representation of the mesh the code will run on
+  !> @param[in,out] modeldb The structure that holds model state 
+  subroutine lfric2lfric_init_coupler_dst(coupler, name_cpl, element_order_h,    &
+                                          element_order_v, mesh, modeldb, partition)
 
     implicit none
-
-    type(mesh_type), pointer, intent(in)     :: mesh
+ 
     character(*),             intent(in)     :: coupler
+    character(*),             intent(in)     :: name_cpl
     integer(i_def),           intent(in)     :: element_order_h
     integer(i_def),           intent(in)     :: element_order_v
+    type(mesh_type), pointer, intent(in)     :: mesh
     type(modeldb_type),       intent(inout)  :: modeldb
-
-    ! Field name
-    character(str_def)                   :: name_cpl
+    logical, intent(in) :: partition
 
     ! Coupling fields
     type(field_collection_type), pointer :: cpl_snd_2d => null()
@@ -154,7 +155,7 @@ module lfric2lfric_init_coupler_mod
 
     ! Create prognostic fields
     ! Creates a field in the W3 function space (fully discontinuous field)
-    name_cpl = "dst_face"
+    !name_cpl = "dst_face"
     call field_cpl%initialise( vector_space = &
                     function_space_collection%get_fs(mesh,             &
                                 element_order_h, element_order_v, W3), &
@@ -165,19 +166,19 @@ module lfric2lfric_init_coupler_mod
     call depository%add_field(field_cpl)
 
     ! Set up collections to hold 2d coupling fields
-    if (.not. modeldb%fields%field_collection_exists("cpl_rcv_2d"))  &
-      call modeldb%fields%add_empty_field_collection("cpl_rcv_2d" ,  &
+    if (.not. modeldb%fields%field_collection_exists( "cpl_rcv_2d"))  &
+      call modeldb%fields%add_empty_field_collection( "cpl_rcv_2d" ,  &
                                                 table_len = 30)
-    if (.not. modeldb%fields%field_collection_exists("cpl_snd_0d"))  &
-      call modeldb%fields%add_empty_field_collection("cpl_snd_0d" ,  &
+    if (.not. modeldb%fields%field_collection_exists( "cpl_snd_0d"))  &
+      call modeldb%fields%add_empty_field_collection( "cpl_snd_0d" ,  &
                                                 table_len = 30)
-    if (.not. modeldb%fields%field_collection_exists("dummy"))       &
-      call modeldb%fields%add_empty_field_collection("dummy" ,       &
+    if (.not. modeldb%fields%field_collection_exists( "dummy"))       &
+      call modeldb%fields%add_empty_field_collection( "dummy" ,       &
                                                 table_len = 30)
 
-    cpl_snd_2d => modeldb%fields%get_field_collection("dummy")
-    cpl_rcv_2d => modeldb%fields%get_field_collection("cpl_rcv_2d")
-    cpl_snd_0d => modeldb%fields%get_field_collection("cpl_snd_0d")
+    cpl_snd_2d => modeldb%fields%get_field_collection( "dummy")
+    cpl_rcv_2d => modeldb%fields%get_field_collection( "cpl_rcv_2d")
+    cpl_snd_0d => modeldb%fields%get_field_collection( "cpl_snd_0d")
 
     ! Set lfric fields as either the destination entry
     call depository%get_field(trim(name_cpl), field)
@@ -187,23 +188,26 @@ module lfric2lfric_init_coupler_mod
 
     ! Extract the coupling object from the modeldb key-value pair collection
     coupling_ptr => get_coupling_from_collection(modeldb%values, trim(coupler))
-    call coupling_ptr%define_partitions(modeldb%mpi,mesh)
-    call coupling_ptr%define_variables( cpl_snd_2d, &
+    if (partition) then
+      call coupling_ptr%define_partitions(modeldb%mpi,mesh)
+      call coupling_ptr%define_variables( cpl_snd_2d, &
                                         cpl_rcv_2d, &
                                         cpl_snd_0d )
+    end if
 
   end subroutine lfric2lfric_init_coupler_dst
 
   !> @details Ends the model coupling definition
   !> @param[in,out] modeldb The structure that holds model state
   !> @param[in]     coupler Name of the coupling component
-  subroutine lfric2lfric_end_coupler_init(modeldb, coupler)
+  subroutine lfric2lfric_end_coupler_init(modeldb, coupler, name_cpl_src, name_cpl_dst )
 
     implicit none
 
     type(modeldb_type),       intent(inout)  :: modeldb
     character(*),             intent(in)     :: coupler
-
+    character(*),             intent(in)     :: name_cpl_src, name_cpl_dst
+    
     ! Coupling fields
     type(field_collection_type), pointer :: cpl_snd_2d => null()
     type(field_collection_type), pointer :: cpl_rcv_2d => null()
@@ -213,9 +217,9 @@ module lfric2lfric_init_coupler_mod
 
 
     ! Get coupling field collections
-    cpl_snd_2d => modeldb%fields%get_field_collection("cpl_snd_2d")
-    cpl_rcv_2d => modeldb%fields%get_field_collection("cpl_rcv_2d")
-    cpl_snd_0d => modeldb%fields%get_field_collection("cpl_snd_0d")
+    cpl_snd_2d => modeldb%fields%get_field_collection( "cpl_snd_2d")
+    cpl_rcv_2d => modeldb%fields%get_field_collection( "cpl_rcv_2d")
+    cpl_snd_0d => modeldb%fields%get_field_collection( "cpl_snd_0d")
 
     ! Extract the coupling object from the modeldb key-value pair collection
     coupling_ptr => get_coupling_from_collection(modeldb%values, trim(coupler))
@@ -225,16 +229,18 @@ module lfric2lfric_init_coupler_mod
 
   end subroutine lfric2lfric_end_coupler_init
 #else
-  subroutine lfric2lfric_init_coupler_src(mesh, coupler, element_order_h, &
-                                          element_order_v, modeldb)
+  subroutine lfric2lfric_init_coupler_src(coupler, name_cpl, element_order_h, &
+                                          element_order_v, mesh, modeldb)
 
     implicit none
 
-    type(mesh_type), pointer, intent(in)     :: mesh
     character(*),             intent(in)     :: coupler
+    character(*),             intent(in)     :: name_cpl
     integer(i_def),           intent(in)     :: element_order_h
     integer(i_def),           intent(in)     :: element_order_v
+    type(mesh_type), pointer, intent(in)     :: mesh
     type(modeldb_type),       intent(inout)  :: modeldb
+
 
     write(log_scratch_space, '(A)' ) &
         "lfric2lfric_init_coupler_src: to use OASIS, " // &
@@ -243,16 +249,17 @@ module lfric2lfric_init_coupler_mod
 
   end subroutine lfric2lfric_init_coupler_src
 
-  subroutine lfric2lfric_init_coupler_dst(mesh, coupler, element_order_h, &
-                                          element_order_v, modeldb)
+  subroutine lfric2lfric_init_coupler_dst(coupler, name_cpl, element_order_h, &
+                                          element_order_v, mesh, modeldb)
 
     implicit none
 
-    type(mesh_type), pointer, intent(in)     :: mesh
     character(*),             intent(in)     :: coupler
+    character(*),             intent(in)     :: name_cpl
     integer(i_def),           intent(in)     :: element_order_h
     integer(i_def),           intent(in)     :: element_order_v
     type(modeldb_type),       intent(inout)  :: modeldb
+    type(mesh_type), pointer, intent(in)     :: mesh
 
     write(log_scratch_space, '(A)' ) &
         "lfric2lfric_init_coupler_dst: to use OASIS, " // &
@@ -261,12 +268,14 @@ module lfric2lfric_init_coupler_mod
 
   end subroutine lfric2lfric_init_coupler_dst
 
-  subroutine lfric2lfric_end_coupler_init(modeldb, coupler)
+  subroutine lfric2lfric_end_coupler_init(modeldb, coupler, name_cpl_src, name_cpl_dst)
 
     implicit none
 
     type(modeldb_type),       intent(inout)  :: modeldb
     character(*),             intent(in)     :: coupler
+    character(*),             intent(in)     :: name_cpl_src
+    character(*),             intent(in)     :: name_cpl_dst
 
     write(log_scratch_space, '(A)' ) &
         "lfric2lfric_end_coupler_init: to use OASIS, " // &

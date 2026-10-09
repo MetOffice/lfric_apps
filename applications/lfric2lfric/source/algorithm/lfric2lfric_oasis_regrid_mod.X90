@@ -29,7 +29,7 @@
 module lfric2lfric_oasis_regrid_mod
 
   ! lfric modules
-  use constants_mod,        only: i_def, r_def, l_def
+  use constants_mod,        only: i_def, r_def, l_def, str_def
   use fs_continuity_mod,    only: W3, Wtheta
   use driver_modeldb_mod,   only: modeldb_type
   use model_clock_mod,      only: model_clock_type
@@ -39,9 +39,11 @@ module lfric2lfric_oasis_regrid_mod
   use coupler_exchange_2d_mod,  &
                             only: coupler_exchange_2d_type
 #endif
+  use extrusion_mod,        only: TWOD
   use field_mod,            only: field_type
   use field_collection_mod, only: field_collection_type
   use function_space_mod,   only: function_space_type
+  use mesh_mod,             only: mesh_type
   use log_mod,              only: log_event, log_scratch_space, &
                                   log_level_info, log_level_error
 
@@ -51,6 +53,8 @@ module lfric2lfric_oasis_regrid_mod
   use sci_level_extract_kernel_mod, only:                           &
                                 level_extract_kernel_type
 
+  use lfric_xios_diag_mod,  only: get_field_axis_ref
+  
   implicit none
 
   private
@@ -81,6 +85,7 @@ contains
     integer(i_def)    :: l, k, nlayers, ndf, fs
     integer(i_def)    :: ndata, ierror
     type(function_space_type),  pointer    :: vector_space => null()
+    type(mesh_type), pointer               :: mesh_src
     type(field_type), pointer              :: src_field => null()
     type(field_type), pointer              :: dst_field => null()
     type(coupler_exchange_2d_type)         :: coupler_exchange_2d
@@ -89,6 +94,8 @@ contains
     type(field_collection_type), pointer   :: cpl_rcv_2d => null()
     integer(i_def), pointer                :: local_index(:)
     logical(l_def)                         :: is_running
+    character(len=str_def)                 :: coupling_src_name, coupling_dst_name
+    character(len=str_def)                 :: coupling_field_src_name, coupling_field_dst_name
 #endif
 
 
@@ -96,6 +103,7 @@ contains
 
 #ifdef MCT
     fs = field_src%which_function_space()
+    mesh_src => field_src%get_mesh()
 
     if (fs == W3 .or. fs == Wtheta) then
       ! Find number of layers and data levels
@@ -107,12 +115,30 @@ contains
       nlayers = nlayers + ndf - 1
       ndata = vector_space%get_ndata()
 
+      if ( mesh_src%get_extrusion_id() == TWOD ) then
+        !if ( get_field_axis_ref('restart_' // TRIM(field_src%get_name())) == 'surface_tiles' ) then
+           coupling_field_src_name = "src_masked"
+           coupling_field_dst_name = "dst_masked"
+           coupling_src_name = "coupling"
+           coupling_dst_name = "coupling_dst"
+        !else
+        !   coupling_field_src_name = "src_face"
+        !   coupling_field_dst_name = "dst_face"
+        !   coupling_src_name = "coupling"
+        !   coupling_dst_name = "coupling_dst"
+        !end if
+      else
+        coupling_field_src_name = "src_face"
+        coupling_field_dst_name = "dst_face"
+        coupling_src_name = "coupling"
+        coupling_dst_name = "coupling_dst"
+      end if
       ! Get the 2D fields where to store layer and field level data
-      cpl_snd_2d => modeldb%fields%get_field_collection("cpl_snd_2d")
-      call cpl_snd_2d%get_field("src_face", src_field)
+      cpl_snd_2d => modeldb%fields%get_field_collection( "cpl_snd_2d")
+      call cpl_snd_2d%get_field(TRIM(coupling_field_src_name), src_field)
 
-      cpl_rcv_2d => modeldb%fields%get_field_collection("cpl_rcv_2d")
-      call cpl_rcv_2d%get_field("dst_face", dst_field)
+      cpl_rcv_2d => modeldb%fields%get_field_collection( "cpl_rcv_2d")
+      call cpl_rcv_2d%get_field(TRIM(coupling_field_dst_name), dst_field)
 
       ! Extract data layer by layer, regrid it, and place in the destination field
       do l = 0, nlayers - 1
@@ -124,7 +150,7 @@ contains
 
           ! send the layer via OASIS
           ! Extract the version that was actually placed in the collection
-          coupling_ptr => get_coupling_from_collection(modeldb%values, "coupling" )
+          coupling_ptr => get_coupling_from_collection(modeldb%values, TRIM(coupling_src_name) )
           local_index => coupling_ptr%get_local_index()
           call coupler_exchange_2d%initialise(src_field, local_index)
           call coupler_exchange_2d%set_time(clock)
@@ -133,7 +159,7 @@ contains
 
           ! receive the layer via OASIS
           ! Extract the version that was actually placed in the collection
-          coupling_ptr => get_coupling_from_collection(modeldb%values, "coupling_dst" )
+          coupling_ptr => get_coupling_from_collection(modeldb%values, TRIM(coupling_dst_name) )
           local_index => coupling_ptr%get_local_index()
           call coupler_exchange_2d%initialise(dst_field, local_index)
           call coupler_exchange_2d%set_time(clock)
@@ -146,7 +172,9 @@ contains
                                                 dst_field, l, k))
 
           ! Update the coupling time
-          is_running = clock%tick()
+          if  (coupling_field_src_name == "src_face" ) then
+            is_running = clock%tick()
+          end if
 
         end do
       end do
