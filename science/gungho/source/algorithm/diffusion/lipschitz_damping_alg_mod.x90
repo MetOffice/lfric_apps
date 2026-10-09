@@ -40,7 +40,7 @@ contains
     use timing_mod,                    only: start_timing, stop_timing,        &
                                              tik, LPROF
     use log_mod,                       only: log_event, log_at_level,          &
-                                             LOG_LEVEL_INFO, log_scratch_space
+                                             LOG_LEVEL_DEBUG, log_scratch_space
 
     implicit none
 
@@ -71,12 +71,12 @@ contains
                                                breached, dt),                  &
                  inc_X_plus_Y(u, u_inc) )
 
-    if ( log_at_level(LOG_LEVEL_INFO) ) then
+    if ( log_at_level(LOG_LEVEL_DEBUG) ) then
       call invoke( sum_X(breach_count, breached) )
       write(log_scratch_space, '(A,I0)')                                       &
           'Lipschitz damping: number of cells with a breached threshold = ',   &
           nint(breach_count)
-      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+      call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
     end if
 
     if ( LPROF ) call stop_timing( id, 'lipschitz_damping' )
