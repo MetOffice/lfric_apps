@@ -15,7 +15,16 @@
 #
 # Kernels which need adjointing...
 #
-KERNEL_LIST = kernel/linear_physics/stabilise_bl_u_kernel_mod.f90 \
+KERNEL_LIST = kernel/inter_function_space/sci_average_w2b_to_w2_kernel_mod.f90 \
+              kernel/inter_function_space/sci_combine_multidata_field_kernel_mod.f90 \
+              kernel/inter_function_space/combine_w2_field_kernel_mod.f90 \
+              kernel/inter_function_space/sci_extract_w_kernel_mod.f90 \
+              kernel/inter_function_space/w2_to_w1_projection_kernel_mod.f90 \
+              kernel/inter_function_space/sample_field_kernel_mod.f90 \
+              kernel/inter_function_space/sample_flux_kernel_mod.f90 \
+              kernel/inter_function_space/split_w2_field_kernel_mod.f90 \
+              kernel/fem/strong_curl_kernel_mod.f90 \
+              kernel/linear_physics/stabilise_bl_u_kernel_mod.f90 \
               kernel/solver/apply_mixed_lu_operator_kernel_mod.f90 \
               kernel/solver/apply_mixed_operator_kernel_mod.f90 \
               kernel/solver/opt_apply_variable_hx_kernel_mod.f90 \
@@ -23,6 +32,15 @@ KERNEL_LIST = kernel/linear_physics/stabilise_bl_u_kernel_mod.f90 \
 
 # Variables per kernel...
 #
+ACTIVE_sci_average_w2b_to_w2_kernel_mod        := field_w2 field_w2_broken
+ACTIVE_sci_combine_multidata_field_kernel_mod  := field1_in field2_in field_out
+ACTIVE_combine_w2_field_kernel_mod             := uvw w uv
+ACTIVE_sci_extract_w_kernel_mod                := velocity_w2v u_physics
+ACTIVE_w2_to_w1_projection_kernel_mod          := v_w1 u_w2 vu res_dot_product wind
+ACTIVE_sample_field_kernel_mod                 := field_1 field_2 f_at_node
+ACTIVE_sample_flux_kernel_mod                  := flux u
+ACTIVE_split_w2_field_kernel_mod               := uvw w uv
+ACTIVE_strong_curl_kernel_mod                  := xi res_dot_product curl_u u
 ACTIVE_stabilise_bl_u_kernel_mod               := u_stabilised u_initial u_final
 ACTIVE_apply_mixed_lu_operator_kernel_mod      := wind theta exner lhs_u lhs_t
 ACTIVE_apply_mixed_operator_kernel_mod         := u_e t_col lhs_p lhs_w lhs_uv exner wind_w wind_uv

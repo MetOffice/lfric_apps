@@ -43,6 +43,7 @@ export META_DIR = $(WORKING_DIR)/../rose-meta
 export ROSE_META_DIRS = $(APPS_ROOT_DIR)/rose-meta $(META_DIR)
 
 export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
+                               $(CORE_ROOT_DIR)/components/inventory \
                                $(CORE_ROOT_DIR)/components/science \
                                $(CORE_ROOT_DIR)/components/driver \
                                $(CORE_ROOT_DIR)/components/lfric-xios \
