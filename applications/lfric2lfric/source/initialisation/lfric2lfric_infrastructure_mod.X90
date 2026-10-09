@@ -241,7 +241,6 @@ contains
     character(str_def) :: stored_twod_names(2)
     character(str_def) :: stored_mesh_names(2)
 
-    character(str_def) :: nam_field, nam_field_src, nam_field_dst
     character(str_def) :: c_name
 
     ! -------------------------------
@@ -620,46 +619,22 @@ contains
       case (regrid_method_oasis)
 #ifdef MCT
         ! Create oasis partitions and coupling variables
-         ! Source fields - regular
-        nam_field = "src_face"
+        ! Source fields
         c_name = "coupling"
-        print*, nam_field
-        call lfric2lfric_init_coupler_src(TRIM(c_name), TRIM(nam_field), &
+        call lfric2lfric_init_coupler_src(TRIM(c_name), &
                                        element_order_h, element_order_v, &
-                                       twod_mesh_src, modeldb, .false.)
+                                       twod_mesh_src, modeldb)
 
-        ! Source fields - masked
-        nam_field = "src_masked"
-        c_name = "coupling" 
-        call lfric2lfric_init_coupler_src(TRIM(c_name), TRIM(nam_field),     &
-                                       element_order_h, element_order_v,        &
-                                       twod_mesh_src, modeldb, .true.)
-        
-        ! Destination fields - regular
-        nam_field = "dst_face"
+        ! Destination fields
         c_name = "coupling_dst" 
-        call lfric2lfric_init_coupler_dst(TRIM(c_name),  TRIM(nam_field), &
+        call lfric2lfric_init_coupler_dst(TRIM(c_name), &
                                        element_order_h, element_order_v, &
-                                       twod_mesh_dst, modeldb, .false.)
+                                       twod_mesh_dst, modeldb)
 
-        ! Destination fields - masked
-        nam_field = "dst_masked"
-        c_name = "coupling_dst" 
-        call lfric2lfric_init_coupler_dst(TRIM(c_name), TRIM(nam_field), &
-                                       element_order_h, element_order_v,        &
-                                       twod_mesh_dst, modeldb, .true.)
-
-
-        ! Finish coupling definition - regular
-        nam_field_src = "src_face"
-        nam_field_dst = "dst_face"
+        ! Finish coupling definition
         c_name = "coupling" 
-        call lfric2lfric_end_coupler_init(modeldb, TRIM(c_name), TRIM(nam_field_src),TRIM(nam_field_dst))
-        ! Finish coupling definition - masked
-  !      nam_field_src = "src_masked"
-  !      nam_field_dst = "dst_masked"
-  !      c_name = "coupling" 
-  !      call lfric2lfric_end_coupler_init(modeldb, TRIM(c_name), TRIM(nam_field_src),TRIM(nam_field_dst))
+        call lfric2lfric_end_coupler_init(modeldb, TRIM(c_name))
+ 
 #else
         write(log_scratch_space,'(A)')                          &
             'ERROR: selected regrid_method=oasis, but OASIS libraries '// &
