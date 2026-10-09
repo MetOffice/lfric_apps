@@ -570,7 +570,6 @@ contains
 #ifdef UM_PHYSICS
     type(field_collection_type),  pointer :: radiation_fields
     type(field_collection_type),  pointer :: ancil_depository
-    type(field_collection_type),  pointer :: sst_ancil_fields
     type(field_collection_type),  pointer :: aerosol_ancil_fields
 #endif
     integer :: start_index, end_index
@@ -1001,17 +1000,14 @@ contains
 
     call log_event("Initialising I/O context", LOG_LEVEL_INFO)
 
-    ! Collections of fields read by time-varying ancillary file objects. They
-    ! are needed by the file list, so must exist before the context is closed.
-    call modeldb%fields%add_empty_field_collection("sst_ancil_fields", table_len = 10)
+    ! Collection of fields read by the aerosol ancillary file object. It is
+    ! needed by the file list, so must exist before the context is closed.
     call modeldb%fields%add_empty_field_collection("aerosol_ancil_fields", table_len = 40)
 #ifdef UM_PHYSICS
     if ( use_physics ) then
       ancil_depository => modeldb%fields%get_field_collection("depository")
-      sst_ancil_fields => modeldb%fields%get_field_collection("sst_ancil_fields")
       aerosol_ancil_fields => modeldb%fields%get_field_collection("aerosol_ancil_fields")
-      call create_file_owned_ancils( ancil_depository, sst_ancil_fields, &
-                                     aerosol_ancil_fields, mesh, twod_mesh )
+      call create_file_owned_ancils( ancil_depository, aerosol_ancil_fields, mesh )
     end if
 #endif
 

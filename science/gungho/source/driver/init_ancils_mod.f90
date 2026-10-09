@@ -95,13 +95,9 @@ module init_ancils_mod
               create_fd_ancils_idealised, &
               create_file_owned_ancils,   &
               setup_ancil_field,          &
-              sst_ancil_names,            &
               aerosol_ancil_names
 
-  ! Pairs of (model field name, variable name in the ancillary file)
-  character(len=str_def), parameter :: sst_ancil_names(2,1) = reshape( &
-    [ character(len=str_def) :: "tstar_sea", "surface_temperature" ], [2,1] )
-
+  ! Pairs of (model field name, variable name in the aerosol ancillary file)
   character(len=str_def), parameter :: aerosol_ancil_names(2,17) = reshape( &
     [ character(len=str_def) ::                                            &
       "acc_sol_bc", "AcSoBC_109", "acc_sol_om", "AcSoOC_110",             &
@@ -247,24 +243,18 @@ contains
     end if
 
     if (sst_source /= sst_source_start_dump) then
-      if (ancil_option == ancil_option_updating) then
-        ! Field is owned by the SST file object, which handles the updates
-        call setup_ancil_field("tstar_sea", depository, ancil_fields, mesh, &
-                                twod_mesh, twod=.true., read_by_file=.true.)
-      else
-        if (sst_source == sst_source_surf) then
-          call sst_time_axis%initialise("sst_time", file_id="sst_ancil", &
-                                        interp_flag=.false., pop_freq="daily", &
-                                        window_size=1)
-        else !sst_source == 'ancil'
-          call sst_time_axis%initialise("sst_time", file_id="sst_ancil", &
-                                        interp_flag=interp_flag, pop_freq="daily")
-        end if
-        call setup_ancil_field("tstar_sea", depository, ancil_fields, mesh, &
-                                twod_mesh, twod=.true.,                   &
-                                time_axis=sst_time_axis)
-        call ancil_times_list%insert_item(sst_time_axis)
+      if (sst_source == sst_source_surf) then
+        call sst_time_axis%initialise("sst_time", file_id="sst_ancil", &
+                                      interp_flag=.false., pop_freq="daily", &
+                                      window_size=1)
+      else !sst_source == 'ancil'
+        call sst_time_axis%initialise("sst_time", file_id="sst_ancil", &
+                                      interp_flag=interp_flag, pop_freq="daily")
       end if
+      call setup_ancil_field("tstar_sea", depository, ancil_fields, mesh, &
+                              twod_mesh, twod=.true.,                   &
+                              time_axis=sst_time_axis)
+      call ancil_times_list%insert_item(sst_time_axis)
     end if
 
     !=====  SEA ICE ANCILS  =====
@@ -980,45 +970,33 @@ contains
   !>          and binds them to the collections given to those files. Must be
   !>          called before the I/O context is closed.
   !> @param[in,out] depository           The depository field collection
-  !> @param[in,out] sst_ancil_fields     Collection bound to the SST file
   !> @param[in,out] aerosol_ancil_fields Collection bound to the aerosol file
   !> @param[in] mesh                     The current 3d mesh
-  !> @param[in] twod_mesh                The current 2d mesh
-  subroutine create_file_owned_ancils( depository, sst_ancil_fields, &
-                                       aerosol_ancil_fields, mesh, twod_mesh )
+  subroutine create_file_owned_ancils( depository, aerosol_ancil_fields, mesh )
 
     implicit none
 
     type( field_collection_type ), intent(inout) :: depository
-    type( field_collection_type ), intent(inout) :: sst_ancil_fields
     type( field_collection_type ), intent(inout) :: aerosol_ancil_fields
     type( mesh_type ), pointer,    intent(in)    :: mesh
-    type( mesh_type ), pointer,    intent(in)    :: twod_mesh
 
     integer(i_def) :: i
 
     if (ancil_option /= ancil_option_updating) return
 
-    if (sst_source /= sst_source_start_dump) then
-      call create_file_owned_field( sst_ancil_names(1,1), depository, &
-                                    sst_ancil_fields, mesh, twod_mesh, .true. )
-    end if
-
     if ( ( glomap_mode == glomap_mode_climatology ) .or. &
          ( glomap_mode == glomap_mode_dust_and_clim ) ) then
       do i = 1, size(aerosol_ancil_names, 2)
         call create_file_owned_field( aerosol_ancil_names(1,i), depository, &
-                                      aerosol_ancil_fields, mesh, twod_mesh, &
-                                      .false. )
+                                      aerosol_ancil_fields, mesh )
       end do
     end if
 
   end subroutine create_file_owned_ancils
 
-  !> @details Creates a single-data field in the depository if needed and adds
-  !>          a reference to it in the collection owned by a file object
-  subroutine create_file_owned_field( name, depository, target_fields, &
-                                      mesh, twod_mesh, twod )
+  !> @details Creates a single-data 3D field in the depository if needed and
+  !>          adds a reference to it in the collection owned by a file object
+  subroutine create_file_owned_field( name, depository, target_fields, mesh )
 
     implicit none
 
@@ -1026,8 +1004,6 @@ contains
     type( field_collection_type ), intent(inout) :: depository
     type( field_collection_type ), intent(inout) :: target_fields
     type( mesh_type ), pointer,    intent(in)    :: mesh
-    type( mesh_type ), pointer,    intent(in)    :: twod_mesh
-    logical(l_def),                intent(in)    :: twod
 
     type(field_type)                         :: new_field
     type(function_space_type),       pointer :: vec_space => null()
@@ -1037,11 +1013,7 @@ contains
     class(pure_abstract_field_type), pointer :: abs_fld_ptr => null()
 
     if ( .not. depository%field_exists(name) ) then
-      if (twod) then
-        vec_space => function_space_collection%get_fs( twod_mesh, 0, 0, W3, 1 )
-      else
-        vec_space => function_space_collection%get_fs( mesh, 0, 0, WTheta, 1 )
-      end if
+      vec_space => function_space_collection%get_fs( mesh, 0, 0, WTheta, 1 )
       call new_field%initialise( vec_space, name=trim(name) )
       tmp_write_ptr => write_field_generic
       call new_field%set_write_behaviour(tmp_write_ptr)
