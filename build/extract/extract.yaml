@@ -29,6 +29,7 @@ casim:
     - src/generic_diagnostic_variables.F90
     - src/graupel_embryo.F90
     - src/graupel_wetgrowth.F90
+    - src/hail_diag_fast_mod.F90
     - src/homogeneous_freezing.F90
     - src/ice_accretion.F90
     - src/ice_deposition.F90

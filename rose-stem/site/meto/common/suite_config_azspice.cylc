@@ -16,7 +16,7 @@
 
 {% set azspice_run = 'ulimit -s unlimited' %}
 
-{% set azspice_scitools = 'module load scitools/production-os47-1' %}
+{% set azspice_scitools = 'module load scitools/production-os48-1' %}
 
 {% set azspice_tech = 'module load lfric/vn3.2' %}
 
@@ -103,30 +103,22 @@
 
     [[AZSPICE_WEIGHTS]]
         inherit = AZSPICE_BASE
-        pre-script = """
-                     module purge
-                     module load csc/2025.3.20
-                     module load gcc/12.2.0
-                     module load mpich/4.2.3
-                     module load esmf/8.7.0
-                     module load scitools/production-os46-3
-                     module load um_tools/2025.10.1/openmp
-                     module list 2>&1
-                     """
+        {{ generate_script("pre-script", ["module purge",
+                                          azspice_scitools,
+                                          "module load um_tools/2025.10.1/openmp",
+                                          "module list 2>&1"]) }}
 
     [[AZSPICE_ROSE_ANA]]
         inherit = AZSPICE_BASE
-        pre-script = """
-                     module purge
-                     module load scitools/production-os47-1
-                     module load um_tools/2025.10.1/openmp
-                     module load csc/2025.3.20
-                     module load gcc/12.2.0
-                     module load mpich/4.2.3
-                     module load nccmp/1.9.1.0
-                     export ROSE_PYTHONPATH="$PYTHONPATH"
-                     module list 2>&1
-                     """
+        {{ generate_script("pre-script", ["module purge",
+                                          azspice_scitools,
+                                          "module load um_tools/2025.10.1/openmp",
+                                          "module load csc/2025.3.20",
+                                          "module load gcc/12.2.0",
+                                          "module load mpich/4.2.3",
+                                          "module load nccmp/1.9.1.0",
+                                          "export ROSE_PYTHONPATH=$PYTHONPATH",
+                                          "module list 2>&1"]) }}
 
     [[AZSPICE_EXPORT-SOURCE]]
         inherit=METO_ORIG
