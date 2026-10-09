@@ -32,6 +32,7 @@ from psyclone.psyir.transformations import (
 )
 from psyclone.psyir.nodes import (
     Assignment,
+    Call,
     Loop,
     Routine,
     OMPDoDirective,
@@ -68,8 +69,11 @@ def trans(psyir):
     loop_trans = OMPLoopTrans()
     minsync_trans = OMPMinimiseSyncTrans()
 
+    # Setup defaults for transformations
     ignore_dependencies_for = []
     max_threads_parse = False
+    safe_pure_calls = []
+    opt_order = ['outer','i', 'ii', 'l']
 
     # Get the file name to use with the SCRIPT_OPTIONS_DICT
     fortran_file_name = str(psyir.root.name)
@@ -77,12 +81,18 @@ def trans(psyir):
     # Copy out anything that's needed
     # Only the options list is currently
     if fortran_file_name in SCRIPT_OPTIONS_DICT:
+        logging.warning(
+                    f"{fortran_file_name}: 'SCRIPT_OPTIONS_DICT' found")
         file_overrides = SCRIPT_OPTIONS_DICT[fortran_file_name]
         # Update the respective lists if the filename override exists
         if "ignore_dependencies_for" in file_overrides.keys():
             ignore_dependencies_for = file_overrides["ignore_dependencies_for"]
         if "max_threads_parse" in file_overrides.keys():
             max_threads_parse = file_overrides["max_threads_parse"]
+        if "opt_order" in file_overrides.keys():
+            opt_order = file_overrides["opt_order"]
+        if "safe_pure_calls" in file_overrides.keys():
+            safe_pure_calls = file_overrides["safe_pure_calls"]
 
     # Replace max_threads = 1
     if max_threads_parse:
@@ -99,11 +109,28 @@ def trans(psyir):
         except TransformationError:
             pass
 
+    # Set the calls to 'pure', given the provided override.
+    # pure allows PSyclone to parallelise over them with OMP.
+    if safe_pure_calls:
+        for call in psyir.walk(Call):
+            if call.routine.symbol.name in safe_pure_calls:
+                call.routine.symbol.is_pure = True
+
     # Apply loop_trans to all the loops possible.
     for loop in psyir.walk(Loop):
+        # If we've allowed an OMP do already in a loop nest
+        # move onto the next Loop
         if loop.ancestor(OMPDoDirective) is not None:
             continue
-        if loop.variable.name in ['i', 'ii', 'l']:
+        can_transform = False
+        # If we are aiming for the outer loop
+        if "outer" in opt_order:
+            if not loop.ancestor(Loop):
+                can_transform = True
+        # If we are aiming for a specific loop
+        if loop.variable.name in opt_order:
+            can_transform = True
+        if can_transform:
             try:
                 loop_trans.apply(
                     loop,
@@ -111,8 +138,8 @@ def trans(psyir):
                     nowait=True)
             except (TransformationError, IndexError) as err:
                 logging.warning(
-                    f"{fortran_file_name} Could not transform \
-                    because:\n {err}")
+                    f"{fortran_file_name} Could not transform because:\
+                    \n {err}")
 
     # Apply the largest possible parallel regions and remove any barriers that
     # can be removed.

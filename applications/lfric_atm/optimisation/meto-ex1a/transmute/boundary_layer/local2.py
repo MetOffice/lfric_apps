@@ -4,24 +4,19 @@
 # under which the code may be used.
 # -----------------------------------------------------------------------------
 '''
-A local.py script for all kernels, where instead of adding OMP across the
-outermost loop, it is placed around the i loop, or across the l loop.
-This script imports a SCRIPT_OPTIONS_DICT which can be used to override
-small aspects of this script per file it is applied to.
+A copy of global script to add OpenMP to loops present in the file provided.
+This script imports the local directory copy of SCRIPT_OPTIONS_DICT in the 
+boundary_layer which can be used to override small aspects of this script,
+per file it is applied to. 
 Overrides currently include:
 * ignore_dependencies_for
 * node_type_check
-* safe_pure_calls
 '''
 
 import logging
 from psyclone.transformations import (
     TransformationError)
-from psyclone.psyir.nodes import (
-    Loop, Call,
-    OMPParallelDoDirective,
-    OMPParallelDirective,
-    OMPDoDirective,)
+from psyclone.psyir.nodes import Loop
 from transmute_psytrans.transmute_functions import (
     OMP_PARALLEL_LOOP_DO_TRANS_STATIC
 )
@@ -43,8 +38,11 @@ def trans(psyir):
 
     node_type_check = True
     ignore_dependencies_for = []
-    safe_pure_calls = []
 
+    fortran_file_name = str(psyir.root.name)
+    # Check if file is in the script_options_dict
+    # Copy out anything that's needed
+    # options list and a pure calls override
     if fortran_file_name in SCRIPT_OPTIONS_DICT:
         logging.warning(
             f"{fortran_file_name}: 'SCRIPT_OPTIONS_DICT' found")
@@ -55,34 +53,16 @@ def trans(psyir):
         if "node_type_check" in file_overrides.keys():
             node_type_check = file_overrides[
                     "node_type_check"]
-        if "safe_pure_calls" in file_overrides.keys():
-            safe_pure_calls = file_overrides[
-                    "safe_pure_calls"]
-        
-    # Set the calls to 'pure', given the provided override.
-    # pure allows PSyclone to parallelise over them with OMP.
-    if safe_pure_calls:
-        for call in psyir.walk(Call):
-            if call.routine.symbol.name in safe_pure_calls:
-                call.routine.symbol.is_pure = True
 
     # Work through each loop in the file and OMP PARALLEL DO
     for loop in psyir.walk(Loop):
-        # If there is an OMP ancestor skip.
-        if (
-            loop.ancestor(OMPParallelDoDirective) is not None
-            or loop.ancestor(OMPDoDirective) is not None
-            or loop.ancestor(OMPParallelDirective) is not None
-        ):
-            continue
-        # Allow loops over 'i' and 'l' indexes to be parallelised.
-        if loop.variable.name in ['i', 'l']:
+        if not loop.ancestor(Loop):
             try:
                 OMP_PARALLEL_LOOP_DO_TRANS_STATIC.apply(
                     loop, 
                     ignore_dependencies_for=ignore_dependencies_for,
                     node_type_check=node_type_check)
+
             except (TransformationError, IndexError) as err:
                 logging.warning(
-                    f"{fortran_file_name}: Could not transform because: \
-                    \n {err}")
+                    f"{fortran_file_name}: Could not transform because:\n {err}")
