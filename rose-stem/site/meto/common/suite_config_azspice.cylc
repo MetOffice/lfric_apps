@@ -11,8 +11,8 @@
 
 {% set azspice_compiler_gnu = 'module load lfric/vn3.2' %}
 
-{% set azspice_coupled_gnu = 'module load xios/2.2701-oasis ; '~
-                             'module load oasis' %}
+{% set azspice_oasis_gnu = 'module load xios/2.2701-oasis ; '~
+                           'module load oasis' %}
 
 {% set azspice_run = 'ulimit -s unlimited' %}
 
@@ -55,11 +55,17 @@
         inherit=AZSPICE_BASE,AZSPICE_BUILD,AZSPICE_GNU
         {{ generate_script("pre-script", [azspice_base, azspice_compiler_gnu]) }}
 
+    [[AZSPICE_BUILD_OASIS_GNU]]
+        inherit=AZSPICE_BASE,AZSPICE_BUILD,AZSPICE_GNU
+        {{ generate_script("pre-script", [azspice_base,
+                                          azspice_compiler_gnu,
+                                          azspice_oasis_gnu]) }}
+
     [[AZSPICE_BUILD_COUPLED_GNU]]
         inherit=AZSPICE_BASE,AZSPICE_BUILD,AZSPICE_GNU
         {{ generate_script("pre-script", [azspice_base,
                                           azspice_compiler_gnu,
-                                          azspice_coupled_gnu]) }}
+                                          azspice_oasis_gnu]) }}
 
     [[AZSPICE_RUN_GNU]]
         inherit=AZSPICE_BASE,AZSPICE_RUN,AZSPICE_GNU
