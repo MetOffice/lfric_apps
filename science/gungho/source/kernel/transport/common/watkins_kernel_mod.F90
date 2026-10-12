@@ -31,13 +31,14 @@ private
 !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
 type, public, extends(kernel_type) :: watkins_kernel_type
   private
-  type(arg_type) :: meta_args(6) = (/                                          &
+  type(arg_type) :: meta_args(7) = (/                                          &
        arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, W2v),                         & ! first_v_wind
        arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_2),   & ! lipschitz_max_field
        arg_type(GH_FIELD,  GH_INTEGER, GH_WRITE, ANY_DISCONTINUOUS_SPACE_2),   & ! watkins_failures
        arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W2),                          & ! wind
        arg_type(GH_SCALAR, GH_REAL,    GH_READ),                               & ! dt
-       arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W3)                           & ! detj
+       arg_type(GH_FIELD,  GH_REAL,    GH_READ,  W3),                          & ! detj
+       arg_type(GH_SCALAR, GH_INTEGER, GH_READ)                                & ! num_substeps
        /)
   integer :: operates_on = CELL_COLUMN
 contains
@@ -60,6 +61,7 @@ contains
 !> @param[in]     wind                  3D wind
 !> @param[in]     dt                    Transport time step
 !> @param[in]     detj                  Det(J) at W3: the volume of cells
+!> @param[in]     num_substeps          Maximum number of transport substeps
 !> @param[in]     ndf_w2v               Num of DoFs per cell for W2V
 !> @param[in]     undf_w2v              Num of W2V DoFs for this partition
 !> @param[in]     map_w2v               Map of lowest-cell W2V DoFs
@@ -79,6 +81,7 @@ subroutine watkins_code( nlayers,             &
                          wind,                &
                          dt,                  &
                          detj,                &
+                         num_substeps,        &
                          ndf_w2v,             &
                          undf_w2v,            &
                          map_w2v,             &
@@ -102,6 +105,7 @@ subroutine watkins_code( nlayers,             &
   integer(kind=i_def), intent(in)    :: map_w2v(ndf_w2v)
   integer(kind=i_def), intent(in)    :: map_w3(ndf_w3)
   integer(kind=i_def), intent(in)    :: map_w3_2d(ndf_w3_2d)
+  integer(kind=i_def), intent(in)    :: num_substeps
   real(kind=r_tran),   intent(in)    :: dt
   real(kind=r_tran),   intent(in)    :: detj(undf_w3)
   real(kind=r_tran),   intent(in)    :: wind(undf_w2)
@@ -115,12 +119,14 @@ subroutine watkins_code( nlayers,             &
   real(kind=r_tran)   :: lip_x_kp1, lip_y_kp1, lip_hori_kp1, lip_z_half_kp1
   real(kind=r_tran)   :: lip_lim_km1, lip_lim, lip_lim_kp1, slack_km1, remainder
   real(kind=r_tran)   :: max_lip_init, max_lip_new
+  real(kind=r_tran)   :: threshold, threshold_kp1
+  real(kind=r_tran)   :: lip_3d_kp1, lip_3d, lip_3d_km1
 
   ! The threshold sets the maximum allowed Lipschitz number under this scheme,
   ! while the tolerance is used for checking whether the algorithm has failed,
   ! and this is slacker than machine precision to avoid machine precision errors
   ! being detected as failures.
-  real(kind=r_tran), parameter :: threshold = 0.9_r_tran
+  real(kind=r_tran), parameter :: max_threshold = 0.9_r_tran
   real(kind=r_tran), parameter :: tolerance = 1.0E-3_r_tran
 
   ! Set failures to zero
@@ -154,8 +160,10 @@ subroutine watkins_code( nlayers,             &
   lip_z_half_kp1 = dt*(first_v_wind(map_w2v(2)) - first_v_wind(map_w2v(1)))/detj(map_w3(1))
   lip_hori_kp1 = MAX(lip_x_kp1, lip_y_kp1, lip_x_kp1 + lip_y_kp1)
   lip_lim_kp1 = MAX(lip_z_half_kp1, lip_z_half_kp1 + lip_hori_kp1)
-  max_lip_init = lip_lim_kp1
+  lip_3d_kp1 = MAX(0.0_r_tran, lip_x_kp1 + lip_y_kp1 + 2.0_r_tran*lip_z_half_kp1)
+  max_lip_init = lip_lim_kp1 + REAL(num_substeps - 1, r_tran)*lip_3d_kp1
   max_lip_new = 0.0_r_tran
+  threshold_kp1 = max_threshold - REAL(num_substeps - 1, r_tran)*lip_3d_kp1
 
   do k = 0, nlayers - 1
 
@@ -167,6 +175,8 @@ subroutine watkins_code( nlayers,             &
     if (k > 0) then
 
       lip_hori_km1 = lip_hori
+      lip_3d_km1 = lip_3d
+      threshold = max_threshold - REAL(num_substeps - 1, r_tran)*lip_3d_km1
       lip_z_half_km1 = dt*(first_v_wind(map_w2v(2)+k-1) - first_v_wind(map_w2v(1)+k-1))/detj(map_w3(1)+k-1)
       lip_lim_km1 = MAX(lip_z_half_km1, lip_z_half_km1 + lip_hori_km1)
 
@@ -176,8 +186,12 @@ subroutine watkins_code( nlayers,             &
 
     ! Lipschitz numbers for this cell ------------------------------------------
     lip_hori = lip_hori_kp1
+    lip_3d = lip_3d_kp1
     lip_z_half = dt*(first_v_wind(map_w2v(2)+k) - first_v_wind(map_w2v(1)+k))/detj(map_w3(1)+k)
     lip_lim = MAX(lip_z_half, lip_z_half + lip_hori)
+    ! Anticipate subsequent substeps, so build 3D Lipschitz number into threshold
+    ! Each substep will add lip_3d to the Lipschitz number
+    threshold = max_threshold - REAL(num_substeps - 1, r_tran)*lip_3d
 
     ! Lipschitz numbers for cell above -----------------------------------------
     if (k < nlayers - 1) then
@@ -186,7 +200,14 @@ subroutine watkins_code( nlayers,             &
       lip_z_half_kp1 = dt*(first_v_wind(map_w2v(2)+k+1) - first_v_wind(map_w2v(1)+k+1))/detj(map_w3(1)+k+1)
       lip_hori_kp1 = MAX(lip_x_kp1, lip_y_kp1, lip_x_kp1 + lip_y_kp1)
       lip_lim_kp1 = MAX(lip_z_half_kp1, lip_z_half_kp1 + lip_hori_kp1)
-      max_lip_init = MAX(max_lip_init, lip_lim_kp1)
+      lip_3d_kp1 = MAX(0.0_r_tran,                                             &
+          lip_x_kp1 + lip_y_kp1                                                &
+          + dt*(wind(map_w2(T)+k+1) - wind(map_w2(B)+k+1))/detj(map_w3(1)+k+1) &
+      )
+      ! For tracking if max Lipschitz number has increased
+      max_lip_init = MAX(max_lip_init,                                         &
+                         lip_lim_kp1 + REAL(num_substeps-1, r_tran)*lip_3d_kp1)
+      threshold_kp1 = max_threshold - REAL(num_substeps - 1, r_tran)*lip_3d_kp1
     end if
 
     ! ------------------------------------------------------------------------ !
@@ -201,7 +222,7 @@ subroutine watkins_code( nlayers,             &
       if (slack_km1 > (lip_lim - threshold) * detj(map_w3(1)+k) / dt) then
 
         ! Check whether cell above might need some of this slack too
-        if (lip_lim_kp1 > threshold .AND. k < nlayers - 1) then
+        if (lip_lim_kp1 > threshold_kp1 .AND. k < nlayers - 1) then
           ! TODO: don't need to use all slack here! Arbitrarily using half
           first_v_wind(map_w2v(1)+k) = first_v_wind(map_w2v(1)+k)              &
             + (lip_lim - threshold) * detj(map_w3(1)+k) / dt                   &
@@ -229,7 +250,8 @@ subroutine watkins_code( nlayers,             &
       ! Calculate Lipschitz number from cell below (which now won't change)
       if (k > 0) then
         lip_z_half_km1 = dt*(first_v_wind(map_w2v(2)+k-1) - first_v_wind(map_w2v(1)+k-1))/detj(map_w3(1)+k-1)
-        lip_lim_km1 = MAX(lip_z_half_km1, lip_z_half_km1 + lip_hori_km1)
+        lip_lim_km1 = MAX(lip_z_half_km1, lip_z_half_km1 + lip_hori_km1)       &
+                      + REAL(num_substeps - 1, r_tran)*lip_3d_km1
         max_lip_new = MAX(max_lip_new, lip_lim_km1)
       end if
 
@@ -248,14 +270,14 @@ subroutine watkins_code( nlayers,             &
   k = nlayers - 1
   lip_z_half = dt*(first_v_wind(map_w2v(2)+k) - first_v_wind(map_w2v(1)+k))/detj(map_w3(1)+k)
   lip_lim = MAX(lip_z_half, lip_z_half + lip_hori)
-  max_lip_new = MAX(max_lip_new, lip_lim)
+  max_lip_new = MAX(max_lip_new, lip_lim + REAL(num_substeps - 1, r_tran)*lip_3d)
 
   ! -------------------------------------------------------------------------- !
   ! Check if algorithm has failed, and if so take original wind
   ! -------------------------------------------------------------------------- !
 
   if (max_lip_new > max_lip_init + tolerance .AND. &
-      max_lip_new > threshold + tolerance) then
+      max_lip_new > max_threshold + tolerance) then
     watkins_failures(map_w3_2d(1)) = 1_i_def
 
     ! Set the bottom value
@@ -269,7 +291,7 @@ subroutine watkins_code( nlayers,             &
     ! Set the top values
     first_v_wind(map_w2v(1)+nlayers) = 0.0_r_tran
 
-  else if (max_lip_new > threshold + tolerance) then
+  else if (max_lip_new > max_threshold + tolerance) then
     watkins_failures(map_w3_2d(1)) = 1_i_def
   end if
 
