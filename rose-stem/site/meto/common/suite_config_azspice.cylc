@@ -23,7 +23,7 @@
     [[AZSPICE_BASE]]
         platform = spice
         [[[environment]]]
-            BUILD_ROOT = ${TMPDIR}
+            BUILD_ROOT = ${SCRATCH}
             HYPERTHREADS    = 1
             CORES_PER_NODE  = 1
             NUMA_REGIONS_PER_NODE = 0
