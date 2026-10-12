@@ -31,7 +31,6 @@
 
     [[AZSPICE_BUILD]]
         [[[environment]]]
-            USE_LEGACY_TIMER=true
             USE_TIMING_WRAPPER=true
             PSYCLONE_MODE=server
         [[[directives]]]
@@ -61,7 +60,15 @@
                                           azspice_compiler_gnu,
                                           azspice_coupled_gnu]) }}
 
+    [[AZSPICE_BUILD_VERNIER-GNU]]
+        inherit=AZSPICE_BASE,AZSPICE_BUILD,AZSPICE_GNU
+        {{ generate_script("pre-script", [azspice_base, azspice_compiler_gnu]) }}
+
     [[AZSPICE_RUN_GNU]]
+        inherit=AZSPICE_BASE,AZSPICE_RUN,AZSPICE_GNU
+        {{ generate_script("pre-script", [azspice_base, azspice_compiler_gnu, azspice_run]) }}
+
+    [[AZSPICE_RUN_VERNIER-GNU]]
         inherit=AZSPICE_BASE,AZSPICE_RUN,AZSPICE_GNU
         {{ generate_script("pre-script", [azspice_base, azspice_compiler_gnu, azspice_run]) }}
 
