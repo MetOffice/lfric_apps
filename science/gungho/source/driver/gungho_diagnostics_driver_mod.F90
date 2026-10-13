@@ -347,8 +347,7 @@ contains
       call freeze_lev_alg(modeldb%config,theta, mr, moist_dyn, exner_in_wth)
       ! Dust concentration at the surface and in the 2000-5000ft layer
       aerosol_fields => modeldb%fields%get_field_collection("aerosol_fields")
-      call dust_conc_diags_alg(modeldb%config, aerosol_fields, theta, &
-                               exner_in_wth)
+      call dust_conc_diags_alg(modeldb%config, aerosol_fields, derived_fields)
 #endif
 
       temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')

@@ -18,13 +18,9 @@ module dust_conc_diags_kernel_mod_test
   public :: test_dust_conc_diags, &
            test_all_layers_above_band, test_empty_fields
 
-  ! Standard dry-atmosphere planet constants, passed to the kernel as
-  ! arguments. Only rd and p_zero affect this kernel's arithmetic here (the
-  ! tests use exner = 1 everywhere, so the result does not depend on kappa).
-  real(kind=r_def), parameter :: rd_val     = 287.05_r_def
-  real(kind=r_def), parameter :: cp_val     = 1005.0_r_def
-  real(kind=r_def), parameter :: kappa_val  = rd_val / cp_val
-  real(kind=r_def), parameter :: p_zero_val = 100000.0_r_def
+  ! A uniform air density of exactly 1 kg/m3, so the mixing ratio to
+  ! concentration conversion is easy to check by hand.
+  real(kind=r_def), parameter :: rho_val = 1.0_r_def
 
 contains
 
@@ -37,11 +33,6 @@ contains
     implicit none
 
     real(kind=r_def), parameter :: tol = 1.0e-9_r_def
-
-    ! rho_air = p_zero / (rd * theta), chosen (with exner = 1 everywhere)
-    ! to equal 1.0 exactly, so the concentration conversion is easy to
-    ! check by hand.
-    real(kind=r_def), parameter :: theta_val = p_zero_val / rd_val
 
     ! Uniform column: acc_ins_du + cor_ins_du = 1e-8 kg/kg at every level
     real(kind=r_def), parameter :: acc_val = 6.0e-9_r_def
@@ -60,7 +51,7 @@ contains
     integer(i_def) :: map_wth(ndf_wth), map_w3(ndf_w3), map_2d(ndf_2d)
 
     real(r_def) :: acc_ins_du(undf_wth), cor_ins_du(undf_wth)
-    real(r_def) :: theta(undf_wth), exner_in_wth(undf_wth)
+    real(r_def) :: air_density(undf_wth)
     real(r_def) :: height_w3(undf_w3)
 
     real(r_def), target  :: dust_conc_surface_data(undf_2d)
@@ -74,8 +65,7 @@ contains
     map_w3  = (/ 1_i_def /)
     map_2d  = (/ 1_i_def /)
 
-    theta        = theta_val
-    exner_in_wth = 1.0_r_def
+    air_density  = rho_val
     acc_ins_du   = acc_val
     cor_ins_du   = cor_val
 
@@ -91,24 +81,21 @@ contains
     call dust_conc_diags_code( nlayers,                &
                               acc_ins_du,              &
                               cor_ins_du,              &
-                              theta,                   &
-                              exner_in_wth,             &
+                              air_density,             &
                               height_w3,                &
                               dust_conc_surface,        &
                               dust_conc_2000_5000ft,    &
-                              p_zero_val, kappa_val, rd_val, &
                               ndf_wth, undf_wth, map_wth, &
                               ndf_w3, undf_w3, map_w3,    &
                               ndf_2d, undf_2d, map_2d )
 
-    ! (a) surface: 1e-8 kg/kg * 1.0 kg/m3 * 1e9 (kg to micg) * 1e-6
-    !     (micg to g) = 1e-5 g/m3
+    ! (a) surface: 1e-8 kg/kg * 1.0 kg/m3 * 1e3 (kg to g) = 1e-5 g/m3
     expected_surface = 1.0e-5_r_def
     @assertEqual( expected_surface, dust_conc_surface(1), tol )
 
-    ! (b) band: 5 layers of 200 m thickness at 10.0 micg/m3, converted to
-    !     g/m3 and divided by the nominal 914.4 m band depth
-    expected_band = (5.0_r_def * 200.0_r_def * 10.0_r_def * 1.0e-6_r_def) / &
+    ! (b) band: 5 layers of 200 m thickness at 1e-5 g/m3, divided by the
+    !     nominal 914.4 m band depth
+    expected_band = (5.0_r_def * 200.0_r_def * 1.0e-5_r_def) / &
                    914.4_r_def
     @assertEqual( expected_band, dust_conc_2000_5000ft(1), tol )
 
@@ -126,7 +113,6 @@ contains
     implicit none
 
     real(kind=r_def), parameter :: tol = 1.0e-9_r_def
-    real(kind=r_def), parameter :: theta_val  = p_zero_val / rd_val
 
     integer(i_def), parameter :: nlayers = 9_i_def
     integer(i_def), parameter :: ndf_wth = 1_i_def, undf_wth = nlayers + 1
@@ -136,7 +122,7 @@ contains
     integer(i_def) :: map_wth(ndf_wth), map_w3(ndf_w3), map_2d(ndf_2d)
 
     real(r_def) :: acc_ins_du(undf_wth), cor_ins_du(undf_wth)
-    real(r_def) :: theta(undf_wth), exner_in_wth(undf_wth)
+    real(r_def) :: air_density(undf_wth)
     real(r_def) :: height_w3(undf_w3)
 
     real(r_def), target  :: dust_conc_surface_data(undf_2d)
@@ -148,8 +134,7 @@ contains
     map_w3  = (/ 1_i_def /)
     map_2d  = (/ 1_i_def /)
 
-    theta        = theta_val
-    exner_in_wth = 1.0_r_def
+    air_density  = rho_val
     acc_ins_du   = 6.0e-9_r_def
     cor_ins_du   = 4.0e-9_r_def
 
@@ -167,12 +152,10 @@ contains
     call dust_conc_diags_code( nlayers,                &
                               acc_ins_du,              &
                               cor_ins_du,              &
-                              theta,                   &
-                              exner_in_wth,             &
+                              air_density,             &
                               height_w3,                &
                               dust_conc_surface,        &
                               dust_conc_2000_5000ft,    &
-                              p_zero_val, kappa_val, rd_val, &
                               ndf_wth, undf_wth, map_wth, &
                               ndf_w3, undf_w3, map_w3,    &
                               ndf_2d, undf_2d, map_2d )
@@ -195,7 +178,6 @@ contains
     implicit none
 
     real(kind=r_def), parameter :: tol = 1.0e-9_r_def
-    real(kind=r_def), parameter :: theta_val  = p_zero_val / rd_val
     real(kind=r_def), parameter :: sentinel   = -999.0_r_def
 
     integer(i_def), parameter :: nlayers = 9_i_def
@@ -206,7 +188,7 @@ contains
     integer(i_def) :: map_wth(ndf_wth), map_w3(ndf_w3), map_2d(ndf_2d)
 
     real(r_def) :: acc_ins_du(undf_wth), cor_ins_du(undf_wth)
-    real(r_def) :: theta(undf_wth), exner_in_wth(undf_wth)
+    real(r_def) :: air_density(undf_wth)
     real(r_def) :: height_w3(undf_w3)
 
     real(r_def), target  :: surface_data(undf_2d)
@@ -218,8 +200,7 @@ contains
     map_w3  = (/ 1_i_def /)
     map_2d  = (/ 1_i_def /)
 
-    theta        = theta_val
-    exner_in_wth = 1.0_r_def
+    air_density  = rho_val
     acc_ins_du   = 6.0e-9_r_def
     cor_ins_du   = 4.0e-9_r_def
     height_w3 = (/ 0.0_r_def, 200.0_r_def, 400.0_r_def, 600.0_r_def,   &
@@ -235,12 +216,10 @@ contains
     call dust_conc_diags_code( nlayers,                &
                               acc_ins_du,              &
                               cor_ins_du,              &
-                              theta,                   &
-                              exner_in_wth,             &
+                              air_density,             &
                               height_w3,                &
                               dust_conc_surface,        &
                               dust_conc_2000_5000ft,    &
-                              p_zero_val, kappa_val, rd_val, &
                               ndf_wth, undf_wth, map_wth, &
                               ndf_w3, undf_w3, map_w3,    &
                               ndf_2d, undf_2d, map_2d )
@@ -256,12 +235,10 @@ contains
     call dust_conc_diags_code( nlayers,                &
                               acc_ins_du,              &
                               cor_ins_du,              &
-                              theta,                   &
-                              exner_in_wth,             &
+                              air_density,             &
                               height_w3,                &
                               dust_conc_surface,        &
                               dust_conc_2000_5000ft,    &
-                              p_zero_val, kappa_val, rd_val, &
                               ndf_wth, undf_wth, map_wth, &
                               ndf_w3, undf_w3, map_w3,    &
                               ndf_2d, undf_2d, map_2d )

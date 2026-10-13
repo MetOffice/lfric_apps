@@ -21,7 +21,6 @@ module dust_conc_diags_alg_mod
   use fs_continuity_mod,           only: W3
   use initialise_diagnostics_mod,  only: init_diag => init_diagnostic_field
   use log_mod,                     only: log_event, LOG_LEVEL_WARNING
-  use planet_config_mod,           only: p_zero, kappa, rd
   use section_choice_config_mod,   only: aerosol, aerosol_um
   use sci_geometric_constants_mod, only: get_height_fv
 
@@ -33,32 +32,32 @@ module dust_conc_diags_alg_mod
 
 contains
 
+  !> @brief   Output the total dust concentration diagnostics.
   !> @details Output diagnostics of total dust concentration at the surface
   !>          and in the 2000-5000 feet layer
   !> @param[in] config          Application namelist configuration object
   !> @param[in] aerosol_fields  Collection of fields for the aerosol scheme
-  !> @param[in] theta           Potential temperature
-  !> @param[in] exner_in_wth    Exner pressure in wth space
-  subroutine dust_conc_diags_alg(config, aerosol_fields, theta, exner_in_wth)
+  !> @param[in] derived_fields  Collection of derived fields
+  subroutine dust_conc_diags_alg(config, aerosol_fields, derived_fields)
 
     implicit none
 
     type(config_type), intent(in) :: config
 
     type(field_collection_type), intent(in) :: aerosol_fields
-    type(field_type),            intent(in) :: theta
-    type(field_type),            intent(in) :: exner_in_wth
+    type(field_collection_type), intent(in) :: derived_fields
 
     ! Local fields
     type(field_type) :: dust_conc_surface
     type(field_type) :: dust_conc_2000_5000ft
     type(field_type), pointer :: acc_ins_du
     type(field_type), pointer :: cor_ins_du
+    type(field_type), pointer :: air_density
     type(field_type), pointer :: height_w3
 
     logical(l_def) :: surface_flag, band_flag
 
-    nullify(acc_ins_du, cor_ins_du, height_w3)
+    nullify(acc_ins_du, cor_ins_du, air_density, height_w3)
 
     surface_flag = init_diag(dust_conc_surface, 'aviation__dust_conc_surface')
     band_flag = init_diag(dust_conc_2000_5000ft, &
@@ -87,14 +86,20 @@ contains
         call aerosol_fields%get_field('acc_ins_du', acc_ins_du)
         call aerosol_fields%get_field('cor_ins_du', cor_ins_du)
 
-        height_w3 => get_height_fv(config, theta%get_mesh(), W3)
+        ! The dry density, because LFRic transports aerosol mixing ratios
+        ! against it: the aerosol transport controller is given the dry
+        ! rho and the total dry flux, so the mixing ratios are per unit
+        ! dry air. Were they ever carried on a moist basis, this would
+        ! become 'wetrho_in_wth'.
+        call derived_fields%get_field('rho_in_wth', air_density)
+
+        height_w3 => get_height_fv(config, air_density%get_mesh(), W3)
 
         call invoke( dust_conc_diags_kernel_type( acc_ins_du, cor_ins_du,    &
-                                                  theta, exner_in_wth,      &
+                                                  air_density,              &
                                                   height_w3,                &
                                                   dust_conc_surface,        &
-                                                  dust_conc_2000_5000ft,    &
-                                                  p_zero, kappa, rd ) )
+                                                  dust_conc_2000_5000ft ) )
 
         if (surface_flag) call dust_conc_surface%write_field()
         if (band_flag) call dust_conc_2000_5000ft%write_field()
