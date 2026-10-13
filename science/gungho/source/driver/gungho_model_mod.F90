@@ -455,7 +455,6 @@ contains
 #ifdef UM_PHYSICS
     integer(i_def) :: ncells
     integer(i_def) :: ncells_ukca
-    integer(i_def) :: chem_scheme
 
     ! Set derived planet constants and presets
     call set_planet_constants()
@@ -596,7 +595,6 @@ contains
 
 #ifdef UM_PHYSICS
     real(r_def) :: dt
-    integer(i_def) :: chem_scheme
 #endif
 
     integer(i_def), allocatable :: tile_size(:,:)
@@ -1076,8 +1074,8 @@ contains
       ! Setup UKCA diagnostics list based on requested diags,
       ! only for strattrop scheme at present.
       if ( modeldb%config%namelist_exists('chemistry') ) then
-        chem_scheme = modeldb%config%chemistry%chem_scheme()
-        if ( chem_scheme == chem_scheme_strattrop )                &
+        if ( modeldb%config%chemistry%chem_scheme() ==             &
+               chem_scheme_strattrop )                             &
           call ukca_diag_setup(modeldb%values)
       end if
     end if
