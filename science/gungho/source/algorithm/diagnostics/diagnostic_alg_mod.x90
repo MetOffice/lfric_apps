@@ -134,11 +134,12 @@ contains
   !>          imbalance. It calculates the sum of pressure gradient and
   !>          gravity term at each timestep using the hydrostatic kernel.
   !> @param[in,out] l2        l2 norm
+  !> @param[in]     config    Configuration object
   !> @param[in]     theta     Potential temperature
   !> @param[in]     moist_dyn Moist dynamics factors
   !> @param[in]     exner     Exner pressure
   !> @param[in]     mesh      Mesh
-  subroutine hydbal_diagnostic_alg(l2, theta, moist_dyn, exner, mesh)
+  subroutine hydbal_diagnostic_alg(config, l2, theta, moist_dyn, exner, mesh)
     use field_mod,                   only: field_type
     use quadrature_xyoz_mod,         only: quadrature_xyoz_type
     use fs_continuity_mod,           only: W2V
@@ -153,11 +154,12 @@ contains
 
 
     implicit none
-    real(r_def), intent(inout)            :: l2
-    type(field_type), intent(in)          :: theta
-    type(field_type), intent(in)          :: moist_dyn(num_moist_factors)
-    type(field_type), intent(in)          :: exner
-    type(mesh_type),  intent(in), pointer :: mesh
+    real(r_def),       intent(inout)       :: l2
+    type(field_type),  intent(in)          :: theta
+    type(field_type),  intent(in)          :: moist_dyn(num_moist_factors)
+    type(field_type),  intent(in)          :: exner
+    type(mesh_type),   intent(in), pointer :: mesh
+    type(config_type), intent(in)          :: config
 
     type(field_type), pointer    :: geopotential
     type(field_type)             :: hyd_imbal
@@ -189,7 +191,7 @@ contains
 
     ! Get geopotential field from runtime_constants
     theta_mesh   => theta%get_mesh()
-    geopotential => get_geopotential(theta_mesh%get_id())
+    geopotential => get_geopotential(config, theta_mesh)
 
     call invoke( setval_c(hyd_imbal, 0.0_r_def), &
                  hydrostatic_kernel_type( hyd_imbal, exner, theta, moist_dyn, &
@@ -774,7 +776,7 @@ contains
       ! Use geopotential to calculate potential energy from planet centre
       ! This requires the normalised geopotential (zero at the surface)
       ! and the surface geopotential
-      normalised_geopotential => get_geopotential( mesh%get_id() )
+      normalised_geopotential => get_geopotential(config, mesh)
       call geopotential%initialise( normalised_geopotential%get_function_space())
       surface_geopotential = planet_radius*gravity
       call invoke( a_plus_X(geopotential, surface_geopotential, normalised_geopotential), &
