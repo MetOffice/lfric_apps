@@ -229,10 +229,18 @@ lookup_real_tmp(brsvd4) = 0.0_real64
 if (lookup_int(lbvc) >= 126 .and. lookup_int(lbvc) <= 139 &
      .or. lookup_int(lbvc) == 5 .or. lookup_int(lbvc) == 0 .or. &
      lookup_int(lbvc) == 275 ) then
-
+  ! Special codes inc single level
   write(log_scratch_space, '(A,I0,A)') &
      "Vertical coord type ", lookup_int(lbvc), " treated as single layer"
   call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+
+  ! set level heights to 0.0 - potentially except bulev & bhulev?
+  lookup_real_tmp(blev)=0.0_real64
+  lookup_real_tmp(bhlev)=0.0_real64
+  lookup_real_tmp(brlev)=0.0_real64
+  lookup_real_tmp(bhrlev)=0.0_real64
+  lookup_real_tmp(bulev)=0.0_real64
+  lookup_real_tmp(bhulev)=0.0_real64
 
   ! Pseudo-level number
   if ( get_stashmaster_item(stashcode, pseudt) /= 0 ) then
@@ -253,14 +261,6 @@ if (lookup_int(lbvc) >= 126 .and. lookup_int(lbvc) <= 139 &
     end if
 
   end if
-
-  ! Special codes inc single level, set to 0.0
-  lookup_real_tmp(blev)=0.0_real64
-  lookup_real_tmp(bhlev)=0.0_real64
-  lookup_real_tmp(brlev)=0.0_real64
-  lookup_real_tmp(bhrlev)=0.0_real64
-  lookup_real_tmp(bulev)=0.0_real64
-  lookup_real_tmp(bhulev)=0.0_real64
 
 else if (lookup_int(lbvc) == 6) then ! Deep soil levels
   ! These are hardcoded to the settings in a UM dump file with 4 soil levels as
