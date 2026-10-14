@@ -1,0 +1,152 @@
+{% do LOG.debug("Entered site/pawsey/common/suite_config_setonix.cylc") %}
+
+{% set setonix_modules_gnu = 'module use /software/projects/pawsey0835/ddeeptimahanti/modules ; '~
+                             'module load lfric/gcc/14.2 ; '~
+                             'module unload .cray-mpich/9.0.1-t6yjuyi ; '~
+			     'export PATH=$PATH:/software/projects/pawsey0835/ddeeptimahanti/cylc_env/bin ; '~
+		  	     'export PYTHONPATH=$PYTHONPATH:/software/projects/pawsey0835/ddeeptimahanti/cylc_env/lib/python3.11/site-packages ; '~			
+			     'export LD_LIBRARY_PATH=/opt/cray/pe/mpich/9.0.1/ofi/gnu/12.3/lib:$LD_LIBRARY_PATH'  %}
+
+{% set setonix_modules_cce = 'module use /software/projects/pawsey0835/ddeeptimahanti/modules ; '~
+                             'module load lfric/cce/18.0.1 ; '~ 
+                             'export PATH=$PATH:/software/projects/pawsey0835/ddeeptimahanti/cce18_env/bin ; '~
+                             'export PYTHONPATH=$PYTHONPATH:/software/projects/pawsey0835/ddeeptimahanti/cce18_env/lib/python3.11/site-packages ; '~
+                             'module use /software/projects/pawsey0835/ddeeptimahanti/setonix/2025.04/modules/zen3/gcc/13.3.0/dependencies ; '~
+                             'module use /software/projects/pawsey0835/ddeeptimahanti/setonix/2025.04/modules/zen3/gcc/13.3.0/astro-applications/ ; '~
+                             'module load .pfunit/4.10.0-twwu3qk ; '~
+                             'module load .fcm/2021.05.0-65djiil ; '~
+                             'module load .time/1.9-lsi4ax6' %}
+
+{% set setonix_modules_cce20 = 'module use /software/projects/pawsey0835/ddeeptimahanti/modules ; '~
+                             'module load lfric/cce/20.0.0 ; '~
+                             'module use /software/projects/pawsey0835/ddeeptimahanti/setonix/2025.11/modules/zen3/gcc/14.2.0/dependencies ; '~
+                             'module use /software/projects/pawsey0835/ddeeptimahanti/setonix/2025.11/modules/zen3/gcc/14.2.0/astro-applications/ ; '~
+                             'module load .pfunit/4.10.0-wv3f365 ; '~
+                             'module load .time/1.9-lsi4ax6 ; '~
+			     'module use /software/setonix/2025.08/modules/zen3/gcc/14.2.0/dependencies ; '~
+ 			     'module load .py-pyyaml/6.0.2-mysz5xs ; '~	
+                             'module load .py-psyclone/3.2.2-2seivsl' %}
+
+{% set setonix_modules_cce21 = 'module use /software/projects/pawsey0835/ddeeptimahanti/modules ; '~
+                             'module load lfric/cce/21.0.2 ; '~
+                             'export LD_LIBRARY_PATH=/opt/cray/pe/mpich/9.1.0/ofi/crayclang/20.0/lib:$LD_LIBRARY_PATH' %}
+
+{% set setonix_modules_aocc = 'module use /software/projects/pawsey0835/ddeeptimahanti/modules ; '~
+                             'module load lfric/aocc/5.2.0' %}
+
+{% set setonix_modules_rocm = 'module use /software/projects/pawsey0835/ddeeptimahanti/modules ; '~
+                             'module load lfric/rocm/7.2.4' %}
+
+{% set setonix_modules_nvhpc_omp = 'module use /software/projects/pawsey0835/ddeeptimahanti/modules ; '~
+                             'module load lfric/nvhpc/24.11 ; '~
+                             'module load cray-hdf5-parallel/1.14.3.7 ; '~
+                             'module load cray-netcdf-hdf5parallel/4.9.0.17 ; '~
+                             'module load cuda/13.0 ; '~
+                             'export LFRIC_OFFLOAD_DIRECTIVES=omp ; '~
+                             'export FC="nvfortran $(CC --cray-print-opts)"' %}
+
+{% set setonix_modules_nvhpc_acc = 'module use /software/projects/pawsey0835/ddeeptimahanti/modules ; '~
+                             'module load lfric/nvhpc/24.11 ; '~
+                             'module load cray-hdf5-parallel/1.14.3.7 ; '~
+                             'module load cray-netcdf-hdf5parallel/4.9.0.17 ; '~
+                             'module load cuda/13.0 ; '~
+                             'export LFRIC_OFFLOAD_DIRECTIVES=acc ; '~
+                             'export FC="nvfortran $(CC --cray-print-opts)"' %}
+
+
+{% set setonix_modules_perftools = 'module load perftools' %}
+
+[runtime]
+
+    [[SETONIX_BASE]]
+        [[[environment]]]
+            SITE = 'pawsey'
+            UMDIR = $MYSCRATCH/um
+            BUILD_ROOT = ${CYLC_TASK_WORK_DIR}/${CYLC_WORKFLOW_NAME_BASE}_${USER}_setonix
+            SOURCE_ROOT = $CYLC_WORKFLOW_SHARE_DIR/source
+            OUTPUT_ROOT = $CYLC_WORKFLOW_SHARE_DIR/output_setonix
+
+    [[SETONIX_SLURM]]
+        inherit = SETONIX_BASE
+        platform = setonix-slurm
+        [[[directives]]]
+	    --account = pawsey0012
+	    --partition = work
+            --nodes = 1
+            --ntasks = 6
+            --cpus-per-task = 1
+            --time = 1:00:00
+
+    [[SETONIX_BUILD]]
+        inherit = SETONIX_SLURM
+        [[[environment]]]
+            VERBOSE = 1
+
+    [[SETONIX_RUN]]
+        inherit = SETONIX_SLURM
+        [[[environment]]]
+            RUN_METHOD = srun
+            HYPERTHREADS = 1
+            CORES_PER_NODE = 128
+            NUMA_REGIONS_PER_NODE = 8
+            BIG_DATA_DIR = "/software/projects/pawsey0835/ddeeptimahanti/lfricadmin/data"
+            TARGET_PLATFORM = "pawsey-setonix"
+            OMP_PLACES = cores
+            OMP_PROC_BIND = close
+            OMP_DISPLAY_AFFINITY = TRUE
+            MPICH_OFI_STARTUP_CONNECT = 1
+            MPICH_OFI_VERBOSE = 1
+
+    [[SETONIX_MESH]]
+        inherit = SETONIX_SLURM
+        [[[directives]]]
+            --ntasks = 1
+            --time = 00:05:00
+        [[[environment]]]
+            ROSE_APP_COMMAND_KEY = srun
+
+    [[SETONIX_BUILD_GNU]]
+        inherit = SETONIX_BUILD
+        {{ generate_script("pre-script", [setonix_modules_gnu]) }}
+
+    [[SETONIX_RUN_GNU]]
+        inherit = SETONIX_RUN
+        {{ generate_script("pre-script", [setonix_modules_gnu]) }}
+
+    [[SETONIX_MESH_GNU]]
+        inherit = SETONIX_MESH
+        {{ generate_script("pre-script", [setonix_modules_gnu]) }}
+
+    [[SETONIX_BUILD_PERFTOOLS-GNU]]
+        inherit = SETONIX_BUILD
+        {{ generate_script("pre-script", [setonix_modules_gnu, setonix_modules_perftools]) }}
+
+    [[SETONIX_RUN_PERFTOOLS-GNU]]
+        inherit = SETONIX_RUN
+        {{ generate_script("pre-script", [setonix_modules_gnu, setonix_modules_perftools]) }}
+
+    [[SETONIX_MESH_PERFTOOLS-GNU]]
+        inherit = SETONIX_MESH
+        {{ generate_script("pre-script", [setonix_modules_gnu, setonix_modules_perftools]) }}
+
+    [[SETONIX_BUILD_CCE]]
+        inherit = SETONIX_BUILD
+        {{ generate_script("pre-script", [setonix_modules_cce]) }}
+
+    [[SETONIX_RUN_CCE]]
+        inherit = SETONIX_RUN
+        {{ generate_script("pre-script", [setonix_modules_cce]) }}
+
+    [[SETONIX_MESH_CCE]]
+        inherit = SETONIX_MESH
+        {{ generate_script("pre-script", [setonix_modules_cce]) }}
+
+    [[SETONIX_EXPORT-SOURCE]]
+        inherit = SETONIX_SLURM
+        [[[environment]]]
+            PLATFORM_SYNC = false
+
+    [[SETONIX_HOUSEKEEPING]]
+        inherit=SETONIX_SLURM
+
+{% do LOG.debug("Finished in site/pawsey/common/suite_config_setonix.cylc") %}
