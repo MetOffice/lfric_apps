@@ -33,7 +33,7 @@ module conv_comorph_kernel_mod
   !>
   type, public, extends(kernel_type) :: conv_comorph_kernel_type
     private
-    type(arg_type) :: meta_args(195) = (/                                         &
+    type(arg_type) :: meta_args(196) = (/                                         &
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                                &! outer
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! rho_in_w3
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! rho_in_wth
@@ -102,6 +102,7 @@ module conv_comorph_kernel_mod
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! ustar
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! ls_rain_2d
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! ls_snow_2d
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, ANY_DISCONTINUOUS_SPACE_1),&! conv_ppn_frac
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! dcfl_conv
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! dcff_conv
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! dbcf_conv
@@ -519,6 +520,7 @@ contains
                           ustar,                             &
                           ls_rain_2d,                        &
                           ls_snow_2d,                        &
+                          conv_ppn_frac,                     &
                           dcfl_conv,                         &
                           dcff_conv,                         &
                           dbcf_conv,                         &
@@ -796,7 +798,7 @@ contains
                                 l_mcr_precfrac, l_improve_precfrac_checks
     use nlsizes_namelist_mod, only: row_length, rows, bl_levels
     use planet_constants_mod, only: p_zero, kappa, planet_radius, g
-    use timestep_mod, only: timestep
+    use timestep_mod, only: timestep, recip_timestep
     use conversions_mod, only: zerodegc
 
     ! subroutines used
@@ -810,7 +812,7 @@ contains
     use set_constants_from_um_mod, only: set_constants_from_um
     use comorph_constants_mod, only: l_init_constants, l_turb_par_gen,         &
          l_cv_rain, l_cv_cf, l_cv_snow, l_cv_graup,                            &
-         i_convcloud, i_convcloud_liqonly
+         i_convcloud, i_convcloud_liqonly, l_spherical_coord
     use calc_conv_incs_mod, only: calc_conv_incs, i_call_save_before_conv,     &
          i_call_diff_to_get_incs
     use calc_qcf2_incs_mod, ONLY: calc_qcf2_incs, i_call_combine_in_qcf2,      &
@@ -886,7 +888,8 @@ contains
     real(kind=r_def), dimension(undf_surf), intent(inout) :: surf_interp
 
     real(kind=r_def), dimension(undf_2d), intent(inout) :: cape_diluted,  &
-                                                           cca_2d, dd_mf_cb
+                                                           cca_2d, dd_mf_cb, &
+                                                           conv_ppn_frac
     real(kind=r_def), intent(in out), dimension(undf_wth) :: o3p
     real(kind=r_def), intent(in out), dimension(undf_wth) :: o1d
     real(kind=r_def), intent(in out), dimension(undf_wth) :: o3
@@ -1047,6 +1050,7 @@ contains
     real(r_um), dimension(row_length,rows,0:nlayers) ::                      &
          p_theta_levels, w, r_theta_levels, exner_theta_levels
     real(r_um), dimension(row_length,rows,nlayers+1) :: p_rho_levels
+    real(r_um), dimension(row_length,rows,nlayers-1) :: r_sq_fact
 
     ! single level real fields
     real(r_um), dimension(row_length,rows) :: zh
@@ -1220,6 +1224,7 @@ contains
     real(kind=r_um) :: cclwp0  (row_length,rows)
     real(kind=r_um) :: cca_2d_loc (row_length,rows)
     real(kind=r_um) :: lcca   (row_length,rows)
+    real(kind=r_um) :: cv_qw_sink
 
     ! Diagnostic fields
     real(kind=r_um), target :: cape_dil(row_length, rows)
@@ -2509,6 +2514,38 @@ contains
           lowest_cca_2d(map_2d(1,i)) = lcca(i,1)
         end do
       end if
+
+      if (l_spherical_coord) then
+        do i = 1, row_length
+          do k = 1, nlayers-1
+            ! Spherical geometry factor
+            r_sq_fact(i,1,k) = (r_theta_levels(i,1,k)/r_theta_levels(i,1,0))**2
+          end do
+        end do
+      else
+        ! Cartesian domain, grid area constant with height
+        r_sq_fact = 1.0_r_def
+      end if
+      do i = 1, row_length
+        cv_qw_sink = -rho_dry_tq(i,1,1) * z_rho(i,1,2) * r_sq_fact(i,1,1) &
+                   * (q_inc(i,1,1) + qcl_inc(i,1,1))
+        do k = 2, nlayers-1
+          cv_qw_sink = cv_qw_sink &
+                     - rho_dry_tq(i,1,k) * (z_rho(i,1,k+1) - z_rho(i,1,k)) &
+                     * r_sq_fact(i,1,k) * (q_inc(i,1,k) + qcl_inc(i,1,k))
+        end do
+        ! Convert to tendency
+        cv_qw_sink = cv_qw_sink * recip_timestep
+
+        ! Calculate convective fraction
+        if (cv_qw_sink > 0.0_r_def) then
+          ! conv_ppn_frac holds the large-scale qw sink on input and is
+          ! updated in place to hold the convective fraction on output
+          conv_ppn_frac(map_2d(1,i)) = cv_qw_sink / (cv_qw_sink + conv_ppn_frac(map_2d(1,i)))
+        else
+          conv_ppn_frac(map_2d(1,i)) = 0.0_r_def
+        end if
+      end do
     end if ! outer_iterations
 
     ! update input fields

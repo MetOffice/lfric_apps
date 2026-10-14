@@ -51,6 +51,7 @@ module jedi_lfric_datetime_mod
     procedure, public  :: add_seconds
 
     procedure, public  :: to_string
+    procedure, public  :: to_iso_string
     procedure, public  :: print
 
     ! new_datetime = datetime
@@ -318,7 +319,7 @@ contains
 
   end function is_less_than
 
-  !> @brief Returns the datetime as an iso string (UTC)
+  !> @brief Returns the datetime as a yyyy-mm-dd hh:mm:ss string (UTC)
   !!
   !> @param [inout] iso_datetime The string to return
   subroutine to_string( self, iso_datetime )
@@ -326,7 +327,7 @@ contains
     implicit none
 
     class( jedi_datetime_type ),    intent(in) :: self
-    character(str_def),          intent(inout) :: iso_datetime
+    character(str_def),            intent(out) :: iso_datetime
 
     integer(i_timestep) :: year
     integer(i_timestep) :: month
@@ -362,6 +363,32 @@ contains
     iso_datetime = trim(iso_datetime) // temp_str_2
 
   end subroutine to_string
+
+  !> @brief Returns the datetime as an ISO string (UTC) compatible with JEDI
+  !!
+  !> @param [inout] iso_datetime The string to return
+  subroutine to_iso_string( self, iso_datetime )
+
+    implicit none
+
+    class( jedi_datetime_type ),    intent(in) :: self
+    character(str_def),            intent(out) :: iso_datetime
+
+    integer(i_timestep) :: year
+    integer(i_timestep) :: month
+    integer(i_timestep) :: day
+
+    integer(i_timestep) :: hour
+    integer(i_timestep) :: minute
+    integer(i_timestep) :: second
+
+    call JDN_to_YYYYMMDD( self%date, year, month, day )
+    call seconds_to_hhmmss( self%time, hour, minute, second )
+
+    write(iso_datetime, "(i4,'-',i2.2,'-',i2.2,'T',i2.2,':',i2.2,':',i2.2,'Z')") &
+      year, month, day, hour, minute, second
+
+  end subroutine to_iso_string
 
   !> @brief Writes the curent dateime via log_event
   subroutine print( self )
