@@ -52,7 +52,17 @@ mkdir -p ~/.cylc/flow/8
 
 ## Running Rose-stem with Cylc
 
-**Cylc 8.5.4** is available as a module on Setonix. The LFRic Apps Rose-stem suite requires Cylc 8.
+**Cylc 8.5.4** is available as a module on Setonix. The Cylc module may not be loaded in the compute-node environment when jobs are submitted. To ensure that Cylc is available, add the following line to your ~/.bashrc or ~/.profile file:
+
+```
+export PATH=/software/projects/pawsey0835/ddeeptimahanti/cylc_env/bin:$PATH
+```
+
+If you add this line to your shell configuration file, reload it to update your environment:
+
+```
+source ~/.bashrc
+```
 
 From the `lfric_apps` working copy, load the appropriate Cylc module and run the following command to launch the workflow:
 
