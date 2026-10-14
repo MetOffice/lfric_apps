@@ -170,7 +170,8 @@ contains
 
     class(extrusion_type),        allocatable :: src_extrusion
     class(extrusion_type),        allocatable :: dst_extrusion
-    type(uniform_extrusion_type), allocatable :: extrusion_2d
+    type(uniform_extrusion_type), allocatable :: src_extrusion_2d
+    type(uniform_extrusion_type), allocatable :: dst_extrusion_2d
 
     ! Namelist parameters
     character(len=str_def)                 :: mesh_names(2)
@@ -348,19 +349,6 @@ contains
                        log_level_error)
     end select
 
-    select case (source_topology)
-
-      case (source_topology_fully_periodic)
-        topology = topology_fully_periodic
-
-      case (source_topology_non_periodic)
-        topology = topology_non_periodic
-
-      case default
-        call log_event("Invalid topology for mesh initialisation", &
-                       log_level_error)
-    end select
-
     allocate( src_extrusion, source = &
              create_extrusion( src_extrusion_method, &
                                geometry,             &
@@ -368,7 +356,26 @@ contains
                                src_domain_height,    &
                                scaled_radius ))
 
+    src_extrusion_2d = uniform_extrusion_type( domain_bottom, &
+                                               domain_bottom, &
+                                               one_layer, twod )
+
     if (vertical_change) then
+
+      select case (destination_geometry)
+
+        case (destination_geometry_planar)
+          domain_bottom = 0.0_r_def
+          geometry = geometry_planar
+
+        case (destination_geometry_spherical)
+          domain_bottom = scaled_radius
+          geometry = geometry_spherical
+
+        case default
+          call log_event("Invalid geometry for mesh initialisation", &
+                         log_level_error)
+      end select
 
       allocate( dst_extrusion, source = &
              create_extrusion( dst_extrusion_method, &
@@ -377,11 +384,13 @@ contains
                                dst_domain_height,    &
                                scaled_radius ))
 
-    end if
+      dst_extrusion_2d = uniform_extrusion_type( domain_bottom, &
+                                                 domain_bottom, &
+                                                 one_layer, twod )
 
-    extrusion_2d = uniform_extrusion_type( domain_bottom, &
-                                           domain_bottom, &
-                                           one_layer, twod )
+    else
+      dst_extrusion_2d = src_extrusion_2d
+    end if
 
     !-----------------------------------------------------------------------
     ! Create the required meshes
@@ -423,12 +432,12 @@ contains
       stored_twod_names(i) = trim(stored_twod_names(i))//'_2d'
     end do
 
-    call create_mesh( stored_mesh_names(src), extrusion_2d, &
-                      inner_halo_tiles, tile_size(:,src),   &
+    call create_mesh( stored_mesh_names(src), src_extrusion_2d, &
+                      inner_halo_tiles, tile_size(:,src),       &
                       alt_name=stored_twod_names(src) )
 
-    call create_mesh( stored_mesh_names(dst), extrusion_2d, &
-                      inner_halo_tiles, tile_size(:,dst),   &
+    call create_mesh( stored_mesh_names(dst), dst_extrusion_2d, &
+                      inner_halo_tiles, tile_size(:,dst),       &
                       alt_name=stored_twod_names(dst) )
 
     if (allocated(global_mesh_collection)) then
