@@ -144,3 +144,7 @@ qcl_forced = 0.0
 ```
 
 These initialisations address the reported use-before-definition errors in CCE 18.0.1.
+
+## -G flag in  CCE 20 and CCE 21
+
+-G flag is not a valid command line starting from CCE 20. So remove -G0 from applications/jules/build/fortran/crayftn/fast-debug.mk and applications/lfric_atm/build/fortran/crayftn/fast-debug.mk in lfric_apps repository. Also, delete the same from infrastructure/build/fortran/crayftn.mk and lfric_build/site_specific/default/setup_script_cray.py in lfric_core repository (see https://github.com/MetOffice/lfric_core/commit/8c6b7cc78746a63b654638ea7060acf21656025a) 

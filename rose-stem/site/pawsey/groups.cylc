@@ -49,6 +49,24 @@
         "lfric_atm_nwp_gal10-C48_MG_12x2_setonix_gnu_production-64bit",
         ],
 
+    "lfric_atm_aocc_fast": [
+        "lfric_atm_nwp_gal10-C48_MG_24x1_setonix_aocc_fast-debug-64bit",
+        "lfric_atm_nwp_gal10-C48_MG_12x2_setonix_aocc_fast-debug-64bit",
+      ],
+
+    "lfric_atm_rocm_fast": [
+        "lfric_atm_nwp_gal10-C48_MG_24x1_setonix_rocm_fast-debug-64bit",
+        "lfric_atm_nwp_gal10-C48_MG_12x2_setonix_rocm_fast-debug-64bit",
+      ],
+    "lfric_atm_cce20_fast": [
+        "lfric_atm_nwp_gal10-C48_MG_24x1_setonix_cce20_fast-debug-64bit",
+        "lfric_atm_nwp_gal10-C48_MG_12x2_setonix_cce20_fast-debug-64bit",
+      ],
+    "lfric_atm_cce21_fast": [
+        "lfric_atm_nwp_gal10-C48_MG_24x1_setonix_cce21_fast-debug-64bit",
+        "lfric_atm_nwp_gal10-C48_MG_12x2_setonix_cce21_fast-debug-64bit",
+      ],
+
     }) %}
 
 
