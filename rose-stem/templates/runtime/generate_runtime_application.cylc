@@ -110,6 +110,7 @@
     'ls -sh $TASK_OUTPUT_DIR/results > $CYLC_TASK_LOG_DIR/results_file_sizes.log',
     '# Ensure that timing log information is performantly collated and located into the persistent task_log_dir.',
     'find . -name timer.txt -exec cp {} $CYLC_TASK_LOG_DIR \;',
+    'find . -name "vernier-output-*-collated" -exec cp {} $CYLC_TASK_LOG_DIR \;',
     'find . -name "xios_client_*.out"  -exec cat {} + > $CYLC_TASK_LOG_DIR/xios_client_collated.out ',
     'if [ ! -s $CYLC_TASK_LOG_DIR/xios_client_collated.out ]; then rm -f $CYLC_TASK_LOG_DIR/xios_client_collated.out ; fi',
     'find . -name "xios_server_*.out"  -exec cat {} + > $CYLC_TASK_LOG_DIR/xios_server_collated.out ',
@@ -190,6 +191,14 @@
             WEIGHT_LOC              = {{weight_loc}}
 {% if "memory_plot_ex" in task_values %}
             MEMORY_PROFILE          = {{task_values["memory_plot_ex"]}}
+{% endif %}
+{% if task_values["calliper_timings"] == "vernier" %}
+            VERNIER_OUTPUT_MODE     = single
+{% endif %}
+{% if task_values["mpi_io_stats"] %}
+            MPICH_MPIIO_STATS       = 1
+            MPICH_ENV_DISPLAY       = 1
+            MPICH_MPIIO_TIMERS      = 1
 {% endif %}
 
 {% if task_ns.application == "lfricinputs" %}

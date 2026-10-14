@@ -263,4 +263,13 @@
     {% do task_dict.update({"rose_ana_families": [task_ns.platform|upper~"_ROSE_ANA"]}) %}
 {% endif %}
 
+{% if "calliper_timings" not in task_dict %}
+    {% do task_dict.update({"calliper_timings": "vernier"}) %}
+{% endif %}
+
+{% if "mpi_io_stats" not in task_dict %}
+    {% do task_dict.update({"mpi_io_stats": false}) %}
+{% endif %}
+
+
 {% do LOG.debug("Finished in templates/default_task_definitions.cylc") %}
