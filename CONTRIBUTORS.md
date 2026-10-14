@@ -61,4 +61,4 @@
 | mo-cjsmith          | Chris Smith        | Met Office                       | 2026-09-02 |
 | mo-joshuacolclough  | Joshua Colclough   | Met Office                       | 2026-08-11 |
 | zmaalick            | Zubair Maalick     | Met Office                       | 2026-08-31 |
-
+| ddeeptimahanti      | Deva Kumar Deeptimahanti | Pawsey Supercomputing Research Centre | 2026-10-14 |
