@@ -31,7 +31,6 @@
 
     [[AZSPICE_BUILD]]
         [[[environment]]]
-            USE_TIMING_WRAPPER=true
             PSYCLONE_MODE=server
         [[[directives]]]
             --gres=tmp:1024

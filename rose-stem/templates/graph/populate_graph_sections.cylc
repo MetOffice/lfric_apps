@@ -46,6 +46,13 @@
     {% set memory_plot_ex = false %}
 {% endif %}
 
+{# vernier calliper settings #}
+{% if "calliper_timings" in task_values and task_values["calliper_timings"] == "vernier" %}
+    {% set calliper_timings_vernier = true %}
+{% else %}
+    {% set calliper_timings_vernier = false %}
+{% endif %}
+
 {# phystest settings #}
 {% if "phystest_str" in task_values %}
     {% set phystest = true %}
@@ -319,6 +326,23 @@
         {% do graph_sections.append([
             application_run_task,
             memory_plot_ex_task]) %}
+    {% endif %}
+
+    {% if calliper_timings_vernier %}
+        {% set calliper_timings_vernier_task = "calliper_timings_vernier_"~
+                                               task_ns.application~"_"~
+                                               task_ns.conf_name~"_"~
+                                               task_ns.platform~"_"~
+                                               task_ns.compiler~"_"~
+                                               task_ns.extras %}
+        {% set calliper_timings_vernier_values = task_values.copy() %}
+        {% do calliper_timings_vernier_values.update({"application_run_task": application_run_task}) %}
+        {% if calliper_timings_vernier_task not in tasks_to_run %}
+            {% do tasks_to_run.update({calliper_timings_vernier_task: calliper_timings_vernier_values}) %}
+        {% endif %}
+        {% do graph_sections.append([
+            application_run_task,
+            calliper_timings_vernier_task]) %}
     {% endif %}
 
     {% if phystest %}
