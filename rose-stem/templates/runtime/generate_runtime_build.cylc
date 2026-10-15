@@ -76,5 +76,12 @@
 {% if task_values["coupled"] %}
             COUPLED                 = "True"
 {% endif %}
+{% if task_values["calliper_timings"] == "vernier" %}
+            USE_VERNIER             = true
+            USE_TIMING_WRAPPER      = true
+{% elif task_values["calliper_timings"] == "timer" %}
+            USE_LEGACY_TIMER        = true
+            USE_TIMING_WRAPPER      = true
+{% endif %}
 
 {% do LOG.debug("Finished in templates/runtime/generate_runtime_build.cylc") %}

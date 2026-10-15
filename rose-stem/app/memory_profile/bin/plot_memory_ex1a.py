@@ -85,7 +85,7 @@ def plot_run_job(run, out_filename):
         mpiprocs = int(matcher.group(2))
 
     if not os.path.exists(os.path.join(run, 'job.out')):
-        time.sleep(5)
+        time.sleep(11)
         if not os.path.exists(os.path.join(run, 'job.out')):
             raise FileNotFoundError(f'{run}/job.out does not exist')
 
@@ -171,6 +171,13 @@ def plot_run_job(run, out_filename):
     # Next, parse run configuration information from the job.err PBS file;
     # this was encoded into job.err by the /usr/bin/time utility which wrapped
     # the run command for mpiexec.
+    # protect with a `check .. wait ...` pattern as large job.err files can
+    # take time for PBS to lodge in the log directory.
+    if not os.path.exists(os.path.join(run, 'job.err')):
+        time.sleep(11)
+        if not os.path.exists(os.path.join(run, 'job.err')):
+            raise FileNotFoundError(f'{run}/job.err does not exist')
+
     with open(os.path.join(run, 'job.err'), encoding="utf-8") as jef:
         jefr = jef.read()
         # re pattern for max_mem_{process} for mem per rank

@@ -231,6 +231,18 @@ The table below shows a list of possible entries for ``task_dict`` in the task d
      - Int
      - NA
      - For adding a manual depth 'pad' to a task, generally used on EXs or XC40s where depth option is available in mpi launch. This is to be used in combination with ``task_ranks_per_node``, but does work on it's own. If only ``task_ranks_per_node`` is set, the ranks may bunch up together on the node, and not utilise all of the extra free memory properly (see `EX Placement <EXlink_>`_.). The 'pad' will push ranks deeper into the node, where they will utilise better cache access and this may improve runtime performance when the two options are used in tandem. If threads are set, the larger of the two values will be passed to depth, and the thread export preserved for threading purposes.
+   * - memory_plot_ex
+     - Boolean
+     - false
+     - Add tracers to an EX run, to report on maximum memory use per node (reported by PBS) and per rank (reported by `/usr/bin/time`).  A post run task is created to process and summarise the outputs into a graphic.
+   * - mpi_io_stats
+     - Boolean
+     - false
+     - Add MPI environment information and MPI-IO tracers into the MPI job, reporting in the `job.err` via `stdout`.
+   * - calliper_timings
+     - Str
+     - vernier
+     - Defines how callipers are timed within the run. `vernier` is the default, this will place the full vernier output in the run log directory, and create a post run task that will summarise the vernier output for quick viewing. If `timer` is set, then the timer implementation will gather calliper information, which is summarised in the run task directory.  If `false` or any other string, then no calliper timings will be collected.
 
    * - **Auto-Populated**
      -

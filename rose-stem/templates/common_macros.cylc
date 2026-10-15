@@ -153,6 +153,7 @@
         "build",
         "plot",
         "memory_plot_ex",
+        "calliper_timings_vernier",
         "check",
         "metadata_test",
         "publish",
