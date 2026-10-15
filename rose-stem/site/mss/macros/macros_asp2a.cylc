@@ -22,7 +22,7 @@
 
           {% set cpus_per_node = 128 %}
           {% set gb_per_core = 4 %}
-          {% set max_mem=440 %} 
+          {% set max_mem=440 %}
           {% set lfric_xios_ratio=16 %}
           {% set xios_mpiprocs=(cpus_per_node / 2)|int %}
 
@@ -51,7 +51,7 @@
           {%   set lfric_mem=(lfric_cores*gb_per_core) %}
           {%   set xios_mem=(xios_cores*gb_per_core) %}
           {%   set lfric_res="1:ncpus=" ~ mpi_ranks ~ ":mpiprocs=" ~ mpi_ranks ~ ":ompthreads=" ~ threads ~ ":mem=" ~ lfric_mem ~ "GB" %}
-          {%   if xios_nodes > 0 %}  
+          {%   if xios_nodes > 0 %}
           {%     set xios_res="+1:ncpus=" ~ xios_cores ~ ":mpiprocs=" ~ xios_cores ~ ":ompthreads=1" ~ ":mem=" ~ xios_mem ~ "GB" %}
           {%   endif %}
 

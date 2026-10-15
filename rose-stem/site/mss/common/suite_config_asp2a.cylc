@@ -43,7 +43,7 @@
 [runtime]
 
     [[CONTROL_TASK_RETRIES]]
-        execution retry delays = 
+        execution retry delays =
 
     [[ASP2A_BASE]]
         platform=localhost
@@ -149,7 +149,7 @@
         pre-script="""
                 module load gcc
                 module load ccrs_svn
-                module load git/2.43.7                
+                module load git/2.43.7
                 module list 2>&1
                    """
 
