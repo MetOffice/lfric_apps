@@ -34,6 +34,9 @@
         "lfric_atm_nwp_azspice_developer",
         "lfric_atm_nwp_azspice_extra",
     ],
+    "lfric_atm_ral_test": [
+        "lfric_atm_ral3-seuk_MG_azspice_gnu_fast-debug-32bit",
+    ],
     "lfric_atm_ral_azspice_developer": [
         "lfric_atm_ral3-seuk_MG_azspice_gnu_fast-debug-32bit",
         "lfric_atm_ral3_ens-seuk_MG_azspice_gnu_fast-debug-32bit",

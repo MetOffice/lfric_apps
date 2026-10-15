@@ -20,4 +20,5 @@
   <axis id="monthly_axis" name="monthly_axis" n_glo="12"/>
   <axis id="lbc_axis" name="lbc_axis" n_glo="7"/>
   <axis id="time_counter" name="time_counter"/>
+  <axis id="random_seed_size" name="random_seed_size" n_glo="8" />
 </axis_definition>

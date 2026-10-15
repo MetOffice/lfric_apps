@@ -54,7 +54,8 @@ module lfric2lfric_init_mod
   !> @param [in]       target_mesh            Mesh for target 3D fields
   !> @param [in]       target_twod_mesh       Mesh for target 2D fields
   subroutine init_lfric2lfric( modeldb, context_src, context_dst,  &
-                               start_dump_filename, mode,          &
+                               start_dump_filename,                &
+                               target_example_filename, mode,      &
                                origin_collection_name,             &
                                origin_mesh, origin_twod_mesh,      &
                                interm_collection_name,             &
@@ -67,7 +68,7 @@ module lfric2lfric_init_mod
     type(modeldb_type), intent(inout)       :: modeldb
     character(len=*),   intent(in)          :: context_src
     character(len=*),   intent(in)          :: context_dst
-    character(len=*),   intent(in)          :: start_dump_filename
+    character(len=*),   intent(in)          :: start_dump_filename, target_example_filename
     integer(i_def),     intent(in)          :: mode
     character(len=*),   intent(in)          :: origin_collection_name
     type(mesh_type),    intent(in), pointer :: origin_mesh
@@ -86,8 +87,8 @@ module lfric2lfric_init_mod
     type(field_collection_type), pointer :: field_collection
 
     ! For get_field_list returns
-    integer(kind=i_def)                 :: num_fields
-    character(len=str_def), allocatable :: config_list(:)
+    integer(kind=i_def)                 :: num_fields_src, num_fields_dst
+    character(len=str_def), allocatable :: config_list_src(:), config_list_dst(:)
     character(len=nf90_max_name)        :: prefix
 
     ! Source context pointer and temporary context for setup
@@ -98,6 +99,10 @@ module lfric2lfric_init_mod
 
     call log_event( 'lfric2lfric: Initialising miniapp ...', log_level_info )
 
+    !--------------------------------------------------------------------------
+    ! Initialise Source Fields
+    !--------------------------------------------------------------------------
+    
     call modeldb%values%get_value("vertical_change", vertical_change)
     call modeldb%values%get_value("horizontal_change", horizontal_change)
 
@@ -108,27 +113,25 @@ module lfric2lfric_init_mod
     end if
 
     ! Get field names from filename and validate presence in iodef.xml
-    call get_field_list( num_fields, config_list, start_dump_filename, prefix )
-
-    !--------------------------------------------------------------------------
-    ! Initialise Source Fields
-    !--------------------------------------------------------------------------
+    call get_field_list( num_fields_src, config_list_src, start_dump_filename, prefix )
+    
     ! Initialise our field collection
     call modeldb%fields%add_empty_field_collection(origin_collection_name)
     field_collection => modeldb%fields%get_field_collection(origin_collection_name)
 
     ! Now need to loop over length of config_list make field for each
-    do i = 1, num_fields
-      call field_maker( field_collection, &
-                        config_list(i),   &
-                        origin_mesh,      &
-                        origin_twod_mesh, &
+    do i = 1, num_fields_src
+      call field_maker( field_collection,   &
+                        config_list_src(i), &
+                        origin_mesh,        &
+                        origin_twod_mesh,   &
                         prefix )
     end do
 
     !--------------------------------------------------------------------------
     ! Initialise Target Fields
     !--------------------------------------------------------------------------
+
     call modeldb%fields%add_empty_field_collection(target_collection_name)
     field_collection => &
                     modeldb%fields%get_field_collection(target_collection_name)
@@ -142,11 +145,14 @@ module lfric2lfric_init_mod
       prefix = 'lbc_'
     end if
 
-    do i = 1, num_fields
-      call field_maker( field_collection, &
-                        config_list(i),   &
-                        target_mesh,      &
-                        target_twod_mesh, &
+    ! Get field names from filename and validate presence in iodef.xml
+    call get_field_list( num_fields_dst, config_list_dst, target_example_filename, prefix )
+    
+    do i = 1, num_fields_dst
+      call field_maker( field_collection,   &
+                        config_list_dst(i), &
+                        target_mesh,        &
+                        target_twod_mesh,   &
                         prefix )
     end do
 
@@ -175,11 +181,11 @@ module lfric2lfric_init_mod
         prefix = 'lbc_'
       end if
 
-      do i = 1, num_fields
-        call field_maker( field_collection, &
-                          config_list(i),   &
-                          interm_mesh,      &
-                          interm_twod_mesh, &
+      do i = 1, num_fields_dst
+        call field_maker( field_collection,   &
+                          config_list_dst(i), &
+                          interm_mesh,        &
+                          interm_twod_mesh,   &
                           prefix )
       end do
     end if
@@ -188,7 +194,7 @@ module lfric2lfric_init_mod
     call io_context%set_current()
 
     ! Now finished with config_list, deallocate
-    deallocate(config_list)
+    deallocate(config_list_src, config_list_dst)
 
     call log_event( 'lfric2lfric: Miniapp initialised', log_level_info )
 
