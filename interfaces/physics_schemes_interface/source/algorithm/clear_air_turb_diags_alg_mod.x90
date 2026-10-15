@@ -22,7 +22,6 @@ module clear_air_turb_diags_alg_mod
   use fs_continuity_mod,           only: W3
   use initialise_diagnostics_mod,  only: init_diag => init_diagnostic_field, &
                                          diag_samp => diagnostic_to_be_sampled
-  use io_config_mod,               only: use_xios_io
   use lfric_xios_diag_mod,         only: get_axis_dimension, get_axis_values
   use log_mod,                     only: log_event, LOG_LEVEL_WARNING
   use max_cat_kernel_mod,          only: max_cat_kernel_type
@@ -104,8 +103,7 @@ contains
     cat_flag = init_diag(cat, 'aviation__clear_air_turb',                   &
                          activate=(max_cat_flag .or. max_press_flag))
 
-    if ( .not. ( ( cat_flag .or. max_cat_flag .or. max_press_flag )         &
-                 .and. use_xios_io ) ) return
+    if ( .not. ( cat_flag .or. max_cat_flag .or. max_press_flag ) ) return
 
     ! The levels on which the predictor is defined
     nplev = get_axis_dimension(cat_axis)

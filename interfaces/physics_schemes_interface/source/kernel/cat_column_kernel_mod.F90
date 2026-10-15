@@ -243,7 +243,8 @@ contains
     real(kind=r_def), dimension(npts)     :: b, c, d
     real(kind=r_def), dimension(npts - 1) :: deltay, deltax, dydx
 
-    ! Divide and conquer to find the level containing pref
+    ! Bisect for the levels jlwr, jupr either side of pref. The search is
+    ! confined so that the six levels jupr-halfn to jupr+halfn-1 all exist.
     jlwr = halfn
     jupr = numlevs + 1_i_def - halfn
     do while ( (jupr - jlwr) > 1_i_def )
@@ -256,17 +257,22 @@ contains
       end if
     end do
 
-    ! Use fields in reverse order so that pressure is increasing
+    ! Knot k is level jupr+halfn-k, so the knots run down the column with
+    ! pressure increasing, and pref lies in segment halfn. deltax(k) is
+    ! minus the knot spacing, the reverse of the sign the spline algorithm
+    ! assumes; the UM's DiffP does the same, and changing it alters the
+    ! derivative, so it is kept for parity.
     dx = pref - pfield(jupr)
     do k = 1, npts - 1
       deltax(k) = pfield(jupr + halfn - k) - pfield(jupr + halfn - 1 - k)
       deltay(k) = ffield(jupr + halfn - k) - ffield(jupr + halfn - 1 - k)
     end do
 
-    ! Cubic interpolating spline
-    !   s(u) = y(i) + b(i)*(u-x(i)) + c(i)*(u-x(i))**2 + d(i)*(u-x(i))**3
-    ! Tridiagonal system: b = diagonal, d = offdiagonal, c = right-hand side.
-    ! Third derivatives at x(1) and x(n) obtained from divided differences.
+    ! Spline of Forsythe, Malcolm and Moler: on segment i the profile is
+    ! y(i) + b(i)*s + c(i)*s**2 + d(i)*s**3 with s the offset from knot i.
+    ! At each end the third derivative is matched to that of the cubic
+    ! through the four nearest knots. Until the final step, b holds the
+    ! diagonal of the tridiagonal system and c its right-hand side.
     dydx(1:npts-1) = deltay(1:npts-1) / deltax(1:npts-1)
     c(2:npts-1) = dydx(2:npts-1) - dydx(1:npts-2)
     b(1)        = -deltax(1)
@@ -281,7 +287,7 @@ contains
 
     b(2:npts-1) = 2.0_r_def * b(2:npts-1)
 
-    ! Forward elimination
+    ! Solve the tridiagonal system for c
     do k = 1, npts - 1
       t = deltax(k) / b(k)
       b(k+1) = b(k+1) - t * deltax(k)
@@ -289,7 +295,7 @@ contains
     end do
     c(npts) = c(npts) / b(npts)
 
-    ! Back substitution, only as far as the segment we need
+    ! Back substitution stops at segment halfn, the only one evaluated
     do k = npts - 1, halfn, -1
       c(k) = ( c(k) - deltax(k) * c(k+1) ) / b(k)
     end do
@@ -299,7 +305,7 @@ contains
     d(halfn) = ( c(halfn+1) - c(halfn) ) / deltax(halfn)
     c(halfn) = 3.0_r_def * c(halfn)
 
-    ! Derivative of the spline at pref
+    ! Slope of segment halfn at pref
     dfdp = b(halfn)                                                           &
          + dx * ( 2.0_r_def * c(halfn) + 3.0_r_def * dx * d(halfn) )
 
