@@ -45,7 +45,8 @@
 
     [[{{task}}]]
         inherit=BUILD_{{task_ns.application|upper}}_{{task_ns.platform|upper}}, {{resource_family|upper}}
-        script = 'if command -v module > /dev/null 2>&1; then module list; fi; rose task-run --app-key=compile'
+        # Forcing script to return true as a workaround for the issue with the Cray compiler returning ftn-2116 during linking stage on Setonix at Pawsey using cce/18.0.1
+        script = 'if command -v module > /dev/null 2>&1; then module list; fi; rose task-run --app-key=compile{% if SITE == "pawsey" %} || true{% endif %}'
         [[[environment]]]
             SOURCE_DIRECTORY        = $SOURCE_ROOT/{{src_path}}
             APPS_ROOT_DIR           = $SOURCE_ROOT/lfric_apps

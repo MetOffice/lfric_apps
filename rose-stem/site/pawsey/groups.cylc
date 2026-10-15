@@ -1,0 +1,74 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/pawsey/groups.cylc") %}
+
+{%- do site_groups.update({
+    "gungho_model_gnu_fast": [
+        "gungho_model_baroclinic-C24_MG_setonix_gnu_fast-debug-64bit",
+    ],
+    "gungho_model_gnu_prod": [
+        "gungho_model_baroclinic-C24_MG_setonix_gnu_production-64bit",
+    ],
+    "gungho_model_gnu_full": [
+        "gungho_model_baroclinic-C24_MG_setonix_gnu_full-debug-64bit",
+    ],
+    "gungho_model_cce_fast": [
+        "gungho_model_baroclinic-C24_MG_setonix_cce_fast-debug-64bit",
+    ],
+    "gungho_model_cce_prod": [
+        "gungho_model_baroclinic-C24_MG_setonix_cce_production-64bit",
+    ],
+    "gungho_model_cce_full": [
+        "gungho_model_baroclinic-C24_MG_setonix_cce_full-debug-64bit",
+    ],
+    "lfric_atm_cce_fast": [
+        "lfric_atm_nwp_gal10-C48_MG_24x1_setonix_cce_fast-debug-64bit",
+        "lfric_atm_nwp_gal10-C48_MG_12x2_setonix_cce_fast-debug-64bit",
+      ],
+    "lfric_atm_cce_full": [
+        "lfric_atm_nwp_gal10-C48_MG_24x1_setonix_cce_full-debug-64bit",
+        "lfric_atm_nwp_gal10-C48_MG_12x2_setonix_cce_full-debug-64bit",
+      ],
+    "lfric_atm_cce_prod": [
+        "lfric_atm_nwp_gal10-C48_MG_24x1_setonix_cce_production-64bit",
+        "lfric_atm_nwp_gal10-C48_MG_12x2_setonix_cce_production-64bit",
+      ],
+    "lfric_atm_gnu_fast": [
+        "lfric_atm_nwp_gal10-C48_MG_24x1_setonix_gnu_fast-debug-64bit",
+        "lfric_atm_nwp_gal10-C48_MG_12x2_setonix_gnu_fast-debug-64bit",
+        ],
+    "lfric_atm_gnu_full": [
+        "lfric_atm_nwp_gal10-C48_MG_24x1_setonix_gnu_full-debug-64bit",
+        "lfric_atm_nwp_gal10-C48_MG_12x2_setonix_gnu_full-debug-64bit",
+        ],
+    "lfric_atm_gnu_prod": [
+        "lfric_atm_nwp_gal10-C48_MG_24x1_setonix_gnu_production-64bit",
+        "lfric_atm_nwp_gal10-C48_MG_12x2_setonix_gnu_production-64bit",
+        ],
+
+    "lfric_atm_aocc_fast": [
+        "lfric_atm_nwp_gal10-C48_MG_24x1_setonix_aocc_fast-debug-64bit",
+        "lfric_atm_nwp_gal10-C48_MG_12x2_setonix_aocc_fast-debug-64bit",
+      ],
+
+    "lfric_atm_rocm_fast": [
+        "lfric_atm_nwp_gal10-C48_MG_24x1_setonix_rocm_fast-debug-64bit",
+        "lfric_atm_nwp_gal10-C48_MG_12x2_setonix_rocm_fast-debug-64bit",
+      ],
+    "lfric_atm_cce20_fast": [
+        "lfric_atm_nwp_gal10-C48_MG_24x1_setonix_cce20_fast-debug-64bit",
+        "lfric_atm_nwp_gal10-C48_MG_12x2_setonix_cce20_fast-debug-64bit",
+      ],
+    "lfric_atm_cce21_fast": [
+        "lfric_atm_nwp_gal10-C48_MG_24x1_setonix_cce21_fast-debug-64bit",
+        "lfric_atm_nwp_gal10-C48_MG_12x2_setonix_cce21_fast-debug-64bit",
+      ],
+
+    }) %}
+
+
+{% do LOG.debug("Finished in site/pawsey/groups.cylc") %}
+
