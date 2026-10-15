@@ -357,6 +357,9 @@ subroutine casim_code( nlayers,                     &
     ! Take the ice cloud fraction back down again where CASIM has sublimated
     ! ice or snow (the same response lsp_deposition makes in Wilson-Ballard).
     logical, parameter :: l_use_pc2_icesub = .true.
+    ! Take the ice cloud fraction down where CASIM has melted ice or snow (the
+    ! same response lsp_melting makes in Wilson-Ballard).
+    logical, parameter :: l_use_pc2_icemelt = .true.
 
     ! Relative humidity limits for the Wood and Field cloud fraction: the upper
     ! limit is the point at which the cloud fraction reaches one, the lower is
@@ -383,6 +386,8 @@ subroutine casim_code( nlayers,                     &
     real(r_def) :: deltacf       ! Change in bulk cloud fraction
     real(r_def) :: dqi_sub       ! Frozen water sublimated over the timestep
     real(r_def) :: ice_presub    ! Frozen water content before sublimating
+    real(r_def) :: dqi_melt      ! Frozen water melted over the timestep
+    real(r_def) :: ice_premelt   ! Frozen water content before melting
     real(r_def) :: x_cff         ! Frozen plus vapour content over saturation
     real(r_def) :: qsi           ! Saturation mixing ratio with respect to ice
     real(r_def) :: t_pc2         ! Temperature after the CASIM increments
@@ -557,9 +562,11 @@ subroutine casim_code( nlayers,                     &
     if (murk_prognostic) casdiags % l_snowfall_3d = .true.
 
     ! The ice cloud fraction response below needs the rates at which CASIM
-    ! sublimates ice and snow.
+    ! sublimates and melts ice and snow.
     casdiags % l_pisub = l_pc2_response
     casdiags % l_pssub = l_pc2_response
+    casdiags % l_pimlt = l_pc2_response
+    casdiags % l_psmlt = l_pc2_response
 
     call allocate_diagnostic_space(its, ite, jts, jte, kts, kte)
 
@@ -814,6 +821,59 @@ subroutine casim_code( nlayers,                     &
 
         end do ! k
       end if ! l_use_pc2_icesub
+
+      if (l_use_pc2_icemelt) then
+        ! shrink the ice cloud fraction in step with the ice that CASIM has
+        ! melted, the same response lsp_melting makes.  CASIM only melts
+        ! above freezing and only sublimates below it, so this never acts on
+        ! a level the sublimation response above has touched.
+
+        do k = 1, nlayers
+
+          ! Ice and snow melted into rain over the timestep.  Graupel is
+          ! left out, as it is everywhere else in this response.
+          dqi_melt = ( casdiags % pimlt(1,1,k)                                 &
+                     + casdiags % psmlt(1,1,k) ) * timestep
+          dqi_melt = max( dqi_melt, 0.0_r_def )
+
+          ! Frozen water the melting acted on: what CASIM has left plus what
+          ! it took away, with the part left floored at zero as CASIM is
+          ! free to return a frozen water content slightly below it.
+          ice_premelt = max( ms_wth(map_wth(1) + k) + mi_wth(map_wth(1) + k)  &
+                           + dms_wth(map_wth(1) + k)                           &
+                           + dmi_wth(map_wth(1) + k), 0.0_r_def ) + dqi_melt
+
+          cff_now = cff_wth(map_wth(1) + k) + dcff_wth(map_wth(1) + k)
+
+          if (dqi_melt > 0.0_r_def .and. ice_premelt > qi_tidy .and.           &
+              cff_now > 0.0_r_def) then
+
+            !--------------------------------------------------------------
+            ! Calculate change in ice cloud fraction
+            !--------------------------------------------------------------
+            ! The ice cloud fraction is reduced in proportion to the mass
+            ! melted.  dqi_melt can be no more than ice_premelt, so this
+            ! takes away at most the whole fraction.
+            deltacff = -cff_now * dqi_melt / ice_premelt
+
+            !--------------------------------------------------------------
+            ! Calculate change in total cloud fraction
+            !--------------------------------------------------------------
+            ! The ice cloud removed is assumed to overlap the liquid cloud
+            ! randomly, so the bulk fraction only gives up the share of it
+            ! that lies outside the liquid.  This keeps the bulk fraction
+            ! at or above both the liquid and the remaining ice fraction.
+            cfl_now = cfl_wth(map_wth(1) + k) + dcfl_wth(map_wth(1) + k)
+            cf_now  = bcf_wth(map_wth(1) + k) + dbcf_wth(map_wth(1) + k)
+            deltacf = deltacff * max( cf_now - cfl_now, 0.0_r_def ) / cff_now
+
+            dcff_wth(map_wth(1) + k) = dcff_wth(map_wth(1) + k) + deltacff
+            dbcf_wth(map_wth(1) + k) = dbcf_wth(map_wth(1) + k) + deltacf
+
+          end if
+
+        end do ! k
+      end if ! l_use_pc2_icemelt
 
       if (l_use_wf2000_inc) then
         ! if ice cloud fraction is zero and there is
