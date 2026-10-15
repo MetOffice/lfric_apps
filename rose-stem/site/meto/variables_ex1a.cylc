@@ -8,6 +8,8 @@
 {% do kgo_vars.update({
     "lfricinputs_lfric2um-aquaplanet-C48L38_N48L38_ex1a_gnu_full-debug-64bit": BASE~"_t565",
     "lfricinputs_lfric2um-aquaplanet-C48L38_N48L38_ex1a_gnu_fast-debug-64bit": BASE~"_t565",
+    "lfricinputs_lfric2um-nwp_gal9-C48L70_N48L70_ex1a_gnu_fast-debug-64bit": BASE~"_t806",
+    "lfricinputs_lfric2um-nwp_gal9-C48L70_N48L70_ex1a_gnu_full-debug-64bit": BASE~"_t806",
     "lfricinputs_lfric2um-umlam-C48L70_N512L70_ex1a_gnu_full-debug-64bit":              BASE,
     "lfricinputs_lfric2um-umlam-C48L70_N512L70_ex1a_gnu_fast-debug-64bit":              BASE,
     "lfricinputs_lfric2um-performance-C224L70_N512L70_ex1a_gnu_full-debug-64bit": BASE,
