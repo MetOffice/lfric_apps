@@ -192,8 +192,7 @@
 
     [[EX1A_ROSE_ANA]]
         inherit = EX1A_BASE
-        {{ generate_script("pre-script", ["module purge",
-                                          "module load nccmp/1.9.1.0",
+        {{ generate_script("pre-script", ["module load nccmp/1.9.1.0",
                                           ex1a_scitools,
                                           "module load um_tools/2025.10.1/openmp",
                                           "export ROSE_PYTHONPATH=$PYTHONPATH",
