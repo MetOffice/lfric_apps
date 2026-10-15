@@ -29,7 +29,6 @@ class vnXX_txxx(MacroUpgrade):
         return config, self.reports
 """
 
-
 class vn32_t634(MacroUpgrade):
     """Upgrade macro for ticket #634 by Ian Boutle."""
 
@@ -83,5 +82,158 @@ class vn32_t744(MacroUpgrade):
     def upgrade(self, config, meta_config=None):
         # Commands From: rose-meta/jules-lsm
         # Bump tag to pick up metadata changes
+
+        return config, self.reports
+
+
+class vn32_t698(MacroUpgrade):
+    """Upgrade macro for ticket #698 by Alan J Hewitt."""
+
+    BEFORE_TAG = "vn3.2_t744"
+    AFTER_TAG = "vn3.2_t698"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-aerosol
+        # Add new settings with the default option SUBCOCSSDU_7mode
+        self.add_setting(
+            config, ["namelist:aerosol", "mode_setup"], "'SUBCOCSSDU_7mode'"
+        )
+        # Default to false since this is the setting in all existing tests
+        self.add_setting(
+            config, ["namelist:aerosol", "l_dust_mp_ageing"], ".false."
+        )
+        # Default to true since this is the setting in all existing tests
+        self.add_setting(
+            config, ["namelist:aerosol", "l_ukca_radaer_sustrat"], ".true."
+        )
+
+        return config, self.reports
+
+
+class vn32_t725(MacroUpgrade):
+    """Upgrade macro for ticket #725 by Ian Boutle."""
+
+    BEFORE_TAG = "vn3.2_t698"
+    AFTER_TAG = "vn3.2_t725"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(
+            config, ["namelist:mixing", "leonard_inc_ice"], ".false."
+        )
+        self.add_setting(
+            config, ["namelist:mixing", "leonard_inc_with_bl"], ".false."
+        )
+
+        return config, self.reports
+
+
+class vn32_t699(MacroUpgrade):
+    """Upgrade macro for ticket #699 by thomas.melvin."""
+
+    BEFORE_TAG = "vn3.2_t725"
+    AFTER_TAG = "vn3.2_t699"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        """Add native_w2_wind_transport to namelist transport"""
+        self.add_setting(
+            config,
+            ["namelist:transport", "native_w2_wind_transport"],
+            ".false.",
+
+        return config, self.reports
+
+
+class vn32_t760(MacroUpgrade):
+    """Upgrade macro for ticket #760 by Chris Smith."""
+
+    BEFORE_TAG = "vn3.2_t699"
+    AFTER_TAG = "vn3.2_t760"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(
+            config,
+            ["namelist:initial_temperature", "profile_variable"],
+            "'potential'",
+        )
+        self.add_setting(
+            config, ["namelist:initial_vapour", "profile_variable"], "'mr'"
+        )
+
+        return config, self.reports
+
+
+class vn32_t581(MacroUpgrade):
+    # Upgrade macro for #581 by Christine Johnson
+
+    BEFORE_TAG = "vn3.2_t760"
+    AFTER_TAG = "vn3.2_t581"
+
+    def upgrade(self, config, meta_config=None):
+        # Add settings
+
+        domain_height = self.get_setting_value(
+            config, ["namelist:extrusion", "domain_height"]
+        )
+        eta_values = self.get_setting_value(
+            config, ["namelist:extrusion", "eta_values"]
+        )
+        method = self.get_setting_value(
+            config, ["namelist:extrusion", "method"]
+        )
+        number_of_layers = self.get_setting_value(
+            config, ["namelist:extrusion", "number_of_layers"]
+        )
+        planet_radius = self.get_setting_value(
+            config, ["namelist:extrusion", "planet_radius"]
+        )
+        stretching_method = self.get_setting_value(
+            config, ["namelist:extrusion", "stretching_method"]
+        )
+        stretching_height = self.get_setting_value(
+            config, ["namelist:extrusion", "stretching_height"]
+        )
+        start_dump_filename = self.get_setting_value(
+            config, ["namelist:files", "start_dump_filename"]
+        )
+
+        if start_dump_filename != "'lfric2lfric_dump'" :
+            self.add_setting(
+                config,
+                ["namelist:extrusion_dst", "domain_height"],
+                domain_height,
+            )
+            self.add_setting(
+                config,
+                ["namelist:extrusion_dst", "eta_values"],
+                eta_values,
+            )
+            self.add_setting(
+                config,
+                ["namelist:extrusion_dst", "method"],
+                method,
+            )
+            self.add_setting(
+                config,
+                ["namelist:extrusion_dst", "number_of_layers"],
+                number_of_layers,
+            )
+            self.add_setting(
+                config,
+                ["namelist:extrusion_dst", "planet_radius"],
+                planet_radius,
+            )
+            self.add_setting(
+                config,
+                ["namelist:extrusion_dst", "stretching_method"],
+                stretching_method,
+            )
+            self.add_setting(
+                config,
+                ["namelist:extrusion_dst", "stretching_height"],
+                stretching_height,
+            )
 
         return config, self.reports
