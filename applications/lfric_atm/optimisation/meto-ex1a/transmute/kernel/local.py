@@ -15,9 +15,16 @@ Overrides currently include:
 '''
 
 import logging
-from psyclone.transformations import (
-    TransformationError)
+from psyclone.psyir.transformations import (
+    ArrayAssignment2LoopsTrans,
+    OMPLoopTrans,
+    OMPMinimiseSyncTrans,
+    TransformationError,
+    MaximalOMPParallelRegionTrans,
+)
 from psyclone.psyir.nodes import (
+    Assignment,
+    Routine,
     Loop, Call,
     OMPParallelDoDirective,
     OMPParallelDirective,
@@ -38,6 +45,9 @@ def trans(psyir):
     :param psyir: the PSyIR of the provided file.
     :type psyir: :py:class:`psyclone.psyir.nodes.FileContainer`
     '''
+
+    loop_trans = OMPLoopTrans()
+    minsync_trans = OMPMinimiseSyncTrans()
 
     fortran_file_name = str(psyir.root.name)
 
@@ -64,23 +74,30 @@ def trans(psyir):
             if call.routine.symbol.name in safe_pure_calls:
                 call.routine.symbol.is_pure = True
 
-    # Work through each loop in the file and OMP PARALLEL DO
+    # First convert assignments to loops whenever possible
+    for assignment in psyir.walk(Assignment):
+        try:
+            ArrayAssignment2LoopsTrans().apply(assignment)
+        except TransformationError:
+            pass
+
+    # Apply loop_trans to all the loops possible.
     for loop in psyir.walk(Loop):
-        # If there is an OMP ancestor skip.
-        if (
-            loop.ancestor(OMPParallelDoDirective) is not None
-            or loop.ancestor(OMPDoDirective) is not None
-            or loop.ancestor(OMPParallelDirective) is not None
-        ):
+        if loop.ancestor(OMPDoDirective) is not None:
             continue
-        # Allow loops over 'i' and 'l' indexes to be parallelised.
         if loop.variable.name in ['i', 'l']:
             try:
-                OMP_PARALLEL_LOOP_DO_TRANS_STATIC.apply(
-                    loop, 
+                loop_trans.apply(
+                    loop,
                     ignore_dependencies_for=ignore_dependencies_for,
-                    node_type_check=node_type_check)
+                    nowait=True)
             except (TransformationError, IndexError) as err:
                 logging.warning(
-                    f"{fortran_file_name}: Could not transform because: \
-                    \n {err}")
+                    f"{fortran_file_name} Could not transform \
+                    because:\n {err}")
+
+    # Apply the largest possible parallel regions and remove any barriers that
+    # can be removed.
+    for routine in psyir.walk(Routine):
+        MaximalOMPParallelRegionTrans().apply(routine)
+        minsync_trans.apply(routine)
