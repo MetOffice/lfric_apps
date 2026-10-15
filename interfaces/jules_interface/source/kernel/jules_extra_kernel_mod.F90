@@ -561,8 +561,11 @@ contains
 
     type(water_resources_type) :: water_resources
     type(water_resources_data_type) :: water_resources_data
-    integer(i_um) :: global_land_pts  ! Unused argument for now
-    logical :: l_is_master_task       ! Unused argument for now
+    ! Water resources is not currently available.
+    ! Set sensible default values for arguments.
+    integer(i_um), parameter :: global_land_pts = 1
+    logical, parameter :: l_is_master_task = .FALSE.
+
     type(jls_wtrac_type)       :: wtrac_jls
     type(jls_wtrac_data_type)  :: wtrac_jls_data
     type( coastal_type ) :: coast
@@ -675,10 +678,6 @@ contains
                         l_deposition, ndry_dep_species, chemvars_data)
     call chemvars_assoc(chemvars, chemvars_data)
 
-    ! Water resources is not currently available.
-    ! Set some sensible defaults.
-    global_land_pts  = 1
-    l_is_master_task = .FALSE.
     call water_resources_alloc(global_land_pts, land_pts, n_sw_source,        &
                                nwater_use, sw_river_source,                   &
                                l_have_groundwater, l_have_surface_water,      &

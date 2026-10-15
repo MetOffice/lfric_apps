@@ -55,11 +55,10 @@
 | marcstring          | Marc Stringer      | NCAS, Reading University         | 2026-05-06 |
 | cameronbateman-mo   | Cameron Bateman    | Met Office                       | 2026-05-28 |
 | davelee2804         | David Lee          | Bureau of Meteorology, Australia | 2026-06-02 |
-! doucla              | Douglas Clark      | UKCEH                            | 2026-10-13 |
 | bblay-mo            | Byron Blay         | Met Office                       | 2026-07-01 |
 | ickc                | Kolen Cheung       | University of Exeter             | 2026-07-22 |
 | mo-snishimoto       | Shusuke Nishimoto  | Met Office                       | 2026-07-21 |
 | mo-cjsmith          | Chris Smith        | Met Office                       | 2026-09-02 |
 | mo-joshuacolclough  | Joshua Colclough   | Met Office                       | 2026-08-11 |
 | zmaalick            | Zubair Maalick     | Met Office                       | 2026-08-31 |
-
+| doucla              | Douglas Clark      | UKCEH                            | 2026-10-13 |
