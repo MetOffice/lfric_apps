@@ -387,7 +387,10 @@ subroutine casim_code( nlayers,                     &
     real(r_def) :: qsi           ! Saturation mixing ratio with respect to ice
     real(r_def) :: t_pc2         ! Temperature after the CASIM increments
 
-    real(r_def), dimension(nlayers) :: cff_work_pc2, cfl_work_pc2, cf_work_pc2
+    real(r_def) :: cff_new       ! Ice cloud fraction made by Wood and Field
+    real(r_def) :: cff_now       ! Ice cloud fraction with increments so far
+    real(r_def) :: cfl_now       ! Liquid cloud fraction with increments so far
+    real(r_def) :: cf_now        ! Bulk cloud fraction with increments so far
 
     logical :: l_pc2_response   ! PC2 is the active cloud scheme
 
@@ -792,10 +795,17 @@ subroutine casim_code( nlayers,                     &
             ! Total cloud fraction is reduced by the same amount
             !--------------------------------------------------------------
             ! Sublimating ice sits in the part of the gridbox that holds no
-            ! liquid cloud, so the bulk fraction gives up the same area, as
-            ! far as there is any of it left to give up.
-            deltacf = max( deltacff, -( bcf_wth(map_wth(1) + k)                &
-                                      + dbcf_wth(map_wth(1) + k) ) )
+            ! liquid cloud, so the bulk fraction gives up the same area, but
+            ! not so much that it falls below the liquid or the remaining
+            ! ice fraction.
+            cfl_now = cfl_wth(map_wth(1) + k) + dcfl_wth(map_wth(1) + k)
+            cf_now  = bcf_wth(map_wth(1) + k) + dbcf_wth(map_wth(1) + k)
+            deltacf = min( 0.0_r_def,                                          &
+                           max( deltacff,                                      &
+                                cfl_now - cf_now,                              &
+                                cff_wth(map_wth(1) + k)                        &
+                                + dcff_wth(map_wth(1) + k) + deltacff          &
+                                - cf_now ) )
 
             dcff_wth(map_wth(1) + k) = dcff_wth(map_wth(1) + k) + deltacff
             dbcf_wth(map_wth(1) + k) = dbcf_wth(map_wth(1) + k) + deltacf
@@ -811,44 +821,64 @@ subroutine casim_code( nlayers,                     &
 
         do k = 1, nlayers
 
-          t_pc2 = exner_in_wth(map_wth(1) + k) *                               &
-                  ( theta_in_wth(map_wth(1) + k) + theta_inc(map_wth(1) + k) )
-
-          ! LFRic runs with mixing ratio physics throughout
-          call qsat_mix( qsi, t_pc2, real(p_casim(k,1,1), r_def) )
-
-          cff_work_pc2(k) = cff_wth(map_wth(1) + k) + dcff_wth(map_wth(1) + k)
-          cfl_work_pc2(k) = cfl_wth(map_wth(1) + k) + dcfl_wth(map_wth(1) + k)
-          cf_work_pc2(k)  = bcf_wth(map_wth(1) + k) + dbcf_wth(map_wth(1) + k)
+          ! Ice cloud fraction as it stands after the responses above
+          cff_now = cff_wth(map_wth(1) + k) + dcff_wth(map_wth(1) + k)
 
           ! Work out ice increments
           if ( ms_wth(map_wth(1) + k) + mi_wth(map_wth(1) + k) +               &
                dms_wth(map_wth(1) + k) + dmi_wth(map_wth(1) + k)               &
                > qi_tidy ) then
 
-            if (cff_work_pc2(k) < cfliq_small) then
+            if (cff_now < cfliq_small) then
               ! if no ice cloud fraction then make some.
+              t_pc2 = exner_in_wth(map_wth(1) + k) *                           &
+                      ( theta_in_wth(map_wth(1) + k)                           &
+                      + theta_inc(map_wth(1) + k) )
+
+              ! LFRic runs with mixing ratio physics throughout
+              call qsat_mix( qsi, t_pc2, real(p_casim(k,1,1), r_def) )
+
               x_cff = ( ms_wth(map_wth(1) + k) + mi_wth(map_wth(1) + k) +      &
                         dms_wth(map_wth(1) + k) + dmi_wth(map_wth(1) + k) +    &
                         mv_wth(map_wth(1) + k) + dmv_wth(map_wth(1) + k) ) / qsi
 
-              if (x_cff <= rh_cfrac_lower) cff_work_pc2(k) = 0.0_r_def
+              if (x_cff <= rh_cfrac_lower) cff_new = 0.0_r_def
               if ((x_cff > rh_cfrac_lower) .and. (x_cff < rh_cfrac_upper))     &
-                  cff_work_pc2(k) = (x_cff - rh_cfrac_lower)                   &
-                                    * rcp_rhcfrac_upper_lower
-              if (x_cff >= rh_cfrac_upper) cff_work_pc2(k) = 1.0_r_def
+                  cff_new = (x_cff - rh_cfrac_lower) * rcp_rhcfrac_upper_lower
+              if (x_cff >= rh_cfrac_upper) cff_new = 1.0_r_def
+
+              deltacff = cff_new - cff_now
+
+              !------------------------------------------------------------
+              ! Total cloud fraction changes by the same amount
+              !------------------------------------------------------------
+              ! The ice cloud fraction is assumed to have minimum overlap
+              ! with the liquid, as in the ice shear response, so the bulk
+              ! fraction goes up with it, kept between the larger of the
+              ! liquid and new ice fractions and one.
+              cfl_now = cfl_wth(map_wth(1) + k) + dcfl_wth(map_wth(1) + k)
+              cf_now  = bcf_wth(map_wth(1) + k) + dbcf_wth(map_wth(1) + k)
+              deltacf = min( 1.0_r_def,                                        &
+                             max( cf_now + deltacff, cfl_now, cff_new ) )      &
+                      - cf_now
+
+              dcff_wth(map_wth(1) + k) = dcff_wth(map_wth(1) + k) + deltacff
+              dbcf_wth(map_wth(1) + k) = dbcf_wth(map_wth(1) + k) + deltacf
 
             end if  ! no ice cloud fraction present - make some
-          else
-            cff_work_pc2(k) = 0.0_r_def
+
+          else if (cff_now > 0.0_r_def) then
+            ! no ice left, so remove the ice cloud fraction, and take the
+            ! same area off the bulk fraction without letting it fall below
+            ! the liquid fraction
+            cfl_now = cfl_wth(map_wth(1) + k) + dcfl_wth(map_wth(1) + k)
+            cf_now  = bcf_wth(map_wth(1) + k) + dbcf_wth(map_wth(1) + k)
+            deltacf = min( 0.0_r_def, max( -cff_now, cfl_now - cf_now ) )
+
+            dcff_wth(map_wth(1) + k) = dcff_wth(map_wth(1) + k) - cff_now
+            dbcf_wth(map_wth(1) + k) = dbcf_wth(map_wth(1) + k) + deltacf
+
           end if
-
-          ! Finalise PC2 increments
-          cf_work_pc2(k) = min(1.0_r_def, cfl_work_pc2(k) + cff_work_pc2(k))
-
-          dcff_wth(map_wth(1) + k) = cff_work_pc2(k) - cff_wth(map_wth(1) + k)
-          dcfl_wth(map_wth(1) + k) = cfl_work_pc2(k) - cfl_wth(map_wth(1) + k)
-          dbcf_wth(map_wth(1) + k) = cf_work_pc2(k)  - bcf_wth(map_wth(1) + k)
 
         end do ! k
       end if  ! l_use_wf2000_inc
