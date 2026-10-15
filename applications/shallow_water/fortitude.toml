@@ -14,7 +14,7 @@ select = ["E000", "C001", "C021", "C022", "C032", "C043",
 "S101", "S071", "PORT011", "PORT012", "PORT021", "FORT001",
 "FORT002", "FORT003", "FORT004", "FORT005", "E011", "C122", "C151",
 "C161", "C171", "C182", "OB041", "OB201", "OB211",
-"MOD002", "S211", "S212", "S263", "PORT001"]
+"MOD002", "S211", "S212", "S263", "PORT001", "C143", "S081"]
 
 
 output-format = "grouped"                #group results by file

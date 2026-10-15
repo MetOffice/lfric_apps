@@ -25,6 +25,7 @@ select = [
 "C122", # missing-intrinsic
 "C132", # default-public-accessibility
 "C141", # missing-exit-or-cycle-label
+"C143", # missing-end-label
 "C151", # misleading-inline-if-semicolon
 "C161", # nonportable-shortcircuit-inquiry
 "C171", # split-escaped-quote
@@ -41,6 +42,7 @@ select = [
 "MOD021", # deprecated-relational-operator
 "S101", # trailing-whitespace
 "S071", # missing-double-colon
+"S081", # superfluous-semicolon
 "S211", # multiple-modules
 "S212", # program-with-module
 "S263", # bad-array-declaration
