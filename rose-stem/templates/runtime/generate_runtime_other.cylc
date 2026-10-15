@@ -33,7 +33,8 @@
         inherit.str,
         task_values["tech-tests_wallclock"],
         task_values["tech-tests_cpus"],
-        task_values["tech-tests_memory"]
+        task_values["tech-tests_memory"],
+        task_values["tmpsize"],
         ) }}
 
     [[{{task}}]]

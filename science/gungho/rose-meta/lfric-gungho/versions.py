@@ -59,7 +59,6 @@ class vn32_t479(MacroUpgrade):
     def upgrade(self, config, meta_config=None):
         # Commands From: rose-meta/lfric-gungho
         self.add_setting(config, ["namelist:mixing", "fullstress"], ".false.")
-
         return config, self.reports
 
 
@@ -72,7 +71,6 @@ class vn32_t744(MacroUpgrade):
     def upgrade(self, config, meta_config=None):
         # Commands From: rose-meta/jules-lsm
         # Bump tag to pick up metadata changes
-
         return config, self.reports
 
 
@@ -95,6 +93,59 @@ class vn32_t698(MacroUpgrade):
         # Default to true since this is the setting in all existing tests
         self.add_setting(
             config, ["namelist:aerosol", "l_ukca_radaer_sustrat"], ".true."
+        )
+        return config, self.reports
+
+
+class vn32_t725(MacroUpgrade):
+    """Upgrade macro for ticket #725 by Ian Boutle."""
+
+    BEFORE_TAG = "vn3.2_t698"
+    AFTER_TAG = "vn3.2_t725"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(
+            config, ["namelist:mixing", "leonard_inc_ice"], ".false."
+        )
+        self.add_setting(
+            config, ["namelist:mixing", "leonard_inc_with_bl"], ".false."
+        )
+        return config, self.reports
+
+
+class vn32_t699(MacroUpgrade):
+    """Upgrade macro for ticket #699 by thomas.melvin."""
+
+    BEFORE_TAG = "vn3.2_t725"
+    AFTER_TAG = "vn3.2_t699"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        """Add native_w2_wind_transport to namelist transport"""
+        self.add_setting(
+            config,
+            ["namelist:transport", "native_w2_wind_transport"],
+            ".false.",
+        )
+        return config, self.reports
+
+
+class vn32_t760(MacroUpgrade):
+    """Upgrade macro for ticket #760 by Chris Smith."""
+
+    BEFORE_TAG = "vn3.2_t699"
+    AFTER_TAG = "vn3.2_t760"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(
+            config,
+            ["namelist:initial_temperature", "profile_variable"],
+            "'potential'",
+        )
+        self.add_setting(
+            config, ["namelist:initial_vapour", "profile_variable"], "'mr'"
         )
 
         return config, self.reports

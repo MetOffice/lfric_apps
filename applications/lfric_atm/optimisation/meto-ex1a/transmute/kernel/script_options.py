@@ -183,7 +183,6 @@ SCRIPT_OPTIONS_DICT["photol_kernel_mod"+str(FILE_EXTEN)] = {
     ]
 }
 
-
 SCRIPT_OPTIONS_DICT["smith_kernel_mod"+str(FILE_EXTEN)] = {
     "ignore_dependencies_for": [
         "theta_inc", "m_v", "m_cl", "cf_bulk", "cf_liq", "cf_ice", "cf_area",
