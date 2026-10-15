@@ -19,6 +19,7 @@ module max_cat_kernel_mod
                                ANY_DISCONTINUOUS_SPACE_1,  &
                                ANY_DISCONTINUOUS_SPACE_2
   use constants_mod,     only: r_def, i_def
+  use empty_data_mod,    only: empty_real_data
   use kernel_mod,        only: kernel_type
 
   implicit none
@@ -51,14 +52,13 @@ contains
   !> @details Where the predictor on the given level exceeds the running
   !>          maximum, the maximum and its pressure are replaced. The test
   !>          is strict, so the first level visited wins any tie, and a
-  !>          missing predictor never replaces the running value. This is
-  !>          the level loop of the UM PWS driver (pws_diags_driver_mod)
-  !>          for the maximum clear air turbulence diagnostics, one level
-  !>          per call; the caller initialises both outputs to missing data
-  !>          before the first level.
+  !>          missing predictor never replaces the running value. One
+  !>          level per call; the caller initialises the outputs to missing
+  !>          data before the first level. The pressure is skipped when its
+  !>          field is empty.
   !> @param[in]     nlayers    Number of layers
   !> @param[in,out] max_cat    Maximum predictor over the levels so far
-  !> @param[in,out] max_press  Pressure of that maximum
+  !> @param[in,out] max_press  Pressure of that maximum; may be empty
   !> @param[in]     cat        Clear air turbulence predictor on pressure
   !>                           levels
   !> @param[in]     kp         Slot of the pressure-level field to visit
@@ -92,7 +92,7 @@ contains
     integer(kind=i_def), intent(in), dimension(ndf_pl) :: map_pl
 
     real(kind=r_def), intent(inout), dimension(undf_2d) :: max_cat
-    real(kind=r_def), intent(inout), dimension(undf_2d) :: max_press
+    real(kind=r_def), pointer, intent(inout)            :: max_press(:)
     real(kind=r_def), intent(in),    dimension(undf_pl) :: cat
 
     integer(kind=i_def), intent(in) :: kp
@@ -104,8 +104,10 @@ contains
     slot = map_pl(1) + kp - 1_i_def
 
     if ( cat(slot) > max_cat(map_2d(1)) ) then
-      max_cat(map_2d(1))   = cat(slot)
-      max_press(map_2d(1)) = press_lev
+      max_cat(map_2d(1)) = cat(slot)
+      if ( .not. associated(max_press, empty_real_data) ) then
+        max_press(map_2d(1)) = press_lev
+      end if
     end if
 
   end subroutine max_cat_code

@@ -52,8 +52,7 @@ module dutton_cat_kernel_mod
   public :: dutton_cat_code
 
   ! Empirical constants of Dutton (1980), Probability forecasts of clear
-  ! air turbulence based on numerical model output, Met Mag 109, 293-310,
-  ! as used by the UM PWS routine DuttonCAT (pws_cat_mod).
+  ! air turbulence based on numerical model output, Met Mag 109, 293-310.
   !> Number of interpolation knots
   integer(kind=i_def), parameter :: knots = 3_i_def
   !> Values of Dutton's empirical indicator at the knots
@@ -82,8 +81,6 @@ contains
   !>          from the four face-neighbouring cells, combines them with the
   !>          wind and the vertical shear into Dutton's empirical indicator,
   !>          and interpolates that onto a predictor between 0 and 7.5.
-  !>          Port of UM DiffX, DiffY (diff_mod) and DuttonCAT
-  !>          (pws_cat_mod).
   !>
   !>          The UM differences along the rows and columns of a regular
   !>          latitude-longitude grid. The LFRic mesh has no such rows, so
@@ -197,7 +194,7 @@ contains
     ! agree and the u_plev stencil speaks for the others
     if ( minval(smap_u_size) < neighbour .or. dwdz(slot) == rmdi ) then
       ! A neighbour is missing: no centred difference, as at the UM
-      ! domain edges (DiffX, DiffY), so the predictor is missing too
+      ! domain edges, so the predictor is missing too
       cat(slot) = rmdi
     else
       lat0 = latitude(map_2d(1))
@@ -216,9 +213,9 @@ contains
       end do
 
       ! Centred differences over the two opposite pairs: a = branch 3 minus
-      ! branch 1, b = branch 4 minus branch 2 (UM DiffX, DiffY lines
-      ! 287-289 and 395-396 on a regular latitude-longitude grid, where
-      ! pair a is purely zonal and pair b purely meridional)
+      ! branch 1, b = branch 4 minus branch 2. On a regular
+      ! latitude-longitude grid pair a is purely zonal and pair b purely
+      ! meridional, which is the UM's operator
       dx_a = x_n(3) - x_n(1)
       dy_a = y_n(3) - y_n(1)
       dx_b = x_n(4) - x_n(2)
@@ -236,7 +233,7 @@ contains
       dvdx = ( dv_a * dy_b - dv_b * dy_a ) / det
       dvdy = ( dv_b * dx_a - dv_a * dx_b ) / det
 
-      ! Dutton's empirical predictor (UM DuttonCAT lines 354-404)
+      ! Dutton's empirical predictor
       u0 = u_plev(slot)
       v0 = v_plev(slot)
 

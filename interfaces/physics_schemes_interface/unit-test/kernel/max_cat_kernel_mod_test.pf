@@ -12,16 +12,19 @@ module max_cat_kernel_mod_test
 
   use funit
   use constants_mod, only : r_def, i_def, rmdi
+  use empty_data_mod, only : empty_real_data
 
   implicit none
 
   private
-  public :: test_first_level_wins_ties, test_missing_levels
+  public :: test_first_level_wins_ties, test_missing_levels, &
+            test_empty_pressure
 
   @TestCase
   type, extends(TestCase), public :: max_cat_test_type
     private
-    real(kind=r_def), allocatable :: cat(:), max_cat(:), max_press(:)
+    real(kind=r_def), allocatable :: cat(:), max_cat(:)
+    real(kind=r_def), pointer     :: max_press(:) => null()
     integer(i_def), allocatable :: map_pl(:), map_2d(:)
   contains
     procedure setUp
@@ -29,6 +32,7 @@ module max_cat_kernel_mod_test
     procedure run_levels
     procedure test_first_level_wins_ties
     procedure test_missing_levels
+    procedure test_empty_pressure
   end type max_cat_test_type
 
   integer(i_def), parameter :: nplev = 3_i_def
@@ -76,7 +80,10 @@ contains
 
     class(max_cat_test_type), intent(inout) :: this
 
-    deallocate( this%cat, this%max_cat, this%max_press, &
+    if ( .not. associated(this%max_press, empty_real_data) ) then
+      deallocate( this%max_press )
+    end if
+    deallocate( this%cat, this%max_cat, &
                 this%map_pl, this%map_2d )
 
   end subroutine tearDown
@@ -146,5 +153,29 @@ contains
     @assertEqual( rmdi, this%max_press(1) )
 
   end subroutine test_missing_levels
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> With the pressure field empty the maximum is still found.
+  @test
+  subroutine test_empty_pressure( this )
+
+    implicit none
+
+    class(max_cat_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-12_r_def
+
+    deallocate( this%max_press )
+    this%max_press => empty_real_data
+    empty_real_data(1) = rmdi
+
+    this%cat(:) = (/ 2.0_r_def, 7.5_r_def, 3.0_r_def /)
+    call this%run_levels()
+
+    @assertEqual( 7.5_r_def, this%max_cat(1), tol )
+    ! Nothing is written to the empty field
+    @assertEqual( rmdi, empty_real_data(1) )
+
+  end subroutine test_empty_pressure
 
 end module max_cat_kernel_mod_test

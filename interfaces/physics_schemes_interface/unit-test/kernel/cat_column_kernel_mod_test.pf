@@ -108,8 +108,8 @@ contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Quadratic wind profile at a level inside the spline search window.
-  !> The expected shear is that of the UM DiffP spline (levels 4 to 9 for a
-  !> level between levels 6 and 7), not the analytic derivative.
+  !> The six-point spline (levels 4 to 9 for a level between levels 6 and
+  !> 7) is exact for a quadratic, so the shear is the analytic one.
   @test
   subroutine test_quadratic_profile( this )
 
@@ -119,10 +119,10 @@ contains
 
     class(cat_column_test_type), intent(inout) :: this
 
-    real(r_def), parameter :: tol = 1.0e-9_r_def
+    real(r_def), parameter :: tol = 1.0e-12_r_def
     real(r_def), parameter :: press_lev = 50000.0_r_def
-    ! d(u)/dp from the six-point spline: 1.68e-4 (analytic 2.0e-4)
-    real(r_def), parameter :: ans_dwdz = 1.68e-4_r_def / 0.15_r_def
+    ! Analytic d(u)/dp
+    real(r_def), parameter :: ans_dwdz = 2.0e-4_r_def / 0.15_r_def
     ! Linear-in-Exner interpolation of u between levels 6 and 7
     real(r_def), parameter :: ans_u_plev = 4.9687763868391706_r_def
 
@@ -152,9 +152,10 @@ contains
   end subroutine test_quadratic_profile
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !> Levels outside the spline search window (levels 3 to 8 of 10) use the
-  !> end segments of the spline, as in the UM, rather than being special
-  !> cased. Expected values are from a transcription of UM DiffP.
+  !> Levels outside the spline search window (levels 3 to 8 of 10) are
+  !> extrapolated from the middle segment of the nearest six-level window,
+  !> as in the UM, rather than being special cased. The spline is still
+  !> exact for a quadratic, so the expected values are the analytic ones.
   @test
   subroutine test_clamped_windows( this )
 
@@ -164,13 +165,13 @@ contains
 
     class(cat_column_test_type), intent(inout) :: this
 
-    real(r_def), parameter :: tol = 1.0e-9_r_def
+    real(r_def), parameter :: tol = 1.0e-12_r_def
     ! Between levels 8 and 9: window clamps to levels 5 to 10
     real(r_def), parameter :: press_high = 30000.0_r_def
-    real(r_def), parameter :: ans_high = 1.76e-4_r_def / 0.15_r_def
+    real(r_def), parameter :: ans_high = 1.2e-4_r_def / 0.15_r_def
     ! Between levels 1 and 2: window clamps to levels 1 to 6
     real(r_def), parameter :: press_low = 98000.0_r_def
-    real(r_def), parameter :: ans_low = 1.92e-4_r_def / 0.15_r_def
+    real(r_def), parameter :: ans_low = 3.92e-4_r_def / 0.15_r_def
 
     call cat_column_code( nlayers, this%u, this%v, this%exner, this%height, &
                           this%u_plev, this%v_plev, this%dwdz,              &

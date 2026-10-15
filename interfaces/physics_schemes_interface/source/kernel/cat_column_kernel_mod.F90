@@ -55,9 +55,9 @@ module cat_column_kernel_mod
 
   public :: cat_column_code
 
-  !> Number of model levels used by the spline derivative (UM DiffP NPts)
+  !> Number of model levels used by the spline derivative
   integer(kind=i_def), parameter :: npts = 6_i_def
-  !> Half of npts; the spline is evaluated on segment halfn (UM DiffP halfn)
+  !> Half of npts; the spline is evaluated on segment halfn
   integer(kind=i_def), parameter :: halfn = npts / 2_i_def
 
 contains
@@ -66,10 +66,9 @@ contains
   !> @details For one column and one pressure level: interpolates the
   !>          cell-centre winds to press_lev, linearly in Exner pressure,
   !>          and forms dwdz = sqrt((du/dp)**2 + (dv/dp)**2) / |dz/dp| from
-  !>          a six-point cubic spline through the model levels. Port of UM
-  !>          pws_cat (pws_cat_mod) and DiffP (diff_mod); the UM's C-to-B
-  !>          grid interpolation has no counterpart here, as the W3 winds
-  !>          are already at cell centres.
+  !>          a six-point cubic spline through the model levels. The UM's
+  !>          C-to-B grid interpolation has no counterpart here, as the W3
+  !>          winds are already at cell centres.
   !>
   !>          Results go into slot kp; other slots are untouched. A column
   !>          with fewer than six layers cannot support the spline, so its
@@ -155,13 +154,12 @@ contains
     else
 
       ! Vertical derivatives of height and wind components with respect to
-      ! pressure (UM pws_cat lines 186-199)
+      ! pressure
       call diffp(nlayers, press_lev, z_col, p_col, dzdp)
       call diffp(nlayers, press_lev, u_col, p_col, dudp)
       call diffp(nlayers, press_lev, v_col, p_col, dvdp)
 
       ! Vertical derivative of wind speed with respect to height
-      ! (UM pws_cat line 205)
       dwdz(slot) = sqrt(dudp**2 + dvdp**2) / abs(dzdp)
     end if
 
@@ -215,14 +213,14 @@ contains
 
   !> @brief   Derivative of a column profile with respect to pressure at a
   !>          given pressure, by cubic spline.
-  !> @details Direct port of the UM PWS routine DiffP (diff_mod). A bisection
-  !>          over levels halfn to numlevs+1-halfn finds the pair of levels
-  !>          bracketing pref, so that the six levels jupr-3 to jupr+2 always
-  !>          exist; a pref outside that window is extrapolated by the end
-  !>          spline segment, as in the UM. The spline coefficients are
-  !>          computed with the pressure axis reversed so that the knots
-  !>          increase, and only the coefficients of segment halfn, on which
-  !>          the derivative is evaluated, are completed.
+  !> @details A bisection over levels halfn to numlevs+1-halfn finds the
+  !>          pair of levels bracketing pref, so that the six levels jupr-3
+  !>          to jupr+2 always exist; a pref outside that window is
+  !>          extrapolated from segment halfn of the six-level window, as in
+  !>          the UM. The spline coefficients are computed with the pressure
+  !>          axis reversed so that the knots increase, and only the
+  !>          coefficients of segment halfn, on which the derivative is
+  !>          evaluated, are completed.
   !> @param[in]  numlevs  Number of levels in the profile
   !> @param[in]  pref     Pressure at which the derivative is required
   !> @param[in]  ffield   Profile to differentiate
@@ -258,14 +256,15 @@ contains
     end do
 
     ! Knot k is level jupr+halfn-k, so the knots run down the column with
-    ! pressure increasing, and pref lies in segment halfn. deltax(k) is
-    ! minus the knot spacing, the reverse of the sign the spline algorithm
-    ! assumes; the UM's DiffP does the same, and changing it alters the
-    ! derivative, so it is kept for parity.
+    ! pressure increasing, and pref lies in segment halfn. The UM's DiffP
+    ! takes deltax and deltay with the opposite sign, which reverses the
+    ! curvature term of the derivative away from the knots: a quadratic
+    ! profile gives the wrong slope. This takes them in knot order, as the
+    ! spline requires, so the derivative is exact for cubic profiles.
     dx = pref - pfield(jupr)
     do k = 1, npts - 1
-      deltax(k) = pfield(jupr + halfn - k) - pfield(jupr + halfn - 1 - k)
-      deltay(k) = ffield(jupr + halfn - k) - ffield(jupr + halfn - 1 - k)
+      deltax(k) = pfield(jupr + halfn - 1 - k) - pfield(jupr + halfn - k)
+      deltay(k) = ffield(jupr + halfn - 1 - k) - ffield(jupr + halfn - k)
     end do
 
     ! Spline of Forsythe, Malcolm and Moler: on segment i the profile is

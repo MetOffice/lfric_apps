@@ -16,7 +16,8 @@ module dutton_cat_kernel_mod_test
   implicit none
 
   private
-  public :: test_knots, test_horizontal_shear, test_missing_neighbour
+  public :: test_knots, test_horizontal_shear, test_skewed_stencil, &
+            test_calm_centre, test_missing_neighbour
 
   @TestCase
   type, extends(TestCase), public :: dutton_cat_test_type
@@ -32,6 +33,8 @@ module dutton_cat_kernel_mod_test
     procedure run_kernel
     procedure test_knots
     procedure test_horizontal_shear
+    procedure test_skewed_stencil
+    procedure test_calm_centre
     procedure test_missing_neighbour
   end type dutton_cat_test_type
 
@@ -219,6 +222,63 @@ contains
     @assertEqual( 3.25_r_def, this%cat(1), tol )
 
   end subroutine test_horizontal_shear
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> As test_horizontal_shear at 45N, but with the neighbours on a skewed
+  !> stencil of unequal arms (bearings 250, 160, 80 and 340 degrees), as
+  !> where the mesh axes are not aligned with east and north. Neither pair
+  !> is then purely zonal or meridional, so every term of the two-pair
+  !> solve contributes.
+  @test
+  subroutine test_skewed_stencil( this )
+
+    implicit none
+
+    class(dutton_cat_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-9_r_def
+
+    this%latitude(2:5)  = (/ 0.7792953681179706_r_def,   &
+                             0.7722663728810388_r_def,   &
+                             0.7885524564164021_r_def,   &
+                             0.8001440997928314_r_def /)
+    this%longitude(2:5) = (/ -0.02305474406280645_r_def,  &
+                             0.006666445340204364_r_def,  &
+                             0.026824778069029578_r_def,  &
+                             -0.007712096584987708_r_def /)
+    this%u_plev(1) = 20.0_r_def
+    this%v_plev(1) = 10.0_r_def
+    this%u_plev(2:5) = (/ 17.157317893590132_r_def, 39.76078889494521_r_def, &
+                          27.797484892586656_r_def, -2.2306956338747312_r_def /)
+    this%v_plev(2:5) = (/ -25.14928493723174_r_def, 10.768295627780248_r_def, &
+                          48.259848936747126_r_def, 9.135674878729828_r_def /)
+    this%dwdz(:) = 0.01_r_def
+    call this%run_kernel()
+    @assertEqual( 6.85_r_def, this%cat(1), tol )
+
+  end subroutine test_skewed_stencil
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> With no wind at the centre the horizontal shear is zero, however
+  !> the neighbouring winds vary: empire = 10.5 + 1.5 * 10 = 25.5.
+  @test
+  subroutine test_calm_centre( this )
+
+    implicit none
+
+    class(dutton_cat_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-12_r_def
+
+    this%u_plev(:) = (/ 0.0_r_def, 5.0_r_def, -3.0_r_def, 8.0_r_def, &
+                        2.0_r_def /)
+    this%v_plev(:) = (/ 0.0_r_def, -4.0_r_def, 6.0_r_def, 1.0_r_def, &
+                        7.0_r_def /)
+    this%dwdz(:) = 0.01_r_def
+    call this%run_kernel()
+    @assertEqual( 3.55_r_def, this%cat(1), tol )
+
+  end subroutine test_calm_centre
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> A cell without one of its four neighbours, or without a vertical
