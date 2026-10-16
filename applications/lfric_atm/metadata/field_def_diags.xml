@@ -1005,6 +1005,16 @@
   <!-- Vertical integrals -->
   <field id="processed__sw_aer_optical_depth_rts" field_ref="radiation__sw_aer_optical_depth_rts" grid_ref="vert_sum_face_grid"/>
   <field id="processed__lw_aer_optical_depth_rts" field_ref="radiation__lw_aer_optical_depth_rts" grid_ref="vert_sum_face_grid"/>
+  <!-- Aviation diagnostics -->
+  <field id="aviation__freezing_level_height" name="aviation_freezing_level_height" standard_name="freezing_level_altitude" long_name="dry_bulb_freezing_level_height" unit="m" domain_ref="face"/>
+  <field id="aviation__freezing_level_pressure" name="aviation_freezing_level_pressure" long_name="dry_bulb_freezing_level_pressure" unit="Pa" domain_ref="face"/>
+  <field id="aviation__freezing_level_icao_height" name="aviation_freezing_level_icao_height" long_name="icao_dry_bulb_freezing_level_height" unit="kft" domain_ref="face"/>
+  <field id="aviation__isotherm_minus20c_height" name="aviation_isotherm_minus20c_height" long_name="minus_20c_isotherm_height" unit="m" domain_ref="face"/>
+  <field id="aviation__isotherm_minus20c_pressure" name="aviation_isotherm_minus20c_pressure" long_name="minus_20c_isotherm_pressure" unit="Pa" domain_ref="face"/>
+  <field id="aviation__isotherm_minus20c_icao_height" name="aviation_isotherm_minus20c_icao_height" long_name="icao_minus_20c_isotherm_height" unit="kft" domain_ref="face"/>
+  <field id="aviation__isotherm_minus70c_height" name="aviation_isotherm_minus70c_height" long_name="minus_70c_isotherm_height" unit="m" domain_ref="face"/>
+  <field id="aviation__isotherm_minus70c_pressure" name="aviation_isotherm_minus70c_pressure" long_name="minus_70c_isotherm_pressure" unit="Pa" domain_ref="face"/>
+  <field id="aviation__isotherm_minus70c_icao_height" name="aviation_isotherm_minus70c_icao_height" long_name="icao_minus_70c_isotherm_height" unit="kft" domain_ref="face"/>
 </field_group>
 
 <!-- Integer diagnostic group -->

@@ -55,6 +55,8 @@
       <field field_ref="cloud__high_type_cloud_amount"/>
       <field field_ref="cloud__cloud_fraction_below_1000feet_asl"/>
       <field field_ref="processed__freeze_lev"/>
+      <field field_ref="aviation__freezing_level_height"/>
+      <field field_ref="aviation__freezing_level_pressure"/>
       <field field_ref="cloud__ceilometer_cloud_amount_maxrnd"/>
       <field field_ref="plev__u"/>
       <field field_ref="plev__v"/>
@@ -141,6 +143,13 @@
       <field field_ref="soil__soil_moisture_content"/> 
       <field field_ref="surface__grid_canopy_water"/> 
       <field field_ref="cloud__cloud_amount_rnd"/> 
+      <field field_ref="aviation__freezing_level_icao_height"/>
+      <field field_ref="aviation__isotherm_minus20c_height"/>
+      <field field_ref="aviation__isotherm_minus20c_pressure"/>
+      <field field_ref="aviation__isotherm_minus20c_icao_height"/>
+      <field field_ref="aviation__isotherm_minus70c_height"/>
+      <field field_ref="aviation__isotherm_minus70c_pressure"/>
+      <field field_ref="aviation__isotherm_minus70c_icao_height"/>
     </field_group>     
     
     <field_group operation="average" freq_op="3h" prec="4">  

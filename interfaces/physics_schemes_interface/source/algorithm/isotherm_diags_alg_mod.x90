@@ -1,0 +1,125 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Claude Code (Claude Opus 5.5), 2026-10-16.
+!> @brief Height, pressure and ICAO height of the dry-bulb freezing level
+!>        and of the -20 C and -70 C isotherms.
+
+module isotherm_diags_alg_mod
+
+  use config_mod,                  only: config_type
+  use constants_mod,               only: r_def, l_def
+  use field_mod,                   only: field_type
+  use fs_continuity_mod,           only: Wtheta
+  use icao_heights_kernel_mod,     only: icao_heights_kernel_type
+  use initialise_diagnostics_mod,  only: init_diag => init_diagnostic_field
+  use isotherm_diags_kernel_mod,   only: isotherm_diags_kernel_type
+  use planet_config_mod,           only: p_zero, kappa
+  use planet_constants_mod,        only: g_over_r_def
+  use sci_geometric_constants_mod, only: get_height_fv
+  use science_conversions_mod,     only: zero_degrees_celsius
+
+  implicit none
+
+  private
+
+  public :: isotherm_diags_alg
+
+contains
+
+  !> @brief Output the isotherm diagnostics that are requested.
+  !> @param[in] config        Application namelist configuration object
+  !> @param[in] theta         Potential temperature
+  !> @param[in] exner_in_wth  Exner pressure in Wtheta
+  subroutine isotherm_diags_alg(config, theta, exner_in_wth)
+
+    implicit none
+
+    type(config_type), intent(in) :: config
+    type(field_type),  intent(in) :: theta
+    type(field_type),  intent(in) :: exner_in_wth
+
+    ! Only the freezing level is extrapolated below the surface
+    call isotherm_diags(config, theta, exner_in_wth,                       &
+                        zero_degrees_celsius, .true._l_def,                &
+                        'aviation__freezing_level_height',                 &
+                        'aviation__freezing_level_pressure',               &
+                        'aviation__freezing_level_icao_height')
+
+    call isotherm_diags(config, theta, exner_in_wth,                       &
+                        zero_degrees_celsius - 20.0_r_def, .false._l_def,  &
+                        'aviation__isotherm_minus20c_height',              &
+                        'aviation__isotherm_minus20c_pressure',            &
+                        'aviation__isotherm_minus20c_icao_height')
+
+    call isotherm_diags(config, theta, exner_in_wth,                       &
+                        zero_degrees_celsius - 70.0_r_def, .false._l_def,  &
+                        'aviation__isotherm_minus70c_height',              &
+                        'aviation__isotherm_minus70c_pressure',            &
+                        'aviation__isotherm_minus70c_icao_height')
+
+  end subroutine isotherm_diags_alg
+
+  !> @brief Output the requested diagnostics for one isotherm.
+  !> @param[in] config        Application namelist configuration object
+  !> @param[in] theta         Potential temperature
+  !> @param[in] exner_in_wth  Exner pressure in Wtheta
+  !> @param[in] t_ref         Temperature of the isotherm (K)
+  !> @param[in] extrapolate   Extrapolate below the surface if the lowest
+  !>                          level is colder than t_ref
+  !> @param[in] height_id     Diagnostic id of the isotherm height
+  !> @param[in] pressure_id   Diagnostic id of the isotherm pressure
+  !> @param[in] icao_id       Diagnostic id of the isotherm ICAO height
+  subroutine isotherm_diags(config, theta, exner_in_wth, t_ref,            &
+                            extrapolate, height_id, pressure_id, icao_id)
+
+    implicit none
+
+    type(config_type),   intent(in) :: config
+    type(field_type),    intent(in) :: theta
+    type(field_type),    intent(in) :: exner_in_wth
+    real(kind=r_def),    intent(in) :: t_ref
+    logical(kind=l_def), intent(in) :: extrapolate
+    character(*),        intent(in) :: height_id
+    character(*),        intent(in) :: pressure_id
+    character(*),        intent(in) :: icao_id
+
+    type(field_type) :: isotherm_height, isotherm_pressure, isotherm_icao
+    type(field_type), pointer :: height_wth
+    logical(kind=l_def) :: height_flag, pressure_flag, icao_flag
+
+    nullify(height_wth)
+
+    ! The ICAO height is computed from the pressure, so requesting it
+    ! activates the pressure
+    height_flag = init_diag(isotherm_height, height_id)
+    icao_flag = init_diag(isotherm_icao, icao_id)
+    pressure_flag = init_diag(isotherm_pressure, pressure_id,              &
+                              activate=icao_flag)
+
+    if ( .not. (height_flag .or. pressure_flag .or. icao_flag) ) return
+
+    height_wth => get_height_fv(config, theta%get_mesh(), Wtheta)
+
+    call invoke( isotherm_diags_kernel_type(theta, isotherm_height,        &
+                                            isotherm_pressure,             &
+                                            exner_in_wth, height_wth,      &
+                                            t_ref, extrapolate,            &
+                                            p_zero, kappa, g_over_r_def) )
+
+    if ( icao_flag ) then
+      call invoke( icao_heights_kernel_type(isotherm_icao,                 &
+                                            isotherm_pressure,             &
+                                            g_over_r_def) )
+      call isotherm_icao%write_field()
+    end if
+
+    if ( height_flag ) call isotherm_height%write_field()
+    if ( pressure_flag ) call isotherm_pressure%write_field()
+
+  end subroutine isotherm_diags
+
+end module isotherm_diags_alg_mod

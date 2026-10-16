@@ -1,0 +1,249 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Claude Code (Claude Opus 5.5), 2026-10-16.
+!> @brief Test the isotherm diagnostics kernel.
+!> @details Exner is 1 throughout, so temperature equals theta and the
+!>          pressure on every level is p_zero.
+
+module isotherm_diags_kernel_mod_test
+
+  use funit
+  use constants_mod, only: r_def, i_def, l_def, rmdi
+
+  implicit none
+
+  private
+  public :: test_simple_crossing, test_highest_crossing,          &
+            test_crossing_above_cutoff, test_cold_surface,        &
+            test_cold_surface_extrapolated, test_extrapolation_cap, &
+            test_no_crossing, test_unrequested_output
+
+  integer(i_def), parameter :: nlayers = 4_i_def
+  integer(i_def), parameter :: ndf_wth = 1_i_def
+  integer(i_def), parameter :: undf_wth = nlayers + 1_i_def
+  integer(i_def), parameter :: ndf_2d = 1_i_def
+  integer(i_def), parameter :: undf_2d = 1_i_def
+
+  real(r_def), parameter :: p_zero = 100000.0_r_def
+  real(r_def), parameter :: kappa = 0.2857_r_def
+  real(r_def), parameter :: g_over_r = 9.80665_r_def / 287.05_r_def
+  real(r_def), parameter :: tol = 1.0e-8_r_def
+
+contains
+
+  !> @brief Run the kernel on one column with both outputs requested.
+  !> @param[in]  theta        Temperature on levels 0 to nlayers (K)
+  !> @param[in]  height       Height of levels 0 to nlayers (m)
+  !> @param[in]  t_ref        Temperature of the isotherm (K)
+  !> @param[in]  extrapolate  Extrapolate below the surface
+  !> @param[out] z_iso        Isotherm height (m)
+  !> @param[out] p_iso        Isotherm pressure (Pa)
+  subroutine run_kernel( theta, height, t_ref, extrapolate, z_iso, p_iso )
+
+    use isotherm_diags_kernel_mod, only: isotherm_diags_code
+
+    implicit none
+
+    real(r_def),    intent(in)  :: theta(undf_wth), height(undf_wth)
+    real(r_def),    intent(in)  :: t_ref
+    logical(l_def), intent(in)  :: extrapolate
+    real(r_def),    intent(out) :: z_iso, p_iso
+
+    real(r_def), pointer :: isotherm_height(:), isotherm_pressure(:)
+    real(r_def) :: exner(undf_wth)
+    integer(i_def) :: map_wth(ndf_wth), map_2d(ndf_2d)
+
+    allocate( isotherm_height(undf_2d), isotherm_pressure(undf_2d) )
+    exner = 1.0_r_def
+    map_wth = 1_i_def
+    map_2d = 1_i_def
+
+    call isotherm_diags_code( nlayers, theta, isotherm_height,           &
+                              isotherm_pressure, exner, height, t_ref,   &
+                              extrapolate, p_zero, kappa, g_over_r,      &
+                              ndf_wth, undf_wth, map_wth,                &
+                              ndf_2d, undf_2d, map_2d )
+
+    z_iso = isotherm_height(1)
+    p_iso = isotherm_pressure(1)
+    deallocate( isotherm_height, isotherm_pressure )
+
+  end subroutine run_kernel
+
+  !> @brief One crossing, interpolated within its layer.
+  @test
+  subroutine test_simple_crossing()
+
+    implicit none
+
+    real(r_def) :: z_iso, p_iso, lapse, p_expected
+
+    call run_kernel( [ 290.0_r_def, 280.0_r_def, 275.0_r_def,            &
+                       270.0_r_def, 265.0_r_def ],                       &
+                     [ 0.0_r_def, 1000.0_r_def, 2000.0_r_def,            &
+                       3000.0_r_def, 4000.0_r_def ],                     &
+                     273.15_r_def, .true._l_def, z_iso, p_iso )
+
+    lapse = 5.0_r_def / 1000.0_r_def
+    p_expected = p_zero * ( 273.15_r_def / 275.0_r_def )**( g_over_r / lapse )
+    @assertEqual( 2370.0_r_def, z_iso, 1.0e-6_r_def )
+    @assertEqual( p_expected, p_iso, tol )
+
+  end subroutine test_simple_crossing
+
+  !> @brief Of two crossings, the higher one is kept.
+  @test
+  subroutine test_highest_crossing()
+
+    implicit none
+
+    real(r_def) :: z_iso, p_iso
+
+    call run_kernel( [ 290.0_r_def, 280.0_r_def, 270.0_r_def,            &
+                       280.0_r_def, 270.0_r_def ],                       &
+                     [ 0.0_r_def, 1000.0_r_def, 2000.0_r_def,            &
+                       3000.0_r_def, 4000.0_r_def ],                     &
+                     275.0_r_def, .false._l_def, z_iso, p_iso )
+
+    @assertEqual( 3500.0_r_def, z_iso, 1.0e-6_r_def )
+
+  end subroutine test_highest_crossing
+
+  !> @brief A crossing at or above 23 km is ignored.
+  @test
+  subroutine test_crossing_above_cutoff()
+
+    implicit none
+
+    real(r_def) :: z_iso, p_iso
+
+    call run_kernel( [ 290.0_r_def, 280.0_r_def, 270.0_r_def,            &
+                       280.0_r_def, 270.0_r_def ],                       &
+                     [ 0.0_r_def, 10000.0_r_def, 20000.0_r_def,          &
+                       23000.0_r_def, 26000.0_r_def ],                   &
+                     275.0_r_def, .false._l_def, z_iso, p_iso )
+
+    @assertEqual( 15000.0_r_def, z_iso, 1.0e-6_r_def )
+
+  end subroutine test_crossing_above_cutoff
+
+  !> @brief Lowest level colder, no extrapolation: isotherm at the surface.
+  @test
+  subroutine test_cold_surface()
+
+    implicit none
+
+    real(r_def) :: z_iso, p_iso
+
+    call run_kernel( [ 255.0_r_def, 250.0_r_def, 245.0_r_def,            &
+                       240.0_r_def, 235.0_r_def ],                       &
+                     [ 100.0_r_def, 1000.0_r_def, 2000.0_r_def,          &
+                       3000.0_r_def, 4000.0_r_def ],                     &
+                     253.15_r_def, .false._l_def, z_iso, p_iso )
+
+    @assertEqual( 100.0_r_def, z_iso, tol )
+    @assertEqual( p_zero, p_iso, tol )
+
+  end subroutine test_cold_surface
+
+  !> @brief Lowest level colder, extrapolated below the surface.
+  @test
+  subroutine test_cold_surface_extrapolated()
+
+    implicit none
+
+    real(r_def) :: z_iso, p_iso
+
+    call run_kernel( [ 272.0_r_def, 270.0_r_def, 265.0_r_def,            &
+                       260.0_r_def, 255.0_r_def ],                       &
+                     [ 500.0_r_def, 1000.0_r_def, 2000.0_r_def,          &
+                       3000.0_r_def, 4000.0_r_def ],                     &
+                     273.15_r_def, .true._l_def, z_iso, p_iso )
+
+    @assertEqual( 185.0_r_def, z_iso, 1.0e-6_r_def )
+    @assertEqual( p_zero + 3150.0_r_def, p_iso, 1.0e-6_r_def )
+
+  end subroutine test_cold_surface_extrapolated
+
+  !> @brief Extrapolated height is not allowed below 0 m; pressure is.
+  @test
+  subroutine test_extrapolation_cap()
+
+    implicit none
+
+    real(r_def) :: z_iso, p_iso
+
+    call run_kernel( [ 262.0_r_def, 260.0_r_def, 255.0_r_def,            &
+                       250.0_r_def, 245.0_r_def ],                       &
+                     [ 100.0_r_def, 1000.0_r_def, 2000.0_r_def,          &
+                       3000.0_r_def, 4000.0_r_def ],                     &
+                     273.15_r_def, .true._l_def, z_iso, p_iso )
+
+    @assertEqual( 0.0_r_def, z_iso, tol )
+    @assertEqual( p_zero + 13150.0_r_def, p_iso, 1.0e-6_r_def )
+
+  end subroutine test_extrapolation_cap
+
+  !> @brief No crossing anywhere gives missing data.
+  @test
+  subroutine test_no_crossing()
+
+    implicit none
+
+    real(r_def) :: z_iso, p_iso
+
+    call run_kernel( [ 300.0_r_def, 295.0_r_def, 290.0_r_def,            &
+                       285.0_r_def, 280.0_r_def ],                       &
+                     [ 0.0_r_def, 1000.0_r_def, 2000.0_r_def,            &
+                       3000.0_r_def, 4000.0_r_def ],                     &
+                     203.15_r_def, .false._l_def, z_iso, p_iso )
+
+    @assertEqual( rmdi, z_iso )
+    @assertEqual( rmdi, p_iso )
+
+  end subroutine test_no_crossing
+
+  !> @brief An output that was not requested is left untouched.
+  @test
+  subroutine test_unrequested_output()
+
+    use empty_data_mod,            only: empty_real_data
+    use isotherm_diags_kernel_mod, only: isotherm_diags_code
+
+    implicit none
+
+    real(r_def), pointer :: isotherm_height(:), isotherm_pressure(:)
+    real(r_def) :: theta(undf_wth), exner(undf_wth), height(undf_wth)
+    real(r_def) :: empty_before
+    integer(i_def) :: map_wth(ndf_wth), map_2d(ndf_2d)
+
+    theta = [ 290.0_r_def, 280.0_r_def, 275.0_r_def, 270.0_r_def,        &
+              265.0_r_def ]
+    height = [ 0.0_r_def, 1000.0_r_def, 2000.0_r_def, 3000.0_r_def,      &
+               4000.0_r_def ]
+    exner = 1.0_r_def
+    map_wth = 1_i_def
+    map_2d = 1_i_def
+
+    isotherm_height => empty_real_data
+    allocate( isotherm_pressure(undf_2d) )
+    isotherm_pressure = 0.0_r_def
+    empty_before = empty_real_data(1)
+
+    call isotherm_diags_code( nlayers, theta, isotherm_height,           &
+                              isotherm_pressure, exner, height,          &
+                              273.15_r_def, .true._l_def, p_zero, kappa, &
+                              g_over_r, ndf_wth, undf_wth, map_wth,      &
+                              ndf_2d, undf_2d, map_2d )
+
+    @assertEqual( empty_before, empty_real_data(1) )
+    @assertTrue( isotherm_pressure(1) > 0.0_r_def )
+    deallocate( isotherm_pressure )
+
+  end subroutine test_unrequested_output
+
+end module isotherm_diags_kernel_mod_test
