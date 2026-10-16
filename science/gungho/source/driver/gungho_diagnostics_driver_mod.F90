@@ -3,6 +3,8 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Claude Code (Claude Opus 5.5), 2026-10-15.
 
 !> @brief Outputs diagnostics from gungho/lfric_atm
 
@@ -60,6 +62,7 @@ module gungho_diagnostics_driver_mod
   use rh_diag_alg_mod,           only : rh_diag_alg
   use freeze_lev_alg_mod,        only : freeze_lev_alg
   use aviation_diags_alg_mod,    only : aviation_diags_alg
+  use contrail_diags_alg_mod,    only : contrail_diags_alg
 #endif
 
   implicit none
@@ -344,6 +347,8 @@ contains
       call freeze_lev_alg(modeldb%config,theta, mr, moist_dyn, exner_in_wth)
       ! Aviation diagnostics
       call aviation_diags_alg(plev_geopot)
+      ! Contrail limits
+      call contrail_diags_alg(modeldb%config, theta, exner_in_wth, twod_mesh)
 #endif
 
       temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')
