@@ -342,6 +342,7 @@ end function has_xios_io
     type(function_space_type), pointer             :: window_size_space
     logical(l_def)                                 :: checkpointed
     logical(l_def)                                 :: advected
+    logical(l_def)                                 :: preexisting
 
     ! pointers for xios write interface
     procedure(write_interface), pointer :: write_behaviour => null()
@@ -349,15 +350,22 @@ end function has_xios_io
     procedure(checkpoint_write_interface), pointer :: checkpoint_write_behaviour => null()
     procedure(checkpoint_read_interface), pointer  :: checkpoint_read_behaviour => null()
 
+    ! Fields read by file objects are created before the I/O context closes
+    preexisting = .false.
+    if (.not. associated(external_field)) preexisting = depository%field_exists(name)
+
     ! Create the new field
     if (associated(external_field)) then
       new_field_ptr => external_field
+    else if (preexisting) then
+      call depository%get_field(name, field_ptr)
+      new_field_ptr => field_ptr
     else
       new_field_ptr => new_field
     end if
 
     ! deal with time axis
-    if (associated(time_axis)) then
+    if (associated(time_axis) .and. .not. preexisting) then
       ! pre-initialise field with window size, add to time axis;
       ! cf. init_time_axis_mod / setup_field
       if (associated(vector_space)) then
@@ -386,7 +394,9 @@ end function has_xios_io
     end if
 
     ! regular field initialisation
-    if (associated(vector_space)) then
+    if (preexisting) then
+      ! Already initialised when it was created
+    else if (associated(vector_space)) then
       if (empty) then
         call new_field_ptr%initialise( vector_space, name=trim(name), &
           override_data = empty_real_data )
@@ -434,6 +444,8 @@ end function has_xios_io
     ! Add the field to the depository, unless it is external
     if (associated(external_field)) then
       tmp_ptr => external_field
+    else if (preexisting) then
+      tmp_ptr => field_ptr
     else
       call depository%add_field(new_field)
       call depository%get_field(name, field_ptr)

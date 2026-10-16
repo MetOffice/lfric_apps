@@ -93,7 +93,22 @@ module init_ancils_mod
 
   public   :: create_fd_ancils,           &
               create_fd_ancils_idealised, &
-              setup_ancil_field
+              create_file_owned_ancils,   &
+              setup_ancil_field,          &
+              aerosol_ancil_names
+
+  ! Pairs of (model field name, variable name in the aerosol ancillary file)
+  character(len=str_def), parameter :: aerosol_ancil_names(2,17) = reshape( &
+    [ character(len=str_def) ::                                            &
+      "acc_sol_bc", "AcSoBC_109", "acc_sol_om", "AcSoOC_110",             &
+      "acc_sol_su", "AcSoSU_108", "acc_sol_ss", "AcSoSS_111",             &
+      "n_acc_sol",  "AcSo___107", "ait_sol_bc", "AiSoBC_105",             &
+      "ait_sol_om", "AiSoOC_106", "ait_sol_su", "AiSoSU_104",             &
+      "n_ait_sol",  "AiSo___103", "ait_ins_bc", "AiInBC_120",             &
+      "ait_ins_om", "AiInOC_121", "n_ait_ins",  "AiIn___119",             &
+      "cor_sol_bc", "CoSoBC_115", "cor_sol_om", "CoSoOC_116",             &
+      "cor_sol_su", "CoSoSU_114", "cor_sol_ss", "CoSoSS_117",             &
+      "n_cor_sol",  "CoSo___113" ], [2,17] )
 
 contains
 
@@ -124,9 +139,9 @@ contains
     ! available after function call
     type(time_axis_type), save :: sea_time_axis
     type(time_axis_type), save :: sst_time_axis
+    type(time_axis_type), save :: aerosol_time_axis
     type(time_axis_type), save :: sea_ice_time_axis
     type(time_axis_type), save :: snow_time_axis
-    type(time_axis_type), save :: aerosol_time_axis
     type(time_axis_type), save :: albedo_vis_time_axis
     type(time_axis_type), save :: albedo_nir_time_axis
     type(time_axis_type), save :: pft_time_axis
@@ -171,6 +186,8 @@ contains
     type(time_axis_type), save :: easy_absorption_lw_time_axis
     type(time_axis_type), save :: easy_extinction_sw_time_axis
     type(time_axis_type), save :: easy_extinction_lw_time_axis
+
+    integer(i_def) :: i_aer
 
     ! Time axis options
     logical(l_def),   parameter :: interp_flag=.true.
@@ -230,7 +247,6 @@ contains
         call sst_time_axis%initialise("sst_time", file_id="sst_ancil", &
                                       interp_flag=.false., pop_freq="daily", &
                                       window_size=1)
-
       else !sst_source == 'ancil'
         call sst_time_axis%initialise("sst_time", file_id="sst_ancil", &
                                       interp_flag=interp_flag, pop_freq="daily")
@@ -404,67 +420,31 @@ contains
 
     if ( ( glomap_mode == glomap_mode_climatology ) .or. &
          ( glomap_mode == glomap_mode_dust_and_clim ) ) then
-      call aerosol_time_axis%initialise( "aerosols_time",          &
-                                         file_id="aerosols_ancil", &
-                                         interp_flag=interp_flag,  &
-                                         pop_freq="daily" )
-      call setup_ancil_field("acc_sol_bc", depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
-      call setup_ancil_field("acc_sol_om", depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
-      call setup_ancil_field("acc_sol_su", depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
-      call setup_ancil_field("acc_sol_ss", depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
-      call setup_ancil_field("n_acc_sol",  depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
-      call setup_ancil_field("ait_sol_bc", depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
-      call setup_ancil_field("ait_sol_om", depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
-      call setup_ancil_field("ait_sol_su", depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
-      call setup_ancil_field("n_ait_sol",  depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
-      call setup_ancil_field("ait_ins_bc", depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
-      call setup_ancil_field("ait_ins_om", depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
-      call setup_ancil_field("n_ait_ins",  depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
-      call setup_ancil_field("cor_sol_bc", depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
-      call setup_ancil_field("cor_sol_om", depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
-      call setup_ancil_field("cor_sol_su", depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
-      call setup_ancil_field("cor_sol_ss", depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
-      call setup_ancil_field("n_cor_sol",  depository, ancil_fields, mesh,  &
-                             twod_mesh, time_axis=aerosol_time_axis,        &
-                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
+      if (ancil_option == ancil_option_updating) then
+        ! Fields are owned by the aerosol file object, which handles the updates
+        do i_aer = 1, size(aerosol_ancil_names, 2)
+          call setup_ancil_field(trim(aerosol_ancil_names(1,i_aer)),       &
+                                 depository, ancil_fields, mesh, twod_mesh, &
+                                 read_by_file=.true.)
+        end do
+      else
+        call aerosol_time_axis%initialise( "aerosols_time",          &
+                                           file_id="aerosols_ancil", &
+                                           interp_flag=interp_flag,  &
+                                           pop_freq="daily" )
+        do i_aer = 1, size(aerosol_ancil_names, 2)
+          call setup_ancil_field(trim(aerosol_ancil_names(1,i_aer)),       &
+                                 depository, ancil_fields, mesh, twod_mesh, &
+                                 time_axis=aerosol_time_axis,              &
+                                 alt_mesh=aerosol_mesh,                    &
+                                 alt_twod_mesh=aerosol_twod_mesh)
+        end do
+        call ancil_times_list%insert_item(aerosol_time_axis)
+      end if
 
       ! The following fields will need including when dust is available in the
       ! ancillary file:
       !   acc_sol_du, cor_sol_du, n_acc_ins, acc_ins_du, n_cor_ins, cor_ins_du
-
-      call ancil_times_list%insert_item(aerosol_time_axis)
     end if
 
     !=====  EMISSION ANCILS (dust only) =====
@@ -986,6 +966,71 @@ contains
 
   end subroutine create_fd_ancils_idealised
 
+  !> @details Creates the fields owned by time-varying ancillary file objects
+  !>          and binds them to the collections given to those files. Must be
+  !>          called before the I/O context is closed.
+  !> @param[in,out] depository           The depository field collection
+  !> @param[in,out] aerosol_ancil_fields Collection bound to the aerosol file
+  !> @param[in] mesh                     The current 3d mesh
+  subroutine create_file_owned_ancils( depository, aerosol_ancil_fields, mesh )
+
+    implicit none
+
+    type( field_collection_type ), intent(inout) :: depository
+    type( field_collection_type ), intent(inout) :: aerosol_ancil_fields
+    type( mesh_type ), pointer,    intent(in)    :: mesh
+
+    integer(i_def) :: i
+
+    if (ancil_option /= ancil_option_updating) return
+
+    if ( ( glomap_mode == glomap_mode_climatology ) .or. &
+         ( glomap_mode == glomap_mode_dust_and_clim ) ) then
+      do i = 1, size(aerosol_ancil_names, 2)
+        call create_file_owned_field( aerosol_ancil_names(1,i), depository, &
+                                      aerosol_ancil_fields, mesh )
+      end do
+    end if
+
+  end subroutine create_file_owned_ancils
+
+  !> @details Creates a single-data 3D field in the depository if needed and
+  !>          adds a reference to it in the collection owned by a file object
+  subroutine create_file_owned_field( name, depository, target_fields, mesh )
+
+    implicit none
+
+    character(*),                  intent(in)    :: name
+    type( field_collection_type ), intent(inout) :: depository
+    type( field_collection_type ), intent(inout) :: target_fields
+    type( mesh_type ), pointer,    intent(in)    :: mesh
+
+    type(field_type)                         :: new_field
+    type(function_space_type),       pointer :: vec_space => null()
+    procedure(write_interface),      pointer :: tmp_write_ptr => null()
+    procedure(read_interface),       pointer :: tmp_read_ptr => null()
+    type(field_type),                pointer :: fld_ptr => null()
+    class(pure_abstract_field_type), pointer :: abs_fld_ptr => null()
+
+    if ( .not. depository%field_exists(name) ) then
+      vec_space => function_space_collection%get_fs( mesh, 0, 0, WTheta, 1 )
+      call new_field%initialise( vec_space, name=trim(name) )
+      tmp_write_ptr => write_field_generic
+      call new_field%set_write_behaviour(tmp_write_ptr)
+      call depository%add_field(new_field)
+    end if
+
+    call depository%get_field(name, fld_ptr)
+    ! The file object copies this method into its read buffers
+    tmp_read_ptr => read_field_generic
+    call fld_ptr%set_read_behaviour(tmp_read_ptr)
+    abs_fld_ptr => fld_ptr
+    call target_fields%add_reference_to_field(abs_fld_ptr)
+
+    nullify(vec_space, tmp_write_ptr, tmp_read_ptr, fld_ptr, abs_fld_ptr)
+
+  end subroutine create_file_owned_field
+
   !> @details Adds fields to the ancil collection, sets up their read and write
   !>      behaviour and creates them in the depository if they do not yet exist
   !> @param[in] name The field name
@@ -995,11 +1040,12 @@ contains
   !> @param[in, optional] twod_mesh The current 2d mesh
   !> @param[in, optional] ndata Number of non-spatial dimensions for multi-data
   !>                            field
+  !> @param[in, optional] read_by_file Whether the file object reads this field
   !> @param[in, out, optional] time_axis Time axis associated with ancil field
   !> @param[in, optional] alt_mesh      Alternative 3d mesh for time axis fields
   !> @param[in, optional] alt_twod_mesh Alternative 2d mesh for time axis fields
   subroutine setup_ancil_field( name, depository, ancil_fields, mesh, &
-                                twod_mesh, twod, ndata, ndata_first,  &
+                                twod_mesh, twod, ndata, ndata_first, read_by_file, &
                                 time_axis, alt_mesh, alt_twod_mesh  )
 
     implicit none
@@ -1012,6 +1058,7 @@ contains
     logical(l_def),       optional, intent(in)          :: twod
     integer(i_def),       optional, intent(in)          :: ndata
     logical(l_def),       optional, intent(in)          :: ndata_first
+    logical(l_def),       optional, intent(in)          :: read_by_file
     type(time_axis_type), optional, intent(inout)       :: time_axis
     type( mesh_type ), optional, pointer, intent(in)    :: alt_mesh
     type( mesh_type ), optional, pointer, intent(in)    :: alt_twod_mesh
@@ -1021,6 +1068,7 @@ contains
     integer(i_def)            :: ndat, time_ndat
     logical(l_def)            :: twod_field
     logical(l_def)            :: ndat_first
+    logical(l_def)            :: file_owned
     integer(i_def), parameter :: fs_order_h = 0
     integer(i_def), parameter :: fs_order_v = 0
 
@@ -1046,6 +1094,11 @@ contains
        ndat_first = ndata_first
     else
        ndat_first = .false.
+    end if
+    if (present(read_by_file)) then
+      file_owned = read_by_file
+    else
+      file_owned = .false.
     end if
 
     ! If field does not yet exist, then create it
@@ -1110,7 +1163,10 @@ contains
     ! Get a field pointer from the depository
     call depository%get_field(name, fld_ptr)
 
-    if (.not. present(time_axis)) then
+    if (file_owned) then
+      nullify(tmp_read_ptr)
+      call fld_ptr%set_read_behaviour(tmp_read_ptr)
+    else if (.not. present(time_axis)) then
       !Set up field read behaviour for 2D and 3D fields
       tmp_read_ptr => read_field_generic
       ! Set field read behaviour for target field
