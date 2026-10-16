@@ -1,5 +1,8 @@
-<field_definition>
-<field_group id="lfric_dictionary" operation="instant" prec="8">
+<!-- the precision is specified here to ensure any diagnostics inherited from
+     this file obtain this value, whilst the checkpoint files obey overriding
+     values from the field definitions and the model precision default -->
+<field_definition prec="4">
+<field_group id="lfric_dictionary" operation="instant">
   <!-- gungho fields -->
   <field id="theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" />
   <field id="rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" grid_ref="half_level_face_grid" />
@@ -255,8 +258,6 @@
   <field id="conv_prog_dtheta" name="conv_prog_dtheta" long_name="convective_prognostic_dtheta" unit="K" grid_ref="full_level_face_grid" />
   <field id="conv_prog_dmv" name="conv_prog_dmv" long_name="convective_prognostic_dmv" unit="kg kg-1" grid_ref="full_level_face_grid" />
   <field id="conv_prog_precip" name="conv_prog_precip" long_name="convective_prognostic_precipitation" unit="kg m-2 s-1" grid_ref="full_level_face_grid" />
-  <field id="cv_base" name="cv_base" long_name="model_level_number_at_conv_cloud_base" unit="1" domain_ref="face" />
-  <field id="cv_top" name="cv_top" long_name="model_level_number_at_conv_cloud_top" unit="1" domain_ref="face" />
   <!-- electric fields -->
   <field id="flash_potential" name="flash_potential" long_name="lightning_flash_potential" unit="1" domain_ref="face" />
   <!-- microphysics fields -->
@@ -358,8 +359,10 @@
   <field id="aer_lw_asymmetry" name="aer_lw_asymmetry" long_name="aer_lw_asymmetry" unit="1" grid_ref="full_level_face_grid_lw_bands_aero_modes" />
   <!-- stochastic fields -->
   <field id="blpert_rand_fld" name="blpert_rand_fld" long_name="blpert_random_number" unit="1" domain_ref="face" />
-  <field id="blpert_flag" name="blpert_flag" long_name="blpert_perturbed_flag" unit="1" domain_ref="face" />
-  <field id="random_seed" name="random_seed" long_name="random_seed_for_stochastic_physics" unit="1" grid_ref="random_seed_grid" />
+  <!-- integer field can use prec=2 -->
+  <field id="blpert_flag" name="blpert_flag" long_name="blpert_perturbed_flag" unit="1" domain_ref="face" prec="2" />
+  <!-- 32bit integer contains large numbers - these can only be accurately checkpointed as 64-bit reals -->
+  <field id="random_seed" name="random_seed" long_name="random_seed_for_stochastic_physics" unit="1" grid_ref="random_seed_grid" prec="8"/>
   <field id="spt_spectral_coeffc" name="spt_spectral_coeffc" long_name="spt_real_spectral_coefficients_for_stochastic_physics" unit="1" grid_ref="stochastic_physics_grid" />
   <field id="spt_spectral_coeffs" name="spt_spectral_coeffs" long_name="spt_imaginary_spectral_coefficients_for_stochastic_physics" unit="1" grid_ref="stochastic_physics_grid" />
   <field id="spt_power_law" name="spt_power_law" long_name="spt_power_law_for_stochastic_physics" unit="1" grid_ref="stochastic_physics_grid" />
@@ -404,6 +407,7 @@
   <field id="frozen_soil_moisture" name="frozen_soil_moisture" long_name="mass_fraction_of_frozen_water_in_saturated_soil_moisture" unit="1" domain_ref="face" axis_ref="soil_levels" />
   <!-- energy correction -->
   <field id="temperature_correction_rate" name="temperature_correction_rate" long_name="temperature_rate_for_energy_correction" unit="K s-1" axis_ref="scalar_axis" />
+  <!-- coupling -->
   <field id="lf_inland_flow" name="lf_inland_flow" long_name="lf_inland_flow" unit="kg m-2 s-1" domain_ref="face" />
   <field id="lf_icefrc" name="lf_icefrc" long_name="lf_icefrc" unit="1" domain_ref="face" axis_ref="sea_ice_categories" />
   <field id="lf_icetck" name="lf_icetck" long_name="lf_icetck" unit="m" domain_ref="face" axis_ref="sea_ice_categories" />

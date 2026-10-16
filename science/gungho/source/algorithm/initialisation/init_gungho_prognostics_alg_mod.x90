@@ -346,7 +346,7 @@ contains
     ! Internal variables
     integer(kind=i_def)                 :: element_order_h, &
                                            element_order_v
-    type(field_type)                    :: r_rho
+    type(field_type)                    :: r_rho, mask
     type(field_type),           pointer :: chi(:) => null()
     type(field_type),           pointer :: panel_id => null()
     type(operator_type),        pointer :: m3_inv => null()
@@ -376,9 +376,11 @@ contains
     select case(eos_method)
       case(eos_method_sampled)
         ! Diagnose density from equation of state by sampling
-        call invoke( sample_eos_rho_kernel_type( rho, exner, theta,     &
+        call mask%initialise( vector_space =  rho%get_function_space() )
+        call invoke( setval_c(mask, 1.0_r_def),                         &
+                     sample_eos_rho_kernel_type( rho, exner, theta,     &
                                                  moist_dyn(gas_law),    &
-                                                 kappa, rd, p_zero ) )
+                                                 mask, kappa, rd, p_zero ) )
       case(eos_method_projected)
         ! Diagnose density from equation of state by projection
         call invoke( setval_c( r_rho, 0.0_r_def ),                      &

@@ -13,7 +13,7 @@
         platform = {{ROSE_ORIG_HOST}}
 {% endif %}
 
-    {# Family for lfric_coupled rivers/ocean 1st step builds #}
+    {# Family for coupled rivers/ocean 1st step builds #}
     [[METO_FCM_MAKE]]
         platform = spice
         [[[directives]]]

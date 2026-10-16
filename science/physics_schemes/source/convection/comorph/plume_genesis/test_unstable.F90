@@ -80,7 +80,6 @@ real(kind=real_hmprec) :: Nsq_dry ( nx_full, ny_full )
 real(kind=real_hmprec), parameter :: zero_p = 0.0_real_hmprec
 real(kind=real_hmprec) :: gravity_p
 
-
 ! Loop counters
 integer :: i, j
 

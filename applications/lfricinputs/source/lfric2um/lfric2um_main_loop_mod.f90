@@ -79,23 +79,23 @@ do i_stash = 1, lfric2um_config%num_fields
   num_levels = lfricinp_get_num_levels(um_output_file, stashcode)
 
   !---------------------------------------------------------------------------
-  ! Select appropriate weights
-  !---------------------------------------------------------------------------
-  weights => get_weights(stashcode)
-
-  !---------------------------------------------------------------------------
   ! Get pointer to lfric field + read
   !---------------------------------------------------------------------------
   call lfric_fields%get_field(get_field_name(stashcode), lfric_field)
   call lfric_field%read_field("read_"//lfric_field%get_name())
 
   !---------------------------------------------------------------------------
-  ! Allocate space for global data, only need full field on rank 0
+  ! Allocate space for global data and get weights. Only on rank 0
   !---------------------------------------------------------------------------
   if (allocated(global_field_array)) deallocate(global_field_array)
   if (local_rank == 0) then
+    !---------------------------------------------------------------------------
+    ! Select appropriate weights
+    !---------------------------------------------------------------------------
+    weights => get_weights(stashcode)
     allocate(global_field_array(weights%num_points_src))
   else
+    nullify(weights)
     allocate(global_field_array(1))
   end if
 
