@@ -15,7 +15,7 @@ module lfric2lfric_infrastructure_mod
   use add_mesh_map_mod,            only: add_mesh_map
   use blend_orography_alg_mod,     only: blend_orography
   use constants_mod,               only: str_def, str_max_filename, &
-                                         r_def, i_def, l_def, r_second
+                                         r_def, i_def, l_def, r_second, str_def
   use create_mesh_mod,             only: create_mesh
   use driver_modeldb_mod,          only: modeldb_type
   use driver_fem_mod,              only: init_fem
@@ -240,6 +240,8 @@ contains
 
     character(str_def) :: stored_twod_names(2)
     character(str_def) :: stored_mesh_names(2)
+
+    character(str_def) :: c_name
 
     ! -------------------------------
     ! Extract namelist variables
@@ -618,16 +620,21 @@ contains
 #ifdef MCT
         ! Create oasis partitions and coupling variables
         ! Source fields
-        call lfric2lfric_init_coupler_src(twod_mesh_src, "coupling",     &
+        c_name = "coupling"
+        call lfric2lfric_init_coupler_src(TRIM(c_name), &
                                        element_order_h, element_order_v, &
-                                       modeldb)
+                                       twod_mesh_src, modeldb)
+
         ! Destination fields
-        call lfric2lfric_init_coupler_dst(twod_mesh_dst, "coupling_dst", &
+        c_name = "coupling_dst" 
+        call lfric2lfric_init_coupler_dst(TRIM(c_name), &
                                        element_order_h, element_order_v, &
-                                       modeldb)
+                                       twod_mesh_dst, modeldb)
 
         ! Finish coupling definition
-        call lfric2lfric_end_coupler_init(modeldb, "coupling")
+        c_name = "coupling" 
+        call lfric2lfric_end_coupler_init(modeldb, TRIM(c_name))
+ 
 #else
         write(log_scratch_space,'(A)')                          &
             'ERROR: selected regrid_method=oasis, but OASIS libraries '// &
@@ -652,10 +659,10 @@ contains
 
       ! Regrid the source orography onto the mesh of the destination orography
       ! ----------------------------------------------------------------------
-      cpl_snd_2d => modeldb%fields%get_field_collection("cpl_snd_2d")
+      cpl_snd_2d => modeldb%fields%get_field_collection("src_face" // "cpl_snd_2d")
       call cpl_snd_2d%get_field("src_face", src_field)
 
-      cpl_rcv_2d => modeldb%fields%get_field_collection("cpl_rcv_2d")
+      cpl_rcv_2d => modeldb%fields%get_field_collection("dst_face" // "cpl_rcv_2d")
       call cpl_rcv_2d%get_field("dst_face", dst_field)
 
       call invoke(setval_x(src_field, surface_altitude_src))

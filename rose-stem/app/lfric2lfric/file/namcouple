@@ -35,7 +35,7 @@
 # This is the total number of fields being exchanged.   
 # For the definition of the fields, see under $STRINGS keyword  
 #  
-          1 
+          2 
  $END  
 ###########################################################################  
  $RUNTIME  
@@ -67,5 +67,18 @@ src_face dst_face 1 1 1 lfric2lfric_restart_oa.nc EXPORTED
 #
  MAPPING
  weight_file_face_to_face.nc
-#  
+#
+
+############################################################################
+#                      SOURCE(masked) --->>> DESTINATION(masked)
+#                  -------------------------
+############################################################################
+src_masked dst_masked 1 141 1 lfric2lfric_restart_oa.nc EXPORTED
+ 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1
+ R  0  R 0
+#
+ MAPPING
+ weight_file_face_to_face.nc
+#
+
 $END
