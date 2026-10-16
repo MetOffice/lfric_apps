@@ -623,10 +623,6 @@ subroutine radaer_code( nlayers,                                               &
   npd_exclude_lw = SIZE( lw_index_exclude, 1 )
   npd_exclude_sw = SIZE( sw_index_exclude, 1 )
 
-  ! Note that this is inverted compared to the UM
-  ! This will be dealt with in ukca_radaer_band_average
-  trindxrad(1) = trop_level( map_2d(1) )
-
   !-----------------------------------------------------------------------
   ! Populate ukca_radaer element arrays
   ! Note that nucleation mode gets ignored in some of these
