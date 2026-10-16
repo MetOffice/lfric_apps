@@ -64,6 +64,12 @@
         "memory": [24, "GB"],
     }) %}
 
+{% elif task_ns.conf_name == "ral_dev-seuk_MG" %}
+
+    {% do task_dict.update({
+        "memory": [24, "GB"],
+    }) %}
+
 {% elif task_ns.conf_name == "ral3_mixmol-seuk_MG" %}
 
     {% do task_dict.update({
