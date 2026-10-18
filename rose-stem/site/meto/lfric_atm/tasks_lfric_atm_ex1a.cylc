@@ -5,42 +5,42 @@
 {# ########################################################################### #}
 {% do LOG.debug("Entered site/meto/lfric_atm/tasks_lfric_atm_ex1a.cylc") %}
 
-{% if task_ns.conf_name == "nwp_gal9-C48_MG" %}
+{% if task_ns.conf_name == "nwp_gal10-C48_MG" %}
     {% do task_dict.update({
         "memory": [40, "GB"],
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_coarse_aero-C48_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_coarse_aero-C48_MG" %}
 
     {% do task_dict.update({
         "memory": [36, "GB"],
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_coarse_aero_threaded-C48_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_coarse_aero_threaded-C48_MG" %}
 
     {% do task_dict.update({
         "memory": [24, "GB"],
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_debug-C48_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_debug-C48_MG" %}
 
     {% do task_dict.update({
         "memory": [36, "GB"],
     }) %}
 
-{% elif task_ns.conf_name == "clim_gal9-C12" %}
+{% elif task_ns.conf_name == "clim_gal10-C12" %}
 
     {% do task_dict.update({
         "memory": [24, "GB"],
     }) %}
 
-{% elif task_ns.conf_name == "clim_gal9_short-C12" %}
+{% elif task_ns.conf_name == "clim_gal10_short-C12" %}
 
     {% do task_dict.update({
         "memory": [24, "GB"],
     }) %}
 
-{% elif task_ns.conf_name == "clim_gal9_chem-C12" %}
+{% elif task_ns.conf_name == "clim_gal10_chem-C12" %}
 
     {% do task_dict.update({
         "memory": [24, "GB"],
@@ -82,7 +82,7 @@
         "memory": [24, "GB"],
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9-C896_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10-C896_MG" %}
 
     {% if "-64bit" in task_ns.extras %}
         {% do task_dict.update({

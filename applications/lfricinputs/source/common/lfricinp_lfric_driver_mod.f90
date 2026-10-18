@@ -56,8 +56,8 @@ use lfricinp_um_parameters_mod, only: fnamelen
 implicit none
 
 private
-public :: lfricinp_initialise_lfric, lfricinp_finalise_lfric, lfric_fields,    &
-          io_context
+public :: lfricinp_initialise_lfric, lfricinp_setup_basics, lfricinp_finalise_lfric, &
+          lfric_fields, io_context
 
 ! Input namelist configuration
 character(len=fnamelen), public :: lfric_nl_fname
@@ -84,26 +84,60 @@ type(lfric_xios_context_type), target :: io_context
 
 contains
 
-function lfricinp_initialise_lfric(program_name_arg,                         &
-                                   required_lfric_namelists,                 &
+function lfricinp_setup_basics(program_name_arg,          &
+                               required_lfric_namelists)  &
+                               result(config)
+  character(len=*),    intent(in) :: program_name_arg
+  character(len=*),    intent(in) :: required_lfric_namelists(:)
+
+  type(config_type) :: config
+
+
+  ! Set module variables
+  program_name = program_name_arg
+  xios_id = trim(program_name) // "_client"
+
+  ! Initialise MPI and create the default communicator: mpi_comm_world
+  call create_comm(comm)
+
+  ! Initialise xios
+  call lfric_xios_initialise( program_name, comm, .false. )
+
+  ! Save LFRic's part of the split communicator for later use, and
+  ! set the total number of ranks and the local rank of the split
+  ! communicator
+  call global_mpi%initialise(comm)
+  total_ranks = global_mpi%get_comm_size()
+  local_rank = global_mpi%get_comm_rank()
+
+  ! Initialise halo functionality
+  call initialise_halo_comms( comm )
+
+  call config%initialise( program_name_arg )
+
+  call load_configuration( lfric_nl_fname, required_lfric_namelists, config )
+
+  ! Initialise logging system
+  call init_logger( config, comm, program_name )
+
+end function lfricinp_setup_basics
+
+subroutine lfricinp_initialise_lfric(config,                                 &
                                    start_date, time_origin,                  &
                                    first_step, last_step,                    &
-                                   spinup_period, seconds_per_step)          &
-                            result(config)
+                                   spinup_period, seconds_per_step)
+
 
 ! Description:
 !  Initialises LFRic infrastructure, MPI, XIOS and halos.
 
 implicit none
 
-character(len=*),    intent(in) :: program_name_arg
-character(len=*),    intent(in) :: required_lfric_namelists(:)
+type(config_type),   intent(inout) :: config
 character(len=*),    intent(in) :: start_date, time_origin
 integer(kind=i_def), intent(in) :: first_step, last_step
 real(r_second),      intent(in) :: spinup_period
 real(r_second),      intent(in) :: seconds_per_step
-
-type(config_type) :: config
 
 type(step_calendar_type), allocatable :: model_calendar
 type(linked_list_type),   pointer     :: file_list => null()
@@ -142,33 +176,6 @@ integer(i_def) :: tile_size_y
 
 integer(i_def), allocatable :: tile_size(:,:)
 !=====================================================================
-
-! Set module variables
-program_name = program_name_arg
-xios_id = trim(program_name) // "_client"
-
-! Initialise MPI and create the default communicator: mpi_comm_world
-call create_comm(comm)
-
-! Initialise xios
-call lfric_xios_initialise( program_name, comm, .false. )
-
-! Save LFRic's part of the split communicator for later use, and
-! set the total number of ranks and the local rank of the split
-! communicator
-call global_mpi%initialise(comm)
-total_ranks = global_mpi%get_comm_size()
-local_rank = global_mpi%get_comm_rank()
-
-!Initialise halo functionality
-call initialise_halo_comms( comm )
-
-call config%initialise( program_name_arg )
-
-call load_configuration( lfric_nl_fname, required_lfric_namelists, config )
-
-! Initialise logging system
-call init_logger( config, comm, program_name )
 
 call init_collections()
 
@@ -286,7 +293,7 @@ call advance(io_context, model_clock)
 
 nullify(chi, panel_id, chi_inventory, panel_id_inventory)
 
-end function lfricinp_initialise_lfric
+end subroutine lfricinp_initialise_lfric
 
 !------------------------------------------------------------------
 
@@ -310,9 +317,6 @@ logical, allocatable :: success_map(:)
 integer              :: i
 
 allocate(success_map(size(required_lfric_namelists)))
-
-call log_event('Loading '//trim(program_name)//' configuration ...',           &
-               LOG_LEVEL_ALWAYS)
 
 call read_configuration( lfric_nl, config=config )
 
