@@ -42,6 +42,11 @@ contains
     type(field_type),  intent(in) :: theta
     type(field_type),  intent(in) :: exner_in_wth
 
+    real(kind=r_def), parameter :: minus_20_celsius =                      &
+                                   zero_degrees_celsius - 20.0_r_def
+    real(kind=r_def), parameter :: minus_70_celsius =                      &
+                                   zero_degrees_celsius - 70.0_r_def
+
     ! Only the freezing level is extrapolated below the surface
     call isotherm_diags(config, theta, exner_in_wth,                       &
                         zero_degrees_celsius, .true._l_def,                &
@@ -50,13 +55,13 @@ contains
                         'aviation__freezing_level_icao_height')
 
     call isotherm_diags(config, theta, exner_in_wth,                       &
-                        zero_degrees_celsius - 20.0_r_def, .false._l_def,  &
+                        minus_20_celsius, .false._l_def,                   &
                         'aviation__isotherm_minus20c_height',              &
                         'aviation__isotherm_minus20c_pressure',            &
                         'aviation__isotherm_minus20c_icao_height')
 
     call isotherm_diags(config, theta, exner_in_wth,                       &
-                        zero_degrees_celsius - 70.0_r_def, .false._l_def,  &
+                        minus_70_celsius, .false._l_def,                   &
                         'aviation__isotherm_minus70c_height',              &
                         'aviation__isotherm_minus70c_pressure',            &
                         'aviation__isotherm_minus70c_icao_height')

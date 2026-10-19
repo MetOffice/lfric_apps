@@ -20,7 +20,8 @@ module isotherm_diags_kernel_mod_test
   public :: test_simple_crossing, test_highest_crossing,          &
             test_crossing_above_cutoff, test_cold_surface,        &
             test_cold_surface_extrapolated, test_extrapolation_cap, &
-            test_no_crossing, test_unrequested_output
+            test_no_crossing, test_unrequested_height,            &
+            test_unrequested_pressure
 
   integer(i_def), parameter :: nlayers = 4_i_def
   integer(i_def), parameter :: ndf_wth = 1_i_def
@@ -207,9 +208,9 @@ contains
 
   end subroutine test_no_crossing
 
-  !> @brief An output that was not requested is left untouched.
+  !> @brief An unrequested height is left untouched.
   @test
-  subroutine test_unrequested_output()
+  subroutine test_unrequested_height()
 
     use empty_data_mod,            only: empty_real_data
     use isotherm_diags_kernel_mod, only: isotherm_diags_code
@@ -245,6 +246,46 @@ contains
     @assertTrue( isotherm_pressure(1) > 0.0_r_def )
     deallocate( isotherm_pressure )
 
-  end subroutine test_unrequested_output
+  end subroutine test_unrequested_height
+
+  !> @brief An unrequested pressure is left untouched.
+  @test
+  subroutine test_unrequested_pressure()
+
+    use empty_data_mod,            only: empty_real_data
+    use isotherm_diags_kernel_mod, only: isotherm_diags_code
+
+    implicit none
+
+    real(r_def), pointer :: isotherm_height(:), isotherm_pressure(:)
+    real(r_def) :: theta(undf_wth), exner(undf_wth), height(undf_wth)
+    real(r_def) :: empty_before
+    integer(i_def) :: map_wth(ndf_wth), map_2d(ndf_2d)
+
+    theta = [ 290.0_r_def, 280.0_r_def, 275.0_r_def, 270.0_r_def,        &
+              265.0_r_def ]
+    height = [ 0.0_r_def, 1000.0_r_def, 2000.0_r_def, 3000.0_r_def,      &
+               4000.0_r_def ]
+    exner = 1.0_r_def
+    map_wth = 1_i_def
+    map_2d = 1_i_def
+
+    allocate( isotherm_height(undf_2d) )
+    isotherm_height = 0.0_r_def
+    isotherm_pressure => empty_real_data
+    empty_before = empty_real_data(1)
+
+    call isotherm_diags_code( nlayers, theta, isotherm_height,           &
+                              isotherm_pressure, exner, height,          &
+                              273.15_r_def, .true._l_def, p_zero,        &
+                              recip_kappa, g_over_r, ndf_wth, undf_wth,  &
+                              map_wth,                                   &
+                              ndf_2d, undf_2d, map_2d )
+
+    @assertEqual( empty_before, empty_real_data(1) )
+    @assertEqual( 2370.0_r_def, isotherm_height(1), 1.0e-6_r_def )
+    deallocate( isotherm_height )
+
+  end subroutine test_unrequested_pressure
 
 end module isotherm_diags_kernel_mod_test
