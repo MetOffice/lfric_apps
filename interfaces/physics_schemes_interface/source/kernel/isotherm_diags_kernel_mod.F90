@@ -68,7 +68,7 @@ contains
   !> @param[in]     extrapolate        Extrapolate below the surface if the
   !>                                   lowest level is colder than t_ref
   !> @param[in]     p_zero             Reference pressure for Exner (Pa)
-  !> @param[in]     kappa              Ratio of R to cp
+  !> @param[in]     recip_kappa        Ratio of cp to R
   !> @param[in]     g_over_r           Gravity divided by the gas constant
   !> @param[in]     ndf_wth            Number of DOFs per cell for Wtheta
   !> @param[in]     undf_wth           Number of unique DOFs for Wtheta
@@ -85,7 +85,7 @@ contains
                                   t_ref,                &
                                   extrapolate,          &
                                   p_zero,               &
-                                  kappa,                &
+                                  recip_kappa,          &
                                   g_over_r,             &
                                   ndf_wth, undf_wth, map_wth, &
                                   ndf_2d, undf_2d, map_2d )
@@ -108,7 +108,7 @@ contains
     real(kind=r_def),    intent(in) :: t_ref
     logical(kind=l_def), intent(in) :: extrapolate
     real(kind=r_def),    intent(in) :: p_zero
-    real(kind=r_def),    intent(in) :: kappa
+    real(kind=r_def),    intent(in) :: recip_kappa
     real(kind=r_def),    intent(in) :: g_over_r
 
     ! Lapse rate (K/m) and pressure gradient (Pa/m) assumed below the surface
@@ -136,11 +136,11 @@ contains
       if ( extrapolate ) then
         dz = ( t_lower - t_ref ) / lapse_below_surface
         z_iso = max( height_wth(map_wth(1)) + dz, 0.0_r_def )
-        p_iso = p_zero * exner(map_wth(1))**( 1.0_r_def / kappa ) &
+        p_iso = p_zero * exner(map_wth(1))**recip_kappa &
               + dpdz_below_surface * dz
       else
         z_iso = height_wth(map_wth(1))
-        p_iso = p_zero * exner(map_wth(1))**( 1.0_r_def / kappa )
+        p_iso = p_zero * exner(map_wth(1))**recip_kappa
       end if
     end if
 
@@ -164,7 +164,7 @@ contains
       lapse = ( t_lower - t_upper )                                        &
             / ( height_wth(map_wth(1) + k) - height_wth(map_wth(1) + k - 1) )
       z_iso = height_wth(map_wth(1) + k - 1) + ( t_lower - t_ref ) / lapse
-      p_iso = p_zero * exner(map_wth(1) + k - 1)**( 1.0_r_def / kappa )    &
+      p_iso = p_zero * exner(map_wth(1) + k - 1)**recip_kappa              &
             * ( t_ref / t_lower )**( g_over_r / lapse )
     end if
 

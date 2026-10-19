@@ -29,7 +29,7 @@ module isotherm_diags_kernel_mod_test
   integer(i_def), parameter :: undf_2d = 1_i_def
 
   real(r_def), parameter :: p_zero = 100000.0_r_def
-  real(r_def), parameter :: kappa = 0.2857_r_def
+  real(r_def), parameter :: recip_kappa = 1.0_r_def / 0.2857_r_def
   real(r_def), parameter :: g_over_r = 9.80665_r_def / 287.05_r_def
   real(r_def), parameter :: tol = 1.0e-8_r_def
 
@@ -64,7 +64,7 @@ contains
 
     call isotherm_diags_code( nlayers, theta, isotherm_height,           &
                               isotherm_pressure, exner, height, t_ref,   &
-                              extrapolate, p_zero, kappa, g_over_r,      &
+                              extrapolate, p_zero, recip_kappa, g_over_r, &
                               ndf_wth, undf_wth, map_wth,                &
                               ndf_2d, undf_2d, map_2d )
 
@@ -236,8 +236,9 @@ contains
 
     call isotherm_diags_code( nlayers, theta, isotherm_height,           &
                               isotherm_pressure, exner, height,          &
-                              273.15_r_def, .true._l_def, p_zero, kappa, &
-                              g_over_r, ndf_wth, undf_wth, map_wth,      &
+                              273.15_r_def, .true._l_def, p_zero,        &
+                              recip_kappa, g_over_r, ndf_wth, undf_wth,  &
+                              map_wth,                                   &
                               ndf_2d, undf_2d, map_2d )
 
     @assertEqual( empty_before, empty_real_data(1) )
