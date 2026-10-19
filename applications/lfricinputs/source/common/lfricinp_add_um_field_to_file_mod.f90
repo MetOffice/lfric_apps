@@ -234,7 +234,7 @@ if (lookup_int(lbvc) >= 126 .and. lookup_int(lbvc) <= 139 &
      "Vertical coord type ", lookup_int(lbvc), " treated as single layer"
   call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
 
-  ! set level heights to 0.0 - potentially except bulev & bhulev?
+  ! set level heights to 0.0
   lookup_real_tmp(blev)=0.0_real64
   lookup_real_tmp(bhlev)=0.0_real64
   lookup_real_tmp(brlev)=0.0_real64
@@ -242,10 +242,13 @@ if (lookup_int(lbvc) >= 126 .and. lookup_int(lbvc) <= 139 &
   lookup_real_tmp(bulev)=0.0_real64
   lookup_real_tmp(bhulev)=0.0_real64
 
-  ! Pseudo-level number
   if ( get_stashmaster_item(stashcode, pseudt) /= 0 ) then
+    ! Setting the pseudo-level number for pseudo-level fields
 
     if ( get_stashmaster_item(stashcode, pseudl) == 11 ) then
+      ! Calculating the pseudo-level number for snow fields
+      ! This number is [land tile number]*1000 + [snow layer]
+      ! Number of snow layers is taken to be 3 - TODO unhardcode?
       snow_level_number = ( (level_number + 2)/3 ) * 1000                    &
                            + (level_number - ((level_number + 2)/3 - 1)*3)
       lookup_int(lbuser5) = snow_level_number
@@ -254,6 +257,7 @@ if (lookup_int(lbvc) >= 126 .and. lookup_int(lbvc) <= 139 &
       call log_event(log_scratch_space, LOG_LEVEL_INFO)
 
     else
+      ! Setting the pseudo-level number for all other types
       lookup_int(lbuser5) = level_number
       write(log_scratch_space, '(A,I0)')                                     &
         "Pseudo-level number set as  ", level_number

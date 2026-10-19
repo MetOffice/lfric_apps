@@ -9,7 +9,7 @@ module lfricinp_um_grid_mod
 use, intrinsic :: iso_fortran_env, only : int64
 
 ! LFRic modules
-use log_mod, only: log_event, log_scratch_space, LOG_LEVEL_INFO, LOG_LEVEL_ERROR
+use log_mod, only: log_event, LOG_LEVEL_INFO, LOG_LEVEL_ERROR
 
 ! UM2LFRic modules
 use lfricinp_grid_type_mod, only: lfricinp_grid_type
@@ -66,6 +66,9 @@ implicit none
 ! Arguments
 integer(kind=int64), intent(in) :: num_snow_layers
 integer(kind=int64), intent(in) :: num_surface_types
+
+
+call log_event("Setting grid information from namelist", LOG_LEVEL_INFO)
 
 ! Set pseudo level information
 um_grid%num_snow_layers = num_snow_layers
