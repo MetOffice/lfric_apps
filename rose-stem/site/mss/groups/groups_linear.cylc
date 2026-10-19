@@ -1,0 +1,57 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/groups/groups_linear.cylc") %}
+
+{# asp2a Groups #}
+{% do site_groups.update({
+    "linear_asp2a_developer": [
+        "linear_asp2a_unit_tests",
+        "linear_asp2a_integration_tests",
+    ],
+    "linear_asp2a": [
+        "linear_asp2a_developer",
+    ],
+    "linear_asp2a_unit_tests": [
+        "linear_unit_tests_asp2a_intel_64bit",
+    ],
+    "linear_asp2a_integration_tests": [
+        "linear_integration_tests_asp2a_intel_64bit",
+    ],
+    }) %}
+
+{# Platform Generic Groups #}
+{% do site_groups.update({
+    "linear_developer": [
+        "scripts",
+        "linear_asp2a_developer",
+        "linear_unit_tests",
+        "linear_integration_tests",
+    ],
+    "linear": [
+        "linear_developer",
+        "linear_asp2a",
+    ],
+    "linear_unit_tests": [
+        "linear_asp2a_unit_tests",
+    ],
+    "linear_integration_tests": [
+        "linear_asp2a_integration_tests",
+    ],
+    }) %}
+
+{# Generic Extends #}
+{% do site_groups.developer.extend(site_groups.linear_developer) %}
+{% do site_groups.all.extend(site_groups.linear) %}
+{% do site_groups.unit_tests.extend(site_groups.linear_unit_tests) %}
+{% do site_groups.integration_tests.extend(site_groups.linear_integration_tests) %}
+
+{# asp2a Extends #}
+{% do site_groups.asp2a_developer.extend(site_groups.linear_asp2a_developer) %}
+{% do site_groups.asp2a.extend(site_groups.linear_asp2a) %}
+{% do site_groups.asp2a_unit_tests.extend(site_groups.linear_asp2a_unit_tests) %}
+{% do site_groups.asp2a_integration_tests.extend(site_groups.linear_asp2a_integration_tests) %}
+
+{% do LOG.debug("Finished in site/meto/groups/groups_linear.cylc") %}

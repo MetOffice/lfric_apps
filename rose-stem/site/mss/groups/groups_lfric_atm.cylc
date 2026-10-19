@@ -1,0 +1,119 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/groups/groups_lfric_atm.cylc") %}
+
+{# ###################################################################### #}
+{# asp2a Test Groups #}
+{# ###################################################################### #}
+{% do site_groups.update({
+    "lfric_atm_nwp_asp2a_developer": [
+        "lfric_atm_nwp_gal10-C12_asp2a_intel_fast-debug-64bit",
+        "lfric_atm_nwp_gal10-C12_asp2a_intel_production-64bit-rbl32-rtran32",
+        "lfric_atm_nwp_gal10_mol-C12_asp2a_intel_fast-debug-64bit",
+        "lfric_atm_nwp_gal10_debug-C12_asp2a_intel_full-debug-64bit",
+        "lfric_atm_nwp_gal10_short-C12_asp2a_intel_fast-debug-64bit",
+    ],
+    "lfric_atm_nwp_asp2a_extra": [
+        "lfric_atm_nwp_gal10-C48_MG_asp2a_intel_fast-debug-64bit",
+        "lfric_atm_nwp_gal10_coarse_aero-C48_MG_asp2a_intel_fast-debug-64bit",
+        "lfric_atm_nwp_gal10_da-C12_asp2a_intel_fast-debug-64bit",
+        "lfric_atm_nwp_gal10_ls_and_jedi-C12_asp2a_intel_fast-debug-64bit",
+        "lfric_atm_nwp_gal10_debug-C48_MG_asp2a_intel_full-debug-64bit",
+    ],
+    "lfric_atm_nwp_asp2a": [
+        "lfric_atm_nwp_asp2a_developer",
+        "lfric_atm_nwp_asp2a_extra",
+    ],
+    "lfric_atm_ral_asp2a_developer": [
+        "lfric_atm_ral3-seuk_MG_asp2a_intel_production-64bit",
+        "lfric_atm_ral3_ens-seuk_MG_asp2a_intel_production-64bit",
+        "lfric_atm_ral3_mixmol-seuk_MG_asp2a_intel_production-64bit",
+    ],
+    "lfric_atm_scm_asp2a_developer": [
+        "lfric_atm_scm_gal10_bomex-BiP2x2-50000x50000_asp2a_intel_fast-debug-64bit",
+        "lfric_atm_scm_gal10_cbl_dry-BiP2x2-50000x50000_asp2a_intel_fast-debug-64bit",
+        "lfric_atm_scm_gal10_comp_tran_ref-BiP2x2-50000x50000_asp2a_intel_fast-debug-64bit",
+        "lfric_atm_scm_gal10_dice2-BiP2x2-50000x50000_asp2a_intel_fast-debug-64bit",
+        "lfric_atm_scm_gal10_gabls4-BiP2x2-50000x50000_asp2a_intel_fast-debug-64bit",
+        "lfric_atm_scm_gal10_sahara-BiP2x2-50000x50000_asp2a_intel_fast-debug-64bit",
+        "lfric_atm_scm_gal10_seaice-BiP2x2-50000x50000_asp2a_intel_fast-debug-64bit",
+        "lfric_atm_scm_gal10_snow-BiP2x2-50000x50000_asp2a_intel_fast-debug-64bit",
+        "lfric_atm_scm_gal10_toga-BiP2x2-50000x50000_asp2a_intel_fast-debug-64bit",
+        "lfric_atm_scm_llcs-BiP2x2-50000x50000_asp2a_intel_fast-debug-64bit",
+        "lfric_atm_scm_rad_gas-BiP2x2-50000x50000_asp2a_intel_fast-debug-64bit",
+        "lfric_atm_scm_ral3_constrain-BiP2x2-50000x50000_asp2a_intel_fast-debug-64bit",
+        "lfric_atm_scm_ral3_moruses-BiP2x2-50000x50000_asp2a_intel_fast-debug-64bit",
+        "lfric_atm_scm_ral3_urban2t-BiP2x2-50000x50000_asp2a_intel_fast-debug-64bit",
+        "lfric_atm_scm_ukca_land-BiP2x2-50000x50000_asp2a_intel_fast-debug-64bit",
+        "lfric_atm_scm_ukca_sea-BiP2x2-50000x50000_asp2a_intel_production-64bit",
+        "lfric_atm_canned_asp2a_intel_fast-debug-64bit",
+    ],
+    "lfric_atm_asp2a_developer": [
+        "lfric_atm_nwp_asp2a_developer",
+        "lfric_atm_clim_gal10-C12_asp2a_intel_fast-debug-64bit",
+        "lfric_atm_ral_asp2a_developer",
+        "lfric_atm_rce-BiP64x64-1500x1500_MG_asp2a_intel_fast-debug-64bit",
+        "lfric_atm_scm_asp2a_developer",
+    ],
+    "lfric_atm_asp2a_extra": [
+        "lfric_atm_nwp_asp2a_extra",
+        "lfric_atm_clim_gal10_chem-C12_asp2a_intel_fast-debug-64bit",
+        "lfric_atm_aquaplanet-C12_asp2a_intel_fast-debug-64bit",
+        "lfric_atm_thai_ben1-C48_MG_asp2a_intel_fast-debug-64bit",
+    ],
+    "lfric_atm_asp2a": [
+        "lfric_atm_asp2a_developer",
+        "lfric_atm_asp2a_extra",
+    ],
+    "lfric_atm_asp2a_build": [
+        "build_lfric_atm_asp2a_intel_fast-debug-64bit",
+    ],
+    }) %}
+
+{# ###################################################################### #}
+{# asp2a User Groups #}
+{# ###################################################################### #}
+{% do site_groups.update({
+    "lfric_atm_scm": [
+        "lfric_atm_scm_asp2a_developer",
+        "lfric_atm_scm_gal10_cbl-BiP2x2-50000x50000_asp2a_intel_fast-debug-64bit",
+        "lfric_atm_scm_gal10_constrain-BiP2x2-50000x50000_asp2a_intel_fast-debug-64bit",
+        "lfric_atm_scm_ral3_comp_tran_ref-BiP2x2-50000x50000_asp2a_intel_fast-debug-64bit",
+        "lfric_atm_scm_ral3_dice2-BiP2x2-50000x50000_asp2a_intel_fast-debug-64bit",
+    ],
+    }) %}
+
+{# ###################################################################### #}
+{# Platform Generic Groups #}
+{# ###################################################################### #}
+{% do site_groups.update({
+    "lfric_atm_developer": [
+        "scripts",
+        "lfric_atm_asp2a_developer",
+    ],
+    "lfric_atm_extra": [
+        "lfric_atm_asp2a_extra",
+    ],
+    "lfric_atm": [
+        "lfric_atm_developer",
+        "lfric_atm_extra",
+    ],
+    "lfric_atm_build": [
+        "lfric_atm_asp2a_build",
+    ],
+    }) %}
+
+{# Platform Generic Extends #}
+{% do site_groups.developer.extend(site_groups.lfric_atm_developer) %}
+{% do site_groups.all.extend(site_groups.lfric_atm) %}
+{% do site_groups.build.extend(site_groups.lfric_atm_build) %}
+
+{# asp2a Extends #}
+{% do site_groups.asp2a_developer.extend(site_groups.lfric_atm_asp2a_developer) %}
+{% do site_groups.asp2a.extend(site_groups.lfric_atm_asp2a) %}
+{% do site_groups.asp2a_build.extend(site_groups.lfric_atm_asp2a_build) %}
+
+{% do LOG.debug("Finished in site/meto/groups/groups_lfric_atm.cylc") %}
