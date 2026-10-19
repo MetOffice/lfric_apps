@@ -87,7 +87,7 @@ def transform(fin, name):
     return fout
 
 
-def transform_and_write(my_grid):
+def transform_and_write(my_grid, with_mask):
     """Transform arrays and write netcdf output"""
     rank = len(my_grid.shape)
     mrank = my_grid.shape
@@ -124,14 +124,20 @@ def transform_and_write(my_grid):
     lonout.long_name = "grid_center_lon"
     lonout.units = my_grid.ulon
     lonout[:] = transform(my_grid.dlon, 'lon')
-    maskout = outfile.createVariable('grid_imask',
+    maskout.long_name = "grid_imask"
+    if (with_mask):
+      maskout = outfile.createVariable('grid_imask',
                                      numpy.dtype('float64').char,
                                      ('grid_size', ))
-    maskout.long_name = "grid_imask"
-    maskout.units = "mygrid.umask"
-    maskout[:] = transform(my_grid.dmask, 'mask')
-    #print("Set mask to 1 everywhere.")
-    #maskout[:] = numpy.int32(1)
+      maskout.units = "mygrid.umask"
+      maskout[:] = transform(my_grid.dmask, 'mask')
+    else:
+      print("Set mask to 1 everywhere.")
+      maskout = outfile.createVariable('grid_imask',
+                                     numpy.dtype('int32').char,
+                                     ('grid_size', ))
+      maskout.units = "unitless"
+      maskout[:] = numpy.int32(1)
 
     print('Area not generated for model: ', my_grid.vname)
 
@@ -238,7 +244,7 @@ def validate_input(my_grid):
     print('dlat', (my_grid.dlat).shape, my_grid.ulat)
     print('dclo', (my_grid.dclo).shape, my_grid.uclo)
     print('dcla', (my_grid.dcla).shape, my_grid.ucla)
-    print('dmask',(my_grid.dmask).shape, my_grid.umask)
+    print('dmask', (my_grid.dmask).shape, my_grid.umask)
     print('ingore n-fold (NEMO only) ', my_grid.nfold)
     print('----------end validate---------------------')
     return
@@ -281,5 +287,6 @@ if __name__ == "__main__":
     print('DESTINATION grid ')
 
     print('Save SRC -> DST grid info')
-    transform_and_write(SRC_GRID)
-    transform_and_write(DST_GRID)
+    with_mask=False
+    transform_and_write(SRC_GRID, with_mask)
+    transform_and_write(DST_GRID, with_mask)

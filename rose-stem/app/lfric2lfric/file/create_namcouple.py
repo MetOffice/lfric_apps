@@ -13,9 +13,10 @@ The details of the entries are taken from the iodef file and the axis_map.
 
 import xml.etree.ElementTree as ET
 
-NAMCOUPLE_FILE = "new_namcouple"
+NAMCOUPLE_FILE = "namcouple"
 IODEF_FILE = "iodef_ral3.xml"
-PREFIX = "checkpoint"
+PREFIX_OUT = "checkpoint"
+PREFIX_IN = "restart"
 MAX_FREQ = 5000
 
 AXIS_MAP = {
@@ -82,32 +83,63 @@ def write_footer(f):
     f.write("########################################################## \n")
 
 
-def process_field(f, field, count, write):
+def process_multidata_field(f, field, count):
     """
-    For given field, determine the field name and axis.
+    For given multidata field, determine the field name and axis.
     If this is a special field (a multidata field with an axis) then
     create the src and dst name, get the weights file from AXIS_MAP, and
     then write the entry to the namcouple file.
     """
     var = field.get("id")
     axis = field.get("axis_ref")
+    write_var = var.replace(PREFIX_OUT, '')
+    
+    if axis is not None:
+        try:
+            axis_data = AXIS_MAP[axis]
+        except KeyError:
+            raise ValueError(axis + " is not in AXIS_MAP")
+        # axis_data[0] gives the number of levels in the multidata axis
+        # axis_data[1] gives the name of the associated weights file
+        for n in range(1, axis_data[0]+1):
+            src = "src_" + write_var + "_level_" + str(n)
+            dst = "dst_" + write_var + "_level_" + str(n)
+            count += 1
+            write_string(f, count, src, dst, MAX_FREQ, axis_data[1])
+    return count
 
-    # Only process the fields that start with PREFIX. There may be both input and output
-    # fields in the iodef file. We only want to process the output fields.
-    if var.startswith(PREFIX):
+def which_fields(root, field_list):
+    """
+    Determine which fields will be regridded. These fields are in the output
+    (denoted by PREFIX_OUT) and the input (denoted by PREFIX_IN).
+    """
+    for field in root.iter("field"):
+        output_var = field.get("id")
+        if output_var.startswith(PREFIX_OUT):
+            input_var = output_var.replace(PREFIX_OUT, PREFIX_IN)
+            if root.findall('.//field[@id="' + input_var + '"]'):
+                print(output_var + 'in output and ' + input_var + ' in input')
+                field_list.append(field)
+            else:
+                print(output_var + 'in output but ' + input_var + 'not in input')
+    return field_list
+
+
+def count_special_fields(field_list):
+    """
+    Count the total number of multidata fields. This includes counting
+    the number of levels.
+    """
+    count = 0
+    for field in field_list:
+        axis = field.get("axis_ref")
         if axis is not None:
             try:
                 axis_data = AXIS_MAP[axis]
             except KeyError:
                 raise ValueError(axis + " is not in AXIS_MAP")
-            # axis_data[0] gives the number of levels in the multidata axis
-            # axis_data[1] gives the name of the associated weights file
-            for n in range(1, axis_data[0]+1):
-                src = "src_" + var + "_level_" + str(n)
-                dst = "dst_" + var + "_level_" + str(n)
-                count += 1
-                if (write):
-                    write_string(f, count, src, dst, MAX_FREQ, axis_data[1])
+            count = count + axis_data[0]
+    print('Number of multidata fields (with an axis) is ', count)
     return count
 
 
@@ -131,27 +163,32 @@ def main():
 
     with open(NAMCOUPLE_FILE, "w", encoding="utf-8") as f:
 
-        # Count how many fields will be written (without writing)
-        count = 1
-        write = False
-        for field in root.iter("field"):
-            count = process_field(f, field, count, write)
+        # Determine which fields will be regridded (exist in output and input)
+        field_list=[]
+        field_list = which_fields(root, field_list)
+
+        # Count the number of multidata fields to be regridded
+        total_count = count_special_fields(field_list)
+        
+        # Add 1 to the count (field for general regridding)
+        total_count = total_count + 1
 
         # Write the header, including the total count of fields
-        write_header(f, count)
+        write_header(f, total_count)
 
         # Write the string for the general regridding (Entry 1)
+        # using frequency of 1, and weight_file defined in AXIS_MAP.
         count = 1
+        frequency = 1
         try:
             axis_data = AXIS_MAP['general']
         except KeyError:
             raise ValueError(axis + " is not in AXIS_MAP")
-        write_string(f, count, "src_face", "dst_face", 1, axis_data[1])
+        write_string(f, count, "src_face", "dst_face", frequency, axis_data[1])
 
-        # Write the strings for the special fields
-        write = True
-        for field in root.iter("field"):
-            count = process_field(f, field, count, write)
+        # Write the strings for the special fields (Entries 2 to total_count)
+        for field in field_list:
+            count = process_multidata_field(f, field, count)
 
         # Write the footer of the file
         write_footer(f)

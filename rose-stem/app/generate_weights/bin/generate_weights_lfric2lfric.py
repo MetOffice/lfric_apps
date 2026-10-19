@@ -150,8 +150,21 @@ if __name__ == "__main__":
     print('DESTINATION grid ')
 
     print('Save SRC -> DST grid info')
-    transform_and_write(SRC_GRID)
-    transform_and_write(DST_GRID)
+    with_mask=True
+    transform_and_write(SRC_GRID, with_mask)
+    transform_and_write(DST_GRID, with_mask)
+
+    MY_INTER = INTER()
+    MY_INTER.set_regrid_info()
+    MY_INTER.print_info()
+    style = os.environ.get('FORMAT')
+    run_exe(MY_INTER.set_arguments(),
+                "regrid_weights_masked.nc", style)
+
+    print('Save SRC -> DST grid info')
+    with_mask=False
+    transform_and_write(SRC_GRID, with_mask)
+    transform_and_write(DST_GRID, with_mask)
 
     MY_INTER = INTER()
     MY_INTER.set_regrid_info()
