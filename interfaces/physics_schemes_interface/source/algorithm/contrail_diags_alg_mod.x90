@@ -1,0 +1,94 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Claude Code (Claude Opus 5.5), 2026-10-15.
+
+!> @brief Compute and output the ICAO heights of the contrail limits.
+
+module contrail_diags_alg_mod
+
+  use config_mod,                    only: config_type
+  use constants_mod,                 only: l_def
+  use contrail_limits_kernel_mod,    only: contrail_limits_kernel_type
+  use field_mod,                     only: field_type
+  use fs_continuity_mod,             only: W3, Wtheta
+  use function_space_collection_mod, only: function_space_collection
+  use function_space_mod,            only: function_space_type
+  use icao_heights_kernel_mod,       only: icao_heights_kernel_type
+  use initialise_diagnostics_mod,    only: init_diag => init_diagnostic_field
+  use mesh_mod,                      only: mesh_type
+  use planet_config_mod,             only: p_zero, kappa
+  use planet_constants_mod,          only: g_over_r_def
+  use sci_geometric_constants_mod,   only: get_height_fv
+
+  implicit none
+
+  private
+
+  public :: contrail_diags_alg
+
+contains
+
+  !> @brief   Compute and output the ICAO heights of the lower and upper
+  !>          limits of the layer in which contrails are expected to form.
+  !> @param[in] config        Application namelist configuration object
+  !> @param[in] theta         Potential temperature
+  !> @param[in] exner_in_wth  Exner pressure on Wtheta
+  !> @param[in] twod_mesh     The 2D mesh
+  subroutine contrail_diags_alg(config, theta, exner_in_wth, twod_mesh)
+
+    implicit none
+
+    type(config_type), intent(in)          :: config
+    type(field_type),  intent(in)          :: theta, exner_in_wth
+    type(mesh_type),   intent(in), pointer :: twod_mesh
+
+    ! Local fields
+    type(field_type) :: contrail_lower, contrail_upper
+    type(field_type) :: p_lower, p_upper
+    type(field_type),          pointer :: height_wth
+    type(function_space_type), pointer :: vector_space
+
+    logical(l_def) :: contrail_lower_flag, contrail_upper_flag
+
+    nullify(height_wth, vector_space)
+
+    contrail_lower_flag = init_diag(contrail_lower, &
+                                    'aviation__contrail_lower_icao_height')
+    contrail_upper_flag = init_diag(contrail_upper, &
+                                    'aviation__contrail_upper_icao_height')
+
+    if (.not. (contrail_lower_flag .or. contrail_upper_flag)) return
+
+    ! Both limit pressures are needed, as the upper limit search depends
+    ! on the lower one
+    vector_space => function_space_collection%get_fs(twod_mesh, 0, 0, W3)
+    call p_lower%initialise(vector_space)
+    call p_upper%initialise(vector_space)
+
+    height_wth => get_height_fv(config, theta%get_mesh(), Wtheta)
+
+    call invoke( contrail_limits_kernel_type(theta, exner_in_wth,      &
+                                             height_wth,               &
+                                             p_lower, p_upper,         &
+                                             p_zero, kappa,            &
+                                             g_over_r_def) )
+
+    if (contrail_lower_flag) then
+      call invoke( icao_heights_kernel_type(contrail_lower, p_lower, &
+                                            g_over_r_def) )
+      call contrail_lower%write_field()
+    end if
+
+    if (contrail_upper_flag) then
+      call invoke( icao_heights_kernel_type(contrail_upper, p_upper, &
+                                            g_over_r_def) )
+      call contrail_upper%write_field()
+    end if
+
+  end subroutine contrail_diags_alg
+
+end module contrail_diags_alg_mod
