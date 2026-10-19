@@ -51,16 +51,16 @@
         "panel_decomp": "auto_nonuniform",
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal10_deep-C48_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_regrav-C12" %}
 
     {% do task_dict.update({
-        "opt_confs": ["um_dump","deep","test_diags","physics_segmentation"],
-        "resolution": "C48_MG",
+        "opt_confs": ["um_dump","test_diags","regrav"],
+        "resolution": "C12",
         "DT": 1800,
         "tsteps": 36,
-        "mpi_parts": 24,
+        "mpi_parts": 6,
         "kgo_checks": ["checksum"],
-        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diag.nc  $PLOT_DIR",
+        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
 {% elif task_ns.conf_name == "nwp_gal10-pert-C12" %}
@@ -481,7 +481,7 @@
 {% elif task_ns.conf_name == "clim_gal10_short-C12" %}
 
     {% do task_dict.update({
-        "opt_confs": ["climate","lowres_stp","um_dump","no_diags"],
+        "opt_confs": ["climate","reynolds","lowres_stp","um_dump","no_diags"],
         "resolution": "C12",
         "DT": 1800,
         "tsteps": 8,
@@ -519,7 +519,7 @@
 {% elif task_ns.conf_name == "clim_gal10-C12" %}
 
     {% do task_dict.update({
-        "opt_confs": ["climate","lowres_stp","um_dump"],
+        "opt_confs": ["climate","reynolds","lowres_stp","um_dump"],
         "resolution": "C12",
         "DT": 1800,
         "tsteps": 144,
@@ -533,7 +533,7 @@
 {% elif task_ns.conf_name == "clim_gal10-C48_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["climate","um_dump"],
+        "opt_confs": ["climate","reynolds","um_dump"],
         "resolution": "C48_MG",
         "DT": 1800,
         "tsteps": 1440,
@@ -547,7 +547,7 @@
 
 {% elif task_ns.conf_name == "clim_gal10_1T-C12" %}
     {% do task_dict.update({
-        "opt_confs": ["climate", "physics_segmentation","um_dump","no_diags"],
+        "opt_confs": ["climate","reynolds","physics_segmentation","um_dump","no_diags"],
         "resolution": "C12",
         "DT": 1800,
         "tsteps": 48,
@@ -563,7 +563,7 @@
 
 {% elif task_ns.conf_name == "clim_gal10_2T-C12" %}
     {% do task_dict.update({
-        "opt_confs": ["climate","physics_segmentation","um_dump","no_diags"],
+        "opt_confs": ["climate","reynolds","physics_segmentation","um_dump","no_diags"],
         "resolution": "C12",
         "DT": 1800,
         "tsteps": 48,
@@ -580,7 +580,7 @@
 {% elif task_ns.conf_name == "clim_gal10_1T-C48_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["climate","physics_segmentation","um_dump","no_diags"],
+        "opt_confs": ["climate","reynolds","physics_segmentation","um_dump","no_diags"],
         "resolution": "C48_MG",
         "DT": 1800,
         "tsteps": 12,
@@ -597,7 +597,7 @@
 {% elif task_ns.conf_name == "clim_gal10_2T-C48_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["climate","physics_segmentation","um_dump","no_diags"],
+        "opt_confs": ["climate","reynolds","physics_segmentation","um_dump","no_diags"],
         "resolution": "C48_MG",
         "DT": 1800,
         "tsteps": 12,
@@ -614,7 +614,7 @@
 {% elif task_ns.conf_name == "clim_gal10_4T-C48_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["climate","physics_segmentation","um_dump","no_diags"],
+        "opt_confs": ["climate","reynolds","physics_segmentation","um_dump","no_diags"],
         "resolution": "C48_MG",
         "DT": 1800,
         "tsteps": 12,
@@ -631,7 +631,7 @@
 {% elif task_ns.conf_name == "clim_gal10_chem-C12" %}
 
     {% do task_dict.update({
-        "opt_confs": ["climate","chemistry","lowres_stp","um_dump"],
+        "opt_confs": ["climate","reynolds","chemistry","lowres_stp","um_dump"],
         "resolution": "C12",
         "DT": 1800,
         "tsteps": 144,
@@ -644,7 +644,7 @@
 
 {% elif task_ns.conf_name == "clim_gal10_chem_1T-C12" %}
     {% do task_dict.update({
-        "opt_confs": ["climate","chemistry", "lowres_stp","physics_segmentation","um_dump","no_diags"],
+        "opt_confs": ["climate","reynolds","chemistry", "lowres_stp","physics_segmentation","um_dump","no_diags"],
         "resolution": "C12",
         "DT": 1800,
         "tsteps": 48,
@@ -660,7 +660,7 @@
 
 {% elif task_ns.conf_name == "clim_gal10_chem_2T-C12" %}
     {% do task_dict.update({
-        "opt_confs": ["climate","chemistry","lowres_stp","physics_segmentation","um_dump","no_diags"],
+        "opt_confs": ["climate","reynolds","chemistry","lowres_stp","physics_segmentation","um_dump","no_diags"],
         "resolution": "C12",
         "DT": 1800,
         "tsteps": 48,

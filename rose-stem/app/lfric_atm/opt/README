@@ -62,6 +62,7 @@ Science settings
 - ral_mixmol_opts - extra options for regional models when using the MoL
                     transport scheme and mixed solver configuration
 - ral_opts - extra options for regional models, including LBC blending weights
+- reynolds - use Reynolds daily SST time-series
 - ukca - UKCA Glomap aerosol scheme
 - urban2t - 2-tile urban scheme
 - dry_atm - a dry atmosphere
