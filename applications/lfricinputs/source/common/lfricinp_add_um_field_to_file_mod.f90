@@ -231,7 +231,7 @@ if (lookup_int(lbvc) >= 126 .and. lookup_int(lbvc) <= 139 &
      lookup_int(lbvc) == 275 ) then
   ! Special codes inc single level
 
-  ! set level heights to 0.0
+  ! set level heights to 0.0  - TODO bulev & bhulev um_rmdi?
   lookup_real_tmp(blev)=0.0_real64
   lookup_real_tmp(bhlev)=0.0_real64
   lookup_real_tmp(brlev)=0.0_real64
