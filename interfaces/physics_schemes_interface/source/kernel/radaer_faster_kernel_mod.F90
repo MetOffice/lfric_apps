@@ -555,6 +555,14 @@ subroutine radaer_faster_code( nlayers,                                        &
   ! Need to pass through argument list
   integer(i_um) :: ncp_max_x_nmodes
 
+
+
+
+
+  ! Allocation of arrays
+
+  integer(i_um), allocatable :: trindxrad(:)
+
   ! pressure on theta levels
   real(r_um), allocatable :: p_theta_levels(:,:,:)
 
@@ -563,8 +571,6 @@ subroutine radaer_faster_code( nlayers,                                        &
 
   ! d_mass on theta levels
   real(r_um), allocatable :: d_mass_theta_levels(:,:,:)
-
-  ! Allocation of arrays
 
   real(r_um), allocatable :: ukca_comp_vol(:,:,:)
   real(r_um), allocatable :: ukca_mix_ratio(:,:,:)
@@ -587,25 +593,30 @@ subroutine radaer_faster_code( nlayers,                                        &
   real(r_um), allocatable :: sod_ukca_all_modes(:,:,:)
   real(r_um), allocatable :: aaod_ukca_all_modes(:,:,:)
 
+  ! UKCA modal optical depth diagnostics: full column
+  real(r_um), allocatable :: aod_ukca_this_mode(:,:)
+  ! UKCA modal optical depth diagnostics: stratosphere
+  real(r_um), allocatable :: sod_ukca_this_mode(:,:)
+  ! UKCA modal absorption optical depth diagnostics: full column
+  real(r_um), allocatable :: aaod_ukca_this_mode(:,:)
+  
+
+  integer(i_um) :: nml_segment_size , num_seg , seg_size
+
+  ! Hard coded here, but need to make this a namelist item later
+  integer, parameter :: ukca_radaer_segment_size = 4
+
+  !-----------------------------------------------------------------------
+
   ! By convention, arrays are inverted in UM radiation code
   ! Since we are calling from LFRic, arrays will not be inverted
   ! This matters for determining whether a level is above the tropopause
   logical, parameter :: l_inverted = .false.
-  integer(i_um) :: trindxrad( ncells )
+
 
   ! Variables close to but not exactly 1 or -1 for bounding asymmetry
   real(r_def), parameter :: one_minus_eps = 1.0_r_def - epsilon(1.0_r_def)
   real(r_def), parameter :: minus1_plus_eps = -1.0_r_def + epsilon(1.0_r_def)
-
-  !-----------------------------------------------------------------------
-
-  ! UKCA modal optical depth diagnostics: full column
-  real(r_um) :: aod_ukca_this_mode(  ncells, npd_ukca_aod_wavel )
-  ! Not yet included as diagnostic
-  ! UKCA modal optical depth diagnostics: stratosphere
-  real(r_um) :: sod_ukca_this_mode(  ncells, npd_ukca_aod_wavel )
-  ! UKCA modal absorption optical depth diagnostics: full column
-  real(r_um) :: aaod_ukca_this_mode( ncells, npd_ukca_aod_wavel )
 
   !-----------------------------------------------------------------------
 
@@ -622,13 +633,6 @@ subroutine radaer_faster_code( nlayers,                                        &
   logical :: l_aod_ukca_cor_ins
   logical :: l_aaod_ukca_cor_ins
   logical :: l_any_lit_points
-
-  !-----------------------------------------------------------------------
-
-  ncp_max_x_nmodes = ncp_max * nmodes
-
-  npd_exclude_lw = SIZE( lw_index_exclude, 1 )
-  npd_exclude_sw = SIZE( sw_index_exclude, 1 )
 
   !-----------------------------------------------------------------------
   ! Populate ukca_radaer element arrays
@@ -648,43 +652,139 @@ subroutine radaer_faster_code( nlayers,                                        &
   l_aaod_ukca_cor_ins= ( .not. associated(aaod_ukca_cor_ins, empty_real_data ))
 
   !-----------------------------------------------------------------------
-  ! Allocation of arrays
 
-  allocate( p_theta_levels( ncells, rows, nlayers ) )
-  allocate( t_theta_levels( ncells, rows, nlayers ) )
-  allocate( d_mass_theta_levels( ncells, rows, nlayers ) )
+  ncp_max_x_nmodes = ncp_max * nmodes
 
-
-  allocate( ukca_mode_mix_ratio( ncells, nlayers, n_radaer_mode ) )
-  allocate( aer_lw_absorption_radaer(ncells,nlayers,n_radaer_mode,n_lw_band ) )
-  allocate( aer_lw_scattering_radaer(ncells,nlayers,n_radaer_mode,n_lw_band ) )
-  allocate( aer_lw_asymmetry_radaer( ncells,nlayers,n_radaer_mode,n_lw_band ) )
-  allocate( aer_sw_absorption_radaer(ncells,nlayers,n_radaer_mode,n_sw_band ) )
-  allocate( aer_sw_scattering_radaer(ncells,nlayers,n_radaer_mode,n_sw_band ) )
-  allocate( aer_sw_asymmetry_radaer( ncells,nlayers,n_radaer_mode,n_sw_band ) )
-  allocate( aod_ukca_all_modes(  ncells, npd_ukca_aod_wavel, n_ukca_mode ) )
-  allocate( sod_ukca_all_modes(  ncells, npd_ukca_aod_wavel, n_ukca_mode ) )
-  allocate( aaod_ukca_all_modes( ncells, npd_ukca_aod_wavel, n_ukca_mode ) )
+  npd_exclude_lw = SIZE( lw_index_exclude, 1 )
+  npd_exclude_sw = SIZE( sw_index_exclude, 1 )
 
   !-----------------------------------------------------------------------
-  ! Segmentation and openmp would start here
+  ! Start of segmentation
+
+  nml_segment_size = min( ukca_radaer_segment_size, ncells )
+
+  num_seg = ceiling( real(ncells,r_um) / real(nml_segment_size,r_um) )
+
+  allocate( trindxrad( nml_segment_size ) )
+
+  allocate( p_theta_levels( nml_segment_size, rows, nlayers ) )
+  allocate( t_theta_levels( nml_segment_size, rows, nlayers ) )
+  allocate( d_mass_theta_levels( nml_segment_size, rows, nlayers ) )
+
+  allocate( ukca_mode_mix_ratio( nml_segment_size, nlayers, n_radaer_mode ) )
+  allocate( aer_lw_absorption_radaer(nml_segment_size,nlayers,n_radaer_mode,   &
+                                     n_lw_band ) )
+  allocate( aer_lw_scattering_radaer(nml_segment_size,nlayers,n_radaer_mode,   &
+                                     n_lw_band ) )
+  allocate( aer_lw_asymmetry_radaer( nml_segment_size,nlayers,n_radaer_mode,   &
+                                     n_lw_band ) )
+  allocate( aer_sw_absorption_radaer(nml_segment_size,nlayers,n_radaer_mode,   &
+                                     n_sw_band ) )
+  allocate( aer_sw_scattering_radaer(nml_segment_size,nlayers,n_radaer_mode,   &
+                                     n_sw_band ) )
+  allocate( aer_sw_asymmetry_radaer( nml_segment_size,nlayers,n_radaer_mode,   &
+                                     n_sw_band ) )
+  allocate( aod_ukca_all_modes(  nml_segment_size, npd_ukca_aod_wavel,         &
+                                 n_ukca_mode ) )
+  allocate( sod_ukca_all_modes(  nml_segment_size, npd_ukca_aod_wavel,         &
+                                 n_ukca_mode ) )
+  allocate( aaod_ukca_all_modes( nml_segment_size, npd_ukca_aod_wavel,         &
+                                 n_ukca_mode ) )
+
+  allocate(  aod_ukca_this_mode( nml_segment_size, npd_ukca_aod_wavel ) )
+  allocate(  sod_ukca_this_mode( nml_segment_size, npd_ukca_aod_wavel ) )
+  allocate( aaod_ukca_this_mode( nml_segment_size, npd_ukca_aod_wavel ) )
+  
   !-----------------------------------------------------------------------
 
-  ! Whether we need to run shortwave band_average because lit or not
-  l_any_lit_points = .false.
-  if ( n_radaer_step > 1 ) then
-    l_any_lit_points = .true.
-  else
-    do i = 1, ncells
-      if ( lit_fraction( map_2d(1, i) ) > 0.0_r_def ) then
-        l_any_lit_points = .true.
-      end if
-    end do
-  end if
+  seg_size = nml_segment_size
+
+    !-----------------------------------------------------------------------
+
+  ! The following appear to be parameters so dont need to be shared
+  !  npd_ukca_aod_wavel, n_ukca_mode, n_ukca_cpnt,
+  !  nd_prof_ssa, nd_layr_ssa, nd_band_ssa, nmodes, ncp_max,
+  !  i_ukca_tune_bc, i_ukca_radaer_prescribe_ssa, i_glomap_clim_tune_bc,
+  !  ip_infra_red, ip_solar,
+  !  soluble_wanted, soluble_unwanted,
+  !  l_exclude_lw, l_exclude_sw, l_nitrate, l_sustrat,
+  !  l_cornarrow_ins, l_inverted,
+  !  mode_ait_sol, mode_acc_sol, mode_cor_sol,
+  !  mode_ait_insol, mode_acc_insol, mode_cor_insol,
+  !  minus1_plus_eps, one_minus_eps,
+
+!$OMP PARALLEL DEFAULT(none)                                                   &
+!$OMP private( i, ii, j, jj, k, i_mode, i_rmode, i_band,                       &
+!$OMP          l_any_lit_points_um, trindxrad_um,                              &
+!$OMP          p_theta_levels_um, t_theta_levels_um, ukca_comp_vol_um,         &
+!$OMP          ukca_mix_ratio_um, ukca_dry_diam_um, ukca_modal_nbr_um,         &
+!$OMP          ukca_modal_rho_um, ukca_modal_vol_um, ukca_modal_wtv_um,        &
+!$OMP          ukca_wet_diam_um, d_mass_theta_levels_um,                       &
+!$OMP          ukca_mode_mix_ratio_um,                                         &
+!$OMP          aer_lw_absorption_um, aer_lw_scattering_um, aer_lw_asymmetry_um,&
+!$OMP          aer_sw_absorption_um, aer_sw_scattering_um, aer_sw_asymmetry_um,&
+!$OMP          aod_ukca_all_modes_um, aaod_ukca_all_modes_um )                 &
+!$OMP shared( num_seg, seg_size, n_radaer_step, nlayers, npd_exclude_lw,       &
+!$OMP         npd_exclude_sw,                                                  &
+!$OMP         ncp_max_x_nmodes, n_cpnt_in_mode, n_radaer_mode, n_lw_band,      &
+!$OMP         n_sw_band, n_aer_mode_lw, n_aer_mode_sw,                         &
+!$OMP         i_cpnt_index, i_cpnt_type, i_mode_type,                          &
+!$OMP         trop_level, p_zero, kappa, lit_fraction, gravity,                &
+!$OMP         theta_in_wth, exner_in_wth, ukca_radaer_presc_ssa,               &
+!$OMP         map_2d, map_wth, map_w3, map_mode, map_rmode_lw, map_rmode_sw,   &
+!$OMP         map_aod_wavel,                                                   &
+!$OMP         l_soluble,                                                       &
+!$OMP         l_aod_ukca_ait_sol, l_aod_ukca_acc_sol, l_aod_ukca_cor_sol,      &
+!$OMP         l_aaod_ukca_ait_sol, l_aaod_ukca_acc_sol, l_aaod_ukca_cor_sol,   &
+!$OMP         l_aod_ukca_ait_ins, l_aod_ukca_acc_ins, l_aod_ukca_cor_ins,      &
+!$OMP         l_aaod_ukca_ait_ins, l_aaod_ukca_acc_ins, l_aaod_ukca_cor_ins,   &
+!$OMP         pvol_wat_ait_sol, pvol_wat_acc_sol, pvol_wat_cor_sol,            &
+!$OMP         pvol_su_ait_sol, pvol_bc_ait_sol, pvol_om_ait_sol,               &
+!$OMP         pvol_su_acc_sol, pvol_bc_acc_sol, pvol_om_acc_sol,               &
+!$OMP         pvol_ss_acc_sol,                                                 &
+!$OMP         pvol_su_cor_sol, pvol_bc_cor_sol, pvol_om_cor_sol,               &
+!$OMP         pvol_ss_cor_sol,                                                 &
+!$OMP         pvol_bc_ait_ins, pvol_om_ait_ins,                                &
+!$OMP         pvol_du_acc_ins, pvol_du_cor_ins,                                &
+!$OMP         ait_sol_su, ait_sol_bc, ait_sol_om,                              &
+!$OMP         acc_sol_su, acc_sol_bc, acc_sol_om, acc_sol_ss,                  &
+!$OMP         cor_sol_su, cor_sol_bc, cor_sol_om, cor_sol_ss,                  &
+!$OMP         ait_ins_bc, ait_ins_om, acc_ins_du, cor_ins_du,                  &
+!$OMP         n_ait_sol, n_acc_sol, n_cor_sol, n_ait_ins, n_acc_ins, n_cor_ins,&
+!$OMP         rhopar_ait_sol, rhopar_acc_sol, rhopar_cor_sol,                  &
+!$OMP         rhopar_ait_ins, rhopar_acc_ins, rhopar_cor_ins,                  &
+!$OMP         drydp_ait_sol, drydp_acc_sol, drydp_cor_sol,                     &
+!$OMP         drydp_ait_ins, drydp_acc_ins, drydp_cor_ins,                     &
+!$OMP         wetdp_ait_sol, wetdp_acc_sol, wetdp_cor_sol,                     &
+!$OMP         aod_ukca_ait_sol, aod_ukca_acc_sol, aod_ukca_cor_sol,            &
+!$OMP         aaod_ukca_ait_sol, aaod_ukca_acc_sol, aaod_ukca_cor_sol,         &
+!$OMP         aod_ukca_ait_ins, aod_ukca_acc_ins, aod_ukca_cor_ins,            &
+!$OMP         aaod_ukca_ait_ins, aaod_ukca_acc_ins, aaod_ukca_cor_ins,         &
+!$OMP         rho_in_wth, dz_in_wth, exner_in_w3, aer_mix_ratio,               &
+!$OMP         aer_lw_absorption, aer_lw_scattering, aer_lw_asymmetry,          &
+!$OMP         aer_sw_absorption, aer_sw_scattering, aer_sw_asymmetry,          &
+!$OMP         empty_real_data )
+
+!$OMP do SCHEDULE(DYNAMIC)
+  do j = 1, num_seg
+
+    jj = ( (j-1)*seg_size ) + 1
+
+    ! Whether we need to run shortwave band_average because lit or not
+    l_any_lit_points = .false.
+    if ( n_radaer_step > 1 ) then
+      l_any_lit_points = .true.
+    else
+      do i = 1, seg_size
+        if ( lit_fraction( map_2d(1, i) ) > 0.0_r_def ) then
+          l_any_lit_points = .true.
+        end if
+      end do
+    end if
 
   ! Note that this is inverted compared to the UM
   ! This will be dealt with in ukca_radaer_band_average
-  do i = 1, ncells
+  do i = 1, seg_size
     trindxrad(i) = trop_level( map_2d(1, i) )
   end do
 
@@ -692,14 +792,14 @@ subroutine radaer_faster_code( nlayers,                                        &
   ! Initialisation of prognostic variables and arrays
   !-----------------------------------------------------------------------
 
-  do i = 1, ncells
+  do i = 1, seg_size
     do k = 1, nlayers
       p_theta_levels(i,1,k) = p_zero *                                         &
                            ( exner_in_wth(map_wth(1,i) + k) )**(1.0_r_um/kappa)
     end do
   end do
 
-  do i = 1, ncells
+  do i = 1, seg_size
     do k = 1, nlayers
       t_theta_levels(i,1,k) = exner_in_wth(map_wth(1,i) + k) *                 &
                               theta_in_wth(map_wth(1,i) + k)
@@ -710,109 +810,109 @@ subroutine radaer_faster_code( nlayers,                                        &
 
   ! -- ukca_comp_vol --
   n_fields = size(pvol_comp_names)
-  allocate(ukca_comp_vol(n_fields, ncells, nlayers))
+  allocate(ukca_comp_vol(n_fields, seg_size, nlayers))
   ukca_comp_vol = 0.0_r_um
 
   do m = 1, n_fields
     select case(trim(pvol_comp_names(m)))
     case('fldname_pvol_su_ait_sol')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_comp_vol(m, i, k)=real( pvol_su_ait_sol(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_pvol_bc_ait_sol')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
          ukca_comp_vol(m, i, k)=real( pvol_bc_ait_sol(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_pvol_om_ait_sol')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_comp_vol(m, i, k)=real( pvol_om_ait_sol(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_pvol_su_acc_sol')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_comp_vol(m, i, k)=real( pvol_su_acc_sol(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_pvol_bc_acc_sol')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_comp_vol(m, i, k)=real( pvol_bc_acc_sol(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_pvol_om_acc_sol')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_comp_vol(m, i, k)=real( pvol_om_acc_sol(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_pvol_ss_acc_sol')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_comp_vol(m, i, k)=real( pvol_ss_acc_sol(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_pvol_du_acc_sol')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_comp_vol(m, i, k)=0.0_r_um
         end do
       end do
     case('fldname_pvol_su_cor_sol')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_comp_vol(m, i, k)=real( pvol_su_cor_sol(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_pvol_bc_cor_sol')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_comp_vol(m, i, k)=real( pvol_bc_cor_sol(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_pvol_om_cor_sol')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_comp_vol(m, i, k)=real( pvol_om_cor_sol(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_pvol_ss_cor_sol')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_comp_vol(m, i, k)=real( pvol_ss_cor_sol(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_pvol_du_cor_sol')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_comp_vol(m, i, k)=0.0_r_um
         end do
       end do
     case('fldname_pvol_bc_ait_ins')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_comp_vol(m, i, k)=real( pvol_bc_ait_ins(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_pvol_om_ait_ins')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_comp_vol(m, i, k)=real( pvol_om_ait_ins(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_pvol_du_acc_ins')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_comp_vol(m, i, k)=real( pvol_du_acc_ins(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_pvol_du_cor_ins')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_comp_vol(m, i, k)=real( pvol_du_cor_ins(map_wth(1,i) + k), r_um )
         end do
@@ -826,109 +926,109 @@ subroutine radaer_faster_code( nlayers,                                        &
 
   ! -- ukca_mix_ratio --
   n_fields = size(comp_names)
-  allocate(ukca_mix_ratio(n_fields, ncells, nlayers))
+  allocate(ukca_mix_ratio(n_fields, seg_size, nlayers))
   ukca_mix_ratio = 0.0_r_um
 
   do m = 1, n_fields
     select case(trim(comp_names(m)))
     case('fldname_ait_sol_su')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_mix_ratio(m, i, k) = real( ait_sol_su(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_ait_sol_bc')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_mix_ratio(m, i, k) = real( ait_sol_bc(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_ait_sol_om')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_mix_ratio(m, i, k) = real( ait_sol_om(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_acc_sol_su')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_mix_ratio(m, i, k) = real( acc_sol_su(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_acc_sol_bc')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_mix_ratio(m, i, k) = real( acc_sol_bc(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_acc_sol_om')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_mix_ratio(m, i, k) = real( acc_sol_om(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_acc_sol_ss')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_mix_ratio(m, i, k) = real( acc_sol_ss(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_acc_sol_du')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_mix_ratio(m, i, k) = 0.0_r_um
         end do
       end do
     case('fldname_cor_sol_su')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_mix_ratio(m, i, k) = real( cor_sol_su(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_cor_sol_bc')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_mix_ratio(m, i, k) = real( cor_sol_bc(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_cor_sol_om')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_mix_ratio(m, i, k) = real( cor_sol_om(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_cor_sol_ss')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_mix_ratio(m, i, k) = real( cor_sol_ss(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_cor_sol_du')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_mix_ratio(m, i, k) = 0.0_r_um
         end do
       end do
     case('fldname_ait_ins_bc')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_mix_ratio(m, i, k) = real( ait_ins_bc(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_ait_ins_om')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_mix_ratio(m, i, k) = real( ait_ins_om(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_acc_ins_du')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_mix_ratio(m, i, k) = real( acc_ins_du(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_cor_ins_du')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_mix_ratio(m, i, k) = real( cor_ins_du(map_wth(1,i) + k), r_um )
         end do
@@ -942,7 +1042,7 @@ subroutine radaer_faster_code( nlayers,                                        &
 
   ! -- ukca_modal_nbr --
   n_fields = size(mode_names)
-  allocate(ukca_modal_nbr(ncells, nlayers, n_fields))
+  allocate(ukca_modal_nbr(seg_size, nlayers, n_fields))
   ukca_modal_nbr = 0.0_r_um
 
   do m = 1, n_fields
@@ -952,37 +1052,37 @@ subroutine radaer_faster_code( nlayers,                                        &
            'Radaer should not request soluble nucleation mode: ', mode_names(m)
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     case('fldname_n_ait_sol')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_modal_nbr(i, k, m) = real( n_ait_sol(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_n_acc_sol')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_modal_nbr(i, k, m) = real( n_acc_sol(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_n_cor_sol')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_modal_nbr(i, k, m) = real( n_cor_sol(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_n_ait_ins')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_modal_nbr(i, k, m) = real( n_ait_ins(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_n_acc_ins')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_modal_nbr(i, k, m) = real( n_acc_ins(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_n_cor_ins')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_modal_nbr(i, k, m) = real( n_cor_ins(map_wth(1,i) + k), r_um )
         end do
@@ -996,43 +1096,43 @@ subroutine radaer_faster_code( nlayers,                                        &
 
   ! -- ukca_modal_rho --
   n_fields = size(rhopar_mode_names)
-  allocate(ukca_modal_rho(ncells, nlayers, n_fields))
+  allocate(ukca_modal_rho(seg_size, nlayers, n_fields))
   ukca_modal_rho = 0.0_r_um
 
   do m = 1, n_fields
     select case(trim(rhopar_mode_names(m)))
     case('fldname_rhopar_ait_sol')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_modal_rho(i, k, m)=real( rhopar_ait_sol(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_rhopar_acc_sol')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_modal_rho(i, k, m)=real( rhopar_acc_sol(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_rhopar_cor_sol')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_modal_rho(i, k, m)=real( rhopar_cor_sol(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_rhopar_ait_ins')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_modal_rho(i, k, m)=real( rhopar_ait_ins(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_rhopar_acc_ins')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_modal_rho(i, k, m)=real( rhopar_acc_ins(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_rhopar_cor_ins')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_modal_rho(i, k, m)=real( rhopar_cor_ins(map_wth(1,i) + k), r_um )
         end do
@@ -1046,43 +1146,43 @@ subroutine radaer_faster_code( nlayers,                                        &
 
   ! -- ukca_dry_diam --
   n_fields = size(dry_diam_mode_names)
-  allocate(ukca_dry_diam(ncells, nlayers, n_fields))
+  allocate(ukca_dry_diam(seg_size, nlayers, n_fields))
   ukca_dry_diam = 0.0_r_um
 
   do m = 1, n_fields
     select case(trim(dry_diam_mode_names(m)))
     case('fldname_drydp_ait_sol')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_dry_diam(i, k, m) = real( drydp_ait_sol(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_drydp_acc_sol')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_dry_diam(i, k, m) = real( drydp_acc_sol(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_drydp_cor_sol')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_dry_diam(i, k, m) = real( drydp_cor_sol(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_drydp_ait_ins')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_dry_diam(i, k, m) = real( drydp_ait_ins(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_drydp_acc_ins')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_dry_diam(i, k, m) = real( drydp_acc_ins(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_drydp_cor_ins')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_dry_diam(i, k, m) = real( drydp_cor_ins(map_wth(1,i) + k), r_um )
         end do
@@ -1096,7 +1196,7 @@ subroutine radaer_faster_code( nlayers,                                        &
 
   ! -- ukca_modal_vol --
   n_fields = size(modal_volume_names)
-  allocate(ukca_modal_vol(ncells, nlayers, n_fields))
+  allocate(ukca_modal_vol(seg_size, nlayers, n_fields))
   ukca_modal_vol = 0.0_r_um
 
   do m = 1, n_fields
@@ -1112,7 +1212,7 @@ subroutine radaer_faster_code( nlayers,                                        &
         select case( trim( ait_sol_volume_names(mm) ) )
 
         case( 'pvol_wat_ait_sol' )
-          do i = 1, ncells
+          do i = 1, seg_size
             do k = 1, nlayers
               ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
                                real( pvol_wat_ait_sol( map_wth(1,i) + k ), r_um)
@@ -1120,7 +1220,7 @@ subroutine radaer_faster_code( nlayers,                                        &
       end do
 
         case( 'pvol_su_ait_sol' )
-              do i = 1, ncells
+              do i = 1, seg_size
             do k = 1, nlayers
               ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
                                real( pvol_su_ait_sol( map_wth(1,i) + k ), r_um)
@@ -1128,7 +1228,7 @@ subroutine radaer_faster_code( nlayers,                                        &
       end do
 
         case( 'pvol_bc_ait_sol' )
-              do i = 1, ncells
+              do i = 1, seg_size
             do k = 1, nlayers
               ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
                                real( pvol_bc_ait_sol( map_wth(1,i) + k ), r_um)
@@ -1136,7 +1236,7 @@ subroutine radaer_faster_code( nlayers,                                        &
       end do
 
         case( 'pvol_om_ait_sol' )
-              do i = 1, ncells
+              do i = 1, seg_size
             do k = 1, nlayers
               ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
                                real( pvol_om_ait_sol( map_wth(1,i) + k ), r_um)
@@ -1164,7 +1264,7 @@ subroutine radaer_faster_code( nlayers,                                        &
       do mm = 1, nn_fields
         select case( trim( acc_sol_volume_names(mm) ) )
         case( 'pvol_wat_acc_sol' )
-              do i = 1, ncells
+              do i = 1, seg_size
             do k = 1, nlayers
               ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
                                real( pvol_wat_acc_sol( map_wth(1,i) + k ), r_um)
@@ -1172,7 +1272,7 @@ subroutine radaer_faster_code( nlayers,                                        &
       end do
 
         case( 'pvol_su_acc_sol' )
-              do i = 1, ncells
+              do i = 1, seg_size
             do k = 1, nlayers
               ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
                                real( pvol_su_acc_sol( map_wth(1,i) + k ), r_um)
@@ -1180,7 +1280,7 @@ subroutine radaer_faster_code( nlayers,                                        &
       end do
 
         case( 'pvol_bc_acc_sol' )
-              do i = 1, ncells
+              do i = 1, seg_size
             do k = 1, nlayers
               ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
                                real( pvol_bc_acc_sol( map_wth(1,i) + k ), r_um)
@@ -1188,7 +1288,7 @@ subroutine radaer_faster_code( nlayers,                                        &
       end do
 
         case( 'pvol_om_acc_sol' )
-              do i = 1, ncells
+              do i = 1, seg_size
             do k = 1, nlayers
               ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
                                real( pvol_om_acc_sol( map_wth(1,i) + k ), r_um)
@@ -1196,7 +1296,7 @@ subroutine radaer_faster_code( nlayers,                                        &
       end do
 
         case( 'pvol_ss_acc_sol' )
-              do i = 1, ncells
+              do i = 1, seg_size
             do k = 1, nlayers
               ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
                                real( pvol_ss_acc_sol( map_wth(1,i) + k ), r_um)
@@ -1224,7 +1324,7 @@ subroutine radaer_faster_code( nlayers,                                        &
       do mm = 1, nn_fields
         select case( trim( cor_sol_volume_names(mm) ) )
         case( 'pvol_wat_cor_sol' )
-              do i = 1, ncells
+              do i = 1, seg_size
             do k = 1, nlayers
               ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
                                real( pvol_wat_cor_sol( map_wth(1,i) + k ), r_um)
@@ -1232,7 +1332,7 @@ subroutine radaer_faster_code( nlayers,                                        &
       end do
 
         case( 'pvol_su_cor_sol' )
-              do i = 1, ncells
+              do i = 1, seg_size
             do k = 1, nlayers
               ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
                                real( pvol_su_cor_sol( map_wth(1,i) + k ), r_um)
@@ -1240,7 +1340,7 @@ subroutine radaer_faster_code( nlayers,                                        &
       end do
 
         case( 'pvol_bc_cor_sol' )
-              do i = 1, ncells
+              do i = 1, seg_size
             do k = 1, nlayers
               ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
                                real( pvol_bc_cor_sol( map_wth(1,i) + k ), r_um)
@@ -1248,7 +1348,7 @@ subroutine radaer_faster_code( nlayers,                                        &
       end do
 
         case( 'pvol_om_cor_sol' )
-              do i = 1, ncells
+              do i = 1, seg_size
             do k = 1, nlayers
               ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
                                real( pvol_om_cor_sol( map_wth(1,i) + k ), r_um)
@@ -1256,7 +1356,7 @@ subroutine radaer_faster_code( nlayers,                                        &
       end do
 
         case( 'pvol_ss_cor_sol' )
-              do i = 1, ncells
+              do i = 1, seg_size
             do k = 1, nlayers
               ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
                                real( pvol_ss_cor_sol( map_wth(1,i) + k ), r_um)
@@ -1286,7 +1386,7 @@ subroutine radaer_faster_code( nlayers,                                        &
         select case( trim( ait_ins_volume_names(mm) ) )
 
         case( 'pvol_bc_ait_ins' )
-              do i = 1, ncells
+              do i = 1, seg_size
             do k = 1, nlayers
               ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
                                real( pvol_bc_ait_ins( map_wth(1,i) + k ), r_um)
@@ -1294,7 +1394,7 @@ subroutine radaer_faster_code( nlayers,                                        &
       end do
 
         case( 'pvol_om_ait_ins' )
-              do i = 1, ncells
+              do i = 1, seg_size
             do k = 1, nlayers
               ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
                                real( pvol_om_ait_ins( map_wth(1,i) + k ), r_um)
@@ -1324,7 +1424,7 @@ subroutine radaer_faster_code( nlayers,                                        &
         select case( trim( acc_ins_volume_names(mm) ) )
 
         case( 'pvol_du_acc_ins' )
-              do i = 1, ncells
+              do i = 1, seg_size
             do k = 1, nlayers
               ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
                                real( pvol_du_acc_ins( map_wth(1,i) + k ), r_um)
@@ -1354,7 +1454,7 @@ subroutine radaer_faster_code( nlayers,                                        &
         select case( trim( cor_ins_volume_names(mm) ) )
 
         case( 'pvol_du_cor_ins' )
-              do i = 1, ncells
+              do i = 1, seg_size
             do k = 1, nlayers
               ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
                                real( pvol_du_cor_ins( map_wth(1,i) + k ), r_um)
@@ -1385,43 +1485,43 @@ subroutine radaer_faster_code( nlayers,                                        &
 
   ! -- ukca_modal_wtv --
   n_fields = size(modal_wtv_names)
-  allocate(ukca_modal_wtv(ncells, nlayers, n_fields))
+  allocate(ukca_modal_wtv(seg_size, nlayers, n_fields))
   ukca_modal_wtv = 0.0_r_um
 
   do m = 1, n_fields
     select case(trim(modal_wtv_names(m)))
     case('fldname_pvol_wat_ait_sol')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_modal_wtv(i,k,m)=real( pvol_wat_ait_sol(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_pvol_wat_acc_sol')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_modal_wtv(i,k,m)=real( pvol_wat_acc_sol(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_pvol_wat_cor_sol')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_modal_wtv(i,k,m)=real( pvol_wat_cor_sol(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_pvol_wat_ait_ins')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_modal_wtv(i,k,m)=0.0_r_um
         end do
       end do
     case('fldname_pvol_wat_acc_ins')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_modal_wtv(i,k,m)=0.0_r_um
         end do
       end do
     case('fldname_pvol_wat_cor_ins')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_modal_wtv(i,k,m)=0.0_r_um
         end do
@@ -1435,46 +1535,46 @@ subroutine radaer_faster_code( nlayers,                                        &
 
   ! -- ukca_wet_diam --
   n_fields = size(wet_diam_mode_names)
-  allocate(ukca_wet_diam(ncells, nlayers, n_fields))
+  allocate(ukca_wet_diam(seg_size, nlayers, n_fields))
   ukca_wet_diam = 0.0_r_um
 
   do m = 1, n_fields
     select case(trim(wet_diam_mode_names(m)))
     case('fldname_wetdp_ait_sol')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_wet_diam(i, k, m) = real( wetdp_ait_sol(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_wetdp_acc_sol')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_wet_diam(i, k, m) = real( wetdp_acc_sol(map_wth(1,i) + k), r_um )
         end do
       end do
     case('fldname_wetdp_cor_sol')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_wet_diam(i, k, m) = real( wetdp_cor_sol(map_wth(1,i) + k), r_um )
         end do
       end do
     !!!!! Note that wet and dry diameter are the same for insoluble modes
     case('fldname_wetdp_ait_ins')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_wet_diam(i, k, m) = real( drydp_ait_ins(map_wth(1,i) + k), r_um )
         end do
       end do
     !!!!! Note that wet and dry diameter are the same for insoluble modes
     case('fldname_wetdp_acc_ins')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_wet_diam(i, k, m) = real( drydp_acc_ins(map_wth(1,i) + k), r_um )
         end do
       end do
     !!!!! Note that wet and dry diameter are the same for insoluble modes
     case('fldname_wetdp_cor_ins')
-      do i = 1, ncells
+      do i = 1, seg_size
         do k = 1, nlayers
           ukca_wet_diam(i, k, m) = real( drydp_cor_ins(map_wth(1,i) + k), r_um )
         end do
@@ -1502,20 +1602,20 @@ subroutine radaer_faster_code( nlayers,                                        &
        ( .not. associated( aod_ukca_cor_ins, empty_real_data ) ) .or.          &
        ( .not. associated( aaod_ukca_cor_ins, empty_real_data ) ) ) then
 
-    do i = 1, ncells
+    do i = 1, seg_size
       d_mass_theta_levels(i,1,1) = rho_in_wth( map_wth(2,i) ) *                &
                                   ( dz_in_wth( map_wth(2,i) ) +                &
                                     dz_in_wth( map_wth(1,i) ) )
     end do
 
-    do i = 1, ncells
+    do i = 1, seg_size
       do k = 2, nlayers - 1
         d_mass_theta_levels(i,1,k) = rho_in_wth( map_wth(1,i) + k ) *          &
                                       dz_in_wth( map_wth(1,i) + k )
       end do
     end do
 
-    do i = 1, ncells
+    do i = 1, seg_size
       d_mass_theta_levels(i,1,nlayers) = p_zero *                              &
                exner_in_w3( map_w3(1,i) + nlayers - 1 )**( 1.0_r_def / kappa ) &
                                          / gravity
@@ -1530,7 +1630,7 @@ subroutine radaer_faster_code( nlayers,                                        &
 
     CALL ukca_radaer_faster_lfric_interface(                                   &
       ! Fixed array dimensions (input)
-      ncells,                                                                  &
+      seg_size,                                                                  &
       nlayers,                                                                 &
       npd_exclude_lw,                                                          &
       npd_exclude_sw,                                                          &
@@ -1608,7 +1708,7 @@ subroutine radaer_faster_code( nlayers,                                        &
     ! MODE aerosol mixing ratios
     do i_mode = 1, n_radaer_mode
       do k = 1, nlayers
-        do i = 1, ncells
+        do i = 1, seg_size
           aer_mix_ratio( map_mode(1,i) + ( (i_mode-1)*(nlayers+1) ) + k ) =    &
                                          ukca_mode_mix_ratio( i, k, i_mode )
       end do
@@ -1621,7 +1721,7 @@ subroutine radaer_faster_code( nlayers,                                        &
       do i_mode = 1, n_radaer_mode
         i_rmode = i_rmode + 1
         do k = 1, nlayers
-          do i = 1, ncells
+          do i = 1, seg_size
               
             aer_lw_absorption( map_rmode_lw(1,i) +                             &
                                ( (i_rmode-1)*(nlayers+1) ) + k ) =             &
@@ -1636,7 +1736,7 @@ subroutine radaer_faster_code( nlayers,                                        &
                               max(minus1_plus_eps, min(one_minus_eps,          &
                               aer_lw_asymmetry_radaer(i, k, i_mode, i_band ) ) )
 
-          end do ! ncells
+          end do ! seg_size
         end do ! n_layers
       end do ! n_radaer_mode
 
@@ -1662,7 +1762,7 @@ subroutine radaer_faster_code( nlayers,                                        &
         i_rmode = i_rmode + 1
 
         do k = 1, nlayers
-          do i = 1, ncells
+          do i = 1, seg_size
 
             if ( ( lit_fraction(map_2d(1,i)) > 0.0_r_def  ) .or.               &
                  n_radaer_step > 1 ) then
@@ -1694,7 +1794,7 @@ subroutine radaer_faster_code( nlayers,                                        &
 
             end if
 
-          end do ! ncells
+          end do ! seg_size
         end do ! nlayers
       end do ! n_radaer_mode
 
@@ -1713,7 +1813,7 @@ subroutine radaer_faster_code( nlayers,                                        &
 
     if ( .not. associated( aod_ukca_ait_sol, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
-        do i = 1, ncells
+        do i = 1, seg_size
           aod_ukca_ait_sol( map_aod_wavel(1,i) + k - 1 ) =                     &
                                       aod_ukca_all_modes(i,k,mode_ait_sol-1)
         end do
@@ -1722,7 +1822,7 @@ subroutine radaer_faster_code( nlayers,                                        &
 
     if ( .not. associated( aaod_ukca_ait_sol, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
-        do i = 1, ncells
+        do i = 1, seg_size
           aaod_ukca_ait_sol( map_aod_wavel(1,i) + k - 1 ) =                    &
                                      aaod_ukca_all_modes(i,k,mode_ait_sol-1)
         end do
@@ -1735,7 +1835,7 @@ subroutine radaer_faster_code( nlayers,                                        &
 
     if ( .not. associated( aod_ukca_acc_sol, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
-        do i = 1, ncells
+        do i = 1, seg_size
           aod_ukca_acc_sol( map_aod_wavel(1,i) + k - 1 ) =                     &
                                       aod_ukca_all_modes(i,k,mode_acc_sol-1)
         end do
@@ -1744,7 +1844,7 @@ subroutine radaer_faster_code( nlayers,                                        &
 
     if ( .not. associated( aaod_ukca_acc_sol, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
-        do i = 1, ncells
+        do i = 1, seg_size
           aaod_ukca_acc_sol( map_aod_wavel(1,i) + k - 1 ) =                    &
                                      aaod_ukca_all_modes(i,k,mode_acc_sol-1)
         end do
@@ -1757,7 +1857,7 @@ subroutine radaer_faster_code( nlayers,                                        &
 
     if ( .not. associated( aod_ukca_cor_sol, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
-        do i = 1, ncells
+        do i = 1, seg_size
           aod_ukca_cor_sol( map_aod_wavel(1,i) + k - 1 ) =                     &
                                       aod_ukca_all_modes(i,k,mode_cor_sol-1)
         end do
@@ -1766,7 +1866,7 @@ subroutine radaer_faster_code( nlayers,                                        &
 
     if ( .not. associated( aaod_ukca_cor_sol, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
-        do i = 1, ncells
+        do i = 1, seg_size
           aaod_ukca_cor_sol( map_aod_wavel(1,i) + k - 1 ) =                    &
                                      aaod_ukca_all_modes(i,k,mode_cor_sol-1)
         end do
@@ -1779,7 +1879,7 @@ subroutine radaer_faster_code( nlayers,                                        &
 
     if ( .not. associated( aod_ukca_ait_ins, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
-        do i = 1, ncells
+        do i = 1, seg_size
           aod_ukca_ait_ins( map_aod_wavel(1,i) + k - 1 ) =                     &
                                     aod_ukca_all_modes(i,k,mode_ait_insol-1)
         end do
@@ -1788,7 +1888,7 @@ subroutine radaer_faster_code( nlayers,                                        &
 
     if ( .not. associated( aaod_ukca_ait_ins, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
-        do i = 1, ncells
+        do i = 1, seg_size
           aaod_ukca_ait_ins( map_aod_wavel(1,i) + k - 1 ) =                    &
                                    aaod_ukca_all_modes(i,k,mode_ait_insol-1)
         end do
@@ -1801,7 +1901,7 @@ subroutine radaer_faster_code( nlayers,                                        &
 
     if ( .not. associated( aod_ukca_acc_ins, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
-        do i = 1, ncells
+        do i = 1, seg_size
           aod_ukca_acc_ins( map_aod_wavel(1,i) + k - 1 ) =                     &
                                     aod_ukca_all_modes(i,k,mode_acc_insol-1)
         end do
@@ -1810,7 +1910,7 @@ subroutine radaer_faster_code( nlayers,                                        &
 
     if ( .not. associated( aaod_ukca_acc_ins, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
-        do i = 1, ncells
+        do i = 1, seg_size
           aaod_ukca_acc_ins( map_aod_wavel(1,i) + k - 1 ) =                    &
                                    aaod_ukca_all_modes(i,k,mode_acc_insol-1)
         end do
@@ -1823,7 +1923,7 @@ subroutine radaer_faster_code( nlayers,                                        &
 
     if ( .not. associated( aod_ukca_cor_ins, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
-        do i = 1, ncells
+        do i = 1, seg_size
           aod_ukca_cor_ins( map_aod_wavel(1,i) + k - 1 ) =                     &
                                     aod_ukca_all_modes(i,k,mode_cor_insol-1)
         end do
@@ -1832,7 +1932,7 @@ subroutine radaer_faster_code( nlayers,                                        &
 
     if ( .not. associated( aaod_ukca_cor_ins, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
-        do i = 1, ncells
+        do i = 1, seg_size
            aaod_ukca_cor_ins( map_aod_wavel(1,i) + k - 1 ) =                   &
                                    aaod_ukca_all_modes(i,k,mode_cor_insol-1)
         end do
@@ -1842,6 +1942,10 @@ subroutine radaer_faster_code( nlayers,                                        &
   !------------------------------------------------
   ! This is where we would close segmentation and openmp
   !------------------------------------------------
+
+  allocate( aaod_ukca_this_mode )
+  allocate(  sod_ukca_this_mode )
+  allocate(  aod_ukca_this_mode )
 
   deallocate( ukca_modal_wtv )
   deallocate( ukca_modal_vol )
@@ -1866,10 +1970,12 @@ subroutine radaer_faster_code( nlayers,                                        &
 
   deallocate( ukca_mode_mix_ratio )
 
-
-  deallocate( p_theta_levels )
-  deallocate( t_theta_levels )
   deallocate( d_mass_theta_levels )
+  deallocate( t_theta_levels )
+  deallocate( p_theta_levels )
+  
+
+  deallocate( trindxrad )
 
 end subroutine radaer_faster_code
 
