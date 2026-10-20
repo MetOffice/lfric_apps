@@ -100,7 +100,11 @@ contains
     implicit none
 
 #ifdef USE_XIOS
-    ! Finalise XIOS
+    ! XIOS context finalization is already done by lfricjedi_xios_data_bundle%finalise()
+    ! which calls finalise_xios_context() on each context with proper current-setting and sync.
+    ! Skip redundant context finalization here to avoid double-finalize issues.
+    ! Still need to finalize the XIOS library itself so server-side ranks can exit cleanly
+
     call lfric_xios_finalise()
 #endif
 

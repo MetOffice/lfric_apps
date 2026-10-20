@@ -118,6 +118,9 @@ program jedi_tlm_forecast_tl
 
   call log_event( 'Finalising ' // program_name // ' ...', LOG_LEVEL_ALWAYS )
 
+  ! Close contexts before program shutdown
+  call jedi_linear_model%jedi_linear_model_final()
+  call jedi_geometry%finalise_io_context()
   call jedi_run%finalise()
 
 end program jedi_tlm_forecast_tl

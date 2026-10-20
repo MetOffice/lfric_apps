@@ -180,6 +180,9 @@ subroutine finalise(self)
 
   class(jedi_run_type), intent(inout) :: self
 
+  ! Finalise external communicator groups
+  call final_external_comm()
+
   ! Finalise collections
   call final_collections()
 
@@ -194,9 +197,6 @@ subroutine finalise(self)
 
   ! Finalise internal communicator groups
   call final_internal_comm()
-
-  ! Finalise external communicator groups
-  call final_external_comm()
 
   ! Finalise the communicator
   call destroy_comm()
