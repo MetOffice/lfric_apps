@@ -225,8 +225,9 @@ contains
         vector_space => field_src%get_function_space()
         ndata = vector_space%get_ndata()
 
+        print*,'ndata', ndata
         if ( ndata > 1 ) then
-           write(log_scratch_space, '(A,A)') "Processing lfric field ", &
+           write(log_scratch_space, '(A,A)') "Processing multidata lfric field ", &
                                            trim(field_name)
           call log_event(log_scratch_space, log_level_info)
 
@@ -250,6 +251,10 @@ contains
         ndata = vector_space%get_ndata()
 
         if ( ndata == 1 ) then
+
+          write(log_scratch_space, '(A,A)') "Processing lfric field ", &
+                                           trim(field_name)
+          call log_event(log_scratch_space, log_level_info)
  
           ! Convert W2 fields to a set of W3 and Wtheta fields
           fs_id = field_src%which_function_space()

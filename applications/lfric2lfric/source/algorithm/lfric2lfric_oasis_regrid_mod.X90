@@ -243,15 +243,17 @@ contains
 
       if ( ndata > 1 ) then
         do k = 0, ndata - 1
+          print*,'k',k
           if (k+1 < 10) then
-             format_string = "I1"
+             format_string = "(I1)"
           else
-             format_string = "I2"
+             format_string = "(I2)"
           end if
           write(k_string, format_string) k+1
-          coupling_field_src_name = 'src_' // field_name // '_level_' // trim(k_string)
-          coupling_field_dst_name = 'dst_' // field_name // '_level_' // trim(k_string)
-
+          print*,k_string
+          coupling_field_src_name = 'src_' // trim(field_name) // '_level_' // trim(k_string)
+          coupling_field_dst_name = 'dst_' // trim(field_name) // '_level_' // trim(k_string)
+          print*, 'name',coupling_field_src_name, trim(k_string)
           !Get the 2D fields where to store layer and field level data
           cpl_snd_2d => modeldb%fields%get_field_collection( "cpl_snd_2d")
           call cpl_snd_2d%get_field(TRIM(coupling_field_src_name), src_field)

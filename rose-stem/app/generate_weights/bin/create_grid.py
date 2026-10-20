@@ -124,7 +124,6 @@ def transform_and_write(my_grid, with_mask):
     lonout.long_name = "grid_center_lon"
     lonout.units = my_grid.ulon
     lonout[:] = transform(my_grid.dlon, 'lon')
-    maskout.long_name = "grid_imask"
     if (with_mask):
       maskout = outfile.createVariable('grid_imask',
                                      numpy.dtype('float64').char,
@@ -138,7 +137,7 @@ def transform_and_write(my_grid, with_mask):
                                      ('grid_size', ))
       maskout.units = "unitless"
       maskout[:] = numpy.int32(1)
-
+    maskout.long_name = "grid_imask"
     print('Area not generated for model: ', my_grid.vname)
 
     claout = outfile.createVariable('grid_corner_lat',

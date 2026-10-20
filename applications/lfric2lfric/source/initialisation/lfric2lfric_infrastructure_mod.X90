@@ -65,7 +65,8 @@ module lfric2lfric_infrastructure_mod
   use lfric2lfric_init_mod,        only: init_lfric2lfric
   use lfric2lfric_init_coupler_mod,only: lfric2lfric_init_coupler_src, &
                                          lfric2lfric_init_coupler_dst, &
-                                         lfric2lfric_end_coupler_init
+                                         lfric2lfric_end_coupler_init, &
+                                         parse_namcouple
   use lfric2lfric_field_init_mod,  only: field_maker
   use netcdf,                      only: nf90_max_name
 #ifdef MCT
@@ -242,6 +243,8 @@ contains
     character(str_def) :: stored_mesh_names(2)
 
     character(str_def) :: c_name
+    character(str_def), allocatable :: src_name_cpl_list(:)
+    character(str_def), allocatable :: dst_name_cpl_list(:)
 
     ! -------------------------------
     ! Extract namelist variables
@@ -620,14 +623,16 @@ contains
 #ifdef MCT
         ! Create oasis partitions and coupling variables
         ! Source fields
+         call parse_namcouple(src_name_cpl_list, dst_name_cpl_list)
+         print*,src_name_cpl_list
         c_name = "coupling"
-        call lfric2lfric_init_coupler_src(TRIM(c_name), &
+        call lfric2lfric_init_coupler_src(src_name_cpl_list, TRIM(c_name), &
                                        element_order_h, element_order_v, &
                                        twod_mesh_src, modeldb)
 
         ! Destination fields
         c_name = "coupling_dst" 
-        call lfric2lfric_init_coupler_dst(TRIM(c_name), &
+        call lfric2lfric_init_coupler_dst(dst_name_cpl_list, TRIM(c_name), &
                                        element_order_h, element_order_v, &
                                        twod_mesh_dst, modeldb)
 

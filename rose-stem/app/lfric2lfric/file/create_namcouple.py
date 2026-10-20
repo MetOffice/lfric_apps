@@ -14,16 +14,20 @@ The details of the entries are taken from the iodef file and the axis_map.
 import xml.etree.ElementTree as ET
 
 NAMCOUPLE_FILE = "namcouple"
-IODEF_FILE = "iodef_ral3.xml"
+IODEF_FILE = "iodef_FULL_DUMP_CF.xml"
 PREFIX_OUT = "checkpoint"
 PREFIX_IN = "restart"
 MAX_FREQ = 5000
 
 AXIS_MAP = {
+    "surface_tiles":         [11, "weight_file_masked.nc"],
     "land_tiles":            [8, "weight_file_masked.nc"],
-    "snow_layers_and_tiles": [11, "weight_file_nearest.nc"],
-    "soil_levels":           [5, "weight_file_masked.nc"],
-    "general":               [1, "weight_file_bilinear.nc"],
+    "sea_ice_categories":    [1, "weight_file_masked.nc"],
+    "snow_layers_and_tiles": [27, "weight_file_masked.nc"],
+    "soil_levels":           [4, "weight_file_masked.nc"],
+    "plant_func_types":      [5, "weight_file_masked.nc"],
+    "dust_divisions":        [6, "weight_file_masked.nc"],
+    "general":               [1, "weight_file.nc"],
 }
 
 
@@ -102,8 +106,8 @@ def process_multidata_field(f, field, count):
         # axis_data[0] gives the number of levels in the multidata axis
         # axis_data[1] gives the name of the associated weights file
         for n in range(1, axis_data[0]+1):
-            src = "src_" + write_var + "_level_" + str(n)
-            dst = "dst_" + write_var + "_level_" + str(n)
+            src = "src" + write_var + "_level_" + str(n)
+            dst = "dst" + write_var + "_level_" + str(n)
             count += 1
             write_string(f, count, src, dst, MAX_FREQ, axis_data[1])
     return count
