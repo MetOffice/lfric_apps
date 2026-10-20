@@ -67,9 +67,10 @@ use lfricinp_stashmaster_mod, only: &
     stashcode_ice_temp_cat,stashcode_ice_snow_depth_cat,                      &
     stashcode_mcl, stashcode_mcf, stashcode_mr,                               &
     stashcode_ice_surf_cond_cat, stashcode_ice_surf_temp_cat,                 &
-    stashcode_ddmfx,                                                          &
+    stashcode_ddmfx, stashcode_surftemp,                                      &
     stashcode_tstar_sea, stashcode_tstar_sice, stashcode_sea_ice_temp,        &
-    stashcode_z0, stashcode_q, stashcode_qcf, stashcode_qcl, stashcode_qrain, &
+    stashcode_z0, stashcode_q, stashcode_qv, stashcode_qsnow, stashcode_qcf,  &
+    stashcode_qcl, stashcode_qrain, &
     stashcode_rhor2, stashcode_lsm, stashcode_icefrac, stashcode_icethick,    &
     stashcode_total_aero, stashcode_z0h_tile, stashcode_dust1_mmr,            &
     stashcode_dust2_mmr, stashcode_ls_snow_rate, stashcode_conv_rain_rate,    &
@@ -143,7 +144,6 @@ call map_field_name(stashcode_icefrac, 'icefrac')                    ! stash 31 
 call map_field_name(stashcode_icethick, 'ice_mean_thickness')        ! stash 32
 call map_field_name(stashcode_icethick, 'icethick')                  ! stash 32 DEPRECATED
 call map_field_name(stashcode_orog, 'surface_altitude')              ! stash 33
-call map_field_name(stashcode_sea_ice_temp, 'ice_mean_temperature')  ! stash 49
 call map_field_name(stashcode_sea_ice_temp, 'sea_ice_temperature')   ! stash 49 DEPRECATED
 call map_field_name(stashcode_ozone, 'ozone')                        ! stash 60
 call map_field_name(stashcode_total_aero, 'total_aero')              ! stash 90
@@ -213,7 +213,6 @@ call map_field_name(stashcode_p, 'pressure')                         ! stash 407
 call map_field_name(stashcode_ice_conc_cat, 'ice_conc_cat')          ! stash 413
 call map_field_name(stashcode_ice_thick_cat, 'sea_ice_thickness')    ! stash 414
 call map_field_name(stashcode_ice_thick_cat, 'ice_thick_cat')        ! stash 414 DEPRECATED
-call map_field_name(stashcode_ice_temp_cat, 'sea_ice_temperature')   ! stash 415
 call map_field_name(stashcode_ice_temp_cat, 'ice_temp_cat')          ! stash 415 DEPRECATED
 call map_field_name(stashcode_ice_snow_depth_cat, 'ice_snow_depth_cat')
                                                                      ! stash 416

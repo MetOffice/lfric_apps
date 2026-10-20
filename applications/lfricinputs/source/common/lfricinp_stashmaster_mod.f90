@@ -44,7 +44,7 @@ integer(kind=int64), public, parameter :: soil_levels = 6
 
 ! Parameters for pseudo level type
 integer(kind=int64), public, parameter :: snow_layers_and_tiles = 11
-integer(KIND=int64), public, parameter :: ice_cats = 10
+integer(kind=int64), public, parameter :: ice_cats = 10
 
 ! STASHcodes
 integer(kind=int64), public, parameter :: stashcode_u                 =   2
@@ -55,8 +55,10 @@ integer(kind=int64), public, parameter :: stashcode_orog_y_grad       =   6
 integer(kind=int64), public, parameter :: stashcode_unfilt_orog       =   7
 integer(kind=int64), public, parameter :: stashcode_soil_moist        =   9
 
-integer(kind=int64), public, parameter :: stashcode_q                 =  10
-integer(kind=int64), public, parameter :: stashcode_qcf               =  12
+integer(kind=int64), public, parameter :: stashcode_qv                =  10
+integer(kind=int64), public, parameter :: stashcode_q                 =  10 ! DEPRECATED
+integer(kind=int64), public, parameter :: stashcode_qsnow             =  12
+integer(kind=int64), public, parameter :: stashcode_qcf               =  12 ! DEPRECATED
 integer(kind=int64), public, parameter :: stashcode_cca               =  13
 integer(kind=int64), public, parameter :: stashcode_ccb               =  14
 integer(kind=int64), public, parameter :: stashcode_cct               =  15
@@ -70,7 +72,7 @@ integer(kind=int64), public, parameter :: stashcode_mean_canopyw      =  22
 integer(kind=int64), public, parameter :: stashcode_snow_amount       =  23
 integer(kind=int64), public, parameter :: stashcode_mean_snow         =  23
 integer(kind=int64), public, parameter :: stashcode_surftemp          =  24
-integer(kind=int64), public, parameter :: stashcode_tstar             =  24
+integer(kind=int64), public, parameter :: stashcode_tstar             =  24 ! DEPRECATED
 integer(kind=int64), public, parameter :: stashcode_bl_depth          =  25
 integer(kind=int64), public, parameter :: stashcode_rough_length      =  26
 integer(kind=int64), public, parameter :: stashcode_z0                =  26
@@ -191,12 +193,13 @@ integer(kind=int64), public, parameter :: stashcode_riv_substorage    = 167
 integer(kind=int64), public, parameter :: stashcode_riv_flowin        = 168
 integer(kind=int64), public, parameter :: stashcode_riv_bflowin       = 169
 
-integer(KIND=int64), public, parameter :: stashcode_cpl_sw_rad_sea    = 171
-integer(KIND=int64), public, parameter :: stashcode_cpl_sw_surf_sea   = 172
-integer(KIND=int64), public, parameter :: stashcode_cpl_lw_rad_sea    = 173
-integer(KIND=int64), public, parameter :: stashcode_cpl_lw_surf_sea   = 174
-integer(KIND=int64), public, parameter :: stashcode_cpl_xcomp_windstr = 175
-integer(KIND=int64), public, parameter :: stashcode_cpl_ycomp_windstr = 176
+integer(kind=int64), public, parameter :: stashcode_cpl_sw_rad_sea    = 171
+integer(kind=int64), public, parameter :: stashcode_cpl_sw_surf_sea   = 172
+integer(kind=int64), public, parameter :: stashcode_cpl_lw_rad_sea    = 173
+integer(kind=int64), public, parameter :: stashcode_cpl_lw_surf_sea   = 174
+integer(kind=int64), public, parameter :: stashcode_cpl_xcomp_windstr = 175
+integer(kind=int64), public, parameter :: stashcode_cpl_ycomp_windstr = 176
+
 integer(kind=int64), public, parameter :: stashcode_ice_subl_cat      = 182
 integer(kind=int64), public, parameter :: stashcode_ls_snow_rate      = 187
 integer(kind=int64), public, parameter :: stashcode_conv_rain_rate    = 188
