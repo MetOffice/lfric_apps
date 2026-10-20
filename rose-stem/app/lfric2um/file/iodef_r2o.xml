@@ -110,8 +110,8 @@
   <field id="read_tile_snow_mass" name="snow_mass_on_tiles" long_name="surface_snow_amount" unit="kg m-2" grid_ref="surface_tiles_face_grid" operation="instant" />
   <field id="read_tile_snow_depth" name="snow_depth" long_name="snow_depth" unit="m" grid_ref="surface_tiles_face_grid" operation="instant" />
   <field id="read_tile_snowpack_density" name="snowpack_density" long_name="snowpack_density" unit="kg m-3" grid_ref="surface_tiles_face_grid" operation="instant" />
-  <field id="read_tile_snow_under_canopy" name="snow_under_canopy" long_name="Snow under canopy on tiles" unit="m" grid_ref="land_tiles_face_grid" operation="instant" />
-  <field id="read_tile_n_snow_layers" name="n_snow_layers" long_name="Number of snow layers on tiles" unit="1" grid_ref="land_tiles_face_grid" operation="instant" />
+  <field id="read_tile_snow_under_canopy" name="snow_under_canopy" long_name="Snow under canopy on tiles" unit="m" grid_ref="surface_tiles_face_grid" operation="instant" />
+  <field id="read_tile_n_snow_layers" name="n_snow_layers" long_name="Number of snow layers on tiles" unit="1" grid_ref="surface_tiles_face_grid" operation="instant" />
 
   <!-- snow layers fields -->
   <field id="read_tile_snow_layer_thickness" name="snow_layer_thickness" long_name="snow_layer_thickness" unit="m" grid_ref="snow_layers_face_grid" operation="instant" />
@@ -123,8 +123,8 @@
   <!-- soil levels fields -->
   <field id="read_soil_moisture" name="layer_soil_moisture_content" long_name="mass_content_of_water_in_soil_layer" unit="kg m-2" grid_ref="soil_levels_face_grid" operation="instant" />
   <field id="read_soil_temperature" name="soil_temperature" long_name="Soil temperature" unit="K" grid_ref="soil_levels_face_grid" operation="instant" />
-  <field id="read_unfrozen_soil_moisture" name="unfrozen_soil_moisture" long_name="mass_fraction_of_unfrozen_water_in_saturated_soil_moisture" unit=" " grid_ref="soil_levels_face_grid" operation="instant" />
-  <field id="read_frozen_soil_moisture" name="frozen_soil_moisture" long_name="mass_fraction_of_frozen_water_in_saturated_soil_moisture" unit=" " grid_ref="soil_levels_face_grid" operation="instant" />
+  <field id="read_unfrozen_soil_moisture" name="layer_unfrozen_soil_moisture" long_name="mass_fraction_of_unfrozen_water_in_saturated_soil_moisture" unit=" " grid_ref="soil_levels_face_grid" operation="instant" />
+  <field id="read_frozen_soil_moisture" name="layer_frozen_soil_moisture" long_name="mass_fraction_of_frozen_water_in_saturated_soil_moisture" unit=" " grid_ref="soil_levels_face_grid" operation="instant" />
 
        </field_group>
       </file>
