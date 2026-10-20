@@ -75,8 +75,8 @@
   <field id="read_w_in_wth" name="w_in_wth" long_name="upward_air_velocity_at_cell_interfaces" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" operation="instant" />
   <field id="read_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" operation="instant" />
   <field id="read_rho" name="rho" long_name="air_density" unit="1" grid_ref="half_level_face_grid" operation="instant" />
-  <field id="read_qv" name="qv" long_name="specific_humidity" standard_name="specific_humidity" unit="kg kg-1" grid_ref="full_level_face_grid" operation="instant" />
-  <field id="read_qsnow" name="qsnow" long_name="specific_snow" standard_name="mass_fraction_of_snow_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="instant" />
+  <field id="read_q" name="qv" long_name="specific_humidity" standard_name="specific_humidity" unit="kg kg-1" grid_ref="full_level_face_grid" operation="instant" />
+  <field id="read_qcf" name="qsnow" long_name="specific_snow" standard_name="mass_fraction_of_snow_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="instant" />
   <field id="read_qcl" name="qcl" long_name="specific_cloud_liquid_water" standard_name="mass_fraction_of_cloud_liquid_water_in_air" unit="kg kg-1" grid_ref="full_level_face_grid" operation="instant" />
   <field id="read_m_v" name="m_v" long_name="humidity_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="instant" />
   <field id="read_m_cl" name="m_cl" long_name="cloud_liquid_water_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="instant" />
@@ -86,39 +86,39 @@
   <field id="read_liquid_fraction" name="liquid_fraction" long_name="cloud_liquid_fraction" unit="1" grid_ref="full_level_face_grid" operation="instant" />
   <field id="read_frozen_fraction" name="frozen_fraction" long_name="cloud_frozen_fraction" unit="1" grid_ref="full_level_face_grid" operation="instant" />
   <field id="read_zh" name="zh" long_name="boundary_layer_depth" unit="m" domain_ref="face" operation="instant" />
-  <field id="read_z0m_sea" name="z0m_sea" long_name="surface_roughness_length" unit="m" domain_ref="face" operation="instant" />
+  <field id="read_z0msea" name="z0m_sea" long_name="surface_roughness_length" unit="m" domain_ref="face" operation="instant" />
 
   <!-- Additional fields -->
   <field id="read_water_table" name="water_table" long_name="water_table_depth" unit="m" domain_ref="face" operation="instant" />
-  <field id="read_grid_surface_temperature" name="grid_surface_temperature" long_name="grid_surface_temperature" standard_name="surface_temperature" unit="K" domain_ref="face" operation="instant" />
-  <field id="read_sea_ice_fraction" name="sea_ice_fraction" long_name="sea_ice_area_fraction" unit="m" domain_ref="face" operation="instant" />
-  <field id="read_ice_mean_thickness" name="ice_mean_thickness" long_name="sea_ice_thickness_mean_over_ice" unit="m" domain_ref="face" operation="instant" />
-  <field id="read_ice_mean_temperature" name="ice_mean_temperature" long_name="sea_ice_temperature_mean_over_ice" unit="m" domain_ref="face" operation="instant" />
-  <field id="read_sea_surface_temperature" name="sea_surface_temperature" long_name="sea_surface_temperature" unit="m" domain_ref="face" operation="instant" />
-  <field id="read_sea_ice_surface_temperature" name="sea_ice_surface_temperature" long_name="sea_ice_surface_temperature" unit="m" domain_ref="face" operation="instant" />
+  <field id="read_tstar" name="grid_surface_temperature" long_name="grid_surface_temperature" standard_name="surface_temperature" unit="K" domain_ref="face" operation="instant" />
+  <field id="read_icefrac" name="sea_ice_fraction" long_name="sea_ice_area_fraction" unit="m" domain_ref="face" operation="instant" />
+  <field id="read_icethick" name="ice_mean_thickness" long_name="sea_ice_thickness_mean_over_ice" unit="m" domain_ref="face" operation="instant" />
+  <field id="read_sea_ice_temperature" name="ice_mean_temperature" long_name="sea_ice_temperature_mean_over_ice" unit="m" domain_ref="face" operation="instant" />
+  <field id="read_tstar_sea" name="sea_surface_temperature" long_name="sea_surface_temperature" unit="m" domain_ref="face" operation="instant" />
+  <field id="read_tstar_sea_ice" name="sea_ice_surface_temperature" long_name="sea_ice_surface_temperature" unit="m" domain_ref="face" operation="instant" />
   <field id="read_soil_sat_frac" name="soil_sat_frac" long_name="soil_saturated_fraction" unit="m" domain_ref="face" operation="instant" />
   <field id="read_wetness_under_soil" name="wetness_under_soil" long_name="wetness_below_soil_column" unit="m" domain_ref="face" operation="instant" />
 
   <!-- sea_ice_cat fields -->
-  <field id="read_sea_ice_temperature" name="sea_ice_temperature" long_name="sea_ice_temperature" unit="K" grid_ref="sea_ice_categories_face_grid" operation="instant" />
-  <field id="read_sea_ice_thickness" name="sea_ice_thickness" long_name="sea_ice_thickness" unit="m" grid_ref="sea_ice_categories_face_grid" operation="instant" />
+  <field id="read_ice_temp_cat" name="sea_ice_temperature" long_name="sea_ice_temperature" unit="K" grid_ref="sea_ice_categories_face_grid" operation="instant" />
+  <field id="read_ice_thick_cat" name="sea_ice_thickness" long_name="sea_ice_thickness" unit="m" grid_ref="sea_ice_categories_face_grid" operation="instant" />
 
   <!-- surface tiles fields -->
   <field id="read_canopy_water_content" name="canopy_water_content" long_name="canopy_water_amount" unit="kg m-2" grid_ref="surface_tiles_face_grid" operation="instant" />
   <field id="read_tile_snow_rgrain" name="tile_snow_rgrain" long_name="tile_snow_grain_size" unit="microns" grid_ref="surface_tiles_face_grid" operation="instant" />
   <field id="read_tile_temperature" name="tile_temperature" long_name="surface_tile_temperature" unit="K" grid_ref="surface_tiles_face_grid" operation="instant" />
-  <field id="read_snow_mass_on_tiles" name="snow_mass_on_tiles" long_name="surface_snow_amount" unit="kg m-2" grid_ref="surface_tiles_face_grid" operation="instant" />
-  <field id="read_snow_depth" name="snow_depth" long_name="snow_depth" unit="m" grid_ref="surface_tiles_face_grid" operation="instant" />
-  <field id="read_snowpack_density" name="snowpack_density" long_name="snowpack_density" unit="kg m-3" grid_ref="surface_tiles_face_grid" operation="instant" />
-  <field id="read_snow_under_canopy" name="snow_under_canopy" long_name="Snow under canopy on tiles" unit="m" grid_ref="land_tiles_face_grid" operation="instant" />
-  <field id="read_n_snow_layers" name="n_snow_layers" long_name="Number of snow layers on tiles" unit="1" grid_ref="land_tiles_face_grid" operation="instant" />
+  <field id="read_tile_snow_mass" name="snow_mass_on_tiles" long_name="surface_snow_amount" unit="kg m-2" grid_ref="surface_tiles_face_grid" operation="instant" />
+  <field id="read_tile_snow_depth" name="snow_depth" long_name="snow_depth" unit="m" grid_ref="surface_tiles_face_grid" operation="instant" />
+  <field id="read_tile_snowpack_density" name="snowpack_density" long_name="snowpack_density" unit="kg m-3" grid_ref="surface_tiles_face_grid" operation="instant" />
+  <field id="read_tile_snow_under_canopy" name="snow_under_canopy" long_name="Snow under canopy on tiles" unit="m" grid_ref="land_tiles_face_grid" operation="instant" />
+  <field id="read_tile_n_snow_layers" name="n_snow_layers" long_name="Number of snow layers on tiles" unit="1" grid_ref="land_tiles_face_grid" operation="instant" />
 
   <!-- snow layers fields -->
-  <field id="read_snow_layer_thickness" name="snow_layer_thickness" long_name="snow_layer_thickness" unit="m" grid_ref="snow_layers_face_grid" operation="instant" />
-  <field id="read_snow_layer_ice_mass" name="snow_layer_ice_mass" long_name="snow_layer_ice_mass" unit="kg m-2" grid_ref="snow_layers_face_grid" operation="instant" />
-  <field id="read_snow_layer_liq_mass" name="snow_layer_liq_mass" long_name="snow_layer_liquid_mass" unit="kg m-2" grid_ref="snow_layers_face_grid" operation="instant" />
-  <field id="read_snow_layer_temp" name="snow_layer_temp" long_name="snow_layer_temperature" unit="K" grid_ref="snow_layers_face_grid" operation="instant" />
-  <field id="read_snow_layer_rgrain" name="snow_layer_rgrain" long_name="snow_layer_grain_size" unit="microns" grid_ref="snow_layers_face_grid" operation="instant" />
+  <field id="read_tile_snow_layer_thickness" name="snow_layer_thickness" long_name="snow_layer_thickness" unit="m" grid_ref="snow_layers_face_grid" operation="instant" />
+  <field id="read_tile_snow_layer_ice_mass" name="snow_layer_ice_mass" long_name="snow_layer_ice_mass" unit="kg m-2" grid_ref="snow_layers_face_grid" operation="instant" />
+  <field id="read_tile_snow_layer_liq_mass" name="snow_layer_liq_mass" long_name="snow_layer_liquid_mass" unit="kg m-2" grid_ref="snow_layers_face_grid" operation="instant" />
+  <field id="read_tile_snow_layer_temp" name="snow_layer_temp" long_name="snow_layer_temperature" unit="K" grid_ref="snow_layers_face_grid" operation="instant" />
+  <field id="read_tile_snow_layer_rgrain" name="snow_layer_rgrain" long_name="snow_layer_grain_size" unit="microns" grid_ref="snow_layers_face_grid" operation="instant" />
 
   <!-- soil levels fields -->
   <field id="read_soil_moisture" name="layer_soil_moisture_content" long_name="mass_content_of_water_in_soil_layer" unit="kg m-2" grid_ref="soil_levels_face_grid" operation="instant" />
