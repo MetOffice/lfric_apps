@@ -1,0 +1,106 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Claude Code (Claude Opus 5.5), 2026-10-20.
+!-----------------------------------------------------------------------------
+!> @brief Test mountain_wave_stress_kernel with stress linear in pressure.
+!>
+module mountain_wave_stress_kernel_mod_test
+
+  use funit
+  use constants_mod,                   only: r_def, i_def
+  use mountain_wave_stress_kernel_mod, only: mountain_wave_stress_code
+
+  implicit none
+
+  private
+  public :: test_inside_column, test_outside_column
+
+  integer(kind=i_def), parameter :: nlayers  = 4_i_def
+  integer(kind=i_def), parameter :: ndf_wth  = 2_i_def
+  integer(kind=i_def), parameter :: undf_wth = nlayers + 1_i_def
+  integer(kind=i_def), parameter :: map_wth(2) = (/ 1_i_def, 2_i_def /)
+  integer(kind=i_def), parameter :: nplev   = 2_i_def
+  integer(kind=i_def), parameter :: ndf_pl  = 1_i_def
+  integer(kind=i_def), parameter :: undf_pl = nplev
+  integer(kind=i_def), parameter :: map_pl(1) = (/ 1_i_def /)
+
+  real(kind=r_def), parameter :: p_zero = 100000.0_r_def
+  real(kind=r_def), parameter :: kappa  = 2.0_r_def / 7.0_r_def
+
+  ! Stress components linear in pressure (Pa per Pa)
+  real(kind=r_def), parameter :: taux_slope = 2.0e-6_r_def
+  real(kind=r_def), parameter :: tauy_slope = -1.0e-6_r_def
+
+  real(kind=r_def), parameter :: tol = 1.0e-9_r_def
+
+contains
+
+  !> @brief Run the kernel for one pressure level, written to slot kp.
+  subroutine run_kernel(press_lev, kp, stress_plev)
+
+    implicit none
+
+    real(kind=r_def),    intent(in)    :: press_lev
+    integer(kind=i_def), intent(in)    :: kp
+    real(kind=r_def),    intent(inout) :: stress_plev(undf_pl)
+
+    real(kind=r_def) :: pressure(undf_wth), exner(undf_wth)
+    real(kind=r_def) :: taux(undf_wth), tauy(undf_wth)
+
+    ! Surface, then four model levels
+    pressure = (/ 100000.0_r_def, 90000.0_r_def, 50000.0_r_def, &
+                  30000.0_r_def, 20000.0_r_def /)
+    exner = ( pressure / p_zero )**kappa
+    taux = taux_slope * pressure
+    tauy = tauy_slope * pressure
+
+    call mountain_wave_stress_code(nlayers, taux, tauy, exner,          &
+                                   stress_plev, press_lev, kp,          &
+                                   p_zero, kappa,                       &
+                                   ndf_wth, undf_wth, map_wth,          &
+                                   ndf_pl, undf_pl, map_pl)
+
+  end subroutine run_kernel
+
+  !> @brief Interpolated stress magnitude between model levels.
+  @test
+  subroutine test_inside_column()
+
+    implicit none
+
+    real(kind=r_def) :: stress_plev(undf_pl), expected
+
+    stress_plev = 0.0_r_def
+    call run_kernel(40000.0_r_def, 2_i_def, stress_plev)
+
+    expected = 40000.0_r_def * sqrt( taux_slope**2 + tauy_slope**2 )
+    @assertEqual( expected, stress_plev(2), tol * expected )
+    @assertEqual( 0.0_r_def, stress_plev(1) )
+
+  end subroutine test_inside_column
+
+  !> @brief Linear extrapolation from the end levels outside the column.
+  @test
+  subroutine test_outside_column()
+
+    implicit none
+
+    real(kind=r_def) :: stress_plev(undf_pl), expected
+
+    ! Above the top model level
+    call run_kernel(10000.0_r_def, 1_i_def, stress_plev)
+    expected = 10000.0_r_def * sqrt( taux_slope**2 + tauy_slope**2 )
+    @assertEqual( expected, stress_plev(1), tol * expected )
+
+    ! Below the lowest model level
+    call run_kernel(95000.0_r_def, 1_i_def, stress_plev)
+    expected = 95000.0_r_def * sqrt( taux_slope**2 + tauy_slope**2 )
+    @assertEqual( expected, stress_plev(1), tol * expected )
+
+  end subroutine test_outside_column
+
+end module mountain_wave_stress_kernel_mod_test

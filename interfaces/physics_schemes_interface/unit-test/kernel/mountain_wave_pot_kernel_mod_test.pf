@@ -1,0 +1,241 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Claude Code (Claude Opus 5.5), 2026-10-20.
+!-----------------------------------------------------------------------------
+!> @brief Test mountain_wave_pot_kernel on a 3x3 stencil.
+!>
+module mountain_wave_pot_kernel_mod_test
+
+  use funit
+  use constants_mod,                only: r_def, i_def, rmdi
+  use mountain_wave_pot_kernel_mod, only: mountain_wave_pot_code
+
+  implicit none
+
+  private
+  public :: test_own_stress, test_downstream, test_upstream,           &
+            test_diagonal, test_thresholds, test_missing
+
+  ! Stencil cells: centre, W, SW, S, SE, E, NE, N, NW
+  integer(kind=i_def), parameter :: ncells = 9_i_def
+  integer(kind=i_def), parameter :: west = 2_i_def, south_west = 3_i_def
+  integer(kind=i_def), parameter :: south = 4_i_def
+  integer(kind=i_def), parameter :: nlayers = 1_i_def
+  integer(kind=i_def), parameter :: nplev = 1_i_def
+  integer(kind=i_def), parameter :: ndf = 1_i_def
+  integer(kind=i_def), parameter :: undf = ncells
+  integer(kind=i_def), parameter :: map(1) = (/ 1_i_def /)
+
+  real(kind=r_def), parameter :: spacing = 0.01_r_def ! radians
+  real(kind=r_def), parameter :: wind = 10.0_r_def    ! m s-1
+  real(kind=r_def), parameter :: tol = 1.0e-9_r_def
+
+contains
+
+  !> @brief Expected mountain-wave probability for a stress (%).
+  function mw_prob(stress) result(prob)
+
+    implicit none
+
+    real(kind=r_def), intent(in) :: stress
+    real(kind=r_def) :: prob
+
+    prob = 0.1_r_def * ( 42.6666667_r_def * stress + 1.833333_r_def )
+
+  end function mw_prob
+
+  !> @brief Run the kernel on the 3x3 stencil.
+  subroutine run_kernel(stress_plev, u_plev, v_plev, cat_prob, turb_pot)
+
+    implicit none
+
+    real(kind=r_def), intent(in)  :: stress_plev(undf)
+    real(kind=r_def), intent(in)  :: u_plev(undf), v_plev(undf)
+    real(kind=r_def), intent(in)  :: cat_prob(undf)
+    real(kind=r_def), intent(out) :: turb_pot(undf)
+
+    real(kind=r_def)    :: latitude(ncells), longitude(ncells)
+    integer(kind=i_def) :: smap(ndf, ncells), m
+
+    latitude  = spacing * (/ 0.0_r_def, 0.0_r_def, -1.0_r_def,          &
+                             -1.0_r_def, -1.0_r_def, 0.0_r_def,         &
+                             1.0_r_def, 1.0_r_def, 1.0_r_def /)
+    longitude = spacing * (/ 0.0_r_def, -1.0_r_def, -1.0_r_def,         &
+                             0.0_r_def, 1.0_r_def, 1.0_r_def,           &
+                             1.0_r_def, 0.0_r_def, -1.0_r_def /)
+    do m = 1, ncells
+      smap(1, m) = m
+    end do
+    turb_pot = 0.0_r_def
+
+    call mountain_wave_pot_code(nlayers, turb_pot,                       &
+                                stress_plev, ncells, smap,               &
+                                u_plev, ncells, smap,                    &
+                                v_plev, ncells, smap,                    &
+                                cat_prob,                                &
+                                latitude, ncells, smap,                  &
+                                longitude, ncells, smap,                 &
+                                nplev, ndf, undf, map, ndf, undf, map)
+
+  end subroutine run_kernel
+
+  !> @brief The cell's own stress, combined with the turbulence
+  !>        probability by taking the larger.
+  @test
+  subroutine test_own_stress()
+
+    implicit none
+
+    real(kind=r_def) :: stress(undf), u(undf), v(undf), cat(undf)
+    real(kind=r_def) :: turb_pot(undf)
+
+    stress = 0.0_r_def
+    stress(1) = 0.3_r_def
+    u = 0.0_r_def
+    v = 0.0_r_def
+
+    cat = 1.0_r_def
+    call run_kernel(stress, u, v, cat, turb_pot)
+    @assertEqual( mw_prob(0.3_r_def), turb_pot(1), tol )
+
+    cat = 5.0_r_def
+    call run_kernel(stress, u, v, cat, turb_pot)
+    @assertEqual( 5.0_r_def, turb_pot(1), tol )
+
+  end subroutine test_own_stress
+
+  !> @brief Stress spreads from the west when the wind blows east.
+  @test
+  subroutine test_downstream()
+
+    implicit none
+
+    real(kind=r_def) :: stress(undf), u(undf), v(undf), cat(undf)
+    real(kind=r_def) :: turb_pot(undf)
+
+    stress = 0.0_r_def
+    stress(west) = 0.3_r_def
+    u = wind
+    v = 0.0_r_def
+    cat = 0.0_r_def
+
+    call run_kernel(stress, u, v, cat, turb_pot)
+    @assertEqual( mw_prob(0.3_r_def), turb_pot(1), tol )
+
+  end subroutine test_downstream
+
+  !> @brief No spreading when the wind blows away from the cell, or is
+  !>        calm.
+  @test
+  subroutine test_upstream()
+
+    implicit none
+
+    real(kind=r_def) :: stress(undf), u(undf), v(undf), cat(undf)
+    real(kind=r_def) :: turb_pot(undf)
+
+    stress = 0.0_r_def
+    stress(west) = 0.3_r_def
+    v = 0.0_r_def
+    cat = 0.0_r_def
+
+    u = -wind
+    call run_kernel(stress, u, v, cat, turb_pot)
+    @assertEqual( 0.0_r_def, turb_pot(1) )
+
+    u = 0.0_r_def
+    call run_kernel(stress, u, v, cat, turb_pot)
+    @assertEqual( 0.0_r_def, turb_pot(1) )
+
+  end subroutine test_upstream
+
+  !> @brief A north-east wind spreads stress from the south-west
+  !>        neighbour, but not from the south neighbour.
+  @test
+  subroutine test_diagonal()
+
+    implicit none
+
+    real(kind=r_def) :: stress(undf), u(undf), v(undf), cat(undf)
+    real(kind=r_def) :: turb_pot(undf)
+
+    u = wind
+    v = wind
+    cat = 0.0_r_def
+
+    stress = 0.0_r_def
+    stress(south_west) = 0.3_r_def
+    call run_kernel(stress, u, v, cat, turb_pot)
+    @assertEqual( mw_prob(0.3_r_def), turb_pot(1), tol )
+
+    stress = 0.0_r_def
+    stress(south) = 0.3_r_def
+    call run_kernel(stress, u, v, cat, turb_pot)
+    @assertEqual( 0.0_r_def, turb_pot(1) )
+
+  end subroutine test_diagonal
+
+  !> @brief A neighbour's stress is taken only if it exceeds a threshold
+  !>        that the cell's own stress does not.
+  @test
+  subroutine test_thresholds()
+
+    implicit none
+
+    real(kind=r_def) :: stress(undf), u(undf), v(undf), cat(undf)
+    real(kind=r_def) :: turb_pot(undf)
+
+    u = wind
+    v = 0.0_r_def
+    cat = 0.0_r_def
+    stress = 0.0_r_def
+    stress(1) = 0.1_r_def
+
+    ! Both stresses lie between the second and third thresholds
+    stress(west) = 0.2_r_def
+    call run_kernel(stress, u, v, cat, turb_pot)
+    @assertEqual( mw_prob(0.1_r_def), turb_pot(1), tol )
+
+    ! The neighbour exceeds the third threshold
+    stress(west) = 0.3_r_def
+    call run_kernel(stress, u, v, cat, turb_pot)
+    @assertEqual( mw_prob(0.3_r_def), turb_pot(1), tol )
+
+    ! Stress below the probability threshold gives zero probability
+    stress = 0.0_r_def
+    stress(1) = 0.05_r_def
+    call run_kernel(stress, u, v, cat, turb_pot)
+    @assertEqual( 0.0_r_def, turb_pot(1) )
+
+  end subroutine test_thresholds
+
+  !> @brief Missing stress gives the turbulence probability alone; missing
+  !>        turbulence probability gives missing data.
+  @test
+  subroutine test_missing()
+
+    implicit none
+
+    real(kind=r_def) :: stress(undf), u(undf), v(undf), cat(undf)
+    real(kind=r_def) :: turb_pot(undf)
+
+    u = wind
+    v = 0.0_r_def
+
+    stress = rmdi
+    cat = 2.0_r_def
+    call run_kernel(stress, u, v, cat, turb_pot)
+    @assertEqual( 2.0_r_def, turb_pot(1) )
+
+    stress = 0.3_r_def
+    cat = rmdi
+    call run_kernel(stress, u, v, cat, turb_pot)
+    @assertEqual( rmdi, turb_pot(1) )
+
+  end subroutine test_missing
+
+end module mountain_wave_pot_kernel_mod_test

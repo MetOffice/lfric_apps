@@ -1,0 +1,161 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Claude Code (Claude Opus 5.5), 2026-10-20.
+!-----------------------------------------------------------------------------
+!> @brief Test plev_wind_shear_kernel with analytic profiles.
+!>
+module plev_wind_shear_kernel_mod_test
+
+  use funit
+  use constants_mod,              only: r_def, i_def, rmdi
+  use plev_wind_shear_kernel_mod, only: plev_wind_shear_code
+
+  implicit none
+
+  private
+  public :: test_on_model_level, test_between_levels, test_missing
+
+  integer(kind=i_def), parameter :: nlayers = 10_i_def
+  integer(kind=i_def), parameter :: ndf_w3  = 1_i_def
+  integer(kind=i_def), parameter :: undf_w3 = nlayers
+  integer(kind=i_def), parameter :: map_w3(1) = (/ 1_i_def /)
+  integer(kind=i_def), parameter :: nplev   = 1_i_def
+  integer(kind=i_def), parameter :: ndf_pl  = 1_i_def
+  integer(kind=i_def), parameter :: undf_pl = nplev
+  integer(kind=i_def), parameter :: map_pl(1) = (/ 1_i_def /)
+  integer(kind=i_def), parameter :: kp = 1_i_def
+
+  real(kind=r_def), parameter :: p_zero = 100000.0_r_def
+  real(kind=r_def), parameter :: kappa  = 2.0_r_def / 7.0_r_def
+
+  ! Profiles: height linear, eastward wind quadratic and northward wind
+  ! linear in pressure
+  real(kind=r_def), parameter :: dzdp = -0.1_r_def    ! m Pa-1
+  real(kind=r_def), parameter :: u_quad = 1.0e-9_r_def ! m s-1 Pa-2
+  real(kind=r_def), parameter :: dvdp = 5.0e-4_r_def  ! m s-1 Pa-1
+
+  real(kind=r_def), parameter :: tol = 1.0e-6_r_def
+
+contains
+
+  !> @brief Unevenly spaced model levels and the analytic profiles.
+  subroutine make_column(pressure, exner, height, u, v)
+
+    implicit none
+
+    real(kind=r_def), intent(out) :: pressure(nlayers), exner(nlayers)
+    real(kind=r_def), intent(out) :: height(nlayers)
+    real(kind=r_def), intent(out) :: u(nlayers), v(nlayers)
+
+    integer(kind=i_def) :: k
+
+    do k = 1, nlayers
+      pressure(k) = 100000.0_r_def - 7000.0_r_def * real(k - 1, r_def) &
+                    - 200.0_r_def * real(k - 1, r_def)**2
+      exner(k)  = ( pressure(k) / p_zero )**kappa
+      height(k) = dzdp * ( pressure(k) - p_zero )
+      u(k) = u_quad * pressure(k)**2
+      v(k) = dvdp * pressure(k)
+    end do
+
+  end subroutine make_column
+
+  !> @brief Pressure level on a model level: winds equal the level values.
+  @test
+  subroutine test_on_model_level()
+
+    implicit none
+
+    real(kind=r_def) :: pressure(nlayers), exner(nlayers), height(nlayers)
+    real(kind=r_def) :: u(nlayers), v(nlayers)
+    real(kind=r_def) :: u_plev(undf_pl), v_plev(undf_pl)
+    real(kind=r_def) :: wind_shear(undf_pl)
+    real(kind=r_def) :: press_lev, expected
+
+    call make_column(pressure, exner, height, u, v)
+    press_lev = pressure(6)
+
+    call plev_wind_shear_code(nlayers, u, v, exner, height,            &
+                              u_plev, v_plev, wind_shear,              &
+                              press_lev, kp, p_zero, kappa,            &
+                              ndf_w3, undf_w3, map_w3,                 &
+                              ndf_pl, undf_pl, map_pl)
+
+    @assertEqual( u(6), u_plev(1), tol * abs(u(6)) )
+    @assertEqual( v(6), v_plev(1), tol * abs(v(6)) )
+
+    expected = sqrt( (2.0_r_def * u_quad * press_lev)**2 + dvdp**2 ) &
+               / abs(dzdp)
+    @assertEqual( expected, wind_shear(1), tol * expected )
+
+  end subroutine test_on_model_level
+
+  !> @brief Pressure level between model levels: the shear is evaluated at
+  !>        the pressure level itself.
+  @test
+  subroutine test_between_levels()
+
+    implicit none
+
+    real(kind=r_def) :: pressure(nlayers), exner(nlayers), height(nlayers)
+    real(kind=r_def) :: u(nlayers), v(nlayers)
+    real(kind=r_def) :: u_plev(undf_pl), v_plev(undf_pl)
+    real(kind=r_def) :: wind_shear(undf_pl)
+    real(kind=r_def) :: press_lev, expected
+
+    call make_column(pressure, exner, height, u, v)
+    press_lev = 0.3_r_def * pressure(5) + 0.7_r_def * pressure(6)
+
+    call plev_wind_shear_code(nlayers, u, v, exner, height,            &
+                              u_plev, v_plev, wind_shear,              &
+                              press_lev, kp, p_zero, kappa,            &
+                              ndf_w3, undf_w3, map_w3,                 &
+                              ndf_pl, undf_pl, map_pl)
+
+    expected = sqrt( (2.0_r_def * u_quad * press_lev)**2 + dvdp**2 ) &
+               / abs(dzdp)
+    @assertEqual( expected, wind_shear(1), tol * expected )
+
+  end subroutine test_between_levels
+
+  !> @brief Missing shear where the spline levels do not fit in the column.
+  @test
+  subroutine test_missing()
+
+    implicit none
+
+    real(kind=r_def) :: pressure(nlayers), exner(nlayers), height(nlayers)
+    real(kind=r_def) :: u(nlayers), v(nlayers)
+    real(kind=r_def) :: u_plev(undf_pl), v_plev(undf_pl)
+    real(kind=r_def) :: wind_shear(undf_pl)
+    real(kind=r_def) :: press_lev
+
+    call make_column(pressure, exner, height, u, v)
+
+    ! Between the lowest two levels
+    press_lev = 0.5_r_def * ( pressure(1) + pressure(2) )
+    call plev_wind_shear_code(nlayers, u, v, exner, height,            &
+                              u_plev, v_plev, wind_shear,              &
+                              press_lev, kp, p_zero, kappa,            &
+                              ndf_w3, undf_w3, map_w3,                 &
+                              ndf_pl, undf_pl, map_pl)
+    @assertEqual( rmdi, wind_shear(1) )
+
+    ! Above the model top: winds take the top level values
+    press_lev = 0.5_r_def * pressure(nlayers)
+    call plev_wind_shear_code(nlayers, u, v, exner, height,            &
+                              u_plev, v_plev, wind_shear,              &
+                              press_lev, kp, p_zero, kappa,            &
+                              ndf_w3, undf_w3, map_w3,                 &
+                              ndf_pl, undf_pl, map_pl)
+    @assertEqual( rmdi, wind_shear(1) )
+    @assertEqual( u(nlayers), u_plev(1) )
+    @assertEqual( v(nlayers), v_plev(1) )
+
+  end subroutine test_missing
+
+end module plev_wind_shear_kernel_mod_test

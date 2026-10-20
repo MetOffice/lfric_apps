@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Claude Code (Claude Opus 5.5), 2026-10-20.
+!-------------------------------------------------------------------------------
 !> @brief create physics prognostics
 !> @details Creates the physics prognostic fields
 module create_physics_prognostics_mod
@@ -620,6 +623,13 @@ contains
          ckp=checkpoint_flag))
     call processor%apply(make_spec('silhouette_area_orog', main%orography,      &
          ckp=checkpoint_flag))
+
+    ! 3D fields, don't need checkpointing
+    ! Total orographic drag stress, kept for the turbulence diagnostics
+    call processor%apply(make_spec('taux_orog_total', main%orography, Wtheta,  &
+         empty = (orographic_drag /= orographic_drag_um) ))
+    call processor%apply(make_spec('tauy_orog_total', main%orography, Wtheta,  &
+         empty = (orographic_drag /= orographic_drag_um) ))
 
     !========================================================================
     ! Fields owned by the turbulence scheme
