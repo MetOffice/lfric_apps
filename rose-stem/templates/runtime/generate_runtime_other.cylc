@@ -10,7 +10,7 @@
 {# Set the family inheritance for this task #}
 {% set inherit = namespace(str="") %}
 
-{% for family in task_values["plot_families"] %}
+{% for family in task_values["run_families"] %}
     {% set inherit.str = inherit.str~family|upper~"," %}
 {% endfor %}
 
@@ -21,7 +21,7 @@
     inherit.str,
     task_values["tech-tests_wallclock"],
     task_values["tech-tests_cpus"],
-    task_values["tech-tests_memory"]
+    task_values["tech-tests_memory"],
     task_values["tmpsize"],
     ) }}
 
