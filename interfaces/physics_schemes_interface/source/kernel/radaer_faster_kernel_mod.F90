@@ -823,49 +823,56 @@ subroutine radaer_faster_code( nlayers,                                        &
         do i = 1, seg_size
           do k = 1, nlayers
             ii = jj + i - 1
-            ukca_comp_vol(m, i, k)=real( pvol_su_ait_sol(map_wth(1,i) + k), r_um )
+            ukca_comp_vol(m, i, k)=real( pvol_su_ait_sol(map_wth(1,ii) + k), &
+                                         r_um )
           end do
         end do
       case('fldname_pvol_bc_ait_sol')
         do i = 1, seg_size
           do k = 1, nlayers
             ii = jj + i - 1
-            ukca_comp_vol(m, i, k)=real( pvol_bc_ait_sol(map_wth(1,i) + k), r_um )
+            ukca_comp_vol(m, i, k)=real( pvol_bc_ait_sol(map_wth(1,ii) + k), &
+                                         r_um )
           end do
         end do
       case('fldname_pvol_om_ait_sol')
         do i = 1, seg_size
           do k = 1, nlayers
             ii = jj + i - 1
-            ukca_comp_vol(m, i, k)=real( pvol_om_ait_sol(map_wth(1,i) + k), r_um )
+            ukca_comp_vol(m, i, k)=real( pvol_om_ait_sol(map_wth(1,ii) + k), &
+                                         r_um )
           end do
         end do
       case('fldname_pvol_su_acc_sol')
         do i = 1, seg_size
           do k = 1, nlayers
             ii = jj + i - 1
-            ukca_comp_vol(m, i, k)=real( pvol_su_acc_sol(map_wth(1,i) + k), r_um )
+            ukca_comp_vol(m, i, k)=real( pvol_su_acc_sol(map_wth(1,ii) + k), &
+                                         r_um )
           end do
         end do
       case('fldname_pvol_bc_acc_sol')
         do i = 1, seg_size
           do k = 1, nlayers
             ii = jj + i - 1
-            ukca_comp_vol(m, i, k)=real( pvol_bc_acc_sol(map_wth(1,i) + k), r_um )
+            ukca_comp_vol(m, i, k)=real( pvol_bc_acc_sol(map_wth(1,ii) + k), &
+                                         r_um )
           end do
         end do
       case('fldname_pvol_om_acc_sol')
         do i = 1, seg_size
           do k = 1, nlayers
             ii = jj + i - 1
-            ukca_comp_vol(m, i, k)=real( pvol_om_acc_sol(map_wth(1,i) + k), r_um )
+            ukca_comp_vol(m, i, k)=real( pvol_om_acc_sol(map_wth(1,ii) + k), &
+                                         r_um )
           end do
         end do
       case('fldname_pvol_ss_acc_sol')
         do i = 1, seg_size
           do k = 1, nlayers
             ii = jj + i - 1
-            ukca_comp_vol(m, i, k)=real( pvol_ss_acc_sol(map_wth(1,i) + k), r_um )
+            ukca_comp_vol(m, i, k)=real( pvol_ss_acc_sol(map_wth(1,ii) + k), &
+                                         r_um )
           end do
         end do
       case('fldname_pvol_du_acc_sol')
@@ -879,28 +886,32 @@ subroutine radaer_faster_code( nlayers,                                        &
         do i = 1, seg_size
           do k = 1, nlayers
             ii = jj + i - 1
-            ukca_comp_vol(m, i, k)=real( pvol_su_cor_sol(map_wth(1,i) + k), r_um )
+            ukca_comp_vol(m, i, k)=real( pvol_su_cor_sol(map_wth(1,ii) + k), &
+                                         r_um )
           end do
         end do
       case('fldname_pvol_bc_cor_sol')
         do i = 1, seg_size
           do k = 1, nlayers
             ii = jj + i - 1
-            ukca_comp_vol(m, i, k)=real( pvol_bc_cor_sol(map_wth(1,i) + k), r_um )
+            ukca_comp_vol(m, i, k)=real( pvol_bc_cor_sol(map_wth(1,ii) + k), &
+                                         r_um )
           end do
         end do
       case('fldname_pvol_om_cor_sol')
         do i = 1, seg_size
           do k = 1, nlayers
             ii = jj + i - 1
-            ukca_comp_vol(m, i, k)=real( pvol_om_cor_sol(map_wth(1,i) + k), r_um )
+            ukca_comp_vol(m, i, k)=real( pvol_om_cor_sol(map_wth(1,ii) + k), &
+                                         r_um )
           end do
         end do
       case('fldname_pvol_ss_cor_sol')
         do i = 1, seg_size
           do k = 1, nlayers
             ii = jj + i - 1
-            ukca_comp_vol(m, i, k)=real( pvol_ss_cor_sol(map_wth(1,i) + k), r_um )
+            ukca_comp_vol(m, i, k)=real( pvol_ss_cor_sol(map_wth(1,ii) + k), &
+                                         r_um )
           end do
         end do
       case('fldname_pvol_du_cor_sol')
@@ -914,32 +925,36 @@ subroutine radaer_faster_code( nlayers,                                        &
         do i = 1, seg_size
           do k = 1, nlayers
             ii = jj + i - 1
-            ukca_comp_vol(m, i, k)=real( pvol_bc_ait_ins(map_wth(1,i) + k), r_um )
+            ukca_comp_vol(m, i, k)=real( pvol_bc_ait_ins(map_wth(1,ii) + k), &
+                                         r_um )
           end do
         end do
       case('fldname_pvol_om_ait_ins')
         do i = 1, seg_size
           do k = 1, nlayers
             ii = jj + i - 1
-            ukca_comp_vol(m, i, k)=real( pvol_om_ait_ins(map_wth(1,i) + k), r_um )
+            ukca_comp_vol(m, i, k)=real( pvol_om_ait_ins(map_wth(1,ii) + k), &
+                                         r_um )
           end do
         end do
       case('fldname_pvol_du_acc_ins')
         do i = 1, seg_size
           do k = 1, nlayers
             ii = jj + i - 1
-            ukca_comp_vol(m, i, k)=real( pvol_du_acc_ins(map_wth(1,i) + k), r_um )
+            ukca_comp_vol(m, i, k)=real( pvol_du_acc_ins(map_wth(1,ii) + k), &
+                                         r_um )
           end do
         end do
       case('fldname_pvol_du_cor_ins')
         do i = 1, seg_size
           do k = 1, nlayers
             ii = jj + i - 1
-            ukca_comp_vol(m, i, k)=real( pvol_du_cor_ins(map_wth(1,i) + k), r_um )
+            ukca_comp_vol(m, i, k)=real( pvol_du_cor_ins(map_wth(1,ii) + k), &
+                                         r_um )
           end do
         end do
       case default
-        write( log_scratch_space, '(A,A)' )                                      &
+        write( log_scratch_space, '(A,A)' )                                    &
            'Missing required ukca_comp_vol : ', pvol_comp_names(m)
         call log_event( log_scratch_space, LOG_LEVEL_ERROR )
       end select
