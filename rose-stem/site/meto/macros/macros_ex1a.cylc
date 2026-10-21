@@ -18,6 +18,7 @@
 
 {% macro normal_queue(
     platform,
+    tmpsize,
     mpi_ranks,
     threads,
     xios_nodes,
@@ -106,6 +107,9 @@
     {% else %}
             -q=normal
     {% endif %}
+    {% if tmpsize %}
+        {{ set_memory(tmpsize, directive="tmpsize") }}
+    {% endif %}
             -l select={{ lfric_nodes +
                          ocean_nodes|int +
                          river_nodes|int +
@@ -113,7 +117,7 @@
 {% endmacro %}
 
 
-{% macro shared_queue(cores, memory) %}
+{% macro shared_queue(cores, memory, tmpsize) %}
         [[[environment]]]
             HYPERTHREADS    = 1
             CORES_PER_NODE  = 128
@@ -125,16 +129,19 @@
     {% else %}
             -q=shared
     {% endif %}
+    {% if tmpsize %}
+        {{ set_memory(tmpsize, directive="tmpsize") }}
+    {% endif %}
             -l ncpus={{ cores }}
     {{ set_memory(memory) }}
 
 {% endmacro %}
 
 
-{% macro set_memory(mem) %}
+{% macro set_memory(mem, directive="mem") %}
     {% set value = mem[0]|int %}
     {% set unit = mem[1] %}
-            -l mem={{value}}{{unit}}
+            -l {{directive}}={{value}}{{unit}}
 {% endmacro %}
 
 
@@ -144,6 +151,7 @@
     wallclock,
     mpi_ranks,
     memory,
+    tmpsize,
     threads=1,
     xios_nodes=0,
     ocean_nodes=0,
@@ -175,6 +183,7 @@
         {% endif %}
         {{ normal_queue(
             platform,
+            tmpsize,
             mpi_ranks,
             threads,
             xios_nodes,
@@ -184,7 +193,7 @@
             ranks_depth_pad
         ) }}
     {% else %}
-        {{ shared_queue(mpi_ranks * threads, memory) }}
+        {{ shared_queue(mpi_ranks * threads, memory, tmpsize) }}
     {% endif %}
 
 {% endmacro %}
