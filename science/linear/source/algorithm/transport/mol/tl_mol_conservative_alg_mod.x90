@@ -469,7 +469,7 @@ module tl_mol_conservative_alg_mod
           direction_code = 'vertical'
       end select
       write( log_scratch_space, '(A,I4)' )                &
-      'Transport: number of MoL substeps in ' //          &
+      'TL Transport: number of MoL substeps in ' //          &
       trim(adjustl(direction_code)) // ' direction = ', number_substeps
       call log_event(log_scratch_space, LOG_LEVEL_INFO)
     end if

@@ -437,6 +437,17 @@ contains
                  setval_X(state(igh_d), rho  ),      &
                  setval_X(state(igh_p), exner) )
 
+    ! Update (and log) derived variables at beginning of timestep.
+    if (use_moisture) then
+      call tl_moist_dyn_factors_alg(moist_dyn, mr)
+    end if
+    if (use_physics) then
+      call map_physics_fields_alg(modeldb%config, state(igh_u), &
+                                  state(igh_p), state(igh_d),   &
+                                  state(igh_t), moist_dyn,      &
+                                  derived_fields)
+    end if
+    
 !--------------------------------------------------------------------
 ! Linearisation state
 !--------------------------------------------------------------------
