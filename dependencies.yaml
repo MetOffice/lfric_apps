@@ -30,8 +30,8 @@ lfric_apps:
     ref:
 
 lfric_core:
-    source: git@github.com:mo-rickywong/lfric_core.git
-    ref: DecoupleGeoTop
+    source: git@github.com:MetOffice/lfric_core.git
+    ref: 0258fdbe0cca4d7839f8263f3fb9e97bd47cccf7
 
 moci:
     source: git@github.com:MetOffice/moci.git
