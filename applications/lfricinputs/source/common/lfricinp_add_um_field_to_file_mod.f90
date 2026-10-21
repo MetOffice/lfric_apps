@@ -17,7 +17,7 @@ use lfricinp_stashmaster_mod,          only: get_stashmaster_item, grid,     &
                                              ppfc, p_points_values_over_sea, &
                                              sm_lbvc => lbvc,                &
                                              cfff,                           &
-                                             levelt, pseudl, pseudt,         &
+                                             levelt, pseudt,                 &
                                              rho_levels, theta_levels,       &
                                              single_level,                   &
                                              cfll,                           &
@@ -245,7 +245,7 @@ if (lookup_int(lbvc) >= 126 .and. lookup_int(lbvc) <= 139 &
   if ( get_stashmaster_item(stashcode, pseudt) /= 0 ) then
     ! Setting the pseudo-level number for pseudo-level fields
 
-    if ( get_stashmaster_item(stashcode, pseudl) == 11 ) then
+    if ( get_stashmaster_item(stashcode, pseudt) == 11 ) then
       ! Calculating the pseudo-level number for snow fields
       ! This number is [land tile number]*1000 + [snow layer]
       ! Number of snow layers is taken to be 3 - TODO unhardcode?
