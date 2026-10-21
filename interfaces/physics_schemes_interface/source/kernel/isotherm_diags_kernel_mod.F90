@@ -136,7 +136,7 @@ contains
       if ( extrapolate ) then
         dz = ( t_lower - t_ref ) / lapse_below_surface
         z_iso = max( height_wth(map_wth(1)) + dz, 0.0_r_def )
-        p_iso = p_zero * exner(map_wth(1))**recip_kappa &
+        p_iso = p_zero * exner(map_wth(1))**recip_kappa                    &
               + dpdz_below_surface * dz
       else
         z_iso = height_wth(map_wth(1))

@@ -7,7 +7,8 @@
 ! - Claude Code (Claude Opus 5.5), 2026-10-16.
 !> @brief Test the isotherm diagnostics kernel.
 !> @details Exner is 1 throughout, so temperature equals theta and the
-!>          pressure on every level is p_zero.
+!>          pressure on every level is p_zero, except in
+!>          test_exner_pressure, which checks the exner-to-pressure step.
 
 module isotherm_diags_kernel_mod_test
 
@@ -17,11 +18,11 @@ module isotherm_diags_kernel_mod_test
   implicit none
 
   private
-  public :: test_simple_crossing, test_highest_crossing,          &
-            test_crossing_above_cutoff, test_cold_surface,        &
-            test_cold_surface_extrapolated, test_extrapolation_cap, &
-            test_no_crossing, test_unrequested_height,            &
-            test_unrequested_pressure
+  public :: test_simple_crossing, test_highest_crossing,                 &
+            test_crossing_above_cutoff, test_cold_surface,               &
+            test_cold_surface_extrapolated, test_extrapolation_cap,      &
+            test_no_crossing, test_unrequested_height,                   &
+            test_unrequested_pressure, test_exner_pressure
 
   integer(i_def), parameter :: nlayers = 4_i_def
   integer(i_def), parameter :: ndf_wth = 1_i_def
@@ -65,8 +66,8 @@ contains
 
     call isotherm_diags_code( nlayers, theta, isotherm_height,           &
                               isotherm_pressure, exner, height, t_ref,   &
-                              extrapolate, p_zero, recip_kappa, g_over_r, &
-                              ndf_wth, undf_wth, map_wth,                &
+                              extrapolate, p_zero, recip_kappa,          &
+                              g_over_r, ndf_wth, undf_wth, map_wth,      &
                               ndf_2d, undf_2d, map_2d )
 
     z_iso = isotherm_height(1)
@@ -287,5 +288,46 @@ contains
     deallocate( isotherm_height )
 
   end subroutine test_unrequested_pressure
+
+  !> @brief With exner below 1, the pressure scales by exner**recip_kappa.
+  @test
+  subroutine test_exner_pressure()
+
+    use isotherm_diags_kernel_mod, only: isotherm_diags_code
+
+    implicit none
+
+    real(r_def), parameter :: exner_value = 0.8_r_def
+    real(r_def), pointer :: isotherm_height(:), isotherm_pressure(:)
+    real(r_def) :: theta(undf_wth), exner(undf_wth), height(undf_wth)
+    real(r_def) :: lapse, p_expected
+    integer(i_def) :: map_wth(ndf_wth), map_2d(ndf_2d)
+
+    ! Same temperatures as test_simple_crossing
+    theta = [ 290.0_r_def, 280.0_r_def, 275.0_r_def, 270.0_r_def,        &
+              265.0_r_def ] / exner_value
+    height = [ 0.0_r_def, 1000.0_r_def, 2000.0_r_def, 3000.0_r_def,      &
+               4000.0_r_def ]
+    exner = exner_value
+    map_wth = 1_i_def
+    map_2d = 1_i_def
+
+    allocate( isotherm_height(undf_2d), isotherm_pressure(undf_2d) )
+
+    call isotherm_diags_code( nlayers, theta, isotherm_height,           &
+                              isotherm_pressure, exner, height,          &
+                              273.15_r_def, .true._l_def, p_zero,        &
+                              recip_kappa, g_over_r, ndf_wth, undf_wth,  &
+                              map_wth,                                   &
+                              ndf_2d, undf_2d, map_2d )
+
+    lapse = 5.0_r_def / 1000.0_r_def
+    p_expected = p_zero * exner_value**recip_kappa                       &
+               * ( 273.15_r_def / 275.0_r_def )**( g_over_r / lapse )
+    @assertEqual( 2370.0_r_def, isotherm_height(1), 1.0e-6_r_def )
+    @assertEqual( p_expected, isotherm_pressure(1), 1.0e-6_r_def )
+    deallocate( isotherm_height, isotherm_pressure )
+
+  end subroutine test_exner_pressure
 
 end module isotherm_diags_kernel_mod_test
