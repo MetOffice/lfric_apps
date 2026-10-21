@@ -16,7 +16,28 @@ contains
 ! Estimates the gradient of the saturation water vapour mixing
 ! ratio curve as a function of temperature T,
 ! by assuming d/dT of the saturation vapour pressure follows
-! the Claussius-Clapeyron equation
+! the Claussius-Clapeyron equation:
+!
+! des/dT = Lc es / (Rv T^2)
+!
+! p = pd + ev
+! qv = rhov/rhod
+! pd = rhod Rd T
+! ev = rhov Rv T
+! => ev/pd = Rv/Rd qv
+! => qv = Rd/Rv ev / (p - ev)
+!
+! Assuming constant total-pressure p,
+!
+! dqs/dT = dqs/des des/dT
+!        = Rd/Rv ( 1/(p - es) + es/(p - es)^2 ) des/dT
+!        = Rd/Rv p/(p - es)^2 des/dT
+!        = Rd/Rv p/(p - es)^2 Lc es / (Rv T^2)
+!        = qs p/(p - es) Lc / (Rv T^2)
+!        = qs ( rhod Rd + rhov Rv ) / ( rhod Rd )  Lc / (Rv T^2)
+!        = qs ( 1 + Rv/Rd qs ) Lc / (Rv T^2)
+!
+! This formula is used below...
 
 !----------------------------------------------------------------
 ! Routine for liquid at all temperatures

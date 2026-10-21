@@ -100,14 +100,12 @@ chem_scheme='none',
 &convection
 cape_timescale=1800.0,
 cv_scheme='gregory_rowntree',
-dx_ref=50000.0,
 efrac=1.0,
 l_cvdiag_ctop_qmax=.false.,
 number_of_convection_substeps=2,
 orig_mdet_fac=1.0,
 prog_ent_min=0.5,
 qlmin=4.0e-4,
-resdep_precipramp=.false.,
 /
 &cosp
 l_cosp=.false.,
