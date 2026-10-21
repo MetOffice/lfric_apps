@@ -348,10 +348,10 @@ SUBROUTINE invoke_deep_X_times_Y(field_1, field_2, field_3)
       ! Dirty
       clean_depth = depth - 1
       exit
-    else
-      ! Clean
-      clean_depth = depth
     end if
+
+    ! Clean
+    clean_depth = depth
   end do
   !
   ! Set-up all of the loop bounds
@@ -399,10 +399,10 @@ SUBROUTINE invoke_deep_X_divideby_Y(field_1, field_2, field_3)
       ! Dirty
       clean_depth = depth - 1
       exit
-    else
-      ! Clean
-      clean_depth = depth
     end if
+
+    ! Clean
+    clean_depth = depth
   end do
   !
   ! Set-up all of the loop bounds
@@ -478,10 +478,10 @@ SUBROUTINE invoke_deep_shift_mass(mass_shifted, mass_prime)
       ! Dirty
       clean_depth = depth - 1
       exit
-    else
-      ! Clean
-      clean_depth = depth
     end if
+
+    ! Clean
+    clean_depth = depth
   end do
   !
   ! Set-up all of the loop bounds

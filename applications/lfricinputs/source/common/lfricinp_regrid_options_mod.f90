@@ -95,9 +95,9 @@ nn_fields=0
 do i_stash = 1, max_stash_list
   if (specify_nearest_neighbour(i_stash) == um_imdi) then
     exit
-  else
-    nn_fields = nn_fields + 1
   end if
+
+  nn_fields = nn_fields + 1
 end do
 
 close(unit_number)

@@ -46,6 +46,8 @@ select = [
 "S211", # multiple-modules
 "S212", # program-with-module
 "S242", # avoidable-escaped-quote
+"S252", # superfluous-else-return
+"S254", # superfluous-else-exit
 "S253", # superfluous-else-cycle
 "S255", # superfluous-else-stop
 "S263", # bad-array-declaration
