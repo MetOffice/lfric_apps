@@ -14,7 +14,6 @@ module check_configuration_mod
   use transport_config_mod, only: operators,                                   &
                                   operators_fv,                                &
                                   operators_fem,                               &
-                                  consistent_metric,                           &
                                   fv_horizontal_order,                         &
                                   fv_vertical_order,                           &
                                   cheap_update,                                &
@@ -51,7 +50,8 @@ module check_configuration_mod
                                   substep_transport_off,                       &
                                   adjust_vhv_wind,                             &
                                   ffsl_unity_3d,                               &
-                                  wind_mono_top
+                                  wind_mono_top,                               &
+                                  native_w2_wind_transport
   use transport_enumerated_types_mod,                                          &
                             only: scheme_mol_3d,                               &
                                   scheme_ffsl_3d,                              &
@@ -276,10 +276,6 @@ contains
       end if
 
       ! Check the transport namelist
-      if ( geometry == geometry_spherical .and.  consistent_metric) then
-        write( log_scratch_space, '(A)' ) 'Consistent metric option only valid for planar geometries'
-        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-      end if
       any_scheme_mol = check_any_scheme_mol()
       if (any_scheme_mol) then
         ! Check that flux orders are even
@@ -502,11 +498,14 @@ contains
             call log_event(                                                    &
               '3D unity transport can only be used when all variables '        &
               // 'are transported with the same splitting', LOG_LEVEL_ERROR)
-          else if ( vertical_method(i) /= split_method_ffsl                    &
-                    .or. horizontal_method(i) /= split_method_ffsl ) then
+          else if ( (vertical_method(i) == split_method_ffsl                   &
+                    .and. horizontal_method(i) /= split_method_ffsl) .or.      &
+                    (vertical_method(i) /= split_method_ffsl                   &
+                    .and. horizontal_method(i) == split_method_ffsl) ) then
             call log_event(                                                    &
-              '3D unity transport can only be used when all variables '        &
-              // 'are using FFSL for vertical and horizontal transport', LOG_LEVEL_ERROR)
+              '3D unity transport can only be used when variables using FFSL'  &
+              // 'are using FFSL for both vertical and horizontal transport',  &
+              LOG_LEVEL_ERROR)
           end if
         end if
 
@@ -607,6 +606,23 @@ contains
           write( log_scratch_space, '(A)' ) 'reference_reset_time must be greater than or equal to time step size dt'
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end if
+      end if
+
+      if ( native_w2_wind_transport ) then
+        if ( geometry == geometry_spherical .and. topology == topology_fully_periodic ) then
+          write( log_scratch_space, '(A)' ) 'Native wind transport on global spherical domains is not supported'
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
+        do i = 1, profile_size
+          if ( field_names(i) == "wind" ) then
+            if ( ( horizontal_method(i) /= split_method_sl  .or. &
+                   vertical_method(i) /= split_method_sl ) ) then
+              write( log_scratch_space, '(A)' ) 'Native wind transport requires SL scheme for the winds'
+              call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+            end if
+            exit
+          end if
+        end do
       end if
 
       call log_event( '...Check gungho config done', LOG_LEVEL_INFO )

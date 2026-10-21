@@ -1,0 +1,340 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the kernel that applies metric terms to transported wind components.
+module apply_wind_metrics_kernel_mod_test
+
+  use constants_mod,         only : i_def, r_def, l_def
+  use funit
+  use reference_element_mod, only : W, S, E, N, B, T
+
+  implicit none
+
+  private
+  public :: test_non_spherical
+  public :: test_spherical_periodic
+  public :: test_spherical_limited_area
+
+contains
+
+  !---------------------------------------------------------------------------
+  ! Test the planar (non-spherical) geometry branch, which simply scales the
+  ! wind by the area element and then applies the vertical slope correction.
+  !---------------------------------------------------------------------------
+  @Test
+  subroutine test_non_spherical()
+
+    use apply_wind_metrics_kernel_mod, only: apply_wind_metrics_code
+
+    implicit none
+
+    real(kind=r_def), parameter :: tol = 1.0e-10_r_def
+
+    integer(kind=i_def), parameter :: nlayers     = 3
+    integer(kind=i_def), parameter :: ndf_w2      = 6
+    integer(kind=i_def), parameter :: undf_w2     = 5*nlayers + 1
+    integer(kind=i_def), parameter :: ndf_wx      = 1
+    integer(kind=i_def), parameter :: undf_wx     = nlayers + 1
+    integer(kind=i_def), parameter :: stencil_max = 1
+
+    integer(kind=i_def) :: map_w2(ndf_w2)
+    integer(kind=i_def) :: map_wx(ndf_wx)
+    integer(kind=i_def) :: stencil_sizes(4)
+    integer(kind=i_def) :: stencil_map(ndf_w2, stencil_max, 4)
+
+    real(kind=r_def) :: uvw(undf_w2), da(undf_w2), metrics_uvw(undf_w2)
+    real(kind=r_def) :: chi1(undf_wx), chi2(undf_wx), chi3(undf_wx)
+    real(kind=r_def) :: chi1_d(undf_w2), chi2_d(undf_w2)
+    real(kind=r_def) :: basis_wx(1,ndf_wx,ndf_w2)
+    real(kind=r_def) :: diff_basis_wx(3,ndf_wx,ndf_w2)
+
+    real(kind=r_def) :: answer(undf_w2)
+
+    logical(kind=l_def) :: geometry_is_spherical
+    logical(kind=l_def) :: topology_is_fully_periodic
+
+    integer(kind=i_def) :: k
+
+    ! Dof map: W, S, E, N each hold nlayers dofs, B/T share nlayers+1 dofs
+    map_w2 = (/ 1, 1+nlayers, 1+2*nlayers, 1+3*nlayers, 1+4*nlayers, 2+4*nlayers /)
+    map_wx(1) = 1
+
+    ! Stencil is not exercised in this branch, but must still be well defined
+    stencil_sizes(:) = 1
+    stencil_map(:,1,:) = 0
+
+    ! Wind field, distinct per dof/layer
+    do k = 0, nlayers - 1
+      uvw(1 +k)  = 1.0_r_def + 2.0_r_def*real(k,r_def) ! W
+      uvw(4 +k)  = 2.0_r_def + 2.0_r_def*real(k,r_def) ! S
+      uvw(7 +k)  = 1.5_r_def + 1.0_r_def*real(k,r_def) ! E
+      uvw(10+k)  = 0.5_r_def + 0.5_r_def*real(k,r_def) ! N
+    end do
+    do k = 0, nlayers
+      uvw(13+k)  = 10.0_r_def + 10.0_r_def*real(k,r_def) ! B/T
+    end do
+
+    da(:) = 2.0_r_def
+
+    chi1 = 0.0_r_def
+    chi2 = 0.0_r_def
+    chi3 = 1.0_r_def
+    chi1_d = 0.0_r_def
+    chi2_d = 0.0_r_def
+
+    basis_wx = 0.0_r_def
+    diff_basis_wx = 0.0_r_def
+    diff_basis_wx(1,1,1) = 2.0_r_def
+    diff_basis_wx(2,1,1) = 3.0_r_def
+    diff_basis_wx(3,1,1) = 1.0_r_def
+
+    metrics_uvw(:) = 0.0_r_def
+
+    geometry_is_spherical      = .false.
+    topology_is_fully_periodic = .false.
+
+    call apply_wind_metrics_code( nlayers,                    &
+                                  metrics_uvw, uvw,           &
+                                  stencil_sizes,              &
+                                  stencil_max,                &
+                                  stencil_map,                &
+                                  da,                         &
+                                  chi1, chi2, chi3,           &
+                                  chi1_d, chi2_d,             &
+                                  geometry_is_spherical,      &
+                                  topology_is_fully_periodic, &
+                                  ndf_w2, undf_w2, map_w2,    &
+                                  ndf_wx, undf_wx, map_wx,    &
+                                  basis_wx, diff_basis_wx )
+
+    ! W, S, E, N: metrics_uvw = uvw * da
+    answer(1:12) = (/ 2.0_r_def,  6.0_r_def,  10.0_r_def, &
+                      4.0_r_def,  8.0_r_def,  12.0_r_def, &
+                      3.0_r_def,  5.0_r_def,  7.0_r_def,  &
+                      1.0_r_def,  2.0_r_def,  3.0_r_def  /)
+
+    ! B/T: base level zeroed, interior levels slope-corrected, top zeroed
+    answer(13) = 0.0_r_def
+    answer(14) = 44.0_r_def
+    answer(15) = 65.5_r_def
+    answer(16) = 0.0_r_def
+
+    @assertEqual(answer, metrics_uvw, tol)
+
+  end subroutine test_non_spherical
+
+  !---------------------------------------------------------------------------
+  ! Test the spherical, fully-periodic (global model) branch. The horizontal
+  ! metric computation is currently a no-op for this configuration, so the
+  ! incoming (GH_INC) wind values should pass through unchanged; only the
+  ! vertical slope correction is applied.
+  !---------------------------------------------------------------------------
+  @Test
+  subroutine test_spherical_periodic()
+
+    use apply_wind_metrics_kernel_mod, only: apply_wind_metrics_code
+
+    implicit none
+
+    real(kind=r_def), parameter :: tol = 1.0e-10_r_def
+
+    integer(kind=i_def), parameter :: nlayers     = 3
+    integer(kind=i_def), parameter :: ndf_w2      = 6
+    integer(kind=i_def), parameter :: undf_w2     = 5*nlayers + 1
+    integer(kind=i_def), parameter :: ndf_wx      = 1
+    integer(kind=i_def), parameter :: undf_wx     = nlayers + 1
+    integer(kind=i_def), parameter :: stencil_max = 1
+
+    integer(kind=i_def) :: map_w2(ndf_w2)
+    integer(kind=i_def) :: map_wx(ndf_wx)
+    integer(kind=i_def) :: stencil_sizes(4)
+    integer(kind=i_def) :: stencil_map(ndf_w2, stencil_max, 4)
+
+    real(kind=r_def) :: uvw(undf_w2), da(undf_w2), metrics_uvw(undf_w2)
+    real(kind=r_def) :: chi1(undf_wx), chi2(undf_wx), chi3(undf_wx)
+    real(kind=r_def) :: chi1_d(undf_w2), chi2_d(undf_w2)
+    real(kind=r_def) :: basis_wx(1,ndf_wx,ndf_w2)
+    real(kind=r_def) :: diff_basis_wx(3,ndf_wx,ndf_w2)
+
+    real(kind=r_def) :: answer(undf_w2)
+
+    logical(kind=l_def) :: geometry_is_spherical
+    logical(kind=l_def) :: topology_is_fully_periodic
+
+    integer(kind=i_def) :: k
+
+    map_w2 = (/ 1, 1+nlayers, 1+2*nlayers, 1+3*nlayers, 1+4*nlayers, 2+4*nlayers /)
+    map_wx(1) = 1
+
+    stencil_sizes(:) = 1
+    stencil_map(:,1,:) = 0
+
+    ! Not used by this branch, kept for interface completeness
+    uvw(:) = 0.0_r_def
+    da(:)  = 0.0_r_def
+
+    chi1 = 0.0_r_def
+    chi2 = 0.0_r_def
+    chi3 = 1.0_r_def
+    chi1_d = 0.0_r_def
+    chi2_d = 0.0_r_def
+
+    basis_wx = 0.0_r_def
+    diff_basis_wx = 0.0_r_def
+    diff_basis_wx(1,1,1) = 2.0_r_def
+    diff_basis_wx(2,1,1) = 3.0_r_def
+    diff_basis_wx(3,1,1) = 1.0_r_def
+
+    ! Pre-existing (incremented) wind values, as would be seen by a GH_INC field
+    do k = 0, nlayers - 1
+      metrics_uvw(1 +k)  = 2.0_r_def + 4.0_r_def*real(k,r_def) ! W
+      metrics_uvw(4 +k)  = 4.0_r_def + 4.0_r_def*real(k,r_def) ! S
+      metrics_uvw(7 +k)  = 3.0_r_def + 2.0_r_def*real(k,r_def) ! E
+      metrics_uvw(10+k)  = 1.0_r_def + 1.0_r_def*real(k,r_def) ! N
+    end do
+    do k = 0, nlayers
+      metrics_uvw(13+k)  = 20.0_r_def + 20.0_r_def*real(k,r_def) ! B/T
+    end do
+
+    geometry_is_spherical      = .true.
+    topology_is_fully_periodic = .true.
+
+    call apply_wind_metrics_code( nlayers,                    &
+                                  metrics_uvw, uvw,           &
+                                  stencil_sizes,              &
+                                  stencil_max,                &
+                                  stencil_map,                &
+                                  da,                         &
+                                  chi1, chi2, chi3,           &
+                                  chi1_d, chi2_d,             &
+                                  geometry_is_spherical,      &
+                                  topology_is_fully_periodic, &
+                                  ndf_w2, undf_w2, map_w2,    &
+                                  ndf_wx, undf_wx, map_wx,    &
+                                  basis_wx, diff_basis_wx )
+
+    ! W, S, E, N: unchanged, since the periodic branch does not touch them
+    answer(1:12) = (/ 2.0_r_def,  6.0_r_def,  10.0_r_def, &
+                      4.0_r_def,  8.0_r_def,  12.0_r_def, &
+                      3.0_r_def,  5.0_r_def,  7.0_r_def,  &
+                      1.0_r_def,  2.0_r_def,  3.0_r_def  /)
+
+    ! B/T: base level zeroed, interior levels slope-corrected, top zeroed
+    answer(13) = 0.0_r_def
+    answer(14) = 44.0_r_def
+    answer(15) = 65.5_r_def
+    answer(16) = 0.0_r_def
+
+    @assertEqual(answer, metrics_uvw, tol)
+
+  end subroutine test_spherical_periodic
+
+  !---------------------------------------------------------------------------
+  ! Test the spherical, limited-area branch, which uses the CROSS2D stencil
+  ! and rotation matrix. A spatially-uniform wind and coincident chi/chi_d
+  ! coordinates (giving an identity rotation) are used so that the expected
+  ! result can be verified analytically.
+  !---------------------------------------------------------------------------
+  @Test
+  subroutine test_spherical_limited_area()
+
+    use apply_wind_metrics_kernel_mod, only: apply_wind_metrics_code
+
+    implicit none
+
+    real(kind=r_def), parameter :: tol = 1.0e-10_r_def
+    real(kind=r_def), parameter :: c   = 3.0_r_def
+
+    integer(kind=i_def), parameter :: nlayers     = 3
+    integer(kind=i_def), parameter :: ndf_w2      = 6
+    integer(kind=i_def), parameter :: undf_w2     = 5*nlayers + 1
+    integer(kind=i_def), parameter :: ndf_wx      = 1
+    integer(kind=i_def), parameter :: undf_wx     = nlayers + 1
+    integer(kind=i_def), parameter :: stencil_max = 1
+
+    integer(kind=i_def) :: map_w2(ndf_w2)
+    integer(kind=i_def) :: map_wx(ndf_wx)
+    integer(kind=i_def) :: stencil_sizes(4)
+    integer(kind=i_def) :: stencil_map(ndf_w2, stencil_max, 4)
+
+    real(kind=r_def) :: uvw(undf_w2), da(undf_w2), metrics_uvw(undf_w2)
+    real(kind=r_def) :: chi1(undf_wx), chi2(undf_wx), chi3(undf_wx)
+    real(kind=r_def) :: chi1_d(undf_w2), chi2_d(undf_w2)
+    real(kind=r_def) :: basis_wx(1,ndf_wx,ndf_w2)
+    real(kind=r_def) :: diff_basis_wx(3,ndf_wx,ndf_w2)
+
+    real(kind=r_def) :: answer(undf_w2)
+
+    logical(kind=l_def) :: geometry_is_spherical
+    logical(kind=l_def) :: topology_is_fully_periodic
+
+    map_w2 = (/ 1, 1+nlayers, 1+2*nlayers, 1+3*nlayers, 1+4*nlayers, 2+4*nlayers /)
+    map_wx(1) = 1
+
+    ! A degenerate CROSS2D stencil where every branch/position simply refers
+    ! back to this column's own dofmap. Combined with a spatially-uniform
+    ! wind field below, this exercises the averaging logic without needing
+    ! genuine neighbouring columns.
+    stencil_sizes(:) = 1
+    stencil_map(W,1,:) = map_w2(W)
+    stencil_map(S,1,:) = map_w2(S)
+    stencil_map(E,1,:) = map_w2(E)
+    stencil_map(N,1,:) = map_w2(N)
+    stencil_map(B,1,:) = map_w2(B)
+    stencil_map(T,1,:) = map_w2(T)
+
+    ! Uniform wind everywhere: averaging onto any point returns the same value
+    uvw(:) = c
+    da(:)  = 2.0_r_def
+
+    ! Constant chi field, coincident with chi_d, so that deltaAD = 0 and
+    ! chi_uvw(2) = chi_d_uvw(2), giving an identity rotation matrix
+    chi1(:) = 0.3_r_def
+    chi2(:) = 0.4_r_def
+    chi3(:) = 1.0_r_def
+    chi1_d(:) = 0.3_r_def
+    chi2_d(:) = 0.4_r_def
+
+    basis_wx = 1.0_r_def
+    diff_basis_wx = 0.0_r_def
+    diff_basis_wx(1,1,1) = 2.0_r_def
+    diff_basis_wx(2,1,1) = 3.0_r_def
+    diff_basis_wx(3,1,1) = 1.0_r_def
+
+    metrics_uvw(:) = 0.0_r_def
+
+    geometry_is_spherical      = .true.
+    topology_is_fully_periodic = .false.
+
+    call apply_wind_metrics_code( nlayers,                    &
+                                  metrics_uvw, uvw,           &
+                                  stencil_sizes,              &
+                                  stencil_max,                &
+                                  stencil_map,                &
+                                  da,                         &
+                                  chi1, chi2, chi3,           &
+                                  chi1_d, chi2_d,             &
+                                  geometry_is_spherical,      &
+                                  topology_is_fully_periodic, &
+                                  ndf_w2, undf_w2, map_w2,    &
+                                  ndf_wx, undf_wx, map_wx,    &
+                                  basis_wx, diff_basis_wx )
+
+    ! With an identity rotation, the two sign flips in the kernel cancel, so
+    ! every averaged component equals the uniform wind c, giving c * da
+    answer(1:12) = c * da(1:12)
+
+    ! B/T: base level zeroed, interior levels slope-corrected, top zeroed
+    answer(13) = 0.0_r_def
+    answer(14) = 12.0_r_def
+    answer(15) = 12.0_r_def
+    answer(16) = 0.0_r_def
+
+    @assertEqual(answer, metrics_uvw, tol)
+
+  end subroutine test_spherical_limited_area
+
+end module apply_wind_metrics_kernel_mod_test

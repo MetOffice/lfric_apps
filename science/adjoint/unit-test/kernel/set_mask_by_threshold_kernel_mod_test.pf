@@ -1,0 +1,106 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> Tests that set_mask_by_threshold_kernel_mod properly initialises mask
+module set_mask_by_threshold_kernel_mod_test
+
+  use constants_mod, only: i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+
+  public :: set_mask_by_threshold_test_type, test_all
+
+  @TestCase
+  type, extends(TestCase) :: set_mask_by_threshold_test_type
+
+    private
+
+    real(kind=r_def), dimension(:), allocatable :: mask
+
+  contains
+
+    procedure setUp
+    procedure tearDown
+
+  end type set_mask_by_threshold_test_type
+
+    integer(kind=i_def),                      parameter :: nlayers = 6_i_def
+    integer(kind=i_def),                      parameter :: ndf_mask = 1_i_def
+    integer(kind=i_def),                      parameter :: undf_mask = ndf_mask*nlayers
+    integer(kind=i_def), dimension(ndf_mask), parameter :: map_mask = (/ 1_i_def /)
+    real(kind=r_def),                         parameter :: threshold = 0.5_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine setUp( this )
+
+    implicit none
+
+    class(set_mask_by_threshold_test_type), intent(inout) :: this
+
+    allocate( this%mask( undf_mask ) )
+    ! Setup with assignment between 0 and 1 for this test,
+    ! as if we used setval_random
+    this%mask = (/ 0.0_r_def,  &
+                   0.17_r_def, &
+                   0.34_r_def, &
+                   0.51_r_def, &
+                   0.68_r_def, &
+                   1.0_r_def /)
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine tearDown( this )
+
+    implicit none
+
+    class(set_mask_by_threshold_test_type), intent(inout) :: this
+
+    deallocate( this%mask )
+
+  end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  @Test
+  subroutine test_all( context )
+
+    use set_mask_by_threshold_kernel_mod, only : set_mask_by_threshold_kernel_code
+
+    implicit none
+
+    class(set_mask_by_threshold_test_type), intent(inout) :: context
+
+    real(kind=r_def), dimension(:), allocatable :: answer
+    real(kind=r_def),                 parameter :: tol = 1.0e-12_r_def
+
+    allocate( answer(undf_mask) )
+
+    answer = (/ 0.0_r_def, &
+                0.0_r_def, &
+                0.0_r_def, &
+                1.0_r_def, &
+                1.0_r_def, &
+                1.0_r_def /)
+
+    call set_mask_by_threshold_kernel_code( nlayers,      &
+                                            context%mask, &
+                                            threshold,    &
+                                            ndf_mask,     &
+                                            undf_mask,    &
+                                            map_mask )
+
+    @assertEqual( answer, context%mask, tol )
+
+    deallocate( answer )
+
+   end subroutine test_all
+
+end module set_mask_by_threshold_kernel_mod_test
