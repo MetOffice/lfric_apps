@@ -333,7 +333,7 @@
                                                task_ns.application~"_"~
                                                task_ns.conf_name~"_"~
                                                task_ns.platform~"_"~
-                                               task_ns.compiler~"_"~
+                                               "gnu"~"_"~
                                                task_ns.extras %}
         {% set calliper_timings_vernier_values = task_values.copy() %}
         {% do calliper_timings_vernier_values.update({"application_run_task": application_run_task}) %}
