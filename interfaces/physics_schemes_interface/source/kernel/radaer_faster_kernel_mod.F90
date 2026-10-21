@@ -776,153 +776,174 @@ subroutine radaer_faster_code( nlayers,                                        &
       l_any_lit_points = .true.
     else
       do i = 1, seg_size
-        if ( lit_fraction( map_2d(1, i) ) > 0.0_r_def ) then
+        ii = jj + i - 1
+        if ( lit_fraction( map_2d(1, ii) ) > 0.0_r_def ) then
           l_any_lit_points = .true.
         end if
       end do
     end if
 
-  ! Note that this is inverted compared to the UM
-  ! This will be dealt with in ukca_radaer_band_average
-  do i = 1, seg_size
-    trindxrad(i) = trop_level( map_2d(1, i) )
-  end do
-
-  !-----------------------------------------------------------------------
-  ! Initialisation of prognostic variables and arrays
-  !-----------------------------------------------------------------------
-
-  do i = 1, seg_size
-    do k = 1, nlayers
-      p_theta_levels(i,1,k) = p_zero *                                         &
-                           ( exner_in_wth(map_wth(1,i) + k) )**(1.0_r_um/kappa)
+    ! Note that this is inverted compared to the UM
+    ! This will be dealt with in ukca_radaer_band_average
+    do i = 1, seg_size
+      ii = jj + i - 1
+      trindxrad(i) = trop_level( map_2d(1, ii) )
     end do
-  end do
 
-  do i = 1, seg_size
-    do k = 1, nlayers
-      t_theta_levels(i,1,k) = exner_in_wth(map_wth(1,i) + k) *                 &
-                              theta_in_wth(map_wth(1,i) + k)
+    !-----------------------------------------------------------------------
+    ! Initialisation of prognostic variables and arrays
+    !-----------------------------------------------------------------------
+
+    do i = 1, seg_size
+      do k = 1, nlayers
+        ii = jj + i - 1
+        p_theta_levels(i,1,k) = p_zero *                                       &
+                          ( exner_in_wth(map_wth(1,ii) + k) )**(1.0_r_um/kappa)
+      end do
     end do
-  end do
 
-  !-----------------------------------------------------------------------
+    do i = 1, seg_size
+      do k = 1, nlayers
+        ii = jj + i - 1
+        t_theta_levels(i,1,k) = exner_in_wth(map_wth(1,ii) + k) *              &
+                                theta_in_wth(map_wth(1,ii) + k)
+      end do
+    end do
 
-  ! -- ukca_comp_vol --
-  n_fields = size(pvol_comp_names)
-  allocate(ukca_comp_vol(n_fields, seg_size, nlayers))
-  ukca_comp_vol = 0.0_r_um
+    !-----------------------------------------------------------------------
 
-  do m = 1, n_fields
-    select case(trim(pvol_comp_names(m)))
-    case('fldname_pvol_su_ait_sol')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_comp_vol(m, i, k)=real( pvol_su_ait_sol(map_wth(1,i) + k), r_um )
+    ! -- ukca_comp_vol --
+    n_fields = size(pvol_comp_names)
+    allocate(ukca_comp_vol(n_fields, seg_size, nlayers))
+    ukca_comp_vol = 0.0_r_um
+
+    do m = 1, n_fields
+      select case(trim(pvol_comp_names(m)))
+      case('fldname_pvol_su_ait_sol')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_comp_vol(m, i, k)=real( pvol_su_ait_sol(map_wth(1,i) + k), r_um )
+          end do
         end do
-      end do
-    case('fldname_pvol_bc_ait_sol')
-      do i = 1, seg_size
-        do k = 1, nlayers
-         ukca_comp_vol(m, i, k)=real( pvol_bc_ait_sol(map_wth(1,i) + k), r_um )
+      case('fldname_pvol_bc_ait_sol')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_comp_vol(m, i, k)=real( pvol_bc_ait_sol(map_wth(1,i) + k), r_um )
+          end do
         end do
-      end do
-    case('fldname_pvol_om_ait_sol')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_comp_vol(m, i, k)=real( pvol_om_ait_sol(map_wth(1,i) + k), r_um )
+      case('fldname_pvol_om_ait_sol')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_comp_vol(m, i, k)=real( pvol_om_ait_sol(map_wth(1,i) + k), r_um )
+          end do
         end do
-      end do
-    case('fldname_pvol_su_acc_sol')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_comp_vol(m, i, k)=real( pvol_su_acc_sol(map_wth(1,i) + k), r_um )
+      case('fldname_pvol_su_acc_sol')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_comp_vol(m, i, k)=real( pvol_su_acc_sol(map_wth(1,i) + k), r_um )
+          end do
         end do
-      end do
-    case('fldname_pvol_bc_acc_sol')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_comp_vol(m, i, k)=real( pvol_bc_acc_sol(map_wth(1,i) + k), r_um )
+      case('fldname_pvol_bc_acc_sol')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_comp_vol(m, i, k)=real( pvol_bc_acc_sol(map_wth(1,i) + k), r_um )
+          end do
         end do
-      end do
-    case('fldname_pvol_om_acc_sol')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_comp_vol(m, i, k)=real( pvol_om_acc_sol(map_wth(1,i) + k), r_um )
+      case('fldname_pvol_om_acc_sol')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_comp_vol(m, i, k)=real( pvol_om_acc_sol(map_wth(1,i) + k), r_um )
+          end do
         end do
-      end do
-    case('fldname_pvol_ss_acc_sol')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_comp_vol(m, i, k)=real( pvol_ss_acc_sol(map_wth(1,i) + k), r_um )
+      case('fldname_pvol_ss_acc_sol')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_comp_vol(m, i, k)=real( pvol_ss_acc_sol(map_wth(1,i) + k), r_um )
+          end do
         end do
-      end do
-    case('fldname_pvol_du_acc_sol')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_comp_vol(m, i, k)=0.0_r_um
+      case('fldname_pvol_du_acc_sol')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_comp_vol(m, i, k)=0.0_r_um
+          end do
         end do
-      end do
-    case('fldname_pvol_su_cor_sol')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_comp_vol(m, i, k)=real( pvol_su_cor_sol(map_wth(1,i) + k), r_um )
+      case('fldname_pvol_su_cor_sol')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_comp_vol(m, i, k)=real( pvol_su_cor_sol(map_wth(1,i) + k), r_um )
+          end do
         end do
-      end do
-    case('fldname_pvol_bc_cor_sol')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_comp_vol(m, i, k)=real( pvol_bc_cor_sol(map_wth(1,i) + k), r_um )
+      case('fldname_pvol_bc_cor_sol')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_comp_vol(m, i, k)=real( pvol_bc_cor_sol(map_wth(1,i) + k), r_um )
+          end do
         end do
-      end do
-    case('fldname_pvol_om_cor_sol')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_comp_vol(m, i, k)=real( pvol_om_cor_sol(map_wth(1,i) + k), r_um )
+      case('fldname_pvol_om_cor_sol')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_comp_vol(m, i, k)=real( pvol_om_cor_sol(map_wth(1,i) + k), r_um )
+          end do
         end do
-      end do
-    case('fldname_pvol_ss_cor_sol')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_comp_vol(m, i, k)=real( pvol_ss_cor_sol(map_wth(1,i) + k), r_um )
+      case('fldname_pvol_ss_cor_sol')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_comp_vol(m, i, k)=real( pvol_ss_cor_sol(map_wth(1,i) + k), r_um )
+          end do
         end do
-      end do
-    case('fldname_pvol_du_cor_sol')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_comp_vol(m, i, k)=0.0_r_um
+      case('fldname_pvol_du_cor_sol')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_comp_vol(m, i, k)=0.0_r_um
+          end do
         end do
-      end do
-    case('fldname_pvol_bc_ait_ins')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_comp_vol(m, i, k)=real( pvol_bc_ait_ins(map_wth(1,i) + k), r_um )
+      case('fldname_pvol_bc_ait_ins')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_comp_vol(m, i, k)=real( pvol_bc_ait_ins(map_wth(1,i) + k), r_um )
+          end do
         end do
-      end do
-    case('fldname_pvol_om_ait_ins')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_comp_vol(m, i, k)=real( pvol_om_ait_ins(map_wth(1,i) + k), r_um )
+      case('fldname_pvol_om_ait_ins')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_comp_vol(m, i, k)=real( pvol_om_ait_ins(map_wth(1,i) + k), r_um )
+          end do
         end do
-      end do
-    case('fldname_pvol_du_acc_ins')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_comp_vol(m, i, k)=real( pvol_du_acc_ins(map_wth(1,i) + k), r_um )
+      case('fldname_pvol_du_acc_ins')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_comp_vol(m, i, k)=real( pvol_du_acc_ins(map_wth(1,i) + k), r_um )
+          end do
         end do
-      end do
-    case('fldname_pvol_du_cor_ins')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_comp_vol(m, i, k)=real( pvol_du_cor_ins(map_wth(1,i) + k), r_um )
+      case('fldname_pvol_du_cor_ins')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_comp_vol(m, i, k)=real( pvol_du_cor_ins(map_wth(1,i) + k), r_um )
+          end do
         end do
-      end do
-    case default
-      write( log_scratch_space, '(A,A)' )                                      &
+      case default
+        write( log_scratch_space, '(A,A)' )                                      &
            'Missing required ukca_comp_vol : ', pvol_comp_names(m)
-      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-    end select
-  end do
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      end select
+    end do
 
   ! -- ukca_mix_ratio --
   n_fields = size(comp_names)
