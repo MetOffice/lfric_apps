@@ -25,6 +25,7 @@
         "lfric_atm_nwp_gal10_eda_jada-C12_azspice_gnu_fast-debug-32bit",
         "lfric_atm_nwp_gal10_ls_and_jedi-C12_azspice_gnu_fast-debug-32bit",
         "lfric_atm_nwp_gal10-pert-C12_azspice_gnu_fast-debug-32bit",
+        "lfric_atm_nwp_gal10_regrav-C12_azspice_gnu_fast-debug-32bit",
         "lfric_atm_nwp_casim-C12_azspice_gnu_fast-debug-32bit",
         "lfric_atm_nwp_coma9-C12_azspice_gnu_fast-debug-32bit",
         "lfric_atm_nwp_comorph_dev-C12_azspice_gnu_fast-debug-32bit",
@@ -179,6 +180,7 @@
     ],
     "lfric_atm_coupled_ex1a_developer": [
         "lfric_atm_nwp_gc6-C48_MG_ex1a_cce_coupled-fast-debug-32bit",
+        "lfric_atm_clim_gc6-C48_MG_ex1a_cce_coupled-fast-debug-32bit",
     ],
     "lfric_atm_ex1a_developer": [
         "lfric_atm_nwp_ex1a_developer",
