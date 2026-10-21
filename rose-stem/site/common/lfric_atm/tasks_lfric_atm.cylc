@@ -500,14 +500,15 @@
         "tsteps": 120,
         "wallclock": 15,
         "mpi_parts": 4704,
-        "xios_nodes": 5,
-        "mpi_parts_xios" : 147,
+        "xios_nodes": 3,
+        "mpi_parts_xios" : 392,
         "log_level": "info",
         "log_to_rank_zero_only": ".true.",
         "memory_plot_ex": true,
+        "mpi_io_stats": true,
         "xios_info_level": 1,
         "xios_print_file": ".true.",
-        "xios_min_buffer_size": 10485760,
+        "xios_min_buffer_size": 16777216,
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 

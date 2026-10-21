@@ -5,10 +5,25 @@
 {# ########################################################################### #}
 {% do LOG.debug("Entered templates/runtime/generate_runtime_other.cylc") %}
 
-{# Generate runtime sections for other tasks not defined elsewhere, currently perftools #}
+{# Generate runtime sections for other tasks not defined elsewhere #}
 
 {# Set the family inheritance for this task #}
 {% set inherit = namespace(str="") %}
+
+{% for family in task_values["run_families"] %}
+    {% set inherit.str = inherit.str~family|upper~"," %}
+{% endfor %}
+
+{# Generate a resource family for the task #}
+{% set resource_family = task~"_resources" %}
+{{ set_task_resources(
+    resource_family,
+    inherit.str,
+    task_values["tech-tests_wallclock"],
+    task_values["tech-tests_cpus"],
+    task_values["tech-tests_memory"],
+    task_values["tmpsize"],
+    ) }}
 
 {% if task.startswith("perftools") %}
 {# Perftools Tasks #}
@@ -21,22 +36,6 @@
                           task_ns.compiler~"_"~
                           task_ns.extras %}
 
-    {# Set the family inheritance for this task #}
-    {% for family in task_values["run_families"] %}
-        {% set inherit.str = inherit.str~family|upper~"," %}
-    {% endfor %}
-
-    {# Generate a resource family for the task #}
-    {% set resource_family = task~"_resources" %}
-    {{ set_task_resources(
-        resource_family,
-        inherit.str,
-        task_values["tech-tests_wallclock"],
-        task_values["tech-tests_cpus"],
-        task_values["tech-tests_memory"],
-        task_values["tmpsize"],
-        ) }}
-
     [[{{task}}]]
         inherit = {{task_family|upper}}, {{resource_family|upper}}
         script = rose task-run --app-key=perftools_export
@@ -44,6 +43,21 @@
             PREVIOUS_JOB={{previous_job}}
             THE_APP_NAME={{task_ns.application}}
             APP_CONFIGURATION_OUTPUT={{task_ns.application}}_{{task_ns.conf_name}}
+
+{% endif %}
+
+{% if task.startswith("calliper_timings_vernier") %}
+    {% set log_dir = "$CYLC_WORKFLOW_RUN_DIR/log/job/1/"~
+                     task_values["application_run_task"]~
+                     "/NN" %}
+
+    [[{{task}}]]
+        inherit = {{task_family|upper}}, {{resource_family|upper}}
+        script = 'rose task-run --app-key=vernier_summary'
+        [[[environment]]]
+            PLOT_DIR = {{task_output_dir}}/plots
+            TASK_LOG_DIR = {{log_dir}}
+
 
 {% endif %}
 

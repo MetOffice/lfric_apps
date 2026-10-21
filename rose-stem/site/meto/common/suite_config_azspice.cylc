@@ -31,8 +31,6 @@
 
     [[AZSPICE_BUILD]]
         [[[environment]]]
-            USE_LEGACY_TIMER=true
-            USE_TIMING_WRAPPER=true
             PSYCLONE_MODE=server
         [[[directives]]]
             --gres=tmp:1024
