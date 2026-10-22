@@ -35,6 +35,8 @@ use constants_mod,     only : r_def, i_def, l_def, r_tran
 use fs_continuity_mod, only : Wtheta
 use kernel_mod,        only : kernel_type
 
+use mesh_mod, only: geometry_spherical
+
 ! Configuration modules
 use base_mesh_config_mod,      only: geometry, topology
 use finite_element_config_mod, only: coord_system
@@ -168,8 +170,6 @@ subroutine poly1d_advective_coeffs_code(one_layer,                 &
 
   use matrix_invert_mod,         only: matrix_invert_lu
   use cross_product_mod,         only: cross_product
-  use base_mesh_config_mod,      only: geometry, &
-                                       geometry_spherical
   use poly_helper_functions_mod, only: local_distance_1d
   use sci_chi_transform_mod,     only: chir2xyz
 

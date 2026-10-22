@@ -13,7 +13,7 @@ implicit none
 
 contains
 
-! Subroutine to set the super-array containing environment cloud
+! Subroutine to set the super-array containing environment cloud and precip
 ! fractions at the current full model-level.  Either needs to copy them
 ! from the primary fields array (if they are treated as prognostics),
 ! or compress from separate diagnostic cloud arrays otherwise.

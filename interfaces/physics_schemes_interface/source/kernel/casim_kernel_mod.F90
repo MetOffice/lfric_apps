@@ -33,7 +33,7 @@ private
 
 type, public, extends(kernel_type) :: casim_kernel_type
   private
-  type(arg_type) :: meta_args(40) = (/                                      &
+  type(arg_type) :: meta_args(41) = (/                                      &
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! mv_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! ml_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! mi_wth
@@ -73,7 +73,8 @@ type, public, extends(kernel_type) :: casim_kernel_type
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                       & ! refl_tot
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1),    & ! refl_1km
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                       & ! superc_liq
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA)                        & ! superc_rain
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                       & ! superc_rain
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1)     & ! conv_ppn_frac
        /)
    integer :: operates_on = CELL_COLUMN
 contains
@@ -174,6 +175,7 @@ subroutine casim_code( nlayers,                     &
                        cloud_drop_no_conc, murk,    &
                        refl_tot, refl_1km,          &
                        superc_liq, superc_rain,     &
+                       conv_ppn_frac,               &
                        ndf_wth, undf_wth, map_wth,  &
                        ndf_w3,  undf_w3,  map_w3,   &
                        ndf_2d,  undf_2d,  map_2d    )
@@ -185,7 +187,7 @@ subroutine casim_code( nlayers,                     &
     ! UM modules
     !---------------------------------------
 
-    use timestep_mod,               only: timestep
+    use timestep_mod,               only: timestep, recip_timestep
 
     use atm_fields_bounds_mod,      only: pdims
 
@@ -256,12 +258,15 @@ subroutine casim_code( nlayers,                     &
     real(kind=r_def), pointer, intent(inout) :: superc_liq(:)
     real(kind=r_def), pointer, intent(inout) :: superc_rain(:)
     real(kind=r_def), pointer, intent(inout) :: ls_graup_3d(:)
+    real(kind=r_def), pointer, intent(inout) :: conv_ppn_frac(:)
 
     integer(kind=i_def), intent(in), dimension(ndf_wth) :: map_wth
     integer(kind=i_def), intent(in), dimension(ndf_w3)  :: map_w3
     integer(kind=i_def), intent(in), dimension(ndf_2d)  :: map_2d
 
     ! Local variables for the kernel
+    real(r_def) :: dqw
+
     real(wp), dimension(nlayers,1,1) ::                                        &
          qv_casim, qc_casim, qr_casim, nc_casim, nr_casim,                     &
          m3r_casim, qi_casim, qs_casim, qg_casim, ni_casim,                    &
@@ -625,6 +630,17 @@ subroutine casim_code( nlayers,                     &
         end do ! nlayers
       end if ! not assoc. superc_rain
     end if ! not assoc. either superc species
+
+    ! Vertical integral of qw sink - written to conv_ppn_frac field for
+    ! further use in comorph_kernel
+    if (.not. associated(conv_ppn_frac, empty_real_data)) then
+      conv_ppn_frac(map_2d(1)) = 0.0_r_def
+      do k = 1, nlayers
+        dqw = (dmv_wth(map_wth(1)+k)+dml_wth(map_wth(1)+k))*rhodz_dry(1,1,k)
+        conv_ppn_frac(map_2d(1)) = conv_ppn_frac(map_2d(1)) + max(-dqw, 0.0_r_def)
+      end do
+      conv_ppn_frac(map_2d(1)) = conv_ppn_frac(map_2d(1)) * recip_timestep
+    end if
 
     ! CASIM deallocate diagnostics
     call deallocate_diagnostic_space()

@@ -60,10 +60,8 @@ stochastic_physics='none',
 surface='jules',
 /
 &convection
-dx_ref=50000.0,
 l_cvdiag_ctop_qmax=.false.,
 qlmin=4.0e-4,
-resdep_precipramp=.false.,
 /
 &cosp
 l_cosp=.false.,
@@ -519,6 +517,7 @@ log_space=.true.,.true.,.false.,.false.,.false.,.false.,
 max_vert_cfl_calc='dep_point',
 min_val_method='clipping',
 min_value=0.0,0.0,-99999999.0,0.0,0.0,0.0,
+native_w2_wind_transport=.false.,
 oned_reconstruction=.false.,
 operators='fv',
 panel_edge_high_order=.true.

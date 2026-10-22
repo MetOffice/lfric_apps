@@ -1,3 +1,3 @@
-Inner product checksum rho =         486B496A
-Inner product checksum theta =         51CABE9A
-Inner product checksum u =         63C928A5
+Inner product checksum rho =         486B4968
+Inner product checksum theta =         51CABE9B
+Inner product checksum u =         63C925D8

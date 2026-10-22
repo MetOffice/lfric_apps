@@ -29,8 +29,8 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine setUp( this )
 
-    use base_mesh_config_mod,      only : geometry_spherical,                  &
-                                          topology_fully_periodic
+    use mesh_mod,                  only : geometry_spherical,                  &
+                                          topology_periodic
     use sci_chi_transform_mod,     only : init_chi_transforms
     use extrusion_config_mod,      only : method_uniform,                      &
                                           stretching_method_linear
@@ -50,7 +50,7 @@ contains
         prime_mesh_name='unit_test',                                           &
         geometry=geometry_spherical,                                           &
         prepartitioned=.false.,                                                &
-        topology=topology_fully_periodic,                                      &
+        topology=topology_periodic,                                            &
         fplane=.false., f_lat_deg=0.0_r_def                                    &
     )
     call feign_extrusion_config(                                               &
@@ -82,7 +82,7 @@ contains
         vorticity_in_w1=.false.                                                &
     )
 
-    call init_chi_transforms(geometry_spherical, topology_fully_periodic)
+    call init_chi_transforms(geometry_spherical, topology_periodic)
 
   end subroutine setUp
 
