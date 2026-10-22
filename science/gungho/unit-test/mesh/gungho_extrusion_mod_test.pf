@@ -9,8 +9,9 @@ module gungho_extrusion_mod_test
   use constants_mod,           only : i_def, r_def
   use extrusion_mod,           only : extrusion_type, prime_extrusion
   use gungho_extrusion_mod,    only : create_extrusion
-
   use funit
+
+  use mesh_mod, only: geometry_planar, geometry_spherical
 
   implicit none
 
@@ -23,7 +24,6 @@ contains
   @test
   subroutine test_planar()
 
-    use base_mesh_config_mod, only : geometry_planar
     use extrusion_config_mod, only : method_uniform
 
     implicit none
@@ -54,7 +54,6 @@ contains
   @test
   subroutine test_spherical()
 
-    use base_mesh_config_mod, only : geometry_spherical
     use extrusion_config_mod, only : method_geometric
 
     implicit none

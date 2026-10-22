@@ -70,7 +70,9 @@ module gungho_model_mod
   use minmax_tseries_mod,         only : minmax_tseries,      &
                                          minmax_tseries_init, &
                                          minmax_tseries_final
-  use mesh_mod,                   only : mesh_type
+  use mesh_mod,                   only : mesh_type, &
+                                         geometry_planar, &
+                                         geometry_spherical
   use mesh_collection_mod,        only : mesh_collection
   use clock_mod,                  only : clock_type
   use model_clock_mod,            only : model_clock_type
@@ -322,8 +324,10 @@ contains
                             id_as_name=.true.)
           end do
         end if
-
-        if(l_esm_couple) then
+#endif
+      end if
+#ifdef UM_PHYSICS
+      if(l_esm_couple) then
           call add_field( persistor%ckp_out, "lf_taux", mode=CHECKPOINTING, operation="once", &
                           id_as_name=.true.)
           call add_field( persistor%ckp_out, "lf_tauy", mode=CHECKPOINTING, operation="once", &
@@ -354,9 +358,8 @@ contains
                           id_as_name=.true.)
           call add_field( persistor%ckp_out, "lf_pensolar", mode=CHECKPOINTING, operation="once", &
                           id_as_name=.true.)
-        end if
-#endif
       end if
+#endif
     end if
     if (checkpoint_read .or. init_option == init_option_checkpoint_dump) then
       if ( encorr_usage /= encorr_usage_none ) then
@@ -519,9 +522,6 @@ contains
   !> @param [in,out] modeldb   The full model database for the model run
   !>
   subroutine initialise_infrastructure( io_context_name, modeldb )
-
-    use base_mesh_config_mod, only: geometry_planar, &
-                                    geometry_spherical
 
 #ifdef UM_PHYSICS
     use formulation_config_mod,    only: use_physics

@@ -66,8 +66,8 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine setUp( this )
 
-    use base_mesh_config_mod,      only : geometry_planar, &
-                                          topology_fully_periodic
+    use mesh_mod,                  only : geometry_planar, &
+                                          topology_periodic
     use sci_chi_transform_mod,     only : init_chi_transforms
     use finite_element_config_mod, only : cellshape_quadrilateral, &
                                           coord_system_xyz, coord_space_wchi
@@ -88,7 +88,7 @@ contains
                                  prime_mesh_name='unit_test',      &
                                  geometry=geometry_planar,         &
                                  prepartitioned=.false.,           &
-                                 topology=topology_fully_periodic, &
+                                 topology=topology_periodic,       &
                                  fplane=.false., f_lat_deg=0.0_r_def )
 
     call feign_finite_element_config(           &
