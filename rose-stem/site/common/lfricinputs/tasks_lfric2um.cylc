@@ -19,6 +19,8 @@
         "target_grid_type": "global",
         "source_dump": "$BIG_DATA_DIR/lfric2um/apps3.2/lfric2um_startdump_aquaplanet_N48L38_C48L38.nc",
         "namelist_src": "um_grid.nml",
+        "xios_info_level": 1,
+        "xios_print_file": ".true.",
     }) %}
 
 {% elif task_ns.conf_name == "lfric2um-nwp_gal9-C48L70_N48L70" %}
@@ -35,6 +37,7 @@
         "target_grid_type": "global",
         "source_dump": "$BIG_DATA_DIR/lfric2um/apps3.2/nwp-gal9_N320L70_C48L70.nc",
         "namelist_src": "um_grid.nml",
+        "xios_info_level": 50,
     }) %}
 
 {% elif task_ns.conf_name == "lfric2um-nwp_gal9-C224L70_N512L70" %}
@@ -53,6 +56,27 @@
         "namelist_src": "um_grid.nml",
         "memory_plot_ex": true,
         "kgo_checks": "",
+        "xios_info_level": 1,
+        "xios_print_file": ".true.",
+    }) %}
+
+{% elif task_ns.conf_name == "lfric2um-r2o-C224L70_N512L70" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["r2o"],
+        "resolution": "C224",
+        "mesh_name": "dynamics",
+        "source_grid_res": "C224",
+        "source_grid_levs": "70",
+        "source_grid_type": "global",
+        "target_grid_res": "N512",
+        "target_grid_levs": "70",
+        "target_grid_type": "global",
+        "source_dump": "/data/users/elliott.warren/lfric2um/sample_data/o-aa591/C224/20240620T0600Z/glu_lfric_ukv_dump.nc",
+        "namelist_src": "um_grid.nml",
+        "memory_plot_ex": true,
+        "kgo_checks": "",
+        "xios_info_level": 50,
     }) %}
 
 {% elif task_ns.conf_name == "lfric2um-umlam-C48L70_N512L70" %}
@@ -69,6 +93,8 @@
         "target_grid_type": "global",
         "source_dump": "$BIG_DATA_DIR/lfric2um/apps3.2/lfric2um_startdump_um-lam_C48L70.nc",
         "namelist_src": "um_grid.nml",
+        "xios_info_level": 1,
+        "xios_print_file": ".true.",
     }) %}
 
 {% endif %}

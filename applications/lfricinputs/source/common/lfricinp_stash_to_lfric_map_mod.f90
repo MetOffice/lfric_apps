@@ -48,8 +48,8 @@ subroutine lfricinp_init_stash_to_lfric_map()
 
 use lfricinp_stashmaster_mod, only: &
     stashcode_u, stashcode_v, stashcode_theta, stashcode_soil_moist,          &
-    stashcode_soil_temp, stashcode_tstar, stashcode_bl_depth, stashcode_orog, &
-    stashcode_ozone, stashcode_w,                                             &
+    stashcode_soil_temp, stashcode_mean_canopyw, stashcode_tstar,             &
+    stashcode_bl_depth, stashcode_orog, stashcode_ozone, stashcode_w,         &
     stashcode_cpl_sw_rad_sea,stashcode_cpl_sw_surf_sea,                       &
     stashcode_cpl_lw_rad_sea,stashcode_cpl_lw_surf_sea,                       &
     stashcode_cpl_xcomp_windstr,stashcode_cpl_ycomp_windstr,                  &
@@ -124,17 +124,18 @@ else
 ENDIF
 call map_field_name(stashcode_theta, 'theta')                        ! stash 4
 call map_field_name(stashcode_soil_moist, 'soil_moisture')           ! stash 9
-call map_field_name(stashcode_q, 'q')                                ! stash 10
-call map_field_name(stashcode_qcf, 'qcf')                            ! stash 12
+call map_field_name(stashcode_q, 'q')                                ! stash 10 DEPRECATED
+call map_field_name(stashcode_qcf, 'qcf')                            ! stash 12 DEPRECATED?
 call map_field_name(stashcode_soil_temp, 'soil_temperature')         ! stash 20
-call map_field_name(stashcode_tstar, 'tstar')                        ! stash 24
+call map_field_name(stashcode_mean_canopyw, 'canopy_water_content')  ! stash 22
+call map_field_name(stashcode_tstar, 'tstar')                        ! stash 24 DEPRECATED
 call map_field_name(stashcode_bl_depth, 'zh')                        ! stash 25
-call map_field_name(stashcode_z0, 'z0msea')                          ! stash 26
+call map_field_name(stashcode_z0, 'z0msea')                          ! stash 26 DEPRECATED
 call map_field_name(stashcode_lsm, 'land_mask')                      ! stash 30
-call map_field_name(stashcode_icefrac, 'icefrac')                    ! stash 31
-call map_field_name(stashcode_icethick, 'icethick')                  ! stash 32
+call map_field_name(stashcode_icefrac, 'icefrac')                    ! stash 31 DEPRECATED
+call map_field_name(stashcode_icethick, 'icethick')                  ! stash 32 DEPRECATED
 call map_field_name(stashcode_orog, 'surface_altitude')              ! stash 33
-call map_field_name(stashcode_sea_ice_temp, 'sea_ice_temperature')   ! stash 49
+call map_field_name(stashcode_sea_ice_temp, 'sea_ice_temperature')   ! stash 49 DEPRECATED
 call map_field_name(stashcode_ozone, 'ozone')                        ! stash 60
 call map_field_name(stashcode_total_aero, 'total_aero')              ! stash 90
 call map_field_name(stashcode_w, 'w_in_wth')                         ! stash 150
@@ -154,8 +155,8 @@ call map_field_name(stashcode_snow_soot_tile, 'snow_soot')           ! stash 221
 call map_field_name(stashcode_can_water_tile, 'tile_canopy_water')   ! stash 229
 call map_field_name(stashcode_rgrain, 'tile_snow_rgrain')            ! stash 231
 call map_field_name(stashcode_tstar_tile, 'tile_temperature')        ! stash 233
-call map_field_name(stashcode_snow_tile , 'tile_snow_mass')          ! stash 240
-call map_field_name(stashcode_snow_grnd, 'tile_snow_under_canopy')   ! stash 242
+call map_field_name(stashcode_snow_tile , 'tile_snow_mass')          ! stash 240 DEPRECATED
+call map_field_name(stashcode_snow_grnd, 'tile_snow_under_canopy')   ! stash 242 DEPRECATED
 call map_field_name(stashcode_z0h_tile, 'z0h_tile')                  ! stash 246
 call map_field_name(stashcode_rhor2, 'rho_r2')                       ! stash 253
 call map_field_name(stashcode_qcl, 'qcl')                            ! stash 254
@@ -169,37 +170,39 @@ call map_field_name(stashcode_zw, 'water_table')                     ! stash 278
 call map_field_name(stashcode_fsat, 'soil_sat_frac')                 ! stash 279
 call map_field_name(stashcode_fwetl, 'soil_wet_frac')                ! stash 280
 call map_field_name(stashcode_sthzw, 'wetness_under_soil')           ! stash 281
-call map_field_name(stashcode_snowdep_grd_tile, 'tile_snow_depth')   ! stash 376
+call map_field_name(stashcode_snowdep_grd_tile, 'tile_snow_depth')   ! stash 376 DEPRECATED
 call map_field_name(stashcode_snowpack_bk_dens, 'tile_snowpack_density')
-                                                                     ! stash 377
+                                                                     ! stash 377 DEPRECATED
 call map_field_name(stashcode_nsnow_layrs_tiles, 'tile_n_snow_layers')
-                                                                     ! stash 380
-call map_field_name(stashcode_snow_laythk_tiles,                    &! stash 381
-     'tile_snow_layer_thickness')
-call map_field_name(stashcode_snow_liq_tile, 'tile_snow_layer_liq_mass')
-                                                                     ! stash 383
+                                                                     ! stash 380 DEPRECATED
+call map_field_name(stashcode_snow_laythk_tiles, 'tile_snow_layer_thickness')
+                                                                     ! stash 381 DEPRECATED
 call map_field_name(stashcode_snow_ice_tile, 'tile_snow_layer_ice_mass')
-                                                                     ! stash 382
-call map_field_name(stashcode_snow_T_tile, 'tile_snow_layer_temp')   ! stash 384
-call map_field_name(stashcode_snow_grnsiz_tiles,                    &! stash 386
-     'tile_snow_layer_rgrain')
+                                                                     ! stash 382 DEPRECATED
+call map_field_name(stashcode_snow_liq_tile, 'tile_snow_layer_liq_mass')
+                                                                     ! stash 383 DEPRECATED
+call map_field_name(stashcode_snow_T_tile, 'tile_snow_layer_temp')   ! stash 384 DEPRECATED
+call map_field_name(stashcode_snow_grnsiz_tiles, 'tile_snow_layer_rgrain')
+                                                                     ! stash 386 DEPRECATED
+
 call map_field_name(stashcode_dry_rho, 'rho')                        ! stash 389
 call map_field_name(stashcode_mv, 'm_v')                             ! stash 391
 call map_field_name(stashcode_mcl, 'm_cl')                           ! stash 392
 call map_field_name(stashcode_mcf, 'm_cf')                           ! stash 393
 call map_field_name(stashcode_mr, 'm_r')                             ! stash 394
 call map_field_name(stashcode_p, 'pressure')                         ! stash 407
-call map_field_name(stashcode_ice_conc_cat, 'ice_conc_cat')              ! stash 413
-call map_field_name(stashcode_ice_thick_cat, 'ice_thick_cat')            ! stash 414
-call map_field_name(stashcode_ice_temp_cat, 'ice_temp_cat')              ! stash 415
-call map_field_name(stashcode_ice_snow_depth_cat, 'ice_snow_depth_cat')  ! stash 416
+call map_field_name(stashcode_ice_conc_cat, 'ice_conc_cat')          ! stash 413
+call map_field_name(stashcode_ice_thick_cat, 'ice_thick_cat')        ! stash 414 DEPRECATED
+call map_field_name(stashcode_ice_temp_cat, 'ice_temp_cat')          ! stash 415 DEPRECATED
+call map_field_name(stashcode_ice_snow_depth_cat, 'ice_snow_depth_cat')
+                                                                     ! stash 416
 call map_field_name(stashcode_dust1_mmr, 'dust1_mmr')                ! stash 431
 call map_field_name(stashcode_dust2_mmr, 'dust2_mmr')                ! stash 432
-call map_field_name(stashcode_ice_surf_cond_cat, 'ice_surf_cond_cat')    ! stash 440
-call map_field_name(stashcode_ice_surf_temp_cat, 'ice_surf_temp_cat')    ! stash 441
+call map_field_name(stashcode_ice_surf_cond_cat, 'ice_surf_cond_cat')! stash 440
+call map_field_name(stashcode_ice_surf_temp_cat, 'ice_surf_temp_cat')! stash 441
 call map_field_name(stashcode_ddmfx , 'dd_mf_cb')                    ! stash 493
-call map_field_name(stashcode_tstar_sea, 'tstar_sea')                ! stash 507
-call map_field_name(stashcode_tstar_sice, 'tstar_sea_ice')           ! stash 508
+call map_field_name(stashcode_tstar_sea, 'tstar_sea')                ! stash 507 DEPRECATED
+call map_field_name(stashcode_tstar_sice, 'tstar_sea_ice')           ! stash 508 DEPRECATED
 call map_field_name(stashcode_qt, 'qt')                              ! stash 16207
 
 call map_field_name(stashcode_o3, 'o3')                              ! stash 34001
