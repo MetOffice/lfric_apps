@@ -4,14 +4,15 @@
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
 ! Some of the content of this file has been produced with the assistance of
-! Anthropic Claude Opus 5 (Claude Code).
+! - Anthropic Claude Opus 5 (Claude Code).
+! - Claude Code (Claude Opus 5.5), 2026-10-20.
 !-------------------------------------------------------------------------------
 !> @brief Interface to the orographic drag parametrization scheme
 
 module orographic_drag_alg_mod
 
   use config_mod,           only: config_type
-  use constants_mod,        only: i_def
+  use constants_mod,        only: i_def, l_def
   use field_mod,            only: field_type
   use field_collection_mod, only: field_collection_type
   use mr_indices_mod,       only: nummr, imr_v, imr_cl, imr_ci, imr_s
@@ -28,6 +29,7 @@ module orographic_drag_alg_mod
   ! XIOS output
   use io_config_mod, only: write_diag, &
                            use_xios_io
+  use initialise_diagnostics_mod, only: diagnostic_to_be_sampled
   use orographic_drag_diags_mod, only: initialise_diags_for_orographic_drag, &
                                        output_diags_for_orographic_drag
 
@@ -101,6 +103,10 @@ contains
     type( field_type ) :: taux_orog_gwd, tauy_orog_gwd               ! ... orographic gwd drag
     type( field_type ) :: mr_ice
 
+    ! Total stress, kept for the clear-air turbulence diagnostic
+    type( field_type ), pointer :: taux_orog, tauy_orog
+    logical( l_def )            :: keep_orog_stress
+
     type( mesh_type ), pointer :: mesh => null()
     integer( tik )            :: id
 
@@ -144,11 +150,14 @@ contains
                 setval_c(dv_orog_gwd,    0.0_r_def),     &
                 setval_c(dtemp_orog_gwd, 0.0_r_def) )
 
-    ! Initialise orographic drag diagnostics
+    ! Initialise orographic drag diagnostics. The stress is also needed
+    ! when the clear-air turbulence potential is requested.
+    keep_orog_stress = diagnostic_to_be_sampled('aviation__clear_air_turb_pot')
     call initialise_diags_for_orographic_drag(                              &
                                 theta, u_in_w3,                             &
                                 taux_orog_blk, tauy_orog_blk,               &
-                                taux_orog_gwd, tauy_orog_gwd)
+                                taux_orog_gwd, tauy_orog_gwd,               &
+                                keep_orog_stress)
 
     ! Calculate total ice field
     call mr_n(imr_s)%copy_field_properties(mr_ice)
@@ -183,6 +192,15 @@ contains
     ! Convert temperature to potential temperature
                 X_divideby_Y (dtheta_orographic_drag, dtemp_orographic_drag, &
                               exner_in_wth) )
+
+    ! Keep the total stress for the clear-air turbulence diagnostic
+    if (keep_orog_stress) then
+      nullify( taux_orog, tauy_orog )
+      call orography_fields%get_field('taux_orog_total', taux_orog)
+      call orography_fields%get_field('tauy_orog_total', tauy_orog)
+      call invoke(X_plus_Y (taux_orog, taux_orog_blk, taux_orog_gwd), &
+                  X_plus_Y (tauy_orog, tauy_orog_blk, tauy_orog_gwd) )
+    end if
 
     if ( LPROF ) call stop_timing( id, 'orographic_drag' )
 

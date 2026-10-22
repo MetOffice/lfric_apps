@@ -4,7 +4,8 @@
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
 ! Some of the content of this file has been produced with the assistance of
-! Anthropic Claude Opus 5 (Claude Code).
+! - Anthropic Claude Opus 5 (Claude Code).
+! - Claude Code (Claude Opus 5.5), 2026-10-20.
 !-------------------------------------------------------------------------------
 !> @brief Processes diagnostics for orographic_drag_alg
 
@@ -36,10 +37,19 @@ module orographic_drag_diags_mod
 contains
 
   !> @brief Initialise fields for locally-computed diagnostics
+  !> @param[in]     theta          Field to copy properties from
+  !> @param[in]     u1_in_w3       Field to copy properties from
+  !> @param[in,out] taux_orog_blk  x-stress from blocking
+  !> @param[in,out] tauy_orog_blk  y-stress from blocking
+  !> @param[in,out] taux_orog_gwd  x-stress from gravity wave drag
+  !> @param[in,out] tauy_orog_gwd  y-stress from gravity wave drag
+  !> @param[in]     activate_stress Compute the stresses even if they are not
+  !>                                requested, as input to other diagnostics
   subroutine initialise_diags_for_orographic_drag(                          &
                                 theta, u1_in_w3,                            &
                                 taux_orog_blk, tauy_orog_blk,               &
-                                taux_orog_gwd, tauy_orog_gwd)
+                                taux_orog_gwd, tauy_orog_gwd,               &
+                                activate_stress)
 
     implicit none
 
@@ -50,19 +60,32 @@ contains
     type( field_type ), intent(inout) ::            &
         taux_orog_blk, tauy_orog_blk,               &
         taux_orog_gwd, tauy_orog_gwd
+    logical( l_def ), intent(in)      :: activate_stress
     integer( tik )  :: id
 
     if ( LPROF ) call start_timing( id, 'diags.orog_gwd' )
 
     ! 3D fields in wtheta space
-    taux_orog_blk_flag = init_diag(taux_orog_blk, 'orographic_drag__taux_orog_blk')
-    if (taux_orog_blk_flag) call invoke( setval_c(taux_orog_blk, 0.0_r_def) )
-    tauy_orog_blk_flag = init_diag(tauy_orog_blk, 'orographic_drag__tauy_orog_blk')
-    if (tauy_orog_blk_flag) call invoke( setval_c(tauy_orog_blk, 0.0_r_def) )
-    taux_orog_gwd_flag = init_diag(taux_orog_gwd, 'orographic_drag__taux_orog_gwd')
-    if (taux_orog_gwd_flag) call invoke( setval_c(taux_orog_gwd, 0.0_r_def) )
-    tauy_orog_gwd_flag = init_diag(tauy_orog_gwd, 'orographic_drag__tauy_orog_gwd')
-    if (tauy_orog_gwd_flag) call invoke( setval_c(tauy_orog_gwd, 0.0_r_def) )
+    taux_orog_blk_flag = init_diag(taux_orog_blk,                          &
+                                   'orographic_drag__taux_orog_blk',      &
+                                   activate=activate_stress)
+    if (taux_orog_blk_flag .or. activate_stress) &
+        call invoke( setval_c(taux_orog_blk, 0.0_r_def) )
+    tauy_orog_blk_flag = init_diag(tauy_orog_blk,                          &
+                                   'orographic_drag__tauy_orog_blk',      &
+                                   activate=activate_stress)
+    if (tauy_orog_blk_flag .or. activate_stress) &
+        call invoke( setval_c(tauy_orog_blk, 0.0_r_def) )
+    taux_orog_gwd_flag = init_diag(taux_orog_gwd,                          &
+                                   'orographic_drag__taux_orog_gwd',      &
+                                   activate=activate_stress)
+    if (taux_orog_gwd_flag .or. activate_stress) &
+        call invoke( setval_c(taux_orog_gwd, 0.0_r_def) )
+    tauy_orog_gwd_flag = init_diag(tauy_orog_gwd,                          &
+                                   'orographic_drag__tauy_orog_gwd',      &
+                                   activate=activate_stress)
+    if (tauy_orog_gwd_flag .or. activate_stress) &
+        call invoke( setval_c(tauy_orog_gwd, 0.0_r_def) )
 
     if ( LPROF ) call stop_timing( id, 'diags.orog_gwd' )
 

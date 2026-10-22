@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Claude Code (Claude Opus 5.5), 2026-10-20.
+!-----------------------------------------------------------------------------
 
 !> @brief Outputs diagnostics from gungho/lfric_atm
 
@@ -60,6 +63,7 @@ module gungho_diagnostics_driver_mod
   use rh_diag_alg_mod,           only : rh_diag_alg
   use freeze_lev_alg_mod,        only : freeze_lev_alg
   use aviation_diags_alg_mod,    only : aviation_diags_alg
+  use clear_air_turb_pot_alg_mod, only : clear_air_turb_pot_alg
 #endif
 
   implicit none
@@ -99,6 +103,8 @@ contains
     ! For aviation diagnostics
 #ifdef UM_PHYSICS
     type( field_type ) :: plev_geopot  ! Set by pres_lev_diags_alg().
+    type(field_collection_type), pointer :: orography_fields
+    real(kind=r_def)                     :: time_since_start
 #endif
 
     type(field_type), pointer :: theta
@@ -344,6 +350,13 @@ contains
       call freeze_lev_alg(modeldb%config,theta, mr, moist_dyn, exner_in_wth)
       ! Aviation diagnostics
       call aviation_diags_alg(plev_geopot)
+      orography_fields => &
+          modeldb%fields%get_field_collection("orography_fields")
+      time_since_start = real(modeldb%clock%get_step(), r_def) * &
+                         real(modeldb%clock%get_seconds_per_step(), r_def)
+      call clear_air_turb_pot_alg(modeldb%config, derived_fields,   &
+                                  orography_fields, exner, twod_mesh, &
+                                  time_since_start)
 #endif
 
       temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')

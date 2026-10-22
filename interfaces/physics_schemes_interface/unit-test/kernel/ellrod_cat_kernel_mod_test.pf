@@ -1,0 +1,151 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Claude Code (Claude Opus 5.5), 2026-10-20.
+!-----------------------------------------------------------------------------
+!> @brief Test ellrod_cat_kernel with linear wind fields.
+!>
+module ellrod_cat_kernel_mod_test
+
+  use funit
+  use constants_mod,         only: r_def, i_def, rmdi
+  use ellrod_cat_kernel_mod, only: ellrod_cat_code
+
+  implicit none
+
+  private
+  public :: test_probability, test_below_threshold, test_missing
+
+  ! Cross stencil of five cells: centre, then west, south, east, north
+  integer(kind=i_def), parameter :: ncells = 5_i_def
+  integer(kind=i_def), parameter :: nlayers = 1_i_def
+  integer(kind=i_def), parameter :: nplev = 1_i_def
+  integer(kind=i_def), parameter :: ndf = 1_i_def
+  integer(kind=i_def), parameter :: undf = ncells
+  integer(kind=i_def), parameter :: map(1) = (/ 1_i_def /)
+  integer(kind=i_def), parameter :: smap_max = 2_i_def
+  ! Branch sizes for a full stencil and one missing its western neighbour
+  integer(kind=i_def), parameter :: full_cross(4) = 2_i_def
+  integer(kind=i_def), parameter :: no_west(4) =                       &
+                                    (/ 1_i_def, 2_i_def, 2_i_def, 2_i_def /)
+
+  real(kind=r_def), parameter :: radius = 6371229.0_r_def
+  real(kind=r_def), parameter :: spacing = 0.01_r_def ! radians
+  real(kind=r_def), parameter :: tol = 1.0e-9_r_def
+
+contains
+
+  !> @brief Cell positions and stencil maps on the equator.
+  subroutine make_stencil(latitude, longitude, x, y, smap, smap_size)
+
+    implicit none
+
+    real(kind=r_def),    intent(out) :: latitude(ncells), longitude(ncells)
+    real(kind=r_def),    intent(out) :: x(ncells), y(ncells)
+    integer(kind=i_def), intent(out) :: smap(ndf, smap_max, 4)
+    integer(kind=i_def), intent(out) :: smap_size(4)
+
+    integer(kind=i_def) :: branch
+
+    latitude  = (/ 0.0_r_def, 0.0_r_def, -spacing, 0.0_r_def, spacing /)
+    longitude = (/ 0.0_r_def, -spacing, 0.0_r_def, spacing, 0.0_r_def /)
+
+    ! Positions in the tangent plane at the centre
+    x = radius * cos(latitude) * sin(longitude)
+    y = radius * sin(latitude)
+
+    do branch = 1, 4
+      smap(1, 1, branch) = 1_i_def
+      smap(1, 2, branch) = branch + 1_i_def
+    end do
+    smap_size = 2_i_def
+
+  end subroutine make_stencil
+
+  !> @brief Run the kernel for winds u = a x + b y, v = c x + d y.
+  subroutine run_kernel(a, b, c, d, shear, smap_size_u, cat_prob)
+
+    implicit none
+
+    real(kind=r_def),    intent(in)  :: a, b, c, d, shear
+    integer(kind=i_def), intent(in)  :: smap_size_u(4)
+    real(kind=r_def),    intent(out) :: cat_prob(undf)
+
+    real(kind=r_def)    :: latitude(ncells), longitude(ncells)
+    real(kind=r_def)    :: x(ncells), y(ncells)
+    real(kind=r_def)    :: u_plev(undf), v_plev(undf), wind_shear(undf)
+    integer(kind=i_def) :: smap(ndf, smap_max, 4), smap_size(4)
+
+    call make_stencil(latitude, longitude, x, y, smap, smap_size)
+    u_plev = a * x + b * y
+    v_plev = c * x + d * y
+    wind_shear = shear
+    cat_prob = 0.0_r_def
+
+    call ellrod_cat_code(nlayers, cat_prob,                              &
+                         u_plev, smap_size_u, smap_max, smap,            &
+                         v_plev, smap_size, smap_max, smap,              &
+                         wind_shear,                                     &
+                         latitude, smap_size, smap_max, smap,            &
+                         longitude, smap_size, smap_max, smap,           &
+                         nplev, radius,                                  &
+                         ndf, undf, map, ndf, undf, map)
+
+  end subroutine run_kernel
+
+  !> @brief Probability from the deformation and shear.
+  @test
+  subroutine test_probability()
+
+    implicit none
+
+    real(kind=r_def)    :: cat_prob(undf), expected
+    real(kind=r_def), parameter :: a = 2.0e-4_r_def, b = 1.0e-4_r_def
+    real(kind=r_def), parameter :: c = -3.0e-5_r_def, d = -2.0e-4_r_def
+    real(kind=r_def), parameter :: shear = 5.0e-3_r_def
+
+    call run_kernel(a, b, c, d, shear, full_cross, cat_prob)
+
+    expected = 1383149.3_r_def * shear * sqrt( (a - d)**2 + (c + b)**2 ) &
+               + 2.7258455_r_def
+    @assertEqual( expected, cat_prob(1), tol * expected )
+
+  end subroutine test_probability
+
+  !> @brief Probabilities below 3.5% are set to zero.
+  @test
+  subroutine test_below_threshold()
+
+    implicit none
+
+    real(kind=r_def) :: cat_prob(undf)
+
+    call run_kernel(1.0e-5_r_def, 0.0_r_def, 0.0_r_def, 0.0_r_def,       &
+                    1.0e-3_r_def, full_cross, cat_prob)
+
+    @assertEqual( 0.0_r_def, cat_prob(1) )
+
+  end subroutine test_below_threshold
+
+  !> @brief Missing data at a domain edge or where the shear is missing.
+  @test
+  subroutine test_missing()
+
+    implicit none
+
+    real(kind=r_def) :: cat_prob(undf)
+
+    call run_kernel(2.0e-4_r_def, 0.0_r_def, 0.0_r_def, 0.0_r_def,       &
+                    5.0e-3_r_def, no_west, cat_prob)
+    @assertEqual( rmdi, cat_prob(1) )
+
+    call run_kernel(2.0e-4_r_def, 0.0_r_def, 0.0_r_def, 0.0_r_def,       &
+                    rmdi, full_cross, cat_prob)
+    @assertEqual( rmdi, cat_prob(1) )
+
+  end subroutine test_missing
+
+end module ellrod_cat_kernel_mod_test
