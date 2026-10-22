@@ -286,7 +286,6 @@ class vn32_t800(MacroUpgrade):
         self.add_setting(config, ["namelist:vapour_relax", "times"], "0.0")
         self.add_setting(config, ["namelist:vapour_relax", "timescale"], "1.0")
         self.add_setting(config, ["namelist:vapour_relax", "variable"], "'mr'")
-
         return config, self.reports
 
 
@@ -332,13 +331,13 @@ class vn32_t400(MacroUpgrade):
         self.add_setting(
             config, ["namelist:jules_sea_seaice", "snowpatch"], "0.02"
         )
-
         return config, self.reports
+
 
 class vn32_t670(MacroUpgrade):
     """Upgrade macro for ticket #670 by Thomas Bendall."""
 
-    BEFORE_TAG = "vn3.2_t760"
+    BEFORE_TAG = "vn3.2_t400"
     AFTER_TAG = "vn3.2_t670"
 
     def upgrade(self, config, meta_config=None):
@@ -390,7 +389,9 @@ class vn32_t670(MacroUpgrade):
         )
         # Remove retired settings
         self.remove_setting(config, ["namelist:nudging", "nudging_source"])
-        self.remove_setting(config, ["namelist:nudging", "nudging_width_bottom"])
+        self.remove_setting(
+            config, ["namelist:nudging", "nudging_width_bottom"]
+        )
         self.remove_setting(config, ["namelist:nudging", "nudging_width_top"])
         self.remove_setting(config, ["namelist:nudging", "nudge_data_levels"])
         # If nudging_mesh_name is still the default '' value, set it to
@@ -408,3 +409,5 @@ class vn32_t670(MacroUpgrade):
                     ["namelist:multires_coupling", "nudging_mesh_name"],
                     dynamics_mesh_name,
                 )
+
+        return config, self.reports
