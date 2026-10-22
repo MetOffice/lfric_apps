@@ -99,10 +99,10 @@
   <!-- MISSING <field id="read_soil_sat_frac" name="soil_sat_frac" long_name="soil_saturated_fraction" unit="m" domain_ref="face" operation="instant" /> -->
   <!-- MISSING <field id="read_wetness_under_soil" name="wetness_under_soil" long_name="wetness_below_soil_column" unit="m" domain_ref="face" operation="instant" /> -->
 
-  <!-- sea_ice_cat fields
+  <!-- sea_ice_cat fields -->
   <field id="read_ice_temp_cat" name="sea_ice_temperature" long_name="sea_ice_temperature" unit="K" grid_ref="sea_ice_categories_face_grid" operation="instant" />
   <field id="read_ice_thick_cat" name="sea_ice_thickness" long_name="sea_ice_thickness" unit="m" grid_ref="sea_ice_categories_face_grid" operation="instant" />
- -->
+
   <!-- surface tiles fields
   <field id="read_canopy_water_content" name="canopy_water_content" long_name="canopy_water_amount" unit="kg m-2" grid_ref="surface_tiles_face_grid" operation="instant" />
   <field id="read_tile_snow_rgrain" name="tile_snow_rgrain" long_name="tile_snow_grain_size" unit="microns" grid_ref="surface_tiles_face_grid" operation="instant" />
