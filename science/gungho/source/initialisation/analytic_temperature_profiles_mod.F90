@@ -29,8 +29,8 @@ use idealised_config_mod,         only : test_cold_bubble_x,           &
 use initial_density_config_mod,    only : r1, x1, y1, r2, x2, y2,      &
                                           density_max, density_background
 use initial_pressure_config_mod,   only : surface_pressure
-use base_mesh_config_mod,          only : geometry,                    &
-                                          geometry_spherical
+use mesh_mod,                      only : geometry_spherical
+use base_mesh_config_mod,          only : geometry
 use planet_config_mod,             only : p_zero, Rd, kappa, scaled_radius, &
                                           scaled_omega, gravity, cp
 use reference_profile_mod,         only : reference_profile
