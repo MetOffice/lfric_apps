@@ -102,7 +102,7 @@
 
     {# check tasks #}
     {% elif task.startswith("check") or
-            task.startswith("rose_ana") or
+            task.startswith("kgo_compare") or
             task.startswith("pert_compare") or
             task.startswith("phystest") or
             task.startswith("metadata_test") %}

@@ -6,7 +6,7 @@
 {% do LOG.debug("Entered templates/runtime/generate_runtime_check.cylc") %}
 
 {# Generate runtime section for comparison tasks #}
-{# checksum, rose_ana, phystest and pert_compare #}
+{# checksum, kgo_compare, phystest and pert_compare #}
 
 {# Set the family inheritance for this task #}
 {% set inherit = namespace(str="") %}
@@ -62,7 +62,7 @@
             CURRENT_KGO = {{current_kgo}}
             NEW_KGO = {{new_kgo}}
 
-{% elif task.startswith("rose_ana") %}
+{% elif task.startswith("kgo_compare") %}
 
     {% for family in task_values["rose_ana_families"] %}
         {% set inherit.str = inherit.str~family|upper~"," %}
@@ -80,7 +80,7 @@
         ) }}
 
     {% set rose_ana_run_task = "run"~task.replace("rose_ana", "") %}
-    {% set rose_ana_app = "rose_ana_"~task_values["app_name"] %}
+    {% set rose_ana_app = task_values["app_name"]~"_compare" %}
 
     [[{{task}}]]
         inherit = {{task_family|upper}}, {{resource_family|upper}}

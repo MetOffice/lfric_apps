@@ -276,7 +276,7 @@
             checksum_task~"?"]) %}
     {% endif %}
     {% if rose_ana_kgo %}
-        {% set rose_ana_task = "rose_ana_"~
+        {% set rose_ana_task = "kgo_compare_"~
                                 task_ns.application~"_"~
                                 task_ns.conf_name~"_"~
                                 task_ns.platform~"_"~
