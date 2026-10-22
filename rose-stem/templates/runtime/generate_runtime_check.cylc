@@ -64,7 +64,7 @@
 
 {% elif task.startswith("kgo_compare") %}
 
-    {% for family in task_values["rose_ana_families"] %}
+    {% for family in task_values["full_kgo_families"] %}
         {% set inherit.str = inherit.str~family|upper~"," %}
     {% endfor %}
 
@@ -79,15 +79,15 @@
         task_values["tmpsize"],
         ) }}
 
-    {% set rose_ana_run_task = "run"~task.replace("rose_ana", "") %}
-    {% set rose_ana_app = task_values["app_name"]~"_compare" %}
+    {% set full_kgo_run_task = "run"~task.replace("full_kgo", "") %}
+    {% set full_kgo_app = task_values["app_name"]~"_compare" %}
 
     [[{{task}}]]
         inherit = {{task_family|upper}}, {{resource_family|upper}}
         [[[environment]]]
-            SUITE_DIR     = ../{{rose_ana_run_task}}
+            SUITE_DIR     = ../{{full_kgo_run_task}}
             KGO_DIR       = {{site_vars["lfricinputs_kgo_base"]}}/{{task_values["task_family"]}}/{{kgo_vars[task_values["task_family"]]|default("vn2.1")}}
-            ROSE_TASK_APP = {{rose_ana_app}}
+            ROSE_TASK_APP = {{full_kgo_app}}
 
 {% elif task.startswith("phystest") %}
 {# Phystest Tasks #}

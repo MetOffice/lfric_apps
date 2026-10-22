@@ -190,7 +190,7 @@
     [[EX1A_CHECK]]
         inherit=EX1A_TECH
 
-    [[EX1A_ROSE_ANA]]
+    [[EX1A_FULL_KGO]]
         inherit = EX1A_BASE
         {{ generate_script("pre-script", ["module load nccmp/1.9.1.0",
                                           ex1a_scitools,
