@@ -24,6 +24,7 @@ module init_ancils_mod
   use function_space_mod,             only : function_space_type
   use function_space_collection_mod,  only : function_space_collection
   use fs_continuity_mod,              only : W3, WTheta
+  use driver_modeldb_mod,             only : modeldb_type
   use pure_abstract_field_mod,        only : pure_abstract_field_type
   use lfric_xios_time_axis_mod,       only : time_axis_type
   use jules_control_init_mod,         only : n_land_tile, n_sea_ice_tile
@@ -97,7 +98,16 @@ module init_ancils_mod
               setup_ancil_field,          &
               aerosol_ancil_names,        &
               albedo_vis_ancil_names,     &
-              albedo_nir_ancil_names
+              albedo_nir_ancil_names,     &
+              easy_aerosol_names,         &
+              easy_aerosol_collection_name
+
+  ! Names of the EasyAerosol fields: SW (1-3) then LW (4-6). Each is read from
+  ! its own file, where the file variable has the same name as the field.
+  character(len=str_def), parameter :: easy_aerosol_names(6) = &
+    [ character(len=str_def) ::                              &
+      "easy_asymmetry_sw", "easy_absorption_sw", "easy_extinction_sw", &
+      "easy_asymmetry_lw", "easy_absorption_lw", "easy_extinction_lw" ]
 
   ! Pairs of (model field name, variable name in the aerosol ancillary file)
   character(len=str_def), parameter :: aerosol_ancil_names(2,17) = reshape( &
@@ -191,15 +201,9 @@ contains
     type(time_axis_type), save :: no3_time_axis
     type(time_axis_type), save :: o3_time_axis
     type(time_axis_type), save :: oh_time_axis
-    type(time_axis_type), save :: easy_asymmetry_sw_time_axis
-    type(time_axis_type), save :: easy_asymmetry_lw_time_axis
-    type(time_axis_type), save :: easy_absorption_sw_time_axis
-    type(time_axis_type), save :: easy_absorption_lw_time_axis
-    type(time_axis_type), save :: easy_extinction_sw_time_axis
-    type(time_axis_type), save :: easy_extinction_lw_time_axis
 
     integer(i_def) :: i_aer
-
+    integer(i_def) :: i_easy
     ! Time axis options
     logical(l_def),   parameter :: interp_flag=.true.
 
@@ -683,74 +687,22 @@ contains
                            mesh, twod_mesh, read_by_file=.true.)   ! 3-D
     endif ! easyaerosol_cdnc
 
-    ! SW ASYMMETRY
+    ! SW and LW asymmetry, absorption and extinction: multi-data fields
+    ! read and updated by the file objects
     if ( easyaerosol_sw .and. ancil_option == ancil_option_updating )  then
-       call easy_asymmetry_sw_time_axis%initialise("easy_asymmetry_sw_time",   &
-                                       file_id="easy_asymmetry_sw_ancil",      &
-                                       interp_flag=interp_flag,                &
-                                       pop_freq="five_days")
-       call setup_ancil_field("easy_asymmetry_sw", depository, ancil_fields,   &
-                           mesh, twod_mesh,                                    &
-                           ndata=n_sw_band, ndata_first=.true.,&
-                           time_axis=easy_asymmetry_sw_time_axis)   ! 3-D
-       call ancil_times_list%insert_item(easy_asymmetry_sw_time_axis)
-
-    ! SW ABSORPTION
-       call easy_absorption_sw_time_axis%initialise("easy_absorption_sw_time", &
-                                       file_id="easy_absorption_sw_ancil", &
-                                       interp_flag=interp_flag,          &
-                                       pop_freq="five_days")
-       call setup_ancil_field("easy_absorption_sw", depository, ancil_fields,  &
-                           mesh, twod_mesh,                                    &
-                           ndata=n_sw_band, ndata_first=.true.,                &
-                           time_axis=easy_absorption_sw_time_axis)   ! 3-D
-       call ancil_times_list%insert_item(easy_absorption_sw_time_axis)
-
-    ! SW EXTINCTION
-       call easy_extinction_sw_time_axis%initialise("easy_extinction_sw_time", &
-                                       file_id="easy_extinction_sw_ancil",     &
-                                       interp_flag=interp_flag,                &
-                                       pop_freq="five_days")
-       call setup_ancil_field("easy_extinction_sw", depository, ancil_fields,  &
-                           mesh, twod_mesh,                                    &
-                           ndata=n_sw_band, ndata_first=.true.,&
-                           time_axis=easy_extinction_sw_time_axis)   ! 3-D
-       call ancil_times_list%insert_item(easy_extinction_sw_time_axis)
+      do i_easy = 1, 3
+        call setup_ancil_field( easy_aerosol_names(i_easy), depository, ancil_fields, &
+                                mesh, twod_mesh, ndata=n_sw_band,                &
+                                read_by_file=.true. )
+      end do
     endif ! easyaerosol_sw
 
-    ! LW ASYMMETRY
     if ( easyaerosol_lw .and. ancil_option == ancil_option_updating )  then
-       call easy_asymmetry_lw_time_axis%initialise("easy_asymmetry_lw_time", &
-                                       file_id="easy_asymmetry_lw_ancil", &
-                                       interp_flag=interp_flag,          &
-                                       pop_freq="five_days")
-       call setup_ancil_field("easy_asymmetry_lw", depository, ancil_fields,   &
-                           mesh, twod_mesh,                                    &
-                           ndata=n_lw_band, ndata_first=.true.,&
-                           time_axis=easy_asymmetry_lw_time_axis)   ! 3-D
-       call ancil_times_list%insert_item(easy_asymmetry_lw_time_axis)
-
-    ! LW ABSORPTION
-       call easy_absorption_lw_time_axis%initialise("easy_absorption_lw_time", &
-                                       file_id="easy_absorption_lw_ancil", &
-                                       interp_flag=interp_flag,          &
-                                       pop_freq="five_days")
-       call setup_ancil_field("easy_absorption_lw", depository, ancil_fields,   &
-                           mesh, twod_mesh,                                    &
-                           ndata=n_lw_band, ndata_first=.true.,&
-                           time_axis=easy_absorption_lw_time_axis)   ! 3-D
-       call ancil_times_list%insert_item(easy_absorption_lw_time_axis)
-       call easy_extinction_lw_time_axis%initialise("easy_extinction_lw_time", &
-                                       file_id="easy_extinction_lw_ancil", &
-                                       interp_flag=interp_flag,          &
-                                       pop_freq="five_days")
-
-    ! LW EXTINCTION
-       call setup_ancil_field("easy_extinction_lw", depository, ancil_fields,   &
-                           mesh, twod_mesh,                                    &
-                           ndata=n_lw_band, ndata_first=.true.,&
-                           time_axis=easy_extinction_lw_time_axis)   ! 3-D
-       call ancil_times_list%insert_item(easy_extinction_lw_time_axis)
+      do i_easy = 4, 6
+        call setup_ancil_field( easy_aerosol_names(i_easy), depository, ancil_fields, &
+                                mesh, twod_mesh, ndata=n_lw_band,                &
+                                read_by_file=.true. )
+      end do
     endif ! easyaerosol_lw
 
     ! === Chemistry Ancils ======
@@ -983,62 +935,94 @@ contains
   !> @details Creates the fields owned by time-varying ancillary file objects
   !>          and binds them to the collections given to those files. Must be
   !>          called before the I/O context is closed.
-  !> @param[in,out] depository           The depository field collection
-  !> @param[in,out] aerosol_ancil_fields Collection bound to the aerosol file
-  !> @param[in,out] albedo_vis_fields    Collection bound to the visible albedo file
-  !> @param[in,out] albedo_nir_fields    Collection bound to the near-IR albedo file
-  !> @param[in,out] cdnc_fields          Collection bound to the CDNC file
-  !> @param[in] mesh                     The current 3d mesh
-  !> @param[in] twod_mesh                The current 2d mesh
-  subroutine create_file_owned_ancils( depository, aerosol_ancil_fields, &
-                                       albedo_vis_fields,                &
-                                       albedo_nir_fields,                &
-                                       cdnc_fields, mesh, twod_mesh )
+  !> @param[in,out] modeldb   The model database, holding the depository and the
+  !>                          (already created, empty) collections bound to the
+  !>                          file objects
+  !> @param[in] mesh          The current 3d mesh
+  !> @param[in] twod_mesh     The current 2d mesh
+  subroutine create_file_owned_ancils( modeldb, mesh, twod_mesh )
 
     implicit none
 
-    type( field_collection_type ), intent(inout) :: depository
-    type( field_collection_type ), intent(inout) :: aerosol_ancil_fields
-    type( field_collection_type ), intent(inout) :: albedo_vis_fields
-    type( field_collection_type ), intent(inout) :: albedo_nir_fields
-    type( field_collection_type ), intent(inout) :: cdnc_fields
-    type( mesh_type ), pointer,    intent(in)    :: mesh
-    type( mesh_type ), pointer,    intent(in)    :: twod_mesh
+    type( modeldb_type ),       intent(inout) :: modeldb
+    type( mesh_type ), pointer, intent(in)    :: mesh
+    type( mesh_type ), pointer, intent(in)    :: twod_mesh
 
+    type( field_collection_type ), pointer :: depository
+    type( field_collection_type ), pointer :: collection
     integer(i_def) :: i
 
     if (ancil_option /= ancil_option_updating) return
 
+    depository => modeldb%fields%get_field_collection("depository")
+
     if ( ( glomap_mode == glomap_mode_climatology ) .or. &
          ( glomap_mode == glomap_mode_dust_and_clim ) ) then
+      collection => modeldb%fields%get_field_collection("aerosol_ancil_fields")
       do i = 1, size(aerosol_ancil_names, 2)
         call create_file_owned_field( aerosol_ancil_names(1,i), depository, &
-                                      aerosol_ancil_fields, mesh, twod_mesh )
+                                      collection, mesh, twod_mesh )
       end do
     end if
 
     if ( l_albedo_obs ) then
+      collection => modeldb%fields%get_field_collection("albedo_vis_ancil_fields")
       call create_file_owned_field( albedo_vis_ancil_names(1,1), depository, &
-                                    albedo_vis_fields, mesh, twod_mesh,      &
-                                    twod=.true. )
+                                    collection, mesh, twod_mesh, twod=.true. )
+      collection => modeldb%fields%get_field_collection("albedo_nir_ancil_fields")
       call create_file_owned_field( albedo_nir_ancil_names(1,1), depository, &
-                                    albedo_nir_fields, mesh, twod_mesh,      &
-                                    twod=.true. )
+                                    collection, mesh, twod_mesh, twod=.true. )
     end if
 
     if ( easyaerosol_cdnc ) then
+      collection => modeldb%fields%get_field_collection("cdnc_ancil_fields")
       call create_file_owned_field( "cloud_drop_no_conc", depository, &
-                                    cdnc_fields, mesh, twod_mesh )
+                                    collection, mesh, twod_mesh )
     end if
+
+    if ( easyaerosol_sw ) then
+      do i = 1, 3
+        collection => modeldb%fields%get_field_collection( &
+                        easy_aerosol_collection_name(easy_aerosol_names(i)) )
+        call create_file_owned_field( easy_aerosol_names(i), depository, &
+                                      collection, mesh, twod_mesh,       &
+                                      ndata=n_sw_band )
+      end do
+    end if
+
+    if ( easyaerosol_lw ) then
+      do i = 4, 6
+        collection => modeldb%fields%get_field_collection( &
+                        easy_aerosol_collection_name(easy_aerosol_names(i)) )
+        call create_file_owned_field( easy_aerosol_names(i), depository, &
+                                      collection, mesh, twod_mesh,       &
+                                      ndata=n_lw_band )
+      end do
+    end if
+
+    nullify(depository, collection)
 
   end subroutine create_file_owned_ancils
 
+  !> @details Name of the collection bound to the file of an EasyAerosol field
+  !> @param[in] field_name  The EasyAerosol model field name
+  function easy_aerosol_collection_name( field_name ) result( name )
+
+    implicit none
+
+    character(*), intent(in) :: field_name
+    character(len=str_def)   :: name
+
+    name = trim(field_name) // "_ancil_fields"
+
+  end function easy_aerosol_collection_name
+
   !> @details Creates a field in the depository if needed and adds a reference
   !>          to it in the collection owned by a file object. The field is a
-  !>          single-data 3D (Wtheta) field unless twod is set, in which case
-  !>          it is a 2D (W3) field.
+  !>          3D (Wtheta) field unless twod is set, in which case it is a 2D
+  !>          (W3) field. It has ndata values per point (default 1).
   subroutine create_file_owned_field( name, depository, target_fields, mesh, &
-                                      twod_mesh, twod )
+                                      twod_mesh, twod, ndata )
 
     implicit none
 
@@ -1048,6 +1032,7 @@ contains
     type( mesh_type ), pointer,    intent(in)    :: mesh
     type( mesh_type ), pointer,    intent(in)    :: twod_mesh
     logical(l_def), optional,      intent(in)    :: twod
+    integer(i_def), optional,      intent(in)    :: ndata
 
     type(field_type)                         :: new_field
     type(function_space_type),       pointer :: vec_space => null()
@@ -1056,15 +1041,18 @@ contains
     type(field_type),                pointer :: fld_ptr => null()
     class(pure_abstract_field_type), pointer :: abs_fld_ptr => null()
     logical(l_def)                           :: twod_field
+    integer(i_def)                           :: ndat
 
     twod_field = .false.
     if (present(twod)) twod_field = twod
+    ndat = 1
+    if (present(ndata)) ndat = ndata
 
     if ( .not. depository%field_exists(name) ) then
       if (twod_field) then
-        vec_space => function_space_collection%get_fs( twod_mesh, 0, 0, W3, 1 )
+        vec_space => function_space_collection%get_fs( twod_mesh, 0, 0, W3, ndat )
       else
-        vec_space => function_space_collection%get_fs( mesh, 0, 0, WTheta, 1 )
+        vec_space => function_space_collection%get_fs( mesh, 0, 0, WTheta, ndat )
       end if
       call new_field%initialise( vec_space, name=trim(name) )
       tmp_write_ptr => write_field_generic

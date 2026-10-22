@@ -22,7 +22,8 @@ module gungho_setup_io_mod
   use lfric_xios_constants_mod,  only: lx_day
   use init_ancils_mod,           only: aerosol_ancil_names,    &
                                        albedo_vis_ancil_names, &
-                                       albedo_nir_ancil_names
+                                       albedo_nir_ancil_names, &
+                                       easy_aerosol_collection_name
   use lfric_xios_write_mod,      only: create_checkpoint_list
   use linked_list_mod,           only: linked_list_type
   use log_mod,                   only: log_event, log_level_error, &
@@ -781,30 +782,30 @@ module gungho_setup_io_mod
    if ( easyaerosol_sw .and. ancil_option == ancil_option_updating )  then
       write(ancil_fname,'(A)') trim(ea_ancil_directory)//'/'// &
                                trim(easy_asymmetry_sw_ancil_path)
-      call files_list%insert_item( lfric_xios_file_type( ancil_fname,           &
-           xios_id="easy_asymmetry_sw_ancil", io_mode=FILE_MODE_READ ) )
+      call insert_easy_aerosol_file( files_list, ancil_fname, modeldb, &
+                                     "easy_asymmetry_sw" )
       write(ancil_fname,'(A)') trim(ea_ancil_directory)//'/'// &
                                trim(easy_absorption_sw_ancil_path)
-      call files_list%insert_item( lfric_xios_file_type( ancil_fname,           &
-           xios_id="easy_absorption_sw_ancil", io_mode=FILE_MODE_READ ) )
+      call insert_easy_aerosol_file( files_list, ancil_fname, modeldb, &
+                                     "easy_absorption_sw" )
       write(ancil_fname,'(A)') trim(ea_ancil_directory)//'/'// &
                                trim(easy_extinction_sw_ancil_path)
-      call files_list%insert_item( lfric_xios_file_type( ancil_fname,           &
-           xios_id="easy_extinction_sw_ancil", io_mode=FILE_MODE_READ ) )
+      call insert_easy_aerosol_file( files_list, ancil_fname, modeldb, &
+                                     "easy_extinction_sw" )
    endif
    if ( easyaerosol_lw .and. ancil_option == ancil_option_updating )  then
       write(ancil_fname,'(A)') trim(ea_ancil_directory)//'/'// &
                                trim(easy_asymmetry_lw_ancil_path)
-      call files_list%insert_item( lfric_xios_file_type( ancil_fname,           &
-           xios_id="easy_asymmetry_lw_ancil", io_mode=FILE_MODE_READ ) )
+      call insert_easy_aerosol_file( files_list, ancil_fname, modeldb, &
+                                     "easy_asymmetry_lw" )
       write(ancil_fname,'(A)') trim(ea_ancil_directory)//'/'// &
                                trim(easy_absorption_lw_ancil_path)
-      call files_list%insert_item( lfric_xios_file_type( ancil_fname,           &
-           xios_id="easy_absorption_lw_ancil", io_mode=FILE_MODE_READ ) )
+      call insert_easy_aerosol_file( files_list, ancil_fname, modeldb, &
+                                     "easy_absorption_lw" )
       write(ancil_fname,'(A)') trim(ea_ancil_directory)//'/'// &
                                trim(easy_extinction_lw_ancil_path)
-      call files_list%insert_item( lfric_xios_file_type( ancil_fname,           &
-           xios_id="easy_extinction_lw_ancil", io_mode=FILE_MODE_READ ) )
+      call insert_easy_aerosol_file( files_list, ancil_fname, modeldb, &
+                                     "easy_extinction_lw" )
    endif
 
     ! Radiatively active gases
@@ -1013,5 +1014,34 @@ module gungho_setup_io_mod
     collection => modeldb%fields%get_field_collection(name)
 
   end function get_required_collection
+
+  !> @details Adds an updating, cyclic EasyAerosol ancillary file to the file
+  !>          list. It is read through the collection bound to that field.
+  !> @param[in,out] files_list  The list of files
+  !> @param[in]     file_path   Path of the ancillary file
+  !> @param[in,out] modeldb     The model database
+  !> @param[in]     field_name  The EasyAerosol model field read from the file
+  subroutine insert_easy_aerosol_file(files_list, file_path, modeldb, field_name)
+
+    implicit none
+
+    type(linked_list_type), intent(inout) :: files_list
+    character(*),           intent(in)    :: file_path
+    type(modeldb_type),     intent(inout) :: modeldb
+    character(*),           intent(in)    :: field_name
+
+    type(field_collection_type), pointer :: collection
+
+    collection => get_required_collection( modeldb, &
+                    easy_aerosol_collection_name(field_name) )
+    call files_list%insert_item( lfric_xios_file_type( file_path,            &
+                                   xios_id=trim(field_name)//"_ancil",       &
+                                   io_mode=FILE_MODE_READ,                   &
+                                   operation=OPERATION_TIMESERIES,           &
+                                   cyclic=.true.,                            &
+                                   update_freq=5*lx_day,                     &
+                                   fields_in_file=collection ) )
+
+  end subroutine insert_easy_aerosol_file
 
 end module gungho_setup_io_mod
