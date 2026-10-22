@@ -1,0 +1,33 @@
+{% do LOG.debug("Entered site/mss/variables.cylc") %}
+
+{% do site_vars.update({"known_applications": ["adjoint_tests",
+                                               "gungho_model",
+                                               "lfric_atm",
+                                               "mesh",
+                                               "gravity_wave",
+                                               "jedi_lfric_tests",
+                                               "shallow_water",
+                                               "lfricinputs",
+                                               "lfric2lfric",
+                                               "linear_model",
+                                               "gungho",
+                                               "socrates_interface",
+                                               "physics_schemes_interface",
+                                               "linear",
+                                               "jedi_lfric_interface",
+                                               "transport",
+                                               "solver"]}) %}
+
+{% do site_vars.update({"site_platforms": ["asp2a"]}) %}
+
+{% do site_vars.update({"mesh_build": {"asp2a": "intel_fast-debug-64bit"} }) %}
+
+{% do site_vars.update({"lfricinputs_kgo_base": "$UMDIR/standard_jobs/lfricinputs/kgo"}) %}
+
+{% do site_vars.update({"USE_TOKENS": true}) %}
+
+{% include "site/mss/kgo_variables.cylc" %}
+
+{% include "site/mss/common/default_directives.cylc" %}
+
+{% do LOG.debug("Finished in site/mss/variables.cylc") %}

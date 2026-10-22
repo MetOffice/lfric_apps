@@ -12,6 +12,7 @@ module sample_eos_pressure_kernel_mod
                                 GH_FIELD,                  &
                                 GH_READ, GH_WRITE,         &
                                 GH_REAL, GH_BASIS,         &
+                                GH_SCALAR, GH_INTEGER,     &
                                 CELL_COLUMN, GH_EVALUATOR
   use constants_mod,     only : r_def, i_def
   use fs_continuity_mod, only : W3, Wtheta
@@ -29,11 +30,13 @@ module sample_eos_pressure_kernel_mod
   !>
   type, public, extends(kernel_type) :: sample_eos_pressure_kernel_type
     private
-    type(arg_type) :: meta_args(4) = (/                                       &
+    type(arg_type) :: meta_args(6) = (/                                       &
          arg_type(GH_FIELD,    GH_REAL, GH_WRITE, W3),                        &
          arg_type(GH_FIELD,    GH_REAL, GH_READ,  W3),                        &
          arg_type(GH_FIELD,    GH_REAL, GH_READ,  Wtheta),                    &
-         arg_type(GH_FIELD,    GH_REAL, GH_READ,  Wtheta)                     &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ,  Wtheta),                    &
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                            &
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ)                             &
          /)
     type(func_type) :: meta_funcs(2) = (/                                     &
          func_type(W3,          GH_BASIS),                                    &
@@ -58,6 +61,8 @@ contains
 !! @param[in] rho Density
 !! @param[in] theta Potential temperature
 !! @param[in] moist_dyn_gas Moist dynamics factor in gas law (1+mv/epsilon)
+!! @param[in] level_bot bottom level to compute
+!! @param[in] level_top top level to compute
 !! @param[in] ndf_w3 Number of degrees of freedom per cell for w3
 !! @param[in] undf_w3 Number of unique degrees of freedom for w3
 !! @param[in] map_w3 Dofmap for the cell at the base of the column for w3
@@ -68,6 +73,7 @@ contains
 !! @param[in] wt_basis Basis functions evaluated at the W3 DoFs
 subroutine sample_eos_pressure_code(nlayers,                           &
                                  exner, rho, theta, moist_dyn_gas, &
+                                 level_bot, level_top,             &
                                  ndf_w3, undf_w3, map_w3, w3_basis,&
                                  ndf_wt, undf_wt, map_wt, wt_basis)
 
@@ -76,7 +82,7 @@ subroutine sample_eos_pressure_code(nlayers,                           &
   implicit none
 
   ! Arguments
-  integer(kind=i_def), intent(in) :: nlayers
+  integer(kind=i_def), intent(in) :: nlayers, level_bot, level_top
   integer(kind=i_def), intent(in) :: ndf_wt, ndf_w3
   integer(kind=i_def), intent(in) :: undf_wt, undf_w3
   integer(kind=i_def), dimension(ndf_wt),  intent(in) :: map_wt
@@ -99,7 +105,7 @@ subroutine sample_eos_pressure_code(nlayers,                           &
   real(kind=r_def) :: rho_cell, theta_vd_cell
 
   ! Sample Exner pointwise from equation of state
-  do k = 0, nlayers-1
+  do k = level_bot, level_top
 
     do df = 1, ndf_w3
       rho_e(df) = rho( map_w3(df) + k )

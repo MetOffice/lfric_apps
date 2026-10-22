@@ -89,7 +89,7 @@ use planet_constants_mod, only: repsilon, one_minus_epsilon
 use conversions_mod,      only: zerodegc
 implicit none
 integer, parameter :: prec = real_64
-#include "qsat_mod_qsat.h"
+#include "include/qsat_mod_qsat.h"
 end subroutine qsat_real64_1D
 
 subroutine qsat_wat_real64_1D(qs, t, p, npnts)
@@ -100,7 +100,7 @@ use planet_constants_mod, only: repsilon, one_minus_epsilon
 use conversions_mod,      only: zerodegc
 implicit none
 integer, parameter :: prec = real_64
-#include "qsat_mod_qsat.h"
+#include "include/qsat_mod_qsat.h"
 end subroutine qsat_wat_real64_1D
 
 subroutine qsat_mix_real64_1D(qs, t, p, npnts)
@@ -111,7 +111,7 @@ use planet_constants_mod, only: repsilon
 use conversions_mod,      only: zerodegc
 implicit none
 integer, parameter :: prec = real_64
-#include "qsat_mod_qsat_mix.h"
+#include "include/qsat_mod_qsat_mix.h"
 end subroutine qsat_mix_real64_1D
 
 subroutine qsat_wat_mix_real64_1D(qs, t, p, npnts)
@@ -122,7 +122,7 @@ use planet_constants_mod, only: repsilon
 use conversions_mod,      only: zerodegc
 implicit none
 integer, parameter :: prec = real_64
-#include "qsat_mod_qsat_mix.h"
+#include "include/qsat_mod_qsat_mix.h"
 return
 end subroutine qsat_wat_mix_real64_1D
 
@@ -140,7 +140,7 @@ use conversions_mod,      only: zerodegc
 implicit none
 integer, parameter :: prec = real_64
 #define   QSAT_WITH_IDX 1
-#include "qsat_mod_qsat.h"
+#include "include/qsat_mod_qsat.h"
 #undef    QSAT_WITH_IDX
 end subroutine qsat_real64_1D_idx
 
@@ -328,7 +328,7 @@ use planet_constants_mod, only: repsilon          => repsilon_32b,             &
 use conversions_mod,      only: zerodegc   => zerodegc_32
 implicit none
 integer, parameter :: prec = real_32
-#include "qsat_mod_qsat.h"
+#include "include/qsat_mod_qsat.h"
 end subroutine qsat_real32_1D
 
 subroutine qsat_wat_real32_1D(qs, t, p, npnts)
@@ -340,7 +340,7 @@ use planet_constants_mod, only: repsilon          => repsilon_32b,             &
 use conversions_mod,      only: zerodegc   => zerodegc_32
 implicit none
 integer, parameter :: prec = real_32
-#include "qsat_mod_qsat.h"
+#include "include/qsat_mod_qsat.h"
 end subroutine qsat_wat_real32_1D
 
 subroutine qsat_mix_real32_1D(qs, t, p, npnts)
@@ -351,7 +351,7 @@ use planet_constants_mod, only: repsilon          => repsilon_32b
 use conversions_mod,      only: zerodegc   => zerodegc_32
 implicit none
 integer, parameter :: prec = real_32
-#include "qsat_mod_qsat_mix.h"
+#include "include/qsat_mod_qsat_mix.h"
 end subroutine qsat_mix_real32_1D
 
 subroutine qsat_wat_mix_real32_1D(qs, t, p, npnts)
@@ -362,7 +362,7 @@ use planet_constants_mod, only: repsilon          => repsilon_32b
 use conversions_mod,      only: zerodegc   => zerodegc_32
 implicit none
 integer, parameter :: prec = real_32
-#include "qsat_mod_qsat_mix.h"
+#include "include/qsat_mod_qsat_mix.h"
 return
 end subroutine qsat_wat_mix_real32_1D
 

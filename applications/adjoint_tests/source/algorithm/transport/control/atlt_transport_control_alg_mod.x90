@@ -149,8 +149,7 @@ module atlt_transport_control_alg_mod
     implicit none
 
     ! Arguments
-    type(config_type), intent(in) :: config
-
+    type(config_type),                  intent(in) :: config
     type(function_space_type), pointer, intent(in) :: vector_space_wtheta_ptr
     type(function_space_type), pointer, intent(in) :: vector_space_w2_ptr
     type(function_space_type), pointer, intent(in) :: vector_space_w3_ptr

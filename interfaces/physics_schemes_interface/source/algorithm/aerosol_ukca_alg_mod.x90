@@ -88,7 +88,7 @@ contains
                                              chem_timestep,                    &
                                              photol_scheme, photol_scheme_off, &
                                              photol_scheme_prescribed,         &
-                                             photol_scheme_fastjx    
+                                             photol_scheme_fastjx
 
     use sci_field_minmax_alg_mod,      only: log_field_minmax
     use microphysics_config_mod,       only: microphysics_casim
@@ -128,7 +128,7 @@ contains
     use calc_albedo_kernel_mod,        only: calc_albedo_kernel_type
     use photol_kernel_mod,             only: photol_kernel_type
     use msat_kernel_mod,               only: msat_kernel_type
-    use photol_diags_kernel_mod,       only: photol_diags_kernel_type    
+    use photol_diags_kernel_mod,       only: photol_diags_kernel_type
     use ukca_diags_interface_mod,      only: initialise_ukca_diagnostics,      &
                                              output_ukca_diagnostics
 
@@ -174,7 +174,7 @@ contains
 
     type( field_type ), pointer :: sw_up_tile
     type( field_type ), pointer :: sw_down_surf
-  
+
     ! Microphysics fields
     type( field_type ), pointer :: ls_rain_3d
     type( field_type ), pointer :: ls_snow_3d
@@ -450,7 +450,7 @@ contains
     type( field_type ), pointer :: wetrho_in_w3 ! Wet density in W3
     type( field_type ), pointer :: wetrho_in_wth ! Wet density in WTHETA
 
-    ! Diagnostics super array, names and request status flags    
+    ! Diagnostics super array, names and request status flags
     type(field_type) :: diagnostics_fullht_real
     integer(i_def)   :: n_req_ukca_diags_3d
     integer(i_def), allocatable :: idiags_status_3d(:)
@@ -1036,7 +1036,7 @@ contains
 
     if ( chem_scheme == chem_scheme_strattrop .and.                            &
          photol_scheme /= photol_scheme_off ) then
-      ! Photolysis currently linked to Strattrop      
+      ! Photolysis currently linked to Strattrop
 
       ! Sample Rates to output; wtheta grid
       call ls_rain_3d%copy_field_properties(photol_rate_jo1d)
@@ -1044,7 +1044,7 @@ contains
 
       call invoke( setval_c(photol_rate_jo1d,  0.0_r_def),                     &
                    setval_c(photol_rate_jno2,  0.0_r_def) )
-      
+
       ! Only call photolysis if this is a chemistry timestep as photol rates
       ! are only used by chemistry
       if ( l_chem_timestep ) then
@@ -1061,7 +1061,7 @@ contains
           call ls_rain_3d%copy_field_properties(aod_sulp_aitken)
           call ls_rain_3d%copy_field_properties(photol_rates_rts_jo2)
           call ls_rain_3d%copy_field_properties(photol_rates_rts_jo2b)
-          
+
           call invoke ( setval_c(sulp_accum,     1.0e-25_r_def),                &
                         setval_c(sulp_aitken,    1.0e-25_r_def),                &
                         setval_c(aod_sulp_accum, 1.0e3_r_def),                  &
@@ -1069,7 +1069,7 @@ contains
                         setval_c(photol_rates_rts_jo2,  0.0_r_def),             &
                         setval_c(photol_rates_rts_jo2b, 0.0_r_def) )
 
-          ! Calculate Relative humidity (as fraction: 0.0-1.0)    
+          ! Calculate Relative humidity (as fraction: 0.0-1.0)
           call mr(imr_v)%copy_field_properties(msat)
           call mr(imr_v)%copy_field_properties(rel_humid_frac)
           call invoke( setval_c(msat,             0.0_r_def),                  &
@@ -1080,7 +1080,7 @@ contains
                        inc_max_aX(0.0_r_def, rel_humid_frac),                  &
                        inc_min_aX(1.0_r_def, rel_humid_frac) )
 
-          ! Derive required inputs, surface albedo first 
+          ! Derive required inputs, surface albedo first
           call invoke ( calc_albedo_kernel_type ( surf_albedo,                 &
                                             sw_down_surf,                      &
                                             tile_fraction,                     &
@@ -1128,7 +1128,7 @@ contains
             do jp1 = 1, n_phot_spc
               select case(trim(ratj_varnames(jp1)))
               case ('jo3a')
-                !  jO(1D)         
+                !  jO(1D)
                 call invoke (  photol_diags_kernel_type(photol_rate_jo1d,      &
                                                         jp1,                   &
                                                         photol_rates) )
@@ -1139,9 +1139,9 @@ contains
                                                         photol_rates) )
               end select
             end do
-  
+
         end if  ! Fast-JX
-      
+
         ! Specified photolysis rates - based on location and local time
         if ( photol_scheme == photol_scheme_prescribed ) then
           call ls_rain_3d%copy_field_properties(photol_rate_profile)
@@ -1170,9 +1170,9 @@ contains
         end if  ! photol_scheme = fastjx/ prescribed
 
         if ( LPROF ) call stop_timing( id_photo, 'ukca.photolysis_alg' )
-        
+
       end if  ! Chem timestep
-    
+
     end if  ! Chem/ photolysis schemes
 
     ! Chemistry Diagnostics handling
@@ -1187,7 +1187,7 @@ contains
                                      idiags_status_3d,                         &
                                      ukca_req_diagnames_fullht                 &
                                     )
-    
+
     vector_space=>function_space_collection%get_fs( mesh,0,0,Wtheta,           &
                                                     n_req_ukca_diags_3d )
     if (n_req_ukca_diags_3d > 0) then
@@ -1620,7 +1620,7 @@ contains
                                         ukca_req_diagnames_fullht,             &
                                         diagnostics_fullht_real                &
                                       )
-    
+
         if (allocated(idiags_status_3d)) deallocate(idiags_status_3d)
         if (allocated(ukca_req_diagnames_fullht)) deallocate(ukca_req_diagnames_fullht)
       end if    ! chem_scheme_strattrop

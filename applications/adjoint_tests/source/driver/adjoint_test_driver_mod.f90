@@ -77,6 +77,7 @@ contains
     use adjt_end_transport_step_alg_mod,            only : adjt_build_up_flux_alg
     use atlt_end_transport_step_alg_mod,            only : atlt_end_adv_step_alg, &
                                                            atlt_end_con_step_alg
+    use atlt_vorticity_advection_alg_mod,           only : atlt_vorticity_advection_alg
 
     ! ./transport/mol
     use atlt_reconstruct_w3_field_alg_mod,          only : atlt_vert_w3_reconstruct_alg, &
@@ -89,6 +90,13 @@ contains
     use atlt_advective_and_flux_alg_mod,            only : atlt_advective_and_flux_alg
     use atlt_mol_conservative_alg_mod,              only : atlt_mol_conservative_alg
     use atlt_mol_advective_alg_mod,                 only : atlt_mol_advective_alg
+    use atlt_poly1d_vert_adv_alg_mod,               only : atlt_poly1d_vert_adv_alg
+    use adjt_horizontal_mass_flux_alg_mod,          only : adjt_horizontal_mass_flux_alg
+    use adjt_vertical_mass_flux_alg_mod,            only : adjt_vertical_mass_flux_alg
+    use atlt_horizontal_mass_flux_alg_mod,          only : atlt_horizontal_mass_flux_alg
+    use atlt_vertical_mass_flux_alg_mod,            only : atlt_vertical_mass_flux_alg
+    use adjt_w3v_advective_update_alg_mod,          only : adjt_w3v_advective_update_alg
+    use atlt_w3v_advective_update_alg_mod,          only : atlt_w3v_advective_update_alg
 
     ! ./transport/control
     use atlt_transport_field_alg_mod,               only : atlt_transport_field_alg
@@ -114,10 +122,14 @@ contains
     use adjt_compute_vorticity_alg_mod,             only : adjt_compute_vorticity_alg
     use atlt_derive_exner_from_eos_alg_mod,         only : atlt_derive_exner_from_eos_alg
     use atlt_moist_dyn_factors_alg_mod,             only : atlt_moist_dyn_factors_alg
+    use adjt_assemble_w2h_from_w2hb_alg_mod,        only : adjt_assemble_w2h_from_w2hb_alg
 
     ! ./solver
     use adjt_pressure_precon_alg_mod,               only : adjt_pressure_precon_alg
     use adjt_mixed_operator_alg_mod,                only : adjt_mixed_operator_alg
+    use adjt_apply_mixed_u_operator_alg_mod,        only : adjt_apply_mixed_u_operator_alg
+    use adjt_apply_mixed_wp_operator_alg_mod,       only : adjt_apply_mixed_wp_operator_alg
+    use adjt_schur_backsub_alg_mod,                 only : adjt_schur_backsub_alg
     use adjt_mixed_schur_preconditioner_alg_mod,    only : adjt_mixed_schur_preconditioner_alg
     use adjt_mixed_solver_alg_mod,                  only : adjt_mixed_solver_alg
     use adjt_semi_implicit_solver_step_alg_mod,     only : adjt_semi_implicit_solver_step_alg
@@ -154,10 +166,20 @@ contains
 
     call log_event( "TESTING adjoint kernels", LOG_LEVEL_INFO )
 
+    !./transport/common
+    call atlt_vorticity_advection_alg( modeldb%config, mesh, chi, panel_id )
+
     ! ./transport/mol
     call atlt_poly_adv_update_alg( mesh )
     call atlt_poly1d_vert_w3_recon_alg( modeldb%config, mesh )
     call atlt_w3h_advective_update_alg( mesh )
+    call atlt_poly1d_vert_adv_alg( modeldb%config, mesh )
+    call adjt_horizontal_mass_flux_alg( modeldb%config, mesh )
+    call adjt_vertical_mass_flux_alg( modeldb%config, mesh )
+    call atlt_horizontal_mass_flux_alg( modeldb%config, mesh )
+    call atlt_vertical_mass_flux_alg( modeldb%config, mesh )
+    call adjt_w3v_advective_update_alg( modeldb%config, mesh )
+    call atlt_w3v_advective_update_alg( modeldb%config, mesh )
     ! -- Lookup table solutions.
     call adjt_poly1d_recon_lookup_alg( modeldb%config, mesh, adj_trans_lookup_cache )
     call adjt_poly2d_recon_lookup_alg( modeldb%config, mesh, Wtheta, adj_trans_lookup_cache )
@@ -175,6 +197,7 @@ contains
     call atlt_rhs_sample_eos_alg( mesh )
     call atlt_sample_eos_pressure_alg( mesh )
     call atlt_pressure_gradient_bd_alg( mesh )
+    call adjt_assemble_w2h_from_w2hb_alg( modeldb%config, mesh )
 
     ! ./linear_physics
     call atlt_bl_inc_alg( mesh )
@@ -187,6 +210,11 @@ contains
     call adjt_dg_matrix_vector_alg( mesh )
     call adjt_dg_inc_matrix_vector_alg( mesh )
     call adjt_transpose_matrix_vector_alg( mesh )
+
+    ! ./solver
+    call adjt_apply_mixed_u_operator_alg( modeldb%config, mesh )
+    call adjt_apply_mixed_wp_operator_alg( modeldb%config, mesh )
+    call adjt_schur_backsub_alg( modeldb%config, mesh )
 
     call log_event( "TESTING misc adjoints", LOG_LEVEL_INFO )
     ! ./
