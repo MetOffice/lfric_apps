@@ -71,7 +71,9 @@ module init_gungho_prognostics_alg_mod
   ! Derived Types
   use field_mod,                       only: field_type
   use field_collection_mod,            only: field_collection_type
-  use mesh_mod,                        only: mesh_type
+  use mesh_mod,                        only: mesh_type, &
+                                             geometry_spherical, &
+                                             geometry_planar
   use quadrature_xyoz_mod,             only: quadrature_xyoz_type
   use operator_mod,                    only: operator_type
   use function_space_collection_mod,   only: function_space_collection
@@ -82,9 +84,7 @@ module init_gungho_prognostics_alg_mod
   use moist_dyn_mod,                   only: num_moist_factors, gas_law
 
   ! Configuration modules
-  use base_mesh_config_mod,      only: geometry,           &
-                                       geometry_spherical, &
-                                       geometry_planar
+  use base_mesh_config_mod,      only: geometry
   use planet_config_mod,         only: gravity, cp, rd, &
                                        p_zero, kappa, recip_epsilon
 

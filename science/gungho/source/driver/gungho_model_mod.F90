@@ -70,7 +70,9 @@ module gungho_model_mod
   use minmax_tseries_mod,         only : minmax_tseries,      &
                                          minmax_tseries_init, &
                                          minmax_tseries_final
-  use mesh_mod,                   only : mesh_type
+  use mesh_mod,                   only : mesh_type, &
+                                         geometry_planar, &
+                                         geometry_spherical
   use mesh_collection_mod,        only : mesh_collection
   use clock_mod,                  only : clock_type
   use model_clock_mod,            only : model_clock_type
@@ -114,6 +116,7 @@ module gungho_model_mod
   use um_radaer_init_mod,          only : um_radaer_init
   use um_radaer_lut_init_mod,      only : um_radaer_lut_init
   use um_ukca_init_mod,            only : um_ukca_init
+  use ukca_diag_setup_mod,         only: ukca_diag_setup
   use jules_timestep_alg_mod,      only : jules_timestep_type
   use stochastic_physics_config_mod, only : use_spt, &
                                             use_skeb
@@ -322,8 +325,10 @@ contains
                             id_as_name=.true.)
           end do
         end if
-
-        if(l_esm_couple) then
+#endif
+      end if
+#ifdef UM_PHYSICS
+      if(l_esm_couple) then
           call add_field( persistor%ckp_out, "lf_taux", mode=CHECKPOINTING, operation="once", &
                           id_as_name=.true.)
           call add_field( persistor%ckp_out, "lf_tauy", mode=CHECKPOINTING, operation="once", &
@@ -354,9 +359,8 @@ contains
                           id_as_name=.true.)
           call add_field( persistor%ckp_out, "lf_pensolar", mode=CHECKPOINTING, operation="once", &
                           id_as_name=.true.)
-        end if
-#endif
       end if
+#endif
     end if
     if (checkpoint_read .or. init_option == init_option_checkpoint_dump) then
       if ( encorr_usage /= encorr_usage_none ) then
@@ -520,13 +524,12 @@ contains
   !>
   subroutine initialise_infrastructure( io_context_name, modeldb )
 
-    use base_mesh_config_mod, only: geometry_planar, &
-                                    geometry_spherical
-
 #ifdef UM_PHYSICS
     use formulation_config_mod,    only: use_physics
     use section_choice_config_mod, only: radiation, &
                                          radiation_socrates
+    use chemistry_config_mod,      only: chemistry_is_loaded, &
+                                         chem_scheme_strattrop
 #endif
 
     implicit none
@@ -1092,6 +1095,13 @@ contains
       end if
       ! Initialisation of UM variables related to the mesh
       call um_domain_init(mesh)
+      ! Setup UKCA diagnostics list based on requested diags,
+      ! only for strattrop scheme at present.
+      if ( modeldb%config%namelist_exists('chemistry') ) then
+        if ( modeldb%config%chemistry%chem_scheme() ==             &
+               chem_scheme_strattrop )                             &
+          call ukca_diag_setup(modeldb%values)
+      end if
     end if
 #endif
 

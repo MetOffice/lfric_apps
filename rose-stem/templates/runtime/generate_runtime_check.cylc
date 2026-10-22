@@ -6,7 +6,7 @@
 {% do LOG.debug("Entered templates/runtime/generate_runtime_check.cylc") %}
 
 {# Generate runtime section for comparison tasks #}
-{# checksum, rose_ana, phystest and pert_compare #}
+{# checksum, kgo_compare, phystest and pert_compare #}
 
 {# Set the family inheritance for this task #}
 {% set inherit = namespace(str="") %}
@@ -51,7 +51,8 @@
         inherit.str,
         task_values["tech-tests_wallclock"],
         task_values["tech-tests_cpus"],
-        task_values["tech-tests_memory"]
+        task_values["tech-tests_memory"],
+        task_values["tmpsize"],
         ) }}
 
     [[{{task}}]]
@@ -61,9 +62,9 @@
             CURRENT_KGO = {{current_kgo}}
             NEW_KGO = {{new_kgo}}
 
-{% elif task.startswith("rose_ana") %}
+{% elif task.startswith("kgo_compare") %}
 
-    {% for family in task_values["rose_ana_families"] %}
+    {% for family in task_values["full_kgo_families"] %}
         {% set inherit.str = inherit.str~family|upper~"," %}
     {% endfor %}
 
@@ -74,18 +75,19 @@
         inherit.str,
         task_values["tech-tests_wallclock"],
         task_values["tech-tests_cpus"],
-        task_values["tech-tests_memory"]
+        task_values["tech-tests_memory"],
+        task_values["tmpsize"],
         ) }}
 
-    {% set rose_ana_run_task = "run"~task.replace("rose_ana", "") %}
-    {% set rose_ana_app = "rose_ana_"~task_values["app_name"] %}
+    {% set full_kgo_run_task = "run"~task.replace("full_kgo", "") %}
+    {% set full_kgo_app = task_values["app_name"]~"_compare" %}
 
     [[{{task}}]]
         inherit = {{task_family|upper}}, {{resource_family|upper}}
         [[[environment]]]
-            SUITE_DIR     = ../{{rose_ana_run_task}}
+            SUITE_DIR     = ../{{full_kgo_run_task}}
             KGO_DIR       = {{site_vars["lfricinputs_kgo_base"]}}/{{task_values["task_family"]}}/{{kgo_vars[task_values["task_family"]]|default("vn2.1")}}
-            ROSE_TASK_APP = {{rose_ana_app}}
+            ROSE_TASK_APP = {{full_kgo_app}}
 
 {% elif task.startswith("phystest") %}
 {# Phystest Tasks #}
@@ -101,7 +103,8 @@
         inherit.str,
         task_values["tech-tests_wallclock"],
         task_values["tech-tests_cpus"],
-        task_values["tech-tests_memory"]
+        task_values["tech-tests_memory"],
+        task_values["tmpsize"],
         ) }}
 
     [[{{task}}]]
@@ -125,7 +128,8 @@
         inherit.str,
         task_values["tech-tests_wallclock"],
         task_values["tech-tests_cpus"],
-        task_values["tech-tests_memory"]
+        task_values["tech-tests_memory"],
+        task_values["tmpsize"],
         ) }}
 
     {% set perturb_output = task_output_dir %}
@@ -152,7 +156,8 @@
         inherit.str,
         task_values["tech-tests_wallclock"],
         task_values["tech-tests_cpus"],
-        task_values["tech-tests_memory"]
+        task_values["tech-tests_memory"],
+        task_values["tmpsize"],
         ) }}
 
     [[{{task}}]]
