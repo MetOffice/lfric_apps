@@ -571,6 +571,9 @@ contains
     type(field_collection_type),  pointer :: radiation_fields
     type(field_collection_type),  pointer :: ancil_depository
     type(field_collection_type),  pointer :: aerosol_ancil_fields
+    type(field_collection_type),  pointer :: albedo_vis_ancil_fields
+    type(field_collection_type),  pointer :: albedo_nir_ancil_fields
+    type(field_collection_type),  pointer :: cdnc_ancil_fields
 #endif
     integer :: start_index, end_index
 
@@ -1003,11 +1006,20 @@ contains
     ! Collection of fields read by the aerosol ancillary file object. It is
     ! needed by the file list, so must exist before the context is closed.
     call modeldb%fields%add_empty_field_collection("aerosol_ancil_fields", table_len = 40)
+    call modeldb%fields%add_empty_field_collection("albedo_vis_ancil_fields", table_len = 4)
+    call modeldb%fields%add_empty_field_collection("albedo_nir_ancil_fields", table_len = 4)
+    call modeldb%fields%add_empty_field_collection("cdnc_ancil_fields", table_len = 4)
 #ifdef UM_PHYSICS
     if ( use_physics ) then
       ancil_depository => modeldb%fields%get_field_collection("depository")
       aerosol_ancil_fields => modeldb%fields%get_field_collection("aerosol_ancil_fields")
-      call create_file_owned_ancils( ancil_depository, aerosol_ancil_fields, mesh )
+      albedo_vis_ancil_fields => modeldb%fields%get_field_collection("albedo_vis_ancil_fields")
+      albedo_nir_ancil_fields => modeldb%fields%get_field_collection("albedo_nir_ancil_fields")
+      cdnc_ancil_fields => modeldb%fields%get_field_collection("cdnc_ancil_fields")
+      call create_file_owned_ancils( ancil_depository, aerosol_ancil_fields, &
+                                     albedo_vis_ancil_fields,                &
+                                     albedo_nir_ancil_fields,                &
+                                     cdnc_ancil_fields, mesh, twod_mesh )
     end if
 #endif
 

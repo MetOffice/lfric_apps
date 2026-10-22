@@ -95,7 +95,9 @@ module init_ancils_mod
               create_fd_ancils_idealised, &
               create_file_owned_ancils,   &
               setup_ancil_field,          &
-              aerosol_ancil_names
+              aerosol_ancil_names,        &
+              albedo_vis_ancil_names,     &
+              albedo_nir_ancil_names
 
   ! Pairs of (model field name, variable name in the aerosol ancillary file)
   character(len=str_def), parameter :: aerosol_ancil_names(2,17) = reshape( &
@@ -109,6 +111,16 @@ module init_ancils_mod
       "cor_sol_bc", "CoSoBC_115", "cor_sol_om", "CoSoOC_116",             &
       "cor_sol_su", "CoSoSU_114", "cor_sol_ss", "CoSoSS_117",             &
       "n_cor_sol",  "CoSo___113" ], [2,17] )
+
+  ! Pairs of (model field name, variable name in the observed albedo files)
+  character(len=str_def), parameter :: albedo_vis_ancil_names(2,1) = reshape( &
+    [ character(len=str_def) :: "albedo_obs_vis",                              &
+      "surface_diffuse_albedo_of_photosynthetically_active_radiation_assuming_no_snow" ], &
+    [2,1] )
+  character(len=str_def), parameter :: albedo_nir_ancil_names(2,1) = reshape( &
+    [ character(len=str_def) :: "albedo_obs_nir",                              &
+      "surface_diffuse_albedo_of_near_infra_red_radiation_assuming_no_snow" ],  &
+    [2,1] )
 
 contains
 
@@ -179,7 +191,6 @@ contains
     type(time_axis_type), save :: no3_time_axis
     type(time_axis_type), save :: o3_time_axis
     type(time_axis_type), save :: oh_time_axis
-    type(time_axis_type), save :: cloud_drop_no_conc_time_axis
     type(time_axis_type), save :: easy_asymmetry_sw_time_axis
     type(time_axis_type), save :: easy_asymmetry_lw_time_axis
     type(time_axis_type), save :: easy_absorption_sw_time_axis
@@ -321,7 +332,15 @@ contains
     end if
 
     !=====  RADIATION ANCILS  =====
-    if ( l_albedo_obs ) then
+    if ( l_albedo_obs .and. ancil_option == ancil_option_updating ) then
+      ! Read and updated by the file objects
+      call setup_ancil_field("albedo_obs_vis", depository, ancil_fields, &
+                             mesh, twod_mesh, twod=.true.,               &
+                             read_by_file=.true.)
+      call setup_ancil_field("albedo_obs_nir", depository, ancil_fields, &
+                             mesh, twod_mesh, twod=.true.,               &
+                             read_by_file=.true.)
+    else if ( l_albedo_obs ) then
       call albedo_vis_time_axis%initialise("albedo_vis_time",          &
                                            file_id="albedo_vis_ancil", &
                                            interp_flag=interp_flag,    &
@@ -658,15 +677,10 @@ contains
     endif  ! ancil_updating, glomap_ukca
     ! ====== Easy aerosols ======
     ! CDNC
+    ! Read and updated by the file object
     if ( easyaerosol_cdnc .and. ancil_option == ancil_option_updating )  then
-       call cloud_drop_no_conc_time_axis%initialise("cloud_drop_no_conc_time", &
-                                       file_id="cloud_drop_no_conc_ancil",     &
-                                       interp_flag=interp_flag,                &
-                                       pop_freq="five_days")
        call setup_ancil_field("cloud_drop_no_conc", depository, ancil_fields,  &
-                           mesh, twod_mesh,                                    &
-                           time_axis=cloud_drop_no_conc_time_axis)   ! 3-D
-       call ancil_times_list%insert_item(cloud_drop_no_conc_time_axis)
+                           mesh, twod_mesh, read_by_file=.true.)   ! 3-D
     endif ! easyaerosol_cdnc
 
     ! SW ASYMMETRY
@@ -971,14 +985,25 @@ contains
   !>          called before the I/O context is closed.
   !> @param[in,out] depository           The depository field collection
   !> @param[in,out] aerosol_ancil_fields Collection bound to the aerosol file
+  !> @param[in,out] albedo_vis_fields    Collection bound to the visible albedo file
+  !> @param[in,out] albedo_nir_fields    Collection bound to the near-IR albedo file
+  !> @param[in,out] cdnc_fields          Collection bound to the CDNC file
   !> @param[in] mesh                     The current 3d mesh
-  subroutine create_file_owned_ancils( depository, aerosol_ancil_fields, mesh )
+  !> @param[in] twod_mesh                The current 2d mesh
+  subroutine create_file_owned_ancils( depository, aerosol_ancil_fields, &
+                                       albedo_vis_fields,                &
+                                       albedo_nir_fields,                &
+                                       cdnc_fields, mesh, twod_mesh )
 
     implicit none
 
     type( field_collection_type ), intent(inout) :: depository
     type( field_collection_type ), intent(inout) :: aerosol_ancil_fields
+    type( field_collection_type ), intent(inout) :: albedo_vis_fields
+    type( field_collection_type ), intent(inout) :: albedo_nir_fields
+    type( field_collection_type ), intent(inout) :: cdnc_fields
     type( mesh_type ), pointer,    intent(in)    :: mesh
+    type( mesh_type ), pointer,    intent(in)    :: twod_mesh
 
     integer(i_def) :: i
 
@@ -988,15 +1013,32 @@ contains
          ( glomap_mode == glomap_mode_dust_and_clim ) ) then
       do i = 1, size(aerosol_ancil_names, 2)
         call create_file_owned_field( aerosol_ancil_names(1,i), depository, &
-                                      aerosol_ancil_fields, mesh )
+                                      aerosol_ancil_fields, mesh, twod_mesh )
       end do
+    end if
+
+    if ( l_albedo_obs ) then
+      call create_file_owned_field( albedo_vis_ancil_names(1,1), depository, &
+                                    albedo_vis_fields, mesh, twod_mesh,      &
+                                    twod=.true. )
+      call create_file_owned_field( albedo_nir_ancil_names(1,1), depository, &
+                                    albedo_nir_fields, mesh, twod_mesh,      &
+                                    twod=.true. )
+    end if
+
+    if ( easyaerosol_cdnc ) then
+      call create_file_owned_field( "cloud_drop_no_conc", depository, &
+                                    cdnc_fields, mesh, twod_mesh )
     end if
 
   end subroutine create_file_owned_ancils
 
-  !> @details Creates a single-data 3D field in the depository if needed and
-  !>          adds a reference to it in the collection owned by a file object
-  subroutine create_file_owned_field( name, depository, target_fields, mesh )
+  !> @details Creates a field in the depository if needed and adds a reference
+  !>          to it in the collection owned by a file object. The field is a
+  !>          single-data 3D (Wtheta) field unless twod is set, in which case
+  !>          it is a 2D (W3) field.
+  subroutine create_file_owned_field( name, depository, target_fields, mesh, &
+                                      twod_mesh, twod )
 
     implicit none
 
@@ -1004,6 +1046,8 @@ contains
     type( field_collection_type ), intent(inout) :: depository
     type( field_collection_type ), intent(inout) :: target_fields
     type( mesh_type ), pointer,    intent(in)    :: mesh
+    type( mesh_type ), pointer,    intent(in)    :: twod_mesh
+    logical(l_def), optional,      intent(in)    :: twod
 
     type(field_type)                         :: new_field
     type(function_space_type),       pointer :: vec_space => null()
@@ -1011,9 +1055,17 @@ contains
     procedure(read_interface),       pointer :: tmp_read_ptr => null()
     type(field_type),                pointer :: fld_ptr => null()
     class(pure_abstract_field_type), pointer :: abs_fld_ptr => null()
+    logical(l_def)                           :: twod_field
+
+    twod_field = .false.
+    if (present(twod)) twod_field = twod
 
     if ( .not. depository%field_exists(name) ) then
-      vec_space => function_space_collection%get_fs( mesh, 0, 0, WTheta, 1 )
+      if (twod_field) then
+        vec_space => function_space_collection%get_fs( twod_mesh, 0, 0, W3, 1 )
+      else
+        vec_space => function_space_collection%get_fs( mesh, 0, 0, WTheta, 1 )
+      end if
       call new_field%initialise( vec_space, name=trim(name) )
       tmp_write_ptr => write_field_generic
       call new_field%set_write_behaviour(tmp_write_ptr)
