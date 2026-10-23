@@ -47,6 +47,8 @@ use linear_qs_mod, only: n_linear_qs_fields, i_ref_temp,                       &
                          i_dqsatdT_liq, i_dqsatdT_ice
 use phase_change_coefs_mod, only: n_coefs
 use moist_proc_diags_type_mod, only: moist_proc_diags_type
+use fields_type_mod, only: field_min, field_max,                               &
+                           i_temperature, i_q_vap, i_qc_first
 use cmpr_type_mod, only: cmpr_type
 
 use lat_heat_mod, only: set_l_con, set_l_sub, set_l_fus,                       &
@@ -227,8 +229,6 @@ real(kind=real_cvprec), parameter :: max_cond_coef = one / sqrt_min_delta
 
 ! Name of a field (for error message)
 character(len=name_length) :: field_name
-! Flag for whether field is positive-only
-logical :: l_positive
 ! Description of where we are in the code, for error messages
 character(len=name_length) :: where_string
 
@@ -238,50 +238,50 @@ integer :: ic, ic2, i_cond, i_liq, i_ice, i_super, i_coef
 
 ! Check inputs for bad values (NaN, Inf, etc)
 if ( i_check_bad_values_cmpr > i_check_bad_none ) then
-  where_string = "Start of phase_change_solve call for "      //               &
+  where_string = "Start of phase_change_solve call for " //                    &
                  trim(adjustl(call_string))
-  l_positive = .true.
   field_name = "temperature"
-  call check_bad_values_cmpr( cmpr, k, temperature,                            &
-         where_string, field_name, l_positive )
+  call check_bad_values_cmpr( cmpr, k, temperature, where_string, field_name,  &
+                              field_min=field_min(i_temperature),              &
+                              field_max=field_max(i_temperature) )
   field_name = "q_vap"
-  call check_bad_values_cmpr( cmpr, k, q_vap,                                  &
-         where_string, field_name, l_positive )
+  call check_bad_values_cmpr( cmpr, k, q_vap, where_string, field_name,        &
+                              field_min=field_min(i_q_vap),                    &
+                              field_max=field_max(i_q_vap) )
   do i_cond = 1, n_cond_species
-    field_name = "q_" //                                                       &
-                 trim(adjustl( cond_params(i_cond)%pt % cond_name ))
+    field_name = "q_" // trim(adjustl( cond_params(i_cond)%pt % cond_name ))
     call check_bad_values_cmpr( cmpr, k, q_cond(:,i_cond),                     &
-           where_string, field_name, l_positive )
+                                where_string, field_name,                      &
+                                field_min=field_min(i_qc_first-1+i_cond),      &
+                                field_max=field_max(i_qc_first-1+i_cond)       &
+                                          *100.0_real_cvprec )
   end do
   do i_cond = 1, n_cond_species
-    field_name = "kq_" //                                                      &
-                 trim(adjustl( cond_params(i_cond)%pt % cond_name ))
+    field_name = "kq_" // trim(adjustl( cond_params(i_cond)%pt % cond_name ))
     call check_bad_values_cmpr( cmpr, k, kq_cond(:,i_cond),                    &
-           where_string, field_name, l_positive )
+                                where_string, field_name, field_min=zero )
   end do
   do i_cond = 1, n_cond_species
-    field_name = "kt_" //                                                      &
-                 trim(adjustl( cond_params(i_cond)%pt % cond_name ))
+    field_name = "kt_" // trim(adjustl( cond_params(i_cond)%pt % cond_name ))
     call check_bad_values_cmpr( cmpr, k, kt_cond(:,i_cond),                    &
-           where_string, field_name, l_positive )
+                                where_string, field_name, field_min=zero )
   end do
   do i_cond = 1, n_cond_species
-    field_name = "wf_" //                                                      &
-                 trim(adjustl( cond_params(i_cond)%pt % cond_name ))
+    field_name = "wf_" // trim(adjustl( cond_params(i_cond)%pt % cond_name ))
     call check_bad_values_cmpr( cmpr, k, wf_cond(:,i_cond),                    &
-           where_string, field_name, l_positive )
+                                where_string, field_name, field_min=zero )
   end do
   do i_cond = 1, n_cond_species
-    field_name = "q_loc_" //                                                   &
-                 trim(adjustl( cond_params(i_cond)%pt % cond_name ))
+    field_name = "q_loc_" // trim(adjustl( cond_params(i_cond)%pt%cond_name ))
     call check_bad_values_cmpr( cmpr, k, q_loc_cond(:,i_cond),                 &
-           where_string, field_name, l_positive )
+                                where_string, field_name,                      &
+                                field_min=field_min(i_qc_first-1+i_cond),      &
+                                field_max=field_max(i_qc_first-1+i_cond) )
   end do
   do i_ice = n_cond_species_liq+1, n_cond_species
-    field_name = "dq_frz_" //                                                  &
-                 trim(adjustl( cond_params(i_ice)%pt % cond_name ))
+    field_name = "dq_frz_" // trim(adjustl( cond_params(i_ice)%pt%cond_name ))
     call check_bad_values_cmpr( cmpr, k, dq_frz_cond(:,i_ice),                 &
-           where_string, field_name, l_positive )
+                                where_string, field_name, field_min=zero )
   end do
 end if
 
@@ -394,28 +394,25 @@ if ( i_check_bad_values_cmpr > i_check_bad_none ) then
   where_string = "phase_change_solve, call for "             //                &
                  trim(adjustl(call_string))                  //                &
                  "; after calc_phase_change_coefs"
-  l_positive = .false.
   ! Check condensation and melting coefficients
   do i_cond = 1, n_cond_species
     do i_coef = 1, n_coefs
       write(field_name,"(I1)") i_coef
       field_name = "coefs_cond_" //                                            &
-               trim(adjustl( cond_params(i_cond)%pt % cond_name )) //          &
-               "_c" // trim(adjustl( field_name ))
-      call check_bad_values_cmpr( cmpr, k,                                     &
-             coefs_cond(:,i_coef,i_cond),                                      &
-             where_string, field_name, l_positive )
+                   trim(adjustl( cond_params(i_cond)%pt % cond_name )) //      &
+                   "_c" // trim(adjustl( field_name ))
+      call check_bad_values_cmpr( cmpr, k, coefs_cond(:,i_coef,i_cond),        &
+                                  where_string, field_name )
     end do
   end do
   do i_ice = n_cond_species_liq+1, n_cond_species
     do i_coef = 1, n_coefs
       write(field_name,"(I1)") i_coef
       field_name = "coefs_melt_" //                                            &
-               trim(adjustl( cond_params(i_ice)%pt % cond_name ))  //          &
-               "_c" // trim(adjustl( field_name ))
-      call check_bad_values_cmpr( cmpr, k,                                     &
-             coefs_melt(:,i_coef,i_ice),                                       &
-             where_string, field_name, l_positive )
+                   trim(adjustl( cond_params(i_ice)%pt % cond_name ))  //      &
+                   "_c" // trim(adjustl( field_name ))
+      call check_bad_values_cmpr( cmpr, k, coefs_melt(:,i_coef,i_ice),         &
+                                  where_string, field_name )
     end do
   end do
 
@@ -467,28 +464,25 @@ if ( i_check_bad_values_cmpr > i_check_bad_none ) then
   where_string = "phase_change_solve, call for "             //                &
                  trim(adjustl(call_string))                  //                &
                  "; after melt_ctl"
-  l_positive = .false.
   ! Check condensation and melting coefficients
   do i_cond = 1, n_cond_species
     do i_coef = 1, n_coefs
       write(field_name,"(I1)") i_coef
       field_name = "coefs_cond_" //                                            &
-               trim(adjustl( cond_params(i_cond)%pt % cond_name )) //          &
-               "_c" // trim(adjustl( field_name ))
-      call check_bad_values_cmpr( cmpr, k,                                     &
-             coefs_cond(:,i_coef,i_cond),                                      &
-             where_string, field_name, l_positive )
+                   trim(adjustl( cond_params(i_cond)%pt % cond_name )) //      &
+                   "_c" // trim(adjustl( field_name ))
+      call check_bad_values_cmpr( cmpr, k, coefs_cond(:,i_coef,i_cond),        &
+                                  where_string, field_name )
     end do
   end do
   do i_ice = n_cond_species_liq+1, n_cond_species
     do i_coef = 1, n_coefs
       write(field_name,"(I1)") i_coef
       field_name = "coefs_melt_" //                                            &
-               trim(adjustl( cond_params(i_ice)%pt % cond_name ))  //          &
-               "_c" // trim(adjustl( field_name ))
-      call check_bad_values_cmpr( cmpr, k,                                     &
-             coefs_melt(:,i_coef,i_ice),                                       &
-             where_string, field_name, l_positive )
+                   trim(adjustl( cond_params(i_ice)%pt % cond_name ))  //      &
+                   "_c" // trim(adjustl( field_name ))
+      call check_bad_values_cmpr( cmpr, k, coefs_melt(:,i_coef,i_ice),         &
+                                  where_string, field_name )
     end do
   end do
 
@@ -793,20 +787,23 @@ end if  ! ( l_diags )
 if ( i_check_bad_values_cmpr > i_check_bad_none ) then
   where_string = "End of phase_change_solve call for "        //               &
                  trim(adjustl(call_string))
-  l_positive = .true.
 
   ! Check temperature, vapour and condensed water mixing-ratios
   field_name = "temperature"
-  call check_bad_values_cmpr( cmpr, k, temperature,                            &
-         where_string, field_name, l_positive )
+  call check_bad_values_cmpr( cmpr, k, temperature, where_string, field_name,  &
+                              field_min=field_min(i_temperature),              &
+                              field_max=field_max(i_temperature) )
   field_name = "q_vap"
-  call check_bad_values_cmpr( cmpr, k, q_vap,                                  &
-         where_string, field_name, l_positive )
+  call check_bad_values_cmpr( cmpr, k, q_vap, where_string, field_name,        &
+                              field_min=field_min(i_q_vap),                    &
+                              field_max=field_max(i_q_vap) )
   do i_cond = 1, n_cond_species
-    field_name = "q_" //                                                       &
-                 trim(adjustl( cond_params(i_cond)%pt % cond_name ))
+    field_name = "q_" // trim(adjustl( cond_params(i_cond)%pt % cond_name ))
     call check_bad_values_cmpr( cmpr, k, q_cond(:,i_cond),                     &
-           where_string, field_name, l_positive )
+                                where_string, field_name,                      &
+                                field_min=field_min(i_qc_first-1+i_cond),      &
+                                field_max=field_max(i_qc_first-1+i_cond)       &
+                                          *100.0_real_cvprec )
   end do
 
   ! Check condensation and melting increments
@@ -814,14 +811,13 @@ if ( i_check_bad_values_cmpr > i_check_bad_none ) then
     field_name = "dq_melt_" //                                                 &
                  trim(adjustl( cond_params(i_ice)%pt % cond_name ))
     call check_bad_values_cmpr( cmpr, k, dq_melt(:,i_ice),                     &
-           where_string, field_name, l_positive )
+                                where_string, field_name, field_min=zero )
   end do
-  l_positive = .false.
   do i_cond = 1, n_cond_species
     field_name = "dq_cond_" //                                                 &
                  trim(adjustl( cond_params(i_cond)%pt % cond_name ))
     call check_bad_values_cmpr( cmpr, k, dq_cond(:,i_cond),                    &
-           where_string, field_name, l_positive )
+                                where_string, field_name )
   end do
 
   ! Check condensation and melting coefficeints
@@ -829,22 +825,20 @@ if ( i_check_bad_values_cmpr > i_check_bad_none ) then
     do i_coef = 1, n_coefs
       write(field_name,"(I1)") i_coef
       field_name = "coefs_cond_" //                                            &
-               trim(adjustl( cond_params(i_cond)%pt % cond_name )) //          &
-               "_c" // trim(adjustl( field_name ))
-      call check_bad_values_cmpr( cmpr, k,                                     &
-             coefs_cond(:,i_coef,i_cond),                                      &
-             where_string, field_name, l_positive )
+                   trim(adjustl( cond_params(i_cond)%pt % cond_name )) //      &
+                   "_c" // trim(adjustl( field_name ))
+      call check_bad_values_cmpr( cmpr, k, coefs_cond(:,i_coef,i_cond),        &
+                                  where_string, field_name )
     end do
   end do
   do i_ice = n_cond_species_liq+1, n_cond_species
     do i_coef = 1, n_coefs
       write(field_name,"(I1)") i_coef
       field_name = "coefs_melt_" //                                            &
-               trim(adjustl( cond_params(i_ice)%pt % cond_name ))  //          &
-               "_c" // trim(adjustl( field_name ))
-      call check_bad_values_cmpr( cmpr, k,                                     &
-             coefs_melt(:,i_coef,i_ice),                                       &
-             where_string, field_name, l_positive )
+                   trim(adjustl( cond_params(i_ice)%pt % cond_name ))  //      &
+                   "_c" // trim(adjustl( field_name ))
+      call check_bad_values_cmpr( cmpr, k, coefs_melt(:,i_coef,i_ice),         &
+                                  where_string, field_name )
     end do
   end do
 

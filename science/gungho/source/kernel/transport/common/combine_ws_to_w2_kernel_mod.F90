@@ -21,6 +21,8 @@ module combine_ws_to_w2_kernel_mod
   use fs_continuity_mod,      only: W2, W2h, Wtheta
   use kernel_mod,             only: kernel_type
   use reference_element_mod,  only: W, E, N, S, T, B
+  use sci_face_selector_support_mod, &
+                              only: face_from_face_selector
 
   implicit none
 
@@ -102,23 +104,17 @@ subroutine combine_ws_to_w2_code(nlayers,                    &
   integer(kind=i_def), dimension(undf_w3_2d), intent(in)    :: face_selector_ew
   integer(kind=i_def), dimension(undf_w3_2d), intent(in)    :: face_selector_ns
 
-  integer(kind=i_def) :: df, id1, id2
-  integer(kind=i_def), parameter :: local_dofs_x(2) = (/ W, E /)
-  integer(kind=i_def), parameter :: local_dofs_y(2) = (/ S, N /)
+  integer(kind=i_def) :: j, df, id1, id2
 
-  do df = 1, face_selector_ew(map_w3_2d(1))
-    id1 = map_w2(local_dofs_x(df))
-    id2 = map_w2h(local_dofs_x(df))
-    uvw(id1:id1+nlayers-1) = uv_w2h(id2:id2+nlayers-1)
-  end do
-  do df = 1, face_selector_ns(map_w3_2d(1))
-    id1 = map_w2(local_dofs_y(df))
-    id2 = map_w2h(local_dofs_y(df))
+  do j = 1, ABS(face_selector_ew(map_w3_2d(1))) + ABS(face_selector_ns(map_w3_2d(1)))
+    df = face_from_face_selector(j, face_selector_ew(map_w3_2d(1)), face_selector_ns(map_w3_2d(1)))
+    id1 = map_w2(df)
+    id2 = map_w2h(df)
     uvw(id1:id1+nlayers-1) = uv_w2h(id2:id2+nlayers-1)
   end do
 
   uvw(map_w2(B)) = 0.0_r_def
-  uvw(map_w2(B)+1:map_w2(5)+nlayers-1) = w_wt(map_wt(1)+1:map_wt(1)+nlayers-1)
+  uvw(map_w2(B)+1:map_w2(B)+nlayers-1) = w_wt(map_wt(1)+1:map_wt(1)+nlayers-1)
   uvw(map_w2(T)+nlayers-1) = 0.0_r_def
 
 end subroutine combine_ws_to_w2_code

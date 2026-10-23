@@ -28,7 +28,7 @@ subroutine calc_mean_q_cl_with_core( n_points, n_points_super, n_fields_tot,   &
 use comorph_constants_mod, only: real_cvprec, one, sqrt_min_delta,             &
                                  l_cv_cloudfrac, i_mean_q_cl,                  &
                                  i_mean_q_cl_full
-use fields_type_mod, only: i_temperature, i_q_vap, i_q_cl, i_q_cf,             &
+use fields_type_mod, only: i_temperature, i_q_vap, i_q_cl,                     &
                            i_qc_first, i_qc_last, i_cf_liq, i_cf_bulk
 
 use set_cp_tot_mod, only: set_cp_tot
@@ -125,9 +125,8 @@ if ( nc > 0 ) then
   if ( l_cv_cloudfrac ) then
 
     ! Reset the in-parcel cloud-fractions using the modified q_cl
-    call set_par_cloudfrac( n_points, n_points_super,                          &
-                            par_mean_fields(:,i_q_cl),                         &
-                            par_mean_fields(:,i_q_cf),                         &
+    call set_par_cloudfrac( n_points, n_points_super, n_points_super,          &
+                            par_mean_fields(:,i_qc_first:i_qc_last),           &
                             par_mean_fields(:,i_cf_liq:i_cf_bulk) )
 
   end if  ! ( l_cv_cloudfrac )
