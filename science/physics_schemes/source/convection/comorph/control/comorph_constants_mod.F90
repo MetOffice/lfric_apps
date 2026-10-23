@@ -71,7 +71,7 @@ integer, parameter :: name_length = 100
 !----------------------------------------------------------------
 
 ! pi = circle circumference / circle diameter
-real(kind=real_cvprec), parameter :: pi = 3.14159_real_cvprec
+real(kind=real_cvprec), parameter :: pi = 3.141592653589793_real_cvprec
 
 real(kind=real_cvprec), parameter :: zero  = 0.0_real_cvprec
 real(kind=real_cvprec), parameter :: one   = 1.0_real_cvprec
@@ -564,13 +564,6 @@ real(kind=real_cvprec), parameter :: homnuc_temp = 233.0_real_cvprec
 ! Heterogeneous nucleation temeprature / K
 ! Gradual freezing starts below this
 real(kind=real_cvprec) :: hetnuc_temp = 263.0_real_cvprec
-! Heterogeneous freezing rate coefficient / s-1
-! Freezing rate = coef_hetnuc * q_cl
-real(kind=real_cvprec), parameter :: coef_hetnuc = 1.0e-7_real_cvprec
-! Note: heterogeneous nucleation is only meant to act as a "seed"
-! to initiate ice growth by other processes, so this coef should
-! be set very small.  If the solution has much sensitivity
-! to the value of this coef then something has gone wrong!
 
 ! Parcel vertical length-scale over radius, used for precip fall.
 ! For a spherical parcel this should be 4/3, but was set to 2 in CoMorph A
@@ -710,15 +703,8 @@ real(kind=real_cvprec), parameter :: par_gen_qpert = 0.05_real_cvprec
 ! Scaling factors for turbulence-based parcel perturbations
 real(kind=real_cvprec), parameter :: par_gen_w_fac = 1.0_real_cvprec
 real(kind=real_cvprec) :: par_gen_pert_fac = 0.667_real_cvprec
-real(kind=real_cvprec) :: par_gen_radius_fac = 8.0_real_cvprec
 ! Background non-turbulent moisture perturbation
 real(kind=real_cvprec) :: par_gen_rhpert = 0.05_real_cvprec
-
-! Minimum parcel initial radius
-! (assymptotic value above the BL-top; reduced near the surface)
-real(kind=real_cvprec) :: ass_min_radius = 500.0_real_cvprec
-! Factor for linear ramp of min radius near the surface
-real(kind=real_cvprec), parameter ::  min_radius_fac = 0.25_real_cvprec
 
 ! Maximum allowed fractional water-vapour perturbation
 real(kind=real_cvprec), parameter :: max_qpert = 1.0_real_cvprec

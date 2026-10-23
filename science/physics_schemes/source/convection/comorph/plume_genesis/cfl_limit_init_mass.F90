@@ -60,65 +60,33 @@ real(kind=real_cvprec) :: init_mass_sum
 integer :: ic, ic2, i_type
 
 
-if ( n_conv_types == 1 ) then
-  ! Calculation is simpler when there is only 1 convection type
-  ! TEMPORARY CODE TO PRESERVE KGO:
-  ! the multi-type implementation is perfectly correct with only 1 type,
-  ! but changes answers at bit-level compared to what we had before so
-  ! keeping the original code in the case where there is only 1 type.
-  if ( i_cfl_local==i_cfl_local_nobl ) then
-    ! Only apply vertically local limit above the BL-top
-    do ic2 = 1, nc
-      ic = index_ic(ic2)
-      if ( .not. l_within_bl(ic) ) then
-        init_mass_t(ic2,1) = min( init_mass_t(ic2,1),                          &
-                                  max_ent_frac * layer_mass_k(ic)              &
-                                  * frac_r_k(ic) / comorph_timestep )
-      end if
-    end do
-  else
-    ! Always impose vertically local limit
-    do ic2 = 1, nc
-      ic = index_ic(ic2)
-      init_mass_t(ic2,1) = min( init_mass_t(ic2,1),                            &
-                                max_ent_frac * layer_mass_k(ic)                &
-                                * frac_r_k(ic) / comorph_timestep )
-    end do
-  end if
+! Calculate scaling factor needed to reduce init_mass to the CFL limit
+! (defaults to one when mass is already below limit)
+do ic2 = 1, nc
+  ic = index_ic(ic2)
+  init_mass_sum = zero
+  do i_type = 1, n_conv_types
+    init_mass_sum = init_mass_sum + init_mass_t(ic2,i_type)
+  end do
+  factor(ic2) = min( max_ent_frac * layer_mass_k(ic) * frac_r_k(ic)            &
+                    / ( comorph_timestep * init_mass_sum ), one )
+end do
 
-else
-  ! Multiple convection types; need to apply CFL limit to the sum over
-  ! types and then scale down each type proportionally...
-
-  ! Calculate scaling factor needed to reduce init_mass to the CFL limit
-  ! (defaults to one when mass is already below limit)
+if ( i_cfl_local==i_cfl_local_nobl ) then
+  ! Options to only apply local limit when above the boundary-layer top
+  ! (so reset factor to 1 when within the BL)
   do ic2 = 1, nc
     ic = index_ic(ic2)
-    init_mass_sum = zero
-    do i_type = 1, n_conv_types
-      init_mass_sum = init_mass_sum + init_mass_t(ic2,i_type)
-    end do
-    factor(ic2) = min( max_ent_frac * layer_mass_k(ic) * frac_r_k(ic)          &
-                      / ( comorph_timestep * init_mass_sum ), one )
+    if ( l_within_bl(ic) )  factor(ic2) = one
   end do
-
-  if ( i_cfl_local==i_cfl_local_nobl ) then
-    ! Options to only apply local limit when above the boundary-layer top
-    ! (so reset factor to 1 when within the BL)
-    do ic2 = 1, nc
-      ic = index_ic(ic2)
-      if ( l_within_bl(ic) )  factor(ic2) = one
-    end do
-  end if
-
-  ! Apply the CFL limit scaling
-  do i_type = 1, n_conv_types
-    do ic2 = 1, nc
-      init_mass_t(ic2,i_type) = init_mass_t(ic2,i_type) * factor(ic2)
-    end do
-  end do
-
 end if
+
+! Apply the CFL limit scaling
+do i_type = 1, n_conv_types
+  do ic2 = 1, nc
+    init_mass_t(ic2,i_type) = init_mass_t(ic2,i_type) * factor(ic2)
+  end do
+end do
 
 
 return

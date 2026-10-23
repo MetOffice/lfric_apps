@@ -37,7 +37,6 @@ use gen_phys_inputs_mod, only: l_mr_physics
 use mphys_inputs_mod, only: l_mcr_precfrac, l_subgrid_graupel_frac
 
 use comorph_um_namelist_mod, only:                                             &
-                      par_radius_knob,                                         &
                       par_radius_evol_method_um => par_radius_evol_method,     &
                       n_dndraft_types_um        => n_dndraft_types,            &
                       l_core_ent_cmr_um         => l_core_ent_cmr,             &
@@ -53,7 +52,6 @@ use comorph_um_namelist_mod, only:                                             &
                       par_gen_mass_fac_um       => par_gen_mass_fac,           &
                       wind_w_fac_um             => wind_w_fac,                 &
                       wind_w_buoy_fac_um        => wind_w_buoy_fac,            &
-                      ass_min_radius_um         => ass_min_radius,             &
                       par_gen_core_fac_um       => par_gen_core_fac,           &
                       ent_coef_um               => ent_coef,                   &
                       overlap_power_um          => overlap_power,              &
@@ -85,12 +83,12 @@ use comorph_constants_mod, only: real_cvprec, nx_full, ny_full,                &
                                  i_sg_homog, i_sg_frac_liq, i_sg_frac_ice,     &
                                  i_sg_frac_prec, tracer_positive,              &
                                  par_gen_pert_fac, par_gen_rhpert,             &
-                                 par_gen_radius_fac, par_radius_evol_method,   &
+                                 par_radius_evol_method,                       &
                                  l_core_ent_cmr, core_ent_fac, cf_conv_fac,    &
                                  autoc_opt, coef_auto, q_cl_auto,              &
                                  drag_coef_par, rho_rim,                       &
                                  par_gen_mass_fac, wind_w_fac, wind_w_buoy_fac,&
-                                 ass_min_radius, par_gen_core_fac, ent_coef,   &
+                                 par_gen_core_fac, ent_coef,                   &
                                  overlap_power, min_cmr, max_cmr,              &
                                  hetnuc_temp,                                  &
                                  drag_coef_cond, vent_factor, col_eff_coef
@@ -244,9 +242,6 @@ end if
 ! Number of downdraughts types
 n_dndraft_types = n_dndraft_types_um
 
-! Scale default parcel radius factor by tuning knob from the namelist
-par_gen_radius_fac = par_gen_radius_fac * real( par_radius_knob, real_cvprec )
-
 ! Switch controlling how parcel radius evolves with height in the plume
 par_radius_evol_method = par_radius_evol_method_um
 
@@ -283,9 +278,6 @@ wind_w_fac       = real(wind_w_fac_um, real_cvprec )
 
 ! Tuning constant for buoyancy-dependent convective fraction
 wind_w_buoy_fac  = real(wind_w_buoy_fac_um, real_cvprec )
-
-! Minimum parcel initial radius
-ass_min_radius   = real(ass_min_radius_um, real_cvprec )
 
 ! Scaling factor for par_gen core perturbations relative to
 ! the parcel mean properties (used if l_par_core = .TRUE.)
