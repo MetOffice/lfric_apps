@@ -76,7 +76,7 @@ contains
       if (.not. l_couple_sea_ice) then
         call ancil_fields%get_field('sea_ice_fraction', sea_ice_fraction)
       end if
-      if (.not. l_couple_ocean) then
+      if (.not. l_couple_ocean .and. ancil_fields%field_exists('tstar_sea')) then
         call ancil_fields%get_field('tstar_sea', tstar_sea)
       end if
 

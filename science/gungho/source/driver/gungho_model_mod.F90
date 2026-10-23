@@ -102,6 +102,9 @@ module gungho_model_mod
 
 #ifdef UM_PHYSICS
   use gas_calc_all_mod,            only : gas_calc_all
+  use init_ancils_mod,             only : create_file_owned_ancils, &
+                                          easy_aerosol_names,       &
+                                          easy_aerosol_collection_name
   use jules_control_init_mod,      only : jules_control_init
   use jules_physics_init_mod,      only : jules_physics_init
   use planet_constants_mod,        only : set_planet_constants
@@ -587,6 +590,7 @@ contains
 #ifdef UM_PHYSICS
     type(field_collection_type),  pointer :: radiation_fields
 #endif
+    integer :: ancil_index
     integer :: start_index, end_index
 
     character(str_def) :: prime_mesh_name
@@ -1021,6 +1025,24 @@ contains
     call basic_initialisations( mesh, modeldb%clock, modeldb%config )
 
     call log_event("Initialising I/O context", LOG_LEVEL_INFO)
+
+    ! Collections of fields read by the ancillary file objects. They are needed
+    ! by the file list, so must exist before the context is closed.
+    call modeldb%fields%add_empty_field_collection("aerosol_ancil_fields", table_len = 40)
+    call modeldb%fields%add_empty_field_collection("albedo_vis_ancil_fields", table_len = 4)
+    call modeldb%fields%add_empty_field_collection("albedo_nir_ancil_fields", table_len = 4)
+    call modeldb%fields%add_empty_field_collection("cdnc_ancil_fields", table_len = 4)
+    call modeldb%fields%add_empty_field_collection("plant_func_ancil_fields", table_len = 4)
+    call modeldb%fields%add_empty_field_collection("sea_ancil_fields", table_len = 4)
+    do ancil_index = 1, size(easy_aerosol_names)
+      call modeldb%fields%add_empty_field_collection( &
+             easy_aerosol_collection_name(easy_aerosol_names(ancil_index)), table_len = 4 )
+    end do
+#ifdef UM_PHYSICS
+    if ( use_physics ) then
+      call create_file_owned_ancils( modeldb, mesh, twod_mesh )
+    end if
+#endif
 
     files_init_ptr => init_gungho_files
 

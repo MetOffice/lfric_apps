@@ -15,7 +15,9 @@ module init_surface_fields_alg_mod
   use c_kappai,                  only: kappai, de
 
   use initialization_config_mod, only: init_option, init_option_analytic, &
-                                       ancil_option, ancil_option_none
+                                       ancil_option, ancil_option_none,   &
+                                       ancil_option_updating
+  use jules_radiation_config_mod, only: l_sea_alb_var_chl
   use specified_surface_config_mod, only: internal_flux_method, &
                                        internal_flux_method_uniform, &
                                        internal_flux_value, &
@@ -129,9 +131,14 @@ contains
     call surface_fields%get_field('ocn_cpl_point',ocn_cpl_point)
     call surface_fields%get_field('wspd10m', wspd10m)
 
+    ! In updating mode the sea chlorophyll is set by the ancillary file object
+    if ( .not. ( ancil_option == ancil_option_updating .and. &
+                 l_sea_alb_var_chl ) ) then
+      call invoke( setval_c(chloro_sea, 5.0e-7_r_def) )
+    end if
+
     call invoke(                                                              &
                  ! Need initialising for aquaplanet
-                 setval_c(chloro_sea,          5.0e-7_r_def),                 &
                  setval_c(sea_ice_thickness,   1.0_r_def),                    &
                  setval_c(sea_ice_temperature, 260.0_r_def),                  &
                  ! Diagnostics

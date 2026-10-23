@@ -29,6 +29,7 @@ contains
   subroutine init_aerosol_fields_alg(aerosol_fields)
 
     use section_choice_config_mod, only: aerosol, aerosol_um
+    use initialization_config_mod, only: ancil_option, ancil_option_updating
     use aerosol_config_mod, only: glomap_mode,               &
                                   glomap_mode_climatology,   &
                                   glomap_mode_dust_and_clim, &
@@ -330,24 +331,27 @@ contains
            glomap_mode == glomap_mode_dust_and_clim ) ) then
 
       ! GLOMAP-mode climatology scheme selected.
-      call invoke( setval_c(n_ait_sol,             0.0_r_def), &
-                   setval_c(ait_sol_su,            0.0_r_def), &
-                   setval_c(ait_sol_bc,            0.0_r_def), &
-                   setval_c(ait_sol_om,            0.0_r_def), &
-                   setval_c(n_acc_sol,             0.0_r_def), &
-                   setval_c(acc_sol_su,            0.0_r_def), &
-                   setval_c(acc_sol_bc,            0.0_r_def), &
-                   setval_c(acc_sol_om,            0.0_r_def), &
-                   setval_c(acc_sol_ss,            0.0_r_def), &
-                   setval_c(n_cor_sol,             0.0_r_def), &
-                   setval_c(cor_sol_su,            0.0_r_def), &
-                   setval_c(cor_sol_bc,            0.0_r_def), &
-                   setval_c(cor_sol_om,            0.0_r_def), &
-                   setval_c(cor_sol_ss,            0.0_r_def), &
-                   setval_c(n_ait_ins,             0.0_r_def), &
-                   setval_c(ait_ins_bc,            0.0_r_def), &
-                   setval_c(ait_ins_om,            0.0_r_def), &
-                   setval_c(n_acc_ins,             0.0_r_def), &
+      ! In updating mode these fields are set by the ancillary file object.
+      if (ancil_option /= ancil_option_updating) then
+        call invoke( setval_c(n_ait_sol,             0.0_r_def), &
+                     setval_c(ait_sol_su,            0.0_r_def), &
+                     setval_c(ait_sol_bc,            0.0_r_def), &
+                     setval_c(ait_sol_om,            0.0_r_def), &
+                     setval_c(n_acc_sol,             0.0_r_def), &
+                     setval_c(acc_sol_su,            0.0_r_def), &
+                     setval_c(acc_sol_bc,            0.0_r_def), &
+                     setval_c(acc_sol_om,            0.0_r_def), &
+                     setval_c(acc_sol_ss,            0.0_r_def), &
+                     setval_c(n_cor_sol,             0.0_r_def), &
+                     setval_c(cor_sol_su,            0.0_r_def), &
+                     setval_c(cor_sol_bc,            0.0_r_def), &
+                     setval_c(cor_sol_om,            0.0_r_def), &
+                     setval_c(cor_sol_ss,            0.0_r_def), &
+                     setval_c(n_ait_ins,             0.0_r_def), &
+                     setval_c(ait_ins_bc,            0.0_r_def), &
+                     setval_c(ait_ins_om,            0.0_r_def))
+      end if
+      call invoke( setval_c(n_acc_ins,             0.0_r_def), &
                    setval_c(acc_ins_du,            0.0_r_def), &
                    setval_c(n_cor_ins,             0.0_r_def), &
                    setval_c(cor_ins_du,            0.0_r_def), &
