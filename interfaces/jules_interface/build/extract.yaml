@@ -26,6 +26,7 @@ jules:
     - src/control/shared/jules_deposition_mod.F90
     - src/control/shared/jules_forcing_mod.F90
     - src/control/shared/jules_hydrology_mod.F90
+    - src/control/shared/jules_inferno_mod.F90
     - src/control/shared/jules_irrig_mod.F90
     - src/control/shared/jules_mod.F90
     - src/control/shared/jules_model_environment_mod.F90
@@ -109,6 +110,7 @@ jules:
     - src/science/params/veg_param_mod.F90
     - src/science/radiation/Jin11_osa_mod.F90
     - src/science/radiation/albpft_jls_mod.F90
+    - src/science/radiation/albpond_mod.F90
     - src/science/radiation/albsnow_jls_mod.F90
     - src/science/radiation/albsnow_ts_jls_mod.F90
     - src/science/radiation/calc_direct_albsoil_mod.F90
