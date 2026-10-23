@@ -9,9 +9,10 @@ module tl_mol_conservative_alg_mod
 
   ! Infrastructure
   use config_mod,                     only: config_type
-  use constants_mod,                  only: r_def, i_def, l_def
+  use constants_mod,                  only: r_def, i_def, l_def, str_def
   use field_mod,                      only: field_type
   use log_mod,                        only: log_event,         &
+                                            log_scratch_space, &
                                             LOG_LEVEL_ERROR,   &
                                             LOG_LEVEL_INFO
   use mesh_mod,                       only: mesh_type, topology_non_periodic
@@ -35,6 +36,8 @@ module tl_mol_conservative_alg_mod
   use transport_counter_mod,          only: transport_counter_type
   use transport_metadata_mod,         only: transport_metadata_type
   use wind_precomputations_alg_mod,   only: wind_precomputations_type
+  use transport_enumerated_types_mod, only: direction_3d, direction_h, &
+                                            direction_v
 
   ! Kernels
   use dg_matrix_vector_kernel_mod,    only: dg_matrix_vector_kernel_type
@@ -91,6 +94,7 @@ module tl_mol_conservative_alg_mod
     logical(kind=l_def)                      :: final_split_step
     logical(kind=l_def)                      :: do_flux
     logical(kind=l_def)                      :: do_advective
+    character(len=str_def)                   :: direction_code
     type(mesh_type),                 pointer :: mesh
     type(operator_type),             pointer :: div
     type(field_type)                         :: flux
@@ -452,7 +456,23 @@ module tl_mol_conservative_alg_mod
             field_np1, field, sum_flux_ls_wind, sum_flux_pert_wind,            &
             ls_wind_flux_precomp, pert_wind_flux_precomp,                      &
             transport_counter, transport_metadata                              &
-    )
+            )
+
+    if (trim(transport_metadata%get_name()) == trim(dry_field_name)) then
+      ! Print number of substeps to log here
+      select case (direction)
+        case (direction_3d)
+          direction_code = '3D'
+        case (direction_h)
+          direction_code = 'horizontal'
+        case (direction_v)
+          direction_code = 'vertical'
+      end select
+      write( log_scratch_space, '(A,I4)' )                &
+      'TL Transport: number of MoL substeps in ' //          &
+      trim(adjustl(direction_code)) // ' direction = ', number_substeps
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+    end if
 
     if ( allocated(rk_field) ) deallocate(rk_field)
     if ( allocated(rk_weights) ) deallocate(rk_weights)

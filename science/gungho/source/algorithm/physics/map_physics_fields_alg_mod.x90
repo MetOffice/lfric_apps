@@ -87,6 +87,7 @@ contains
 
     real(kind=r_def)            :: l2
     integer(tik)                :: id
+    integer(i_def)              :: i
 
     if ( LPROF ) call start_timing( id, 'mappings.map_physics_fields' )
     mesh => u%get_mesh()
@@ -143,7 +144,11 @@ contains
                                printmin=1e-8_r_def,          &
                                printmax=2.0_r_def, name='rho')
     call log_field_minmax(LOG_LEVEL_DEBUG, 'theta', theta)
-
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'exner', exner)
+    do i = 1, num_moist_factors
+      call log_field_minmax(LOG_LEVEL_DEBUG, 'moist_dyn', moist_dyn(i))
+    end do
+ 
     if ( smagorinsky ) then
 
       call log_event( 'Calculate 3D shear', LOG_LEVEL_DEBUG )
