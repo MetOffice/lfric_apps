@@ -8,6 +8,7 @@
 
 module adj_pressure_precon_alg_mod
 
+  use config_mod,                          only :config_type
   use constants_mod,                       only : i_def
   use log_mod,                             only : log_event, LOG_LEVEL_INFO, LOG_LEVEL_ERROR
   use sci_hierarchical_preconditioner_mod, only : abstract_hierarchical_preconditioner_type
@@ -75,10 +76,11 @@ contains
 
   !> @brief Apply the preconditioner to calculate \f$y = P.x = x\f$
   !> @details Apply the vertical preconditioner \f$y = H_z^{-1}x\f$
-  !> @param[in,out] self Instance of type adj_pressure_preconditioner_type
-  !> @param[in]     x    Field vector containing the right hand side of the pressure
-  !> @param[in,out] y    Field vector containing the solution
-  subroutine apply_adj_pressure_preconditioner( self, x, y )
+  !> @param[in,out] self    Instance of type adj_pressure_preconditioner_type
+  !> @param[in]     config  Application configuration object
+  !> @param[in]     x       Field vector containing the right hand side of the pressure
+  !> @param[in,out] y       Field vector containing the solution
+  subroutine apply_adj_pressure_preconditioner( self, config, x, y )
 
     use si_operators_alg_mod,         only: get_tri_precon
     use adj_sci_tri_solve_kernel_mod, only: adj_tri_solve_kernel_type
@@ -87,8 +89,10 @@ contains
     implicit none
 
     class(adj_pressure_preconditioner_type), intent(inout) :: self
-    class(abstract_vector_type),             intent(in)    :: x
-    class(abstract_vector_type),             intent(inout) :: y
+
+    type(config_type),           intent(in)    :: config
+    class(abstract_vector_type), intent(in)    :: x
+    class(abstract_vector_type), intent(inout) :: y
 
     type(r_solver_field_type), pointer :: tri(:)
     type(r_solver_field_type), pointer :: x_vec, y_vec
@@ -112,13 +116,15 @@ contains
   end subroutine apply_adj_pressure_preconditioner
 
   !> @brief Construct a coarsened version of the preconditioner on the next level of the multigrid hierarchy
-  !> @param[in,out] self  Instance of type adj_pressure_preconditioner_type
-  !> @param[in,out] other Coarsed version on next multigrid level
-  subroutine coarsen_adj_pressure_preconditioner( self, other )
+  !> @param[in,out] self    Instance of type adj_pressure_preconditioner_type
+  !> @param[in]     config  Application configuration object
+  !> @param[in,out] other   Coarsed version on next multigrid level
+  subroutine coarsen_adj_pressure_preconditioner( self, config, other )
 
     implicit none
 
     class(adj_pressure_preconditioner_type),                       intent(inout) :: self
+    type(config_type), intent(in) :: config
     class(abstract_hierarchical_preconditioner_type), allocatable, intent(inout) :: other
 
     allocate( other, source=adj_pressure_preconditioner_type(self%level+1) )

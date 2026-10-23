@@ -7,6 +7,7 @@
 
 module wind_transport_alg_mod
 
+  use config_mod,                     only: config_type
   use constants_mod,                  only: i_def, r_def, l_def
   use sci_dg_convert_hdiv_field_kernel_mod,                                    &
                                       only: dg_convert_hdiv_field_kernel_type
@@ -37,7 +38,9 @@ module wind_transport_alg_mod
   use sci_mapping_constants_mod,      only: get_project_xdot_to_w2,  &
                                             get_project_ydot_to_w2,  &
                                             get_project_zdot_to_w2
-  use mesh_mod,                       only: mesh_type
+  use mesh_mod,                       only: mesh_type,          &
+                                            geometry_spherical, &
+                                            topology_periodic
   use operator_mod,                   only: operator_type
   use timing_mod,                     only: start_timing, stop_timing, &
                                             tik, LPROF
@@ -52,10 +55,6 @@ module wind_transport_alg_mod
   use split_w2_to_ws_kernel_mod,      only: split_w2_to_ws_kernel_type
   use combine_ws_to_w2_kernel_mod,    only: combine_ws_to_w2_kernel_type
   use apply_wind_metrics_kernel_mod,  only: apply_wind_metrics_kernel_type
-  use base_mesh_config_mod,           only: geometry,           &
-                                            geometry_spherical, &
-                                            topology,           &
-                                            topology_fully_periodic
   use integer_field_mod,              only: integer_field_type
 
   implicit none
@@ -129,11 +128,20 @@ contains
     type(field_type)                    :: u_w2_inc_with_metrics
     type(integer_field_type), pointer   :: face_selector_ew
     type(integer_field_type), pointer   :: face_selector_ns
-    logical(kind=l_def)                 :: geometry_is_spherical,    &
-                                           topology_is_fully_periodic
+    logical(kind=l_def)                 :: geometry_is_spherical, &
+                                           topology_is_periodic
 
+    type(config_type), pointer :: config
+
+    integer(i_def) :: coord_system
+    real(r_def)    :: scaled_radius
 
     if ( LPROF ) call start_timing( id, 'transport.wind' )
+
+    config => transport_controller%get_config()
+
+    coord_system  = config%finite_element%coord_system()
+    scaled_radius = config%planet%scaled_radius()
 
     k_h = get_element_order_h_transport()
     k_v = get_element_order_v_transport()
@@ -175,7 +183,7 @@ contains
           face_selector_ew => get_face_selector_ew(mesh)
           face_selector_ns => get_face_selector_ns(mesh)
 
-          dA => get_da_at_w2( mesh )
+          dA => get_da_at_w2( config, mesh )
           call invoke(setval_c(uv_w2h_n, 0.0_r_def),                    &
                       split_w2_to_ws_kernel_type( uv_w2h_n, w_wt_n,     &
                                                   wind_n, chi(3), dA,   &
@@ -194,7 +202,7 @@ contains
           call chi1_d_w2%initialise( w2_fs )
           call chi2_d_w2%initialise( w2_fs )
 
-          if ( geometry == geometry_spherical ) then
+          if ( mesh%geometry() == geometry_spherical ) then
             ! For the metric terms we need to transport the (horizontal)
             ! spherical coordinate field to get the values at the departure points
             ! Transport lambda & phi for lat-lon or alpha & beta for cubed sphere
@@ -229,9 +237,9 @@ contains
 
           call u_w2_inc%initialise( w2_fs, halo_depth=2 )
           call u_w2_inc_with_metrics%initialise( w2_fs )
-          mm_w2 => get_mass_matrix_fv(W2, mesh%get_id())
-          geometry_is_spherical = ( geometry == geometry_spherical )
-          topology_is_fully_periodic = (topology == topology_fully_periodic )
+          mm_w2 => get_mass_matrix_fv(config, mesh, W2)
+          geometry_is_spherical = ( mesh%geometry() == geometry_spherical )
+          topology_is_periodic  = ( mesh%topology() == topology_periodic )
           call invoke( name="combine_ws_to_w2_winds",                           &
                        X_minus_Y( uv_w2h_inc, uv_w2h_np1, uv_w2h_n ),           &
                        X_minus_Y( w_wt_inc,   w_wt_np1,   w_wt_n ),             &
@@ -245,7 +253,7 @@ contains
                                        u_w2_inc, stencil_depth, da, chi,        &
                                        chi1_d_w2, chi2_d_w2,                    &
                                        geometry_is_spherical,                   &
-                                       topology_is_fully_periodic ),            &
+                                       topology_is_periodic ),                  &
                        setval_c(rhs_u, 0.0_r_def),                              &
                        matrix_vector_kernel_type(rhs_u, u_w2_inc_with_metrics,  &
                        mm_w2),                                                  &
@@ -278,11 +286,13 @@ contains
           )
           if (optimised_conversion) then
             call invoke( dg_convert_hdiv_native_kernel_type(                     &
-                    u_w3_n, wind_n, chi, panel_id                                &
+                    u_w3_n, wind_n, chi, panel_id, mesh%geometry(),              &
+                    mesh%topology(), coord_system, scaled_radius                 &
             ) )
           else
             call invoke( dg_convert_hdiv_field_kernel_type(                      &
-                    u_w3_n, wind_n, chi, panel_id                                &
+                    u_w3_n, wind_n, chi, panel_id, mesh%geometry(),              &
+                    mesh%topology(), coord_system, scaled_radius                 &
             ) )
           end if
 
@@ -307,9 +317,9 @@ contains
           ! -------------------------------------------------------------------- !
 
           if ( LPROF ) call start_timing( id_from, 'transport.wind_from_comps' )
-          project_xdot_to_w2 => get_project_xdot_to_w2(mesh)
-          project_ydot_to_w2 => get_project_ydot_to_w2(mesh)
-          project_zdot_to_w2 => get_project_zdot_to_w2(mesh)
+          project_xdot_to_w2 => get_project_xdot_to_w2(config, mesh)
+          project_ydot_to_w2 => get_project_ydot_to_w2(config, mesh)
+          project_zdot_to_w2 => get_project_zdot_to_w2(config, mesh)
 
           ! Either Galerkin project in W2broken
           if (broken_w2_projection) then
@@ -317,13 +327,13 @@ contains
             w2_fs => function_space_collection%get_fs( mesh, k_h, k_v, W2 )
             w2b_fs => function_space_collection%get_fs( mesh, k_h, k_v, W2broken )
             if (k_h == 0 .and. k_v == 0) then
-              mm_w2 => get_mass_matrix_fv(W2, mesh%get_id())
-              mm_w2b_inv => get_inverse_mass_matrix_fv(W2broken, mesh%get_id())
+              mm_w2 => get_mass_matrix_fv(config, mesh, W2)
+              mm_w2b_inv => get_inverse_mass_matrix_fv(config, mesh, W2broken)
               rmultiplicity_w2 => get_rmultiplicity_fv(W2, mesh%get_id())
             else
-              mm_w2 => get_mass_matrix_fe(W2, mesh%get_id())
-              mm_w2b_inv => get_inverse_mass_matrix_fe(W2broken, mesh%get_id())
-              rmultiplicity_w2 => get_rmultiplicity_fe(W2, mesh%get_id())
+              mm_w2 => get_mass_matrix_fe(config, mesh, W2)
+              mm_w2b_inv => get_inverse_mass_matrix_fe(config, mesh, W2broken)
+              rmultiplicity_w2 => get_rmultiplicity_fe(config, mesh, W2)
             end if
 
             call rhs_u_broken%initialise( w2b_fs )

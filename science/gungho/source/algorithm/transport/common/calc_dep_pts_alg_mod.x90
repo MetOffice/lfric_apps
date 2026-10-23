@@ -623,7 +623,7 @@ contains
     ! Get Det(J) at W2 using averaged Det(J)
     if (element_order_h == 0 .and. element_order_v == 0) then
       ! Lowest order elements, use finite volume
-      detj_at_w2_ave_rdef => get_detj_at_w2_fv(mesh)
+      detj_at_w2_ave_rdef => get_detj_at_w2_fv(config, mesh)
     else
       ! Higher order elements, use finite element
       detj_at_w2_ave_rdef => get_detj_at_w2_fe(config, mesh)

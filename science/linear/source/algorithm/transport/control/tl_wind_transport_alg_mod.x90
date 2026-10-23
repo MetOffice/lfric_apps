@@ -7,6 +7,7 @@
 
 module tl_wind_transport_alg_mod
 
+  use config_mod,                     only: config_type
   use constants_mod,                  only: i_def, r_def
   use sci_dg_convert_hdiv_field_kernel_mod, &
                                       only: dg_convert_hdiv_field_kernel_type
@@ -97,8 +98,14 @@ contains
     type(function_space_type),  pointer :: w2_fs
     type(function_space_type),  pointer :: w2b_fs
     integer(tik)                        :: id
+    type(config_type),          pointer :: config
+
+    integer(i_def) :: coord_system
+    real(r_def)    :: scaled_radius
 
     if ( LPROF ) call start_timing( id, 'tl_wind_transport' )
+
+    config => tl_transport_controller%get_config()
 
     ! ------------------------------------------------------------------------ !
     ! Semi-implicit formulation
@@ -121,6 +128,8 @@ contains
         ! Cartesian coordinates and then map back to computational form
 
         mesh => wind_n%get_mesh()
+        coord_system  = config%finite_element%coord_system()
+        scaled_radius = config%planet%scaled_radius()
         w3_fs => function_space_collection%get_fs( mesh, element_order_h,      &
                                                    element_order_v, W3 )
         w2_fs => function_space_collection%get_fs( mesh, element_order_h,      &
@@ -129,12 +138,12 @@ contains
                                                    element_order_v, W2broken )
         chi      => get_coordinates(mesh)
         panel_id => get_panel_id(mesh)
-        mm_w2 => get_mass_matrix_fe(W2, mesh%get_id())
-        mm_w2b_inv => get_inverse_mass_matrix_fe(W2broken, mesh%get_id())
-        rmultiplicity_w2 => get_rmultiplicity_fe(W2, mesh%get_id())
-        project_xdot_to_w2 => get_project_xdot_to_w2(mesh)
-        project_ydot_to_w2 => get_project_ydot_to_w2(mesh)
-        project_zdot_to_w2 => get_project_zdot_to_w2(mesh)
+        mm_w2 => get_mass_matrix_fe(config, mesh, W2)
+        mm_w2b_inv => get_inverse_mass_matrix_fe(config, mesh, W2broken)
+        rmultiplicity_w2 => get_rmultiplicity_fe(config, mesh, W2)
+        project_xdot_to_w2 => get_project_xdot_to_w2(config, mesh)
+        project_ydot_to_w2 => get_project_ydot_to_w2(config, mesh)
+        project_zdot_to_w2 => get_project_zdot_to_w2(config, mesh)
 
         ! -------------------------------------------------------------------- !
         ! Split wind into components in W3
@@ -152,14 +161,16 @@ contains
         call invoke( setval_c(ls_u_w3_n(1), 0.0_r_def),                        &
                      setval_c(ls_u_w3_n(2), 0.0_r_def),                        &
                      setval_c(ls_u_w3_n(3), 0.0_r_def),                        &
-                     dg_convert_hdiv_field_kernel_type(ls_u_w3_n, ls_wind_n,   &
-                                                    chi, panel_id),            &
+                     dg_convert_hdiv_field_kernel_type(                        &
+                         ls_u_w3_n, ls_wind_n, chi, panel_id, mesh%geometry(), &
+                         mesh%topology(), coord_system, scaled_radius),        &
         ! Perturbation part
                      setval_c(u_w3_n(1), 0.0_r_def),                           &
                      setval_c(u_w3_n(2), 0.0_r_def),                           &
                      setval_c(u_w3_n(3), 0.0_r_def),                           &
-                     dg_convert_hdiv_field_kernel_type(u_w3_n, wind_n,         &
-                                                    chi, panel_id) )
+                     dg_convert_hdiv_field_kernel_type(                        &
+                         u_w3_n, wind_n, chi, panel_id, mesh%geometry(),       &
+                         mesh%topology(), coord_system, scaled_radius) )
         call log_field_minmax( LOG_LEVEL_INFO, 'xdot', u_w3_n(1) )
         call log_field_minmax( LOG_LEVEL_INFO, 'ydot', u_w3_n(2) )
         call log_field_minmax( LOG_LEVEL_INFO, 'zdot', u_w3_n(3) )

@@ -136,7 +136,7 @@ subroutine transport_init_fields_alg( config,       &
                                                element_order_v, Wtheta )
     chi      => get_coordinates(mesh)
     panel_id => get_panel_id(mesh)
-    qr => get_qr_fe()
+    qr => get_qr_fe(config)
     w2_aerosol_fs => function_space_collection%get_fs( aerosol_mesh, element_order_h, &
                                                        element_order_v, W2 )
     w3_aerosol_fs => function_space_collection%get_fs( aerosol_mesh, element_order_h, &
@@ -230,7 +230,7 @@ subroutine transport_init_fields_alg( config,       &
 
     ! Set winds and divergence
     call init_u_field( config, wind, initial_time )
-    call divergence_alg( divergence, wind )
+    call divergence_alg( config, divergence, wind )
     call map_w2_intermesh( aerosol_wind, wind )
 
     ! ======================================================================== !

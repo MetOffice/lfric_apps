@@ -58,7 +58,7 @@ contains
       detJ => get_detj_at_w2_fe( config, state(igh_u)%get_mesh() )
     else
       ! Get finite volume detJ
-      detJ => get_detj_at_w2_fv( state(igh_u)%get_mesh() )
+      detJ => get_detj_at_w2_fv( config, state(igh_u)%get_mesh() )
     end if
 
     if (limit_cfl)then

@@ -463,7 +463,7 @@ contains
 
     height_wth => get_height_fv(config, mesh, Wtheta)
     height_w3  => get_height_fv(config, mesh, W3)
-    delta      => get_delta_at_wtheta(mesh)
+    delta      => get_delta_at_wtheta(config, mesh)
 
     ! Initialise the convection diagnostics
     call initialise_diags_for_conv(rho,                    &
@@ -523,8 +523,8 @@ contains
     call rho%copy_field_properties(u_in_w3_latest)
     call rho%copy_field_properties(v_in_w3_latest)
     call rho%copy_field_properties(w_in_w3_latest)
-    call map_physics_winds(u_in_w3_latest, v_in_w3_latest, w_in_w3_latest, &
-                           u_latest)
+    call map_physics_winds( config, u_in_w3_latest, v_in_w3_latest, &
+                            w_in_w3_latest, u_latest )
     call w_in_w3_latest%field_final()
 
     ! Switch UM to running i-first on whole domain

@@ -14,6 +14,7 @@
 module solver_constants_mod
 
   ! Infrastructure
+  use config_mod,                         only: config_type
   use constants_mod,                      only: i_def, r_def, l_def, str_def
   use sci_geometric_constants_mod,        only: get_coordinates,               &
                                                 get_panel_id
@@ -90,16 +91,18 @@ contains
   ! ========================================================================== !
 
   !> @brief Returns the Det(J) values at W3 dof locations
-  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @param[in] config  Application configuration object
+  !> @param[in] mesh    Mesh to get the object for
   !> @return The Det(J) field
-  function get_detj_at_w3_r_solver(mesh_id) result(detj_r_solver)
+  function get_detj_at_w3_r_solver(config, mesh) result(detj_r_solver)
 
     use sci_calc_detj_at_w3_kernel_mod, only: calc_detj_at_w3_kernel_type
 
     implicit none
 
-    integer(kind=i_def),       intent(in) :: mesh_id
-    type(mesh_type),              pointer :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
+
     logical(kind=l_def)                   :: constant_exists
     integer(kind=i_def)                   :: halo_depth
     type(r_solver_field_type),    pointer :: detj_r_solver
@@ -108,14 +111,29 @@ contains
     type(function_space_type),    pointer :: w3_fs
     integer(tik)                          :: id
 
+    integer(i_def) :: order_h
+    integer(i_def) :: order_v
+
+    integer(i_def) :: geometry
+    integer(i_def) :: topology
+    integer(i_def) :: coord_system
+    real(r_def)    :: scaled_radius
+
+    geometry = mesh%geometry()
+    topology = mesh%topology()
+
+    order_h       = config%finite_element%element_order_h()
+    order_v       = config%finite_element%element_order_v()
+    coord_system  = config%finite_element%coord_system()
+    scaled_radius = config%planet%scaled_radius()
+
     ! Check inventory is initialised
     if (.not. detj_at_w3_r_solver_inventory%is_initialised()) then
       ! Initialise all inventories together
       call detj_at_w3_r_solver_inventory%initialise(name='detj_at_w3_r_solver')
     end if
 
-    mesh => mesh_collection%get_mesh(mesh_id)
-    constant_exists = detj_at_w3_r_solver_inventory%paired_object_exists(mesh_id)
+    constant_exists = detj_at_w3_r_solver_inventory%paired_object_exists(mesh%get_id())
 
     if (.not. constant_exists) then
       chi => get_coordinates(mesh)
@@ -124,13 +142,13 @@ contains
       ! Create the object as it doesn't exist yet
       if ( LPROF ) call start_timing( id, 'runtime_constants.solver' )
 
-      w3_fs => function_space_collection%get_fs(mesh, element_order_h, &
-                                                element_order_v, W3)
+      w3_fs => function_space_collection%get_fs(mesh, order_h, order_v, W3)
       call detj_at_w3_r_solver_inventory%add_field(detj_r_solver, w3_fs, mesh)
 
       halo_depth = 0  ! No need to calculate into halos
-      call invoke( calc_detj_at_w3_kernel_type(detj_r_solver, chi, panel_id,   &
-                                               halo_depth) )
+      call invoke( calc_detj_at_w3_kernel_type(detj_r_solver, chi, panel_id,     &
+                                               geometry, topology, coord_system, &
+                                               scaled_radius, halo_depth) )
       if ( LPROF ) call stop_timing( id, 'runtime_constants.solver' )
     end if
 
@@ -144,18 +162,20 @@ contains
   ! ========================================================================== !
 
   !> @brief Returns a pointer to a r_solver mass matrix.
+  !> @param[in] config  Application configuration object
   !> @param[in] space   The space of the desired mass matrix
-  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @param[in] mesh    Mesh to get the object for
   !> @return The mass matrix operator
-  function get_mass_matrix_r_solver(space, mesh_id) result(mm_r_solver)
+  function get_mass_matrix_r_solver(config, mesh, space) result(mm_r_solver)
 
     use sci_fem_constants_mod, only: get_mass_matrix_fe
 
     implicit none
 
-    integer(kind=i_def),       intent(in) :: space
-    integer(kind=i_def),       intent(in) :: mesh_id
-    type(mesh_type),              pointer :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
+    integer(i_def),    intent(in) :: space
+
     logical(kind=l_def)                   :: constant_exists
     type(function_space_type),    pointer :: fs
     type(operator_type),          pointer :: mm_r_def
@@ -183,12 +203,11 @@ contains
       call inventory%initialise(name=inventory_name)
     end if
 
-    mesh => mesh_collection%get_mesh(mesh_id)
-    constant_exists = inventory%paired_object_exists(mesh_id)
+    constant_exists = inventory%paired_object_exists(mesh%get_id())
 
     if (.not. constant_exists) then
       ! Create constant if it doesn't already exist
-      mm_r_def => get_mass_matrix_fe(space, mesh_id)
+      mm_r_def => get_mass_matrix_fe(config, mesh, space)
 
       if ( LPROF ) call start_timing( id, 'runtime_constants.solver' )
 
@@ -207,17 +226,20 @@ contains
   end function get_mass_matrix_r_solver
 
   !> @brief Returns a pointer to the inverse r_solver mass matrix operator
-  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @param[in] config  Application configuration object
+  !> @param[in] mesh    Mesh to get the object for
   !> @return The inverse mass matrix operator at r_solver precision
-  function get_inverse_mass_matrix_r_solver(space, mesh_id) result(mm_inv_r_solver)
+  function get_inverse_mass_matrix_r_solver(config, mesh, space) &
+                                     result(mm_inv_r_solver)
 
     use sci_fem_constants_mod, only: get_inverse_mass_matrix_fe
 
     implicit none
 
-    integer(kind=i_def),       intent(in) :: space
-    integer(kind=i_def),       intent(in) :: mesh_id
-    type(mesh_type),              pointer :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
+    integer(i_def),    intent(in) :: space
+
     logical(kind=l_def)                   :: constant_exists
     type(function_space_type),    pointer :: fs
     type(operator_type),          pointer :: mm_inv_r_def
@@ -242,12 +264,11 @@ contains
       call inventory%initialise(name=inventory_name)
     end if
 
-    mesh => mesh_collection%get_mesh(mesh_id)
-    constant_exists = inventory%paired_object_exists(mesh_id)
+    constant_exists = inventory%paired_object_exists(mesh%get_id())
 
     if (.not. constant_exists) then
       ! Create constant if it doesn't already exist
-      mm_inv_r_def => get_inverse_mass_matrix_fe(space, mesh_id)
+      mm_inv_r_def => get_inverse_mass_matrix_fe(config, mesh, space)
 
       if ( LPROF ) call start_timing( id, 'runtime_constants.solver' )
 
@@ -270,17 +291,20 @@ contains
   ! ========================================================================== !
 
   !> @brief Returns a pointer to a generalised W2 mass matrix operator
-  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @param[in] config  Application configuration object
+  !> @param[in] mesh    Mesh to get the object for
   !> @return The semi-implicit W2 mass matrix operator
-  function get_w2_mass_matrix_r_solver(w2_op_name, mesh_id) result(mm_r_solver)
+  function get_w2_mass_matrix_r_solver(config, mesh, w2_op_name) &
+                                result(mm_r_solver)
 
     use dycore_constants_mod, only: get_w2_mass_matrix, w2_si_matrix
 
     implicit none
 
-    integer(kind=i_def),       intent(in) :: w2_op_name
-    integer(kind=i_def),       intent(in) :: mesh_id
-    type(mesh_type),              pointer :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
+    integer(i_def),    intent(in) :: w2_op_name
+
     logical(kind=l_def)                   :: constant_exists
     type(function_space_type),    pointer :: fs
     type(operator_type),          pointer :: mm_r_def
@@ -303,12 +327,11 @@ contains
       call mm_w2_si_r_solver_inventory%initialise(name='mm_w2_si_r_solver')
     end if
 
-    mesh => mesh_collection%get_mesh(mesh_id)
-    constant_exists = inventory%paired_object_exists(mesh_id)
+    constant_exists = inventory%paired_object_exists(mesh%get_id())
 
     if (.not. constant_exists) then
       ! Create constant if it doesn't already exist
-      mm_r_def => get_w2_mass_matrix(w2_op_name, mesh_id)
+      mm_r_def => get_w2_mass_matrix(config, mesh, w2_op_name)
 
       if ( LPROF ) call start_timing( id, 'runtime_constants.solver' )
 
@@ -327,16 +350,18 @@ contains
   end function get_w2_mass_matrix_r_solver
 
   !> @brief Returns a pointer to the inv_m3 * div operator
-  !> @param[in] mesh_id The ID of the mesh to get the object for
+  !> @param[in] config  Application configuration object
+  !> @param[in] mesh    Mesh to get the object for
   !> @return The inverse mass matrix and div operator
-  function get_im3_div_r_solver(mesh_id) result(im3_div_r_solver)
+  function get_im3_div_r_solver(config, mesh) result(im3_div_r_solver)
 
     use sci_fem_constants_mod, only: get_div
 
     implicit none
 
-    integer(kind=i_def),       intent(in) :: mesh_id
-    type(mesh_type),              pointer :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
+
     type(r_solver_operator_type), pointer :: im3_div_r_solver
     type(r_solver_operator_type), pointer :: mm_w3_inv_r_solver
     type(operator_type),          pointer :: div
@@ -354,16 +379,15 @@ contains
       call im3_div_r_solver_inventory%initialise(name="im3_div_r_solver")
     end if
 
-    mesh => mesh_collection%get_mesh(mesh_id)
-    constant_exists = im3_div_r_solver_inventory%paired_object_exists(mesh_id)
+    constant_exists = im3_div_r_solver_inventory%paired_object_exists(mesh%get_id())
 
     ! Create constant if it doesn't already exist
     if (.not. constant_exists) then
       chi => get_coordinates(mesh)
       panel_id => get_panel_id(mesh)
-      qr => get_qr_fe()
-      div => get_div(mesh_id)
-      mm_w3_inv_r_solver => get_inverse_mass_matrix_r_solver(W3, mesh_id)
+      qr => get_qr_fe(config)
+      div => get_div(config, mesh)
+      mm_w3_inv_r_solver => get_inverse_mass_matrix_r_solver(config, mesh, W3)
 
       w2_fs => function_space_collection%get_fs( mesh, element_order_h, &
                                                  element_order_v, W2 )
@@ -391,10 +415,11 @@ contains
   ! ========================================================================== !
 
   !> @brief Returns a pointer to the normalisation of prognostic fields
+  !> @param[in] config  Application configuration object
+  !> @param[in] mesh    Mesh to get the object for
   !> @param[in] space   The space of the normalisation field
-  !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The normalisation field
-  function get_normalisation(space, mesh_id) result(normalisation)
+  function get_normalisation(config, mesh, space) result(normalisation)
 
     use sci_fem_constants_mod,       only: get_inverse_lumped_mass_matrix_fe
     use w2_normalisation_kernel_mod, only: w2_normalisation_kernel_type
@@ -402,9 +427,10 @@ contains
 
     implicit none
 
-    integer(kind=i_def),       intent(in) :: space
-    integer(kind=i_def),       intent(in) :: mesh_id
-    type(mesh_type),              pointer :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
+    integer(i_def),    intent(in) :: space
+
     logical(kind=l_def)                   :: constant_exists
     type(field_type),             pointer :: normalisation
     type(field_type)                      :: nodal_multiplicity
@@ -417,7 +443,7 @@ contains
     ! Special case, Wtheta normalisation is the lumped inverse mass matrix
     select case (space)
       case (Wtheta)
-        normalisation => get_inverse_lumped_mass_matrix_fe(Wtheta, mesh_id)
+        normalisation => get_inverse_lumped_mass_matrix_fe(config, mesh, Wtheta)
 
       case (W2)
         ! Check if inventories is initialised
@@ -425,8 +451,7 @@ contains
           call w2_normalisation_inventory%initialise(name='w2_normalisation')
         end if
 
-        mesh => mesh_collection%get_mesh(mesh_id)
-        constant_exists = w2_normalisation_inventory%paired_object_exists(mesh_id)
+        constant_exists = w2_normalisation_inventory%paired_object_exists(mesh%get_id())
 
         ! Create constant if it doesn't already exist
         if (.not. constant_exists) then
@@ -462,16 +487,18 @@ contains
   end function get_normalisation
 
   !> @brief Returns a pointer to the r_solver normalisation of prognostic fields
+  !> @param[in] config  Application configuration object
+  !> @param[in] mesh    Mesh to get the object for
   !> @param[in] space   The space of the normalisation field
-  !> @param[in] mesh_id The ID of the mesh to get the object for
   !> @return The normalisation field
-  function get_normalisation_r_solver(space, mesh_id) result(normalisation_r_solver)
+  function get_normalisation_r_solver(config, mesh, space) result(normalisation_r_solver)
 
     implicit none
 
-    integer(kind=i_def),       intent(in) :: space
-    integer(kind=i_def),       intent(in) :: mesh_id
-    type(mesh_type),              pointer :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
+    integer(i_def),    intent(in) :: space
+
     logical(kind=l_def)                   :: constant_exists
     type(function_space_type),    pointer :: fs
     type(field_type),             pointer :: normalisation_r_def
@@ -499,12 +526,11 @@ contains
       call inventory%initialise(name=inventory_name)
     end if
 
-    mesh => mesh_collection%get_mesh(mesh_id)
-    constant_exists = inventory%paired_object_exists(mesh_id)
+    constant_exists = inventory%paired_object_exists(mesh%get_id())
 
     if (.not. constant_exists) then
       ! Create constant if it doesn't already exist
-      normalisation_r_def => get_normalisation(space, mesh_id)
+      normalisation_r_def => get_normalisation(config, mesh, space)
 
       if ( LPROF ) call start_timing( id, 'runtime_constants.solver' )
 

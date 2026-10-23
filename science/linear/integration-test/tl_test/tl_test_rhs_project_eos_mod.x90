@@ -107,7 +107,7 @@ contains
 
     chi      => get_coordinates(mesh)
     panel_id => get_panel_id(mesh)
-    qr => get_qr_fe()
+    qr => get_qr_fe(modeldb%config)
 
     prognostic_fields => modeldb%fields%get_field_collection( &
                                            "prognostic_fields")

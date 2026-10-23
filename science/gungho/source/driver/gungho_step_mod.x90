@@ -206,7 +206,7 @@ module gungho_step_mod
                                         'After timestep' )
 
         if ( use_physics .and. cloud == cloud_um ) then
-          dA => get_dA_at_w2(mesh)
+          dA => get_dA_at_w2(modeldb%config, mesh)
           call moisture_fluxes_alg( microphysics_fields, &
                                     convection_fields,   &
                                     turbulence_fields,   &
@@ -215,7 +215,9 @@ module gungho_step_mod
         end if
       end if
 
-      if (write_minmax_tseries) call minmax_tseries(u, 'u', mesh)
+      if (write_minmax_tseries) then
+        call minmax_tseries(modeldb%config, mesh, u, 'u')
+      end if
 
       call log_field_minmax( LOG_LEVEL_INFO, ' u', u )
       call log_field_minmax( LOG_LEVEL_INFO, 'theta', theta )

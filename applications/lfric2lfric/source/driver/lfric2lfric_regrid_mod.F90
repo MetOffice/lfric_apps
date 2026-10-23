@@ -85,13 +85,10 @@ contains
     integer(kind=i_def)                :: fs_id
     type(function_space_type), pointer :: fs_w3_src, fs_w3_dst
     type(function_space_type), pointer :: fs_wth_src, fs_wth_dst
-    type(mesh_type),           pointer :: mesh_dst
 
     character(len=str_def)   :: mesh_names(2)
     integer(kind=i_def)      :: element_order_h
     integer(kind=i_def)      :: element_order_v
-    integer(kind=i_def)      :: geometry
-    integer(kind=i_def)      :: topology
 
     character(len=str_def)   :: field_name
 
@@ -118,11 +115,6 @@ contains
     fs_wth_dst => function_space_collection%get_fs(                  &
                           mesh_collection%get_mesh(mesh_names(dst)), &
                           element_order_h, element_order_v, Wtheta)
-
-    ! Get the geometry and topology of the destination mesh
-    mesh_dst => mesh_collection%get_mesh(trim(mesh_names(dst)))
-    geometry = mesh_dst%geometry()
-    topology = mesh_dst%topology()
 
     ! Main loop over fields to be processed
     call iter%initialise(source_fields)
@@ -155,7 +147,7 @@ contains
         call w_in_wth_dst%initialise(vector_space=fs_wth_dst, &
                                     name="w_in_wth_dst")
 
-        call interp_w2_to_w3wth_alg(field_src, u_in_w3_src,   &
+        call interp_w2_to_w3wth_alg(modeldb%config, field_src, u_in_w3_src,   &
                                     v_in_w3_src, w_in_wth_src)
       end if
 
@@ -163,11 +155,11 @@ contains
       select case (regrid_method)
         case (regrid_method_map)
           if (fs_id == W2) then
-            call lfric2lfric_map_regrid(u_in_w3_dst, u_in_w3_src)
-            call lfric2lfric_map_regrid(v_in_w3_dst, v_in_w3_src)
-            call lfric2lfric_map_regrid(w_in_wth_dst, w_in_wth_src)
+            call lfric2lfric_map_regrid(modeldb%config, u_in_w3_dst, u_in_w3_src)
+            call lfric2lfric_map_regrid(modeldb%config, v_in_w3_dst, v_in_w3_src)
+            call lfric2lfric_map_regrid(modeldb%config, w_in_wth_dst, w_in_wth_src)
           else
-            call lfric2lfric_map_regrid(field_dst, field_src)
+            call lfric2lfric_map_regrid(modeldb%config, field_dst, field_src)
           end if
 
         case (regrid_method_lfric2lfric)
@@ -195,9 +187,9 @@ contains
 
       ! Rebuild the W2 fields from a set of W3 and Wtheta fields
       if (fs_id == W2) then
-        call interp_w3wth_to_w2_alg(field_dst, u_in_w3_dst,    &
-                                    v_in_w3_dst, w_in_wth_dst, &
-                                    geometry, topology)
+        call interp_w3wth_to_w2_alg(modeldb%config,            &
+                                    field_dst, u_in_w3_dst,    &
+                                    v_in_w3_dst, w_in_wth_dst)
       end if
     end do
 

@@ -17,10 +17,6 @@ use argument_mod,            only : arg_type, func_type,       &
                                     CELL_COLUMN, GH_EVALUATOR
 use constants_mod,           only : i_def, r_def
 
-use base_mesh_config_mod,      only: geometry, topology
-use finite_element_config_mod, only: coord_system
-use planet_config_mod,         only: scaled_radius
-
 !> NOTE: Kernel requires PSyKAl lite code to invoke. Kernel metadata commented out.
 !>       Please see PSyclone issue #2798 for further information.
 implicit none
@@ -94,6 +90,10 @@ subroutine adj_convert_hdiv_field_code(nlayers, &
                                        chi2, &
                                        chi3, &
                                        panel_id, &
+                                       geometry, &
+                                       topology, &
+                                       coord_system, &
+                                       scaled_radius, &
                                        ndf1, &
                                        undf1, &
                                        map1, &
@@ -137,6 +137,11 @@ subroutine adj_convert_hdiv_field_code(nlayers, &
   real(kind=r_def), dimension(1,ndf_chi,ndf1), intent(in)    :: basis_chi
   real(kind=r_def), dimension(3,ndf_chi,ndf1), intent(in)    :: diff_basis_chi
   real(kind=r_def), dimension(3,ndf2,ndf1),    intent(in)    :: basis2
+
+  integer(kind=i_def), intent(in) :: geometry
+  integer(kind=i_def), intent(in) :: topology
+  integer(kind=i_def), intent(in) :: coord_system
+  real(kind=r_def), intent(in) :: scaled_radius
 
   ! Internal variables
   integer(kind=i_def) :: df, df2, k

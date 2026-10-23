@@ -7,6 +7,7 @@
 !> @brief Routine to process and dump time series of maxima and minima of fields to file
 module minmax_tseries_mod
 
+  use config_mod,                        only: config_type
   use constants_mod,                     only: r_def, str_max_filename, i_def
   use field_mod,                         only: field_type, field_proxy_type
   use diagnostic_alg_mod,                only: scalar_nodal_diagnostic_alg, &
@@ -51,18 +52,21 @@ contains
 !> @brief Routine to process and dump time series of maxima and minima of fields to file
 !> @details Writes field to a .m formatted file by dumping the values of maxima
 !>          and minima on nodal points.
-!> @param[in] field       Field to output
+!> @param[in] config     Application configuration object
+!> @param[in] field      Field to output
 !> @param[in] field_name Name of field to output
 !> @param[in] mesh       Mesh all fields are on
- subroutine minmax_tseries(field, field_name, mesh)
+ subroutine minmax_tseries(config, mesh, field, field_name)
+
    use scalar_mod, only : scalar_type
 
    implicit none
 
-   type(field_type), intent(in)    :: field
-   character(len=*), intent(in)    :: field_name
+   type(config_type), intent(in) :: config
+   type(mesh_type),   intent(in) :: mesh
 
-   type(mesh_type),  intent(in), pointer :: mesh
+   type(field_type), intent(in) :: field
+   character(len=*), intent(in) :: field_name
 
    ! Internal variables
    type(field_type)                   :: nodal_output(3)
@@ -84,14 +88,16 @@ contains
 
    if ( fs == W1 .or. fs == W2) then
      ! Vector field
-     call vector_nodal_diagnostic_alg(nodal_output, output_dim, &
+     call vector_nodal_diagnostic_alg(config, nodal_output, output_dim, &
                                       nodal_coordinates, level, &
                                       field_name, field)
 
    else
      ! Scalar field
-     call scalar_nodal_diagnostic_alg( nodal_output, nodal_coordinates, level, &
-                                       field_name, field, mesh, .false. )
+     call scalar_nodal_diagnostic_alg(config, nodal_output,     &
+                                      nodal_coordinates, level, &
+                                      field_name, field, mesh,  &
+                                      .false.)
    end if
 
    do i = 1,3

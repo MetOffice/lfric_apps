@@ -23,6 +23,8 @@ module initial_u_kernel_mod
   use kernel_mod,              only : kernel_type
   use mesh_mod,                only : geometry_spherical
 
+  use mesh_mod,                  only: geometry_spherical
+
   ! Configuration modules
   use base_mesh_config_mod,      only: geometry, topology
   use finite_element_config_mod, only: coord_system
