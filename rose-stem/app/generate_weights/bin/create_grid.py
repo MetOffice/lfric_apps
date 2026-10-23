@@ -23,6 +23,7 @@ class GRID:
         self.vname_lo = None
         self.vname_la = None
         self.fname = None
+        self.fname_mask = None
         self.vname_mask = None
         self.l_corners = None
         self.vname_corners_lo = None
@@ -86,7 +87,7 @@ def transform(fin, name):
     return fout
 
 
-def transform_and_write(my_grid):
+def transform_and_write(my_grid, with_mask):
     """Transform arrays and write netcdf output"""
     rank = len(my_grid.shape)
     mrank = my_grid.shape
@@ -123,14 +124,20 @@ def transform_and_write(my_grid):
     lonout.long_name = "grid_center_lon"
     lonout.units = my_grid.ulon
     lonout[:] = transform(my_grid.dlon, 'lon')
-    maskout = outfile.createVariable('grid_imask',
+    if (with_mask):
+      maskout = outfile.createVariable('grid_imask',
+                                     numpy.dtype('float64').char,
+                                     ('grid_size', ))
+      maskout.units = "mygrid.umask"
+      maskout[:] = transform(my_grid.dmask, 'mask')
+    else:
+      print("Set mask to 1 everywhere.")
+      maskout = outfile.createVariable('grid_imask',
                                      numpy.dtype('int32').char,
                                      ('grid_size', ))
+      maskout.units = "unitless"
+      maskout[:] = numpy.int32(1)
     maskout.long_name = "grid_imask"
-    maskout.units = "unitless"
-    print("Set mask to 1 everywhere.")
-    maskout[:] = numpy.int32(1)
-
     print('Area not generated for model: ', my_grid.vname)
 
     claout = outfile.createVariable('grid_corner_lat',
@@ -160,6 +167,9 @@ def get_env_info(my_grid, src):
     my_grid.vname_corners_lo = my_grid.vname + '_node_x'
     my_grid.vname_corners_la = my_grid.vname +'_node_y'
     my_grid.id_corners = my_grid.vname + '_face_nodes'
+
+    my_grid.fname_mask = os.environ.get(src + '_MASK_PATH')
+    my_grid.vname_mask = os.environ.get(src + '_MASK_NAME')
 
     return my_grid
 
@@ -223,6 +233,7 @@ def validate_input(my_grid):
     print('fname', my_grid.fname)
     print('vname_lo', my_grid.vname_lo)
     print('vname_la', my_grid.vname_la)
+    print('fname_mask', my_grid.fname_mask)
     print('vname_mask', my_grid.vname_mask)
     print('l_corners', my_grid.l_corners)
     print('vname_corners_lo', my_grid.vname_corners_lo)
@@ -253,7 +264,11 @@ def get_data(my_grid):
     my_grid.shape = numpy.asarray(my_grid.dlat.shape[::-1])
 
     # mask always from file or ignore
-    my_grid.dmask = 1 + numpy.zeros(my_grid.dlon.shape)
+    mask_file = Dataset(my_grid.fname_mask, 'r')
+    my_grid.dmask, my_grid.umask = get_var(mask_file, my_grid.vname_mask, True)
+
+    mask_file.close()
+    #my_grid.dmask = 1 + numpy.zeros(my_grid.dlon.shape)
     return my_grid
 
 if __name__ == "__main__":
@@ -271,5 +286,6 @@ if __name__ == "__main__":
     print('DESTINATION grid ')
 
     print('Save SRC -> DST grid info')
-    transform_and_write(SRC_GRID)
-    transform_and_write(DST_GRID)
+    with_mask=False
+    transform_and_write(SRC_GRID, with_mask)
+    transform_and_write(DST_GRID, with_mask)

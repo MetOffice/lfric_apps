@@ -1,71 +1,2023 @@
-# Control file for OASIS3-MCT.
-# Oasis reads this file at run-time.  
-#  
-# Description: This file defines the fields used in coupling between:   
+# Control file for OASIS3-MCT 
+# Oasis reads this file at run-time 
 # 
-#    HadGEM3 atmos/ocean models (not cice in this instance).  
-#    Atmos component: UM atmos   
-#    Ocean component: ORCA1, ORCA025  
-#    Ice component:   CICE model integrated into NEMO component 
-#  
-#    This version includes special UM compatible notation in order to define
-#    transients based on interrogating this file. The line preceeding the
-#    definition of each transient must contain notation to define the following:
-#
-#           OCNT indicates the source component (OCN) and grid type (T)
-#           ATMT indicates the target component (ATM) and grid type (T)
-#           OO indicates the order of field exchange. A negative value (e.g. -28) switches 
-#              this field off, excluding it from coupling definitions or exchanges.
-#              If this value is positive, it must be unique. 
-#           RR is an integer indicating the field reference which the 
-#              component models may use to associate the transient with a 
-#              particular model field. 
-#
-# UM compatibility: UM vn8.3 and earlier. If employed by a pre-UM8.3 job   
-#          then lines featuring TRANSDEF directives: will be ignored.  
-# OASIS3-MCT compatible version.
-#
-# Author: R. Hill  
-# Date  : 24/02/2014  
-#  
-# Any line beginning with # is ignored. Blank lines are not allowed.  
-#  
-#########################################################################  
- $NFIELDS  
-# This is the total number of fields being exchanged.   
-# For the definition of the fields, see under $STRINGS keyword  
-#  
-          1 
- $END  
-###########################################################################  
- $RUNTIME  
-# This gives you the total simulated time for this run in seconds   
-   50000
- $END  
-###########################################################################  
- $NLOGPRT  
-# Debugging output level: 0 -> 30  
+# This file was generated automatically by create_namcouple.py 
+# 
+########################################################## 
+# Total number of fields being exchanged = number MAPPING entries below 
+ $NFIELDS 
+ 285 
+ $END 
+########################################################## 
+ $RUNTIME 
+# This gives you the total simulated time for this run in seconds 
+ 50000 
+ $END 
+########################################################## 
+ $NLOGPRT 
+# Debugging output level: 0 -> 30 
 # Timer activation level: 0 -> 3  
-  0 0 
- $END  
-###########################################################################  
- $STRINGS  
-#  
-# The above variables are the general parameters for the experiment.  
-# Everything below has to do with the fields being exchanged.  
-#  
-############################################################################  
-#  
-#   
-############################################################################
-#                      SOURCE(face) --->>> DESTINATION(face)
-#                  -------------------------
-############################################################################
-src_face dst_face 1 1 1 lfric2lfric_restart_oa.nc EXPORTED
- 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1
- R  0  R 0
-#
- MAPPING
- weight_file_face_to_face.nc
-#  
-$END
+ 0 0 
+ $END 
+########################################################## 
+ $STRINGS 
+# Definitions of the particular fields being exchanged 
+# 
+########################################################## 
+# Mapping entry 1 
+src_face dst_face 1 1 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file.nc 
+########################################################## 
+# Mapping entry 2 
+src_leaf_area_index_level_1 dst_leaf_area_index_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 3 
+src_leaf_area_index_level_2 dst_leaf_area_index_level_2 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 4 
+src_leaf_area_index_level_3 dst_leaf_area_index_level_3 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 5 
+src_leaf_area_index_level_4 dst_leaf_area_index_level_4 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 6 
+src_leaf_area_index_level_5 dst_leaf_area_index_level_5 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 7 
+src_canopy_height_level_1 dst_canopy_height_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 8 
+src_canopy_height_level_2 dst_canopy_height_level_2 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 9 
+src_canopy_height_level_3 dst_canopy_height_level_3 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 10 
+src_canopy_height_level_4 dst_canopy_height_level_4 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 11 
+src_canopy_height_level_5 dst_canopy_height_level_5 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 12 
+src_tile_fraction_level_1 dst_tile_fraction_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 13 
+src_tile_fraction_level_2 dst_tile_fraction_level_2 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 14 
+src_tile_fraction_level_3 dst_tile_fraction_level_3 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 15 
+src_tile_fraction_level_4 dst_tile_fraction_level_4 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 16 
+src_tile_fraction_level_5 dst_tile_fraction_level_5 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 17 
+src_tile_fraction_level_6 dst_tile_fraction_level_6 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 18 
+src_tile_fraction_level_7 dst_tile_fraction_level_7 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 19 
+src_tile_fraction_level_8 dst_tile_fraction_level_8 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 20 
+src_tile_fraction_level_9 dst_tile_fraction_level_9 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 21 
+src_tile_fraction_level_10 dst_tile_fraction_level_10 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 22 
+src_tile_fraction_level_11 dst_tile_fraction_level_11 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 23 
+src_tile_temperature_level_1 dst_tile_temperature_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 24 
+src_tile_temperature_level_2 dst_tile_temperature_level_2 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 25 
+src_tile_temperature_level_3 dst_tile_temperature_level_3 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 26 
+src_tile_temperature_level_4 dst_tile_temperature_level_4 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 27 
+src_tile_temperature_level_5 dst_tile_temperature_level_5 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 28 
+src_tile_temperature_level_6 dst_tile_temperature_level_6 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 29 
+src_tile_temperature_level_7 dst_tile_temperature_level_7 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 30 
+src_tile_temperature_level_8 dst_tile_temperature_level_8 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 31 
+src_tile_temperature_level_9 dst_tile_temperature_level_9 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 32 
+src_tile_temperature_level_10 dst_tile_temperature_level_10 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 33 
+src_tile_temperature_level_11 dst_tile_temperature_level_11 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 34 
+src_tile_lw_grey_albedo_level_1 dst_tile_lw_grey_albedo_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 35 
+src_tile_lw_grey_albedo_level_2 dst_tile_lw_grey_albedo_level_2 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 36 
+src_tile_lw_grey_albedo_level_3 dst_tile_lw_grey_albedo_level_3 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 37 
+src_tile_lw_grey_albedo_level_4 dst_tile_lw_grey_albedo_level_4 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 38 
+src_tile_lw_grey_albedo_level_5 dst_tile_lw_grey_albedo_level_5 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 39 
+src_tile_lw_grey_albedo_level_6 dst_tile_lw_grey_albedo_level_6 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 40 
+src_tile_lw_grey_albedo_level_7 dst_tile_lw_grey_albedo_level_7 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 41 
+src_tile_lw_grey_albedo_level_8 dst_tile_lw_grey_albedo_level_8 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 42 
+src_tile_lw_grey_albedo_level_9 dst_tile_lw_grey_albedo_level_9 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 43 
+src_tile_lw_grey_albedo_level_10 dst_tile_lw_grey_albedo_level_10 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 44 
+src_tile_lw_grey_albedo_level_11 dst_tile_lw_grey_albedo_level_11 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 45 
+src_screen_temperature_level_1 dst_screen_temperature_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 46 
+src_screen_temperature_level_2 dst_screen_temperature_level_2 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 47 
+src_screen_temperature_level_3 dst_screen_temperature_level_3 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 48 
+src_screen_temperature_level_4 dst_screen_temperature_level_4 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 49 
+src_screen_temperature_level_5 dst_screen_temperature_level_5 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 50 
+src_screen_temperature_level_6 dst_screen_temperature_level_6 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 51 
+src_screen_temperature_level_7 dst_screen_temperature_level_7 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 52 
+src_screen_temperature_level_8 dst_screen_temperature_level_8 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 53 
+src_screen_temperature_level_9 dst_screen_temperature_level_9 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 54 
+src_screen_temperature_level_10 dst_screen_temperature_level_10 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 55 
+src_screen_temperature_level_11 dst_screen_temperature_level_11 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 56 
+src_canopy_water_level_1 dst_canopy_water_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 57 
+src_canopy_water_level_2 dst_canopy_water_level_2 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 58 
+src_canopy_water_level_3 dst_canopy_water_level_3 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 59 
+src_canopy_water_level_4 dst_canopy_water_level_4 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 60 
+src_canopy_water_level_5 dst_canopy_water_level_5 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 61 
+src_canopy_water_level_6 dst_canopy_water_level_6 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 62 
+src_canopy_water_level_7 dst_canopy_water_level_7 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 63 
+src_canopy_water_level_8 dst_canopy_water_level_8 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 64 
+src_canopy_water_level_9 dst_canopy_water_level_9 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 65 
+src_canopy_water_level_10 dst_canopy_water_level_10 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 66 
+src_canopy_water_level_11 dst_canopy_water_level_11 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 67 
+src_sea_ice_thickness_level_1 dst_sea_ice_thickness_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 68 
+src_sea_ice_temperature_level_1 dst_sea_ice_temperature_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 69 
+src_soil_temperature_level_1 dst_soil_temperature_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 70 
+src_soil_temperature_level_2 dst_soil_temperature_level_2 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 71 
+src_soil_temperature_level_3 dst_soil_temperature_level_3 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 72 
+src_soil_temperature_level_4 dst_soil_temperature_level_4 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 73 
+src_soil_moisture_level_1 dst_soil_moisture_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 74 
+src_soil_moisture_level_2 dst_soil_moisture_level_2 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 75 
+src_soil_moisture_level_3 dst_soil_moisture_level_3 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 76 
+src_soil_moisture_level_4 dst_soil_moisture_level_4 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 77 
+src_unfrozen_soil_moisture_level_1 dst_unfrozen_soil_moisture_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 78 
+src_unfrozen_soil_moisture_level_2 dst_unfrozen_soil_moisture_level_2 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 79 
+src_unfrozen_soil_moisture_level_3 dst_unfrozen_soil_moisture_level_3 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 80 
+src_unfrozen_soil_moisture_level_4 dst_unfrozen_soil_moisture_level_4 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 81 
+src_frozen_soil_moisture_level_1 dst_frozen_soil_moisture_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 82 
+src_frozen_soil_moisture_level_2 dst_frozen_soil_moisture_level_2 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 83 
+src_frozen_soil_moisture_level_3 dst_frozen_soil_moisture_level_3 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 84 
+src_frozen_soil_moisture_level_4 dst_frozen_soil_moisture_level_4 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 85 
+src_tile_snow_mass_level_1 dst_tile_snow_mass_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 86 
+src_tile_snow_mass_level_2 dst_tile_snow_mass_level_2 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 87 
+src_tile_snow_mass_level_3 dst_tile_snow_mass_level_3 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 88 
+src_tile_snow_mass_level_4 dst_tile_snow_mass_level_4 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 89 
+src_tile_snow_mass_level_5 dst_tile_snow_mass_level_5 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 90 
+src_tile_snow_mass_level_6 dst_tile_snow_mass_level_6 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 91 
+src_tile_snow_mass_level_7 dst_tile_snow_mass_level_7 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 92 
+src_tile_snow_mass_level_8 dst_tile_snow_mass_level_8 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 93 
+src_tile_snow_mass_level_9 dst_tile_snow_mass_level_9 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 94 
+src_tile_snow_mass_level_10 dst_tile_snow_mass_level_10 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 95 
+src_tile_snow_mass_level_11 dst_tile_snow_mass_level_11 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 96 
+src_tile_snow_rgrain_level_1 dst_tile_snow_rgrain_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 97 
+src_tile_snow_rgrain_level_2 dst_tile_snow_rgrain_level_2 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 98 
+src_tile_snow_rgrain_level_3 dst_tile_snow_rgrain_level_3 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 99 
+src_tile_snow_rgrain_level_4 dst_tile_snow_rgrain_level_4 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 100 
+src_tile_snow_rgrain_level_5 dst_tile_snow_rgrain_level_5 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 101 
+src_tile_snow_rgrain_level_6 dst_tile_snow_rgrain_level_6 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 102 
+src_tile_snow_rgrain_level_7 dst_tile_snow_rgrain_level_7 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 103 
+src_tile_snow_rgrain_level_8 dst_tile_snow_rgrain_level_8 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 104 
+src_tile_snow_rgrain_level_9 dst_tile_snow_rgrain_level_9 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 105 
+src_tile_snow_rgrain_level_10 dst_tile_snow_rgrain_level_10 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 106 
+src_tile_snow_rgrain_level_11 dst_tile_snow_rgrain_level_11 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 107 
+src_n_snow_layers_level_1 dst_n_snow_layers_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 108 
+src_n_snow_layers_level_2 dst_n_snow_layers_level_2 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 109 
+src_n_snow_layers_level_3 dst_n_snow_layers_level_3 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 110 
+src_n_snow_layers_level_4 dst_n_snow_layers_level_4 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 111 
+src_n_snow_layers_level_5 dst_n_snow_layers_level_5 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 112 
+src_n_snow_layers_level_6 dst_n_snow_layers_level_6 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 113 
+src_n_snow_layers_level_7 dst_n_snow_layers_level_7 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 114 
+src_n_snow_layers_level_8 dst_n_snow_layers_level_8 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 115 
+src_n_snow_layers_level_9 dst_n_snow_layers_level_9 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 116 
+src_n_snow_layers_level_10 dst_n_snow_layers_level_10 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 117 
+src_n_snow_layers_level_11 dst_n_snow_layers_level_11 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 118 
+src_snow_depth_level_1 dst_snow_depth_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 119 
+src_snow_depth_level_2 dst_snow_depth_level_2 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 120 
+src_snow_depth_level_3 dst_snow_depth_level_3 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 121 
+src_snow_depth_level_4 dst_snow_depth_level_4 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 122 
+src_snow_depth_level_5 dst_snow_depth_level_5 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 123 
+src_snow_depth_level_6 dst_snow_depth_level_6 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 124 
+src_snow_depth_level_7 dst_snow_depth_level_7 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 125 
+src_snow_depth_level_8 dst_snow_depth_level_8 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 126 
+src_snow_depth_level_9 dst_snow_depth_level_9 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 127 
+src_snow_depth_level_10 dst_snow_depth_level_10 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 128 
+src_snow_depth_level_11 dst_snow_depth_level_11 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 129 
+src_snowpack_density_level_1 dst_snowpack_density_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 130 
+src_snowpack_density_level_2 dst_snowpack_density_level_2 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 131 
+src_snowpack_density_level_3 dst_snowpack_density_level_3 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 132 
+src_snowpack_density_level_4 dst_snowpack_density_level_4 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 133 
+src_snowpack_density_level_5 dst_snowpack_density_level_5 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 134 
+src_snowpack_density_level_6 dst_snowpack_density_level_6 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 135 
+src_snowpack_density_level_7 dst_snowpack_density_level_7 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 136 
+src_snowpack_density_level_8 dst_snowpack_density_level_8 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 137 
+src_snowpack_density_level_9 dst_snowpack_density_level_9 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 138 
+src_snowpack_density_level_10 dst_snowpack_density_level_10 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 139 
+src_snowpack_density_level_11 dst_snowpack_density_level_11 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 140 
+src_snow_under_canopy_level_1 dst_snow_under_canopy_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 141 
+src_snow_under_canopy_level_2 dst_snow_under_canopy_level_2 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 142 
+src_snow_under_canopy_level_3 dst_snow_under_canopy_level_3 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 143 
+src_snow_under_canopy_level_4 dst_snow_under_canopy_level_4 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 144 
+src_snow_under_canopy_level_5 dst_snow_under_canopy_level_5 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 145 
+src_snow_under_canopy_level_6 dst_snow_under_canopy_level_6 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 146 
+src_snow_under_canopy_level_7 dst_snow_under_canopy_level_7 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 147 
+src_snow_under_canopy_level_8 dst_snow_under_canopy_level_8 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 148 
+src_snow_under_canopy_level_9 dst_snow_under_canopy_level_9 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 149 
+src_snow_under_canopy_level_10 dst_snow_under_canopy_level_10 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 150 
+src_snow_under_canopy_level_11 dst_snow_under_canopy_level_11 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 151 
+src_snow_layer_thickness_level_1 dst_snow_layer_thickness_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 152 
+src_snow_layer_thickness_level_2 dst_snow_layer_thickness_level_2 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 153 
+src_snow_layer_thickness_level_3 dst_snow_layer_thickness_level_3 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 154 
+src_snow_layer_thickness_level_4 dst_snow_layer_thickness_level_4 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 155 
+src_snow_layer_thickness_level_5 dst_snow_layer_thickness_level_5 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 156 
+src_snow_layer_thickness_level_6 dst_snow_layer_thickness_level_6 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 157 
+src_snow_layer_thickness_level_7 dst_snow_layer_thickness_level_7 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 158 
+src_snow_layer_thickness_level_8 dst_snow_layer_thickness_level_8 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 159 
+src_snow_layer_thickness_level_9 dst_snow_layer_thickness_level_9 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 160 
+src_snow_layer_thickness_level_10 dst_snow_layer_thickness_level_10 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 161 
+src_snow_layer_thickness_level_11 dst_snow_layer_thickness_level_11 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 162 
+src_snow_layer_thickness_level_12 dst_snow_layer_thickness_level_12 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 163 
+src_snow_layer_thickness_level_13 dst_snow_layer_thickness_level_13 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 164 
+src_snow_layer_thickness_level_14 dst_snow_layer_thickness_level_14 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 165 
+src_snow_layer_thickness_level_15 dst_snow_layer_thickness_level_15 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 166 
+src_snow_layer_thickness_level_16 dst_snow_layer_thickness_level_16 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 167 
+src_snow_layer_thickness_level_17 dst_snow_layer_thickness_level_17 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 168 
+src_snow_layer_thickness_level_18 dst_snow_layer_thickness_level_18 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 169 
+src_snow_layer_thickness_level_19 dst_snow_layer_thickness_level_19 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 170 
+src_snow_layer_thickness_level_20 dst_snow_layer_thickness_level_20 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 171 
+src_snow_layer_thickness_level_21 dst_snow_layer_thickness_level_21 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 172 
+src_snow_layer_thickness_level_22 dst_snow_layer_thickness_level_22 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 173 
+src_snow_layer_thickness_level_23 dst_snow_layer_thickness_level_23 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 174 
+src_snow_layer_thickness_level_24 dst_snow_layer_thickness_level_24 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 175 
+src_snow_layer_thickness_level_25 dst_snow_layer_thickness_level_25 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 176 
+src_snow_layer_thickness_level_26 dst_snow_layer_thickness_level_26 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 177 
+src_snow_layer_thickness_level_27 dst_snow_layer_thickness_level_27 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 178 
+src_snow_layer_ice_mass_level_1 dst_snow_layer_ice_mass_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 179 
+src_snow_layer_ice_mass_level_2 dst_snow_layer_ice_mass_level_2 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 180 
+src_snow_layer_ice_mass_level_3 dst_snow_layer_ice_mass_level_3 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 181 
+src_snow_layer_ice_mass_level_4 dst_snow_layer_ice_mass_level_4 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 182 
+src_snow_layer_ice_mass_level_5 dst_snow_layer_ice_mass_level_5 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 183 
+src_snow_layer_ice_mass_level_6 dst_snow_layer_ice_mass_level_6 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 184 
+src_snow_layer_ice_mass_level_7 dst_snow_layer_ice_mass_level_7 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 185 
+src_snow_layer_ice_mass_level_8 dst_snow_layer_ice_mass_level_8 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 186 
+src_snow_layer_ice_mass_level_9 dst_snow_layer_ice_mass_level_9 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 187 
+src_snow_layer_ice_mass_level_10 dst_snow_layer_ice_mass_level_10 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 188 
+src_snow_layer_ice_mass_level_11 dst_snow_layer_ice_mass_level_11 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 189 
+src_snow_layer_ice_mass_level_12 dst_snow_layer_ice_mass_level_12 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 190 
+src_snow_layer_ice_mass_level_13 dst_snow_layer_ice_mass_level_13 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 191 
+src_snow_layer_ice_mass_level_14 dst_snow_layer_ice_mass_level_14 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 192 
+src_snow_layer_ice_mass_level_15 dst_snow_layer_ice_mass_level_15 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 193 
+src_snow_layer_ice_mass_level_16 dst_snow_layer_ice_mass_level_16 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 194 
+src_snow_layer_ice_mass_level_17 dst_snow_layer_ice_mass_level_17 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 195 
+src_snow_layer_ice_mass_level_18 dst_snow_layer_ice_mass_level_18 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 196 
+src_snow_layer_ice_mass_level_19 dst_snow_layer_ice_mass_level_19 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 197 
+src_snow_layer_ice_mass_level_20 dst_snow_layer_ice_mass_level_20 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 198 
+src_snow_layer_ice_mass_level_21 dst_snow_layer_ice_mass_level_21 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 199 
+src_snow_layer_ice_mass_level_22 dst_snow_layer_ice_mass_level_22 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 200 
+src_snow_layer_ice_mass_level_23 dst_snow_layer_ice_mass_level_23 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 201 
+src_snow_layer_ice_mass_level_24 dst_snow_layer_ice_mass_level_24 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 202 
+src_snow_layer_ice_mass_level_25 dst_snow_layer_ice_mass_level_25 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 203 
+src_snow_layer_ice_mass_level_26 dst_snow_layer_ice_mass_level_26 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 204 
+src_snow_layer_ice_mass_level_27 dst_snow_layer_ice_mass_level_27 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 205 
+src_snow_layer_liq_mass_level_1 dst_snow_layer_liq_mass_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 206 
+src_snow_layer_liq_mass_level_2 dst_snow_layer_liq_mass_level_2 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 207 
+src_snow_layer_liq_mass_level_3 dst_snow_layer_liq_mass_level_3 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 208 
+src_snow_layer_liq_mass_level_4 dst_snow_layer_liq_mass_level_4 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 209 
+src_snow_layer_liq_mass_level_5 dst_snow_layer_liq_mass_level_5 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 210 
+src_snow_layer_liq_mass_level_6 dst_snow_layer_liq_mass_level_6 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 211 
+src_snow_layer_liq_mass_level_7 dst_snow_layer_liq_mass_level_7 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 212 
+src_snow_layer_liq_mass_level_8 dst_snow_layer_liq_mass_level_8 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 213 
+src_snow_layer_liq_mass_level_9 dst_snow_layer_liq_mass_level_9 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 214 
+src_snow_layer_liq_mass_level_10 dst_snow_layer_liq_mass_level_10 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 215 
+src_snow_layer_liq_mass_level_11 dst_snow_layer_liq_mass_level_11 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 216 
+src_snow_layer_liq_mass_level_12 dst_snow_layer_liq_mass_level_12 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 217 
+src_snow_layer_liq_mass_level_13 dst_snow_layer_liq_mass_level_13 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 218 
+src_snow_layer_liq_mass_level_14 dst_snow_layer_liq_mass_level_14 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 219 
+src_snow_layer_liq_mass_level_15 dst_snow_layer_liq_mass_level_15 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 220 
+src_snow_layer_liq_mass_level_16 dst_snow_layer_liq_mass_level_16 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 221 
+src_snow_layer_liq_mass_level_17 dst_snow_layer_liq_mass_level_17 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 222 
+src_snow_layer_liq_mass_level_18 dst_snow_layer_liq_mass_level_18 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 223 
+src_snow_layer_liq_mass_level_19 dst_snow_layer_liq_mass_level_19 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 224 
+src_snow_layer_liq_mass_level_20 dst_snow_layer_liq_mass_level_20 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 225 
+src_snow_layer_liq_mass_level_21 dst_snow_layer_liq_mass_level_21 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 226 
+src_snow_layer_liq_mass_level_22 dst_snow_layer_liq_mass_level_22 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 227 
+src_snow_layer_liq_mass_level_23 dst_snow_layer_liq_mass_level_23 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 228 
+src_snow_layer_liq_mass_level_24 dst_snow_layer_liq_mass_level_24 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 229 
+src_snow_layer_liq_mass_level_25 dst_snow_layer_liq_mass_level_25 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 230 
+src_snow_layer_liq_mass_level_26 dst_snow_layer_liq_mass_level_26 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 231 
+src_snow_layer_liq_mass_level_27 dst_snow_layer_liq_mass_level_27 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 232 
+src_snow_layer_temp_level_1 dst_snow_layer_temp_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 233 
+src_snow_layer_temp_level_2 dst_snow_layer_temp_level_2 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 234 
+src_snow_layer_temp_level_3 dst_snow_layer_temp_level_3 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 235 
+src_snow_layer_temp_level_4 dst_snow_layer_temp_level_4 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 236 
+src_snow_layer_temp_level_5 dst_snow_layer_temp_level_5 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 237 
+src_snow_layer_temp_level_6 dst_snow_layer_temp_level_6 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 238 
+src_snow_layer_temp_level_7 dst_snow_layer_temp_level_7 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 239 
+src_snow_layer_temp_level_8 dst_snow_layer_temp_level_8 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 240 
+src_snow_layer_temp_level_9 dst_snow_layer_temp_level_9 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 241 
+src_snow_layer_temp_level_10 dst_snow_layer_temp_level_10 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 242 
+src_snow_layer_temp_level_11 dst_snow_layer_temp_level_11 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 243 
+src_snow_layer_temp_level_12 dst_snow_layer_temp_level_12 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 244 
+src_snow_layer_temp_level_13 dst_snow_layer_temp_level_13 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 245 
+src_snow_layer_temp_level_14 dst_snow_layer_temp_level_14 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 246 
+src_snow_layer_temp_level_15 dst_snow_layer_temp_level_15 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 247 
+src_snow_layer_temp_level_16 dst_snow_layer_temp_level_16 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 248 
+src_snow_layer_temp_level_17 dst_snow_layer_temp_level_17 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 249 
+src_snow_layer_temp_level_18 dst_snow_layer_temp_level_18 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 250 
+src_snow_layer_temp_level_19 dst_snow_layer_temp_level_19 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 251 
+src_snow_layer_temp_level_20 dst_snow_layer_temp_level_20 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 252 
+src_snow_layer_temp_level_21 dst_snow_layer_temp_level_21 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 253 
+src_snow_layer_temp_level_22 dst_snow_layer_temp_level_22 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 254 
+src_snow_layer_temp_level_23 dst_snow_layer_temp_level_23 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 255 
+src_snow_layer_temp_level_24 dst_snow_layer_temp_level_24 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 256 
+src_snow_layer_temp_level_25 dst_snow_layer_temp_level_25 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 257 
+src_snow_layer_temp_level_26 dst_snow_layer_temp_level_26 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 258 
+src_snow_layer_temp_level_27 dst_snow_layer_temp_level_27 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 259 
+src_snow_layer_rgrain_level_1 dst_snow_layer_rgrain_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 260 
+src_snow_layer_rgrain_level_2 dst_snow_layer_rgrain_level_2 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 261 
+src_snow_layer_rgrain_level_3 dst_snow_layer_rgrain_level_3 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 262 
+src_snow_layer_rgrain_level_4 dst_snow_layer_rgrain_level_4 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 263 
+src_snow_layer_rgrain_level_5 dst_snow_layer_rgrain_level_5 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 264 
+src_snow_layer_rgrain_level_6 dst_snow_layer_rgrain_level_6 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 265 
+src_snow_layer_rgrain_level_7 dst_snow_layer_rgrain_level_7 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 266 
+src_snow_layer_rgrain_level_8 dst_snow_layer_rgrain_level_8 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 267 
+src_snow_layer_rgrain_level_9 dst_snow_layer_rgrain_level_9 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 268 
+src_snow_layer_rgrain_level_10 dst_snow_layer_rgrain_level_10 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 269 
+src_snow_layer_rgrain_level_11 dst_snow_layer_rgrain_level_11 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 270 
+src_snow_layer_rgrain_level_12 dst_snow_layer_rgrain_level_12 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 271 
+src_snow_layer_rgrain_level_13 dst_snow_layer_rgrain_level_13 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 272 
+src_snow_layer_rgrain_level_14 dst_snow_layer_rgrain_level_14 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 273 
+src_snow_layer_rgrain_level_15 dst_snow_layer_rgrain_level_15 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 274 
+src_snow_layer_rgrain_level_16 dst_snow_layer_rgrain_level_16 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 275 
+src_snow_layer_rgrain_level_17 dst_snow_layer_rgrain_level_17 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 276 
+src_snow_layer_rgrain_level_18 dst_snow_layer_rgrain_level_18 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 277 
+src_snow_layer_rgrain_level_19 dst_snow_layer_rgrain_level_19 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 278 
+src_snow_layer_rgrain_level_20 dst_snow_layer_rgrain_level_20 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 279 
+src_snow_layer_rgrain_level_21 dst_snow_layer_rgrain_level_21 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 280 
+src_snow_layer_rgrain_level_22 dst_snow_layer_rgrain_level_22 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 281 
+src_snow_layer_rgrain_level_23 dst_snow_layer_rgrain_level_23 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 282 
+src_snow_layer_rgrain_level_24 dst_snow_layer_rgrain_level_24 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 283 
+src_snow_layer_rgrain_level_25 dst_snow_layer_rgrain_level_25 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 284 
+src_snow_layer_rgrain_level_26 dst_snow_layer_rgrain_level_26 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+# Mapping entry 285 
+src_snow_layer_rgrain_level_27 dst_snow_layer_rgrain_level_27 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
+512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
+R 0 R 0 
+MAPPING 
+weight_file_masked.nc 
+########################################################## 
+$END 
+########################################################## 
