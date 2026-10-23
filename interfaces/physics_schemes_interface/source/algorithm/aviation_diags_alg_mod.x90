@@ -9,6 +9,7 @@ module aviation_diags_alg_mod
 
   use aviation_thickness_snow_kernel_mod,                                   &
                                       only: aviation_thickness_snow_kernel_type
+  use config_mod,                     only: config_type
   use constants_mod,                  only: r_def, i_def, l_def, str_long, RMDI
   use dg_matrix_vector_kernel_mod,    only: dg_matrix_vector_kernel_type
   use field_collection_mod,           only: field_collection_type
@@ -40,30 +41,33 @@ public :: aviation_diags_alg
 contains
 
   !> @brief Calculate aviation diagnostics.
-  !> @param[in]     plev_geopot        Geopotential height at pressure levels in m.
-  !>                                   including cloud base and top pressures.
+  !> @param[in]     config            Application configuration object
+  !> @param[in]     mesh              Mesh object
+  !> @param[in]     plev_geopot       Geopotential height at pressure levels in m.
+  !>                                  including cloud base and top pressures.
   !> @param[in]     wind              3D wind field on W2
   !> @param[in]     exner_w3          Exner pressure on W3
-  !> @param[in]     main_mesh         Primary mesh pointer
   !> @param[in]     element_order_h   Element order in the horizontal
   !> @param[in]     element_order_v   Element order in the vertical
-  subroutine aviation_diags_alg(plev_geopot,                                &
-          wind, exner_w3, main_mesh, element_order_h, element_order_v)
+  subroutine aviation_diags_alg(config, mesh, &
+                 plev_geopot, wind, exner_w3, element_order_h, element_order_v)
     implicit none
 
-    ! Arguments
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
+
+    ! Argument
     type(field_type),    intent(in)          :: plev_geopot
     type(field_type),    intent(in)          :: wind
     type(field_type),    intent(in)          :: exner_w3
-    type(mesh_type),     intent(in), pointer :: main_mesh
     integer(kind=i_def), intent(in)          :: element_order_h, element_order_v
 
     ! Calculate geopotential thickness and snow probbability.
     call from_plev_geopot(plev_geopot)
 
     ! Calculate uv wind divergence.
-    call write_horizontal_divergence_diagnostic( &
-        wind, exner_w3, main_mesh, element_order_h, element_order_v)
+    call write_horizontal_divergence_diagnostic( config, mesh, &
+        wind, exner_w3, element_order_h, element_order_v )
 
   end subroutine aviation_diags_alg
 
@@ -188,20 +192,23 @@ contains
 
 
   !> @brief Calculate and write horizontal divergence on pressure levels.
+  !> @param[in]     config            Application configuration object
+  !> @param[in]     mesh              Mesh object
   !> @param[in]     wind              3D wind field on W2
   !> @param[in]     exner_w3          Exner pressure on W3
-  !> @param[in]     main_mesh         Primary mesh pointer
   !> @param[in]     element_order_h   Element order in the horizontal
   !> @param[in]     element_order_v   Element order in the vertical
-  subroutine write_horizontal_divergence_diagnostic( &
-          wind, exner_w3, main_mesh, element_order_h, element_order_v)
+  subroutine write_horizontal_divergence_diagnostic( config, mesh, &
+          wind, exner_w3, element_order_h, element_order_v)
 
     implicit none
 
     ! Arguments
-    type(field_type),    intent(in)          :: wind
-    type(field_type),    intent(in)          :: exner_w3
-    type(mesh_type),     intent(in), pointer :: main_mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
+    type(field_type),  intent(in) :: wind
+    type(field_type),  intent(in) :: exner_w3
+
     integer(kind=i_def), intent(in)          :: element_order_h, element_order_v
 
     ! Locals
@@ -224,8 +231,7 @@ contains
 
     ! Get the horizontal div operator matrix for this mesh.
     ! We get transport precision because there's no r_def version.
-    div_op_r_tran => get_directional_im3_div_r_tran( wind%get_mesh_id(), &
-                                                     direction_h )
+    div_op_r_tran => get_directional_im3_div_r_tran( config, mesh, direction_h )
 
     ! Convert the operator to r_def precision.
     call div_op%initialise( div_op_r_tran%get_fs_to(), &
@@ -237,9 +243,9 @@ contains
     face_selector_ns => get_face_selector_ns(wind%get_mesh())
 
     call wind_h%initialise( function_space_collection%get_fs( &
-        main_mesh, element_order_h, element_order_v, W2h ))
+        mesh, element_order_h, element_order_v, W2h ))
     call wind_v%initialise( function_space_collection%get_fs( &
-        main_mesh, element_order_h, element_order_v, W2v ))
+        mesh, element_order_h, element_order_v, W2v ))
 
     call invoke( split_w2_field_kernel_type( &
         wind_h, wind_v, wind, face_selector_ew, face_selector_ns ))
@@ -247,7 +253,7 @@ contains
 
     ! Multiply the wind by the div operator matrix to get the div.
     call div_ml%initialise( function_space_collection%get_fs( &
-        main_mesh, element_order_h, element_order_v, W3 ))
+        mesh, element_order_h, element_order_v, W3 ))
     call invoke(dg_matrix_vector_kernel_type(div_ml, wind_h, div_op))
 
     ! Units are s**-1, for convenience scaled by 1.0E6
