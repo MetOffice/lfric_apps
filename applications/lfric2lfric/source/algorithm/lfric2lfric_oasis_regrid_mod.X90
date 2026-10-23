@@ -224,6 +224,9 @@ contains
     call invoke(setval_c(field_dst, 0.0_r_def))
 
 #ifdef MCT
+
+    l = 0
+
     fs = field_src%which_function_space()
     mesh_src => field_src%get_mesh()
 
