@@ -89,21 +89,21 @@ contains
     temperature_correction_rate = -energy_discrepancy /                        &
                                    ( cv * total_dry_mass * correction_period )
 
-    write(log_scratch_space, '(''total_dry_mass = '', e30.22)') total_dry_mass
+    write(log_scratch_space, "('total_dry_mass = ', e30.22)") total_dry_mass
     call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
 
-    write(log_scratch_space, '(''energy_discrepancy = '', e30.22)') &
+    write(log_scratch_space, "('energy_discrepancy = ', e30.22)") &
                                  energy_discrepancy
     call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
 
-    write(log_scratch_space, '(''total_energy = '', e30.22)') total_energy
+    write(log_scratch_space, "('total_energy = ', e30.22)") total_energy
     call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
 
-    write(log_scratch_space, '(''net_energy_source = '', e30.22)') &
+    write(log_scratch_space, "('net_energy_source = ', e30.22)") &
                                  net_energy_source
     call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
 
-    write(log_scratch_space, '(''surf_heat = '', e30.22)') surf_heat
+    write(log_scratch_space, "('surf_heat = ', e30.22)") surf_heat
     call log_event(log_scratch_space, LOG_LEVEL_INFO)
 
     call invoke( setval_c(accumulated_fluxes, 0.0_r_def) )

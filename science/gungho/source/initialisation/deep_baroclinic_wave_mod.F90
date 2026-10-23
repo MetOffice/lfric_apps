@@ -103,7 +103,7 @@ contains
     if ( shallow ) then
       rratio = 1.0_r_def
     else
-      rratio = (z + scaled_radius) / scaled_radius;
+      rratio = (z + scaled_radius) / scaled_radius
     end if
 
 !-----------------------------------------------------------------------
