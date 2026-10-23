@@ -13,6 +13,7 @@ module lfric2lfric_regrid_mod
                                       topology_non_periodic
   use constants_mod,            only: str_def, i_def
   use driver_modeldb_mod,       only: modeldb_type
+  use extrusion_mod,            only: TWOD
   use field_parent_mod,         only: field_parent_type
   use field_mod,                only: field_type
   use field_collection_mod,     only: field_collection_type
@@ -91,7 +92,8 @@ contains
     type(function_space_type), pointer :: fs_w3_src, fs_w3_dst
     type(function_space_type), pointer :: fs_wth_src, fs_wth_dst
     type(mesh_type),           pointer :: mesh_dst
-
+    type(mesh_type),           pointer :: mesh_src
+    
     character(len=str_def)   :: mesh_names(2)
     integer(kind=i_def)      :: element_order_h
     integer(kind=i_def)      :: element_order_v
@@ -103,8 +105,8 @@ contains
     integer(kind=i_def), parameter :: dst = 1
     integer(kind=i_def), parameter :: src = 2
 
-    integer(i_def)    :: ndata
-    type(function_space_type),  pointer    :: vector_space => null()
+!    integer(i_def)    :: ndata
+!    type(function_space_type),  pointer    :: vector_space => null()
     
     ! Obtain namelist parameters
     mesh_names(dst) = 'dst_'//trim(modeldb%config%lfric2lfric%destination_mesh_name())
@@ -227,12 +229,14 @@ contains
 
         if ( source_fields%field_exists(trim(field_name)) ) then
           call source_fields%get_field(field_name, field_src)
-        
-          vector_space => field_src%get_function_space()
-          ndata = vector_space%get_ndata()
 
-          print*,'ndata', ndata
-          if ( ndata > 1 ) then
+          mesh_src => field_src%get_mesh()
+          if ( mesh_src%get_extrusion_id() == TWOD ) then
+!          vector_space => field_src%get_function_space()
+!          ndata = vector_space%get_ndata()
+
+          !print*,'ndata', ndata
+          !if ( ndata > 1 ) then
              write(log_scratch_space, '(A,A)') "Processing multidata lfric field ", &
                                              trim(field_name)
             call log_event(log_scratch_space, log_level_info)
@@ -258,10 +262,12 @@ contains
         if ( source_fields%field_exists(trim(field_name)) ) then
           call source_fields%get_field(field_name, field_src)
         
-          vector_space => field_src%get_function_space()
-          ndata = vector_space%get_ndata()
+!          vector_space => field_src%get_function_space()
+!          ndata = vector_space%get_ndata()
 
-          if ( ndata == 1 ) then
+          mesh_src => field_src%get_mesh()
+          if ( mesh_src%get_extrusion_id() /= TWOD ) then
+!          if ( ndata == 1 ) then
 
             write(log_scratch_space, '(A,A)') "Processing lfric field ", &
                                              trim(field_name)

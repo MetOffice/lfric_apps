@@ -95,10 +95,13 @@ def process_multidata_field(f, field, count):
     then write the entry to the namcouple file.
     """
     var = field.get("id")
+    domain = field.get("domain_ref")
     axis = field.get("axis_ref")
     write_var = var.replace(PREFIX_OUT, '')
     
-    if axis is not None:
+    if domain == "face":
+        if axis is None:
+            axis = 'general'
         try:
             axis_data = AXIS_MAP[axis]
         except KeyError:
@@ -136,8 +139,11 @@ def count_special_fields(field_list):
     """
     count = 0
     for field in field_list:
-        axis = field.get("axis_ref")
-        if axis is not None:
+        domain = field.get("domain_ref")
+        if domain == "face":
+            axis = field.get("axis_ref")
+            if axis is None:
+                axis = 'general'
             try:
                 axis_data = AXIS_MAP[axis]
             except KeyError:

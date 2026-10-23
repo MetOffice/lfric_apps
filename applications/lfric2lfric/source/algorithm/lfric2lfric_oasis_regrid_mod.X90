@@ -116,7 +116,7 @@ contains
       ndata = vector_space%get_ndata()
       field_name = field_src%get_name()
 
-      if ( ndata == 1 ) then
+      if ( mesh_src%get_extrusion_id() /= TWOD ) then
 
         coupling_src_name = "coupling"
         coupling_dst_name = "coupling_dst"
@@ -244,7 +244,7 @@ contains
       coupling_src_name = "coupling"
       coupling_dst_name = "coupling_dst"
 
-      if ( ndata > 1 ) then
+      if ( mesh_src%get_extrusion_id() == TWOD ) then
         do k = 0, ndata - 1
           print*,'k',k
           if (k+1 < 10) then
