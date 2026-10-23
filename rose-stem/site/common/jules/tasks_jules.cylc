@@ -9,11 +9,11 @@
 {# Single column jobs #}
 {# ###################################################################### #}
 
-{% if task_ns.conf_name == "dice2-BiP2x2-50000x50000" %}
+{% if task_ns.conf_name == "dice2-1x1-50000x50000" %}
 
     {% do task_dict.update({
         "opt_confs": [],
-        "resolution": "BiP2x2-50000x50000",
+        "resolution": "1x1-50000x50000",
         "DT": 600,
         "tsteps": 432,
         "wallclock": 5,

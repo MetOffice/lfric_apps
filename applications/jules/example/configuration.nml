@@ -1,11 +1,11 @@
 &base_mesh
 f_lat_deg=37.65,
-file_prefix='mesh_BiP2x2-50000x50000',
+file_prefix='mesh_1x1-50000x50000',
 fplane=.false.,
 geometry='planar',
 prepartitioned=.false.,
 prime_mesh_name='dynamics',
-topology='fully_periodic',
+topology='non_periodic',
 /
 &section_choice
 aerosol='none',
