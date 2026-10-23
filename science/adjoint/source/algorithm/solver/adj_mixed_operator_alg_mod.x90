@@ -205,7 +205,7 @@ contains
           ! Create fields in 3D W2 space
           p_h = x%vector(isol_u)%get_element_order_h()
           p_v = x%vector(isol_u)%get_element_order_v()
-           u_fs => function_space_collection%get_fs( mesh, p_h, p_v, W2 )
+          u_fs => function_space_collection%get_fs( mesh, p_h, p_v, W2 )
           call x_uvw%initialise(vector_space=u_fs)
           call y_uvw%initialise(vector_space=u_fs)
           call invoke( setval_c( y_uvw , 0.0_r_solver ), &

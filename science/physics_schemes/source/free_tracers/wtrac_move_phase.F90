@@ -56,7 +56,7 @@ integer, parameter :: field_kind = real_64
 
 character(len=*), parameter :: RoutineName='WTRAC_MOVE_PHASE_REAL64'
 
-#include "wtrac_move_phase.h"
+#include "include/wtrac_move_phase.h"
 
 return
 end subroutine wtrac_move_phase_real64
@@ -74,7 +74,7 @@ integer, parameter :: field_kind = real_32
 
 character(len=*), parameter :: RoutineName='WTRAC_MOVE_PHASE_REAL32'
 
-#include "wtrac_move_phase.h"
+#include "include/wtrac_move_phase.h"
 
 return
 end subroutine wtrac_move_phase_real32

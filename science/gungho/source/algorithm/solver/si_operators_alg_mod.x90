@@ -526,7 +526,11 @@ contains
     use planet_config_mod,                    only: kappa, rd, p_zero
     use reference_element_mod,                only: reference_element_type
     use mesh_mod,                             only: mesh_type
-    use formulation_config_mod,               only: dry_static_adjust
+    use matrix_vector_kernel_mod,             only: matrix_vector_kernel_type
+    use dg_inc_matrix_vector_kernel_mod,      only: dg_inc_matrix_vector_kernel_type
+    use formulation_config_mod,               only: dlayer_on,                 &
+                                                    lagged_orog,               &
+                                                    dry_static_adjust
     use sci_sort_ref_kernel_mod,              only: sort_ref_kernel_type
     use sample_eliminated_theta_q32_kernel_mod, &
                                  only: sample_eliminated_theta_q32_kernel_type
