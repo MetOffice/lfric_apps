@@ -13,6 +13,7 @@
         "lfric_atm_nwp_gal9-C12_azspice_gnu_fast-debug-32bit",
         "lfric_atm_nwp_gal9-C12_azspice_gnu_fast-debug-64bit",
         "lfric_atm_nwp_gal9-C12_azspice_gnu_production-32bit",
+        "lfric_atm_nwp_gal9_snow_fd_start_surf-C12_azspice_gnu_fast-debug-32bit",
         "lfric_atm_nwp_gal9_debug-C12_azspice_gnu_full-debug-32bit",
         "lfric_atm_nwp_gal9_short-C12_azspice_gnu_fast-debug-32bit",
     ],
@@ -50,7 +51,6 @@
         "lfric_atm_scm_gal9_sahara-BiP2x2-50000x50000_azspice_gnu_fast-debug-32bit",
         "lfric_atm_scm_gal9_seaice-BiP2x2-50000x50000_azspice_gnu_fast-debug-32bit",
         "lfric_atm_scm_gal9_snow-BiP2x2-50000x50000_azspice_gnu_fast-debug-32bit",
-        "lfric_atm_scm_gal9_snow_fd_start_surf-BiP2x2-50000x50000_azspice_gnu_fast-debug-32bit",
         "lfric_atm_scm_gal9_toga-BiP2x2-50000x50000_azspice_gnu_fast-debug-32bit",
         "lfric_atm_scm_coma9_toga-BiP2x2-50000x50000_azspice_gnu_fast-debug-32bit",
         "lfric_atm_scm_comorph_dev_toga-BiP2x2-50000x50000_azspice_gnu_fast-debug-32bit",
@@ -114,6 +114,7 @@
 {% do site_groups.update({
     "lfric_atm_nwp_ex1a_developer": [
         "lfric_atm_nwp_gal9-C12_ex1a_cce_fast-debug-32bit",
+        "lfric_atm_nwp_gal9_snow_fd_start_surf-C12_ex1a_cce_fast-debug-32bit",
         "lfric_atm_nwp_gal9-C12_ex1a_cce_fast-debug-64bit",
         "lfric_atm_nwp_gal9-C12_ex1a_cce_production-32bit",
         "lfric_atm_nwp_gal9_debug-C12_ex1a_cce_full-debug-32bit",
@@ -165,7 +166,6 @@
         "lfric_atm_scm_gal9_sahara-BiP2x2-50000x50000_ex1a_cce_fast-debug-32bit",
         "lfric_atm_scm_gal9_seaice-BiP2x2-50000x50000_ex1a_cce_fast-debug-32bit",
         "lfric_atm_scm_gal9_snow-BiP2x2-50000x50000_ex1a_cce_fast-debug-32bit",
-        "lfric_atm_scm_gal9_snow_fd_start_surf-BiP2x2-50000x50000_ex1a_cce_fast-debug-32bit",
         "lfric_atm_scm_gal9_toga-BiP2x2-50000x50000_ex1a_cce_fast-debug-32bit",
         "lfric_atm_scm_coma9_toga-BiP2x2-50000x50000_ex1a_cce_fast-debug-32bit",
         "lfric_atm_scm_comorph_dev_toga-BiP2x2-50000x50000_ex1a_cce_fast-debug-32bit",

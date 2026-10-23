@@ -24,6 +24,21 @@
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
+{% elif task_ns.conf_name == "nwp_gal9_snow_fd_start_surf-C12" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["um_dump","snow_fd_start_surf"],
+        "resolution": "C12",
+        "DT": 1800,
+        "tsteps": 144,
+        "crun": 2,
+        "crun_compare": false,
+        "metadata_test": true,
+        "mpi_parts": 6,
+        "kgo_checks": ["checksum"],
+        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
+    }) %}
+
 {% elif task_ns.conf_name == "nwp_gal9-C48_MG" %}
 
     {% do task_dict.update({
@@ -447,7 +462,7 @@
         "DT": 1800,
         "tsteps": 4,
         "mpi_parts": 6,
-        "log_level": "info",
+        "log_level": "trace",
         "kgo_checks": ["checksum"],
     }) %}
 
@@ -1028,18 +1043,6 @@
 
     {% do task_dict.update({
         "opt_confs": ["l70_40km","no_aerosol","dice2","snow_init"],
-        "resolution": "BiP2x2-50000x50000",
-        "DT": 600,
-        "tsteps": 432,
-        "wallclock": 5,
-        "kgo_checks": ["checksum"],
-        "plot_str": "plot_scm.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
-    }) %}
-
-{% elif task_ns.conf_name == "scm_gal9_snow_fd_start_surf-BiP2x2-50000x50000" %}
-
-    {% do task_dict.update({
-        "opt_confs": ["l70_40km","no_aerosol","dice2","snow_init","snow_fd_start_surf"],
         "resolution": "BiP2x2-50000x50000",
         "DT": 600,
         "tsteps": 432,
