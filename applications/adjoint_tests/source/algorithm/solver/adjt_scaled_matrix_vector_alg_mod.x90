@@ -135,7 +135,7 @@ module adjt_scaled_matrix_vector_alg_mod
     ! Tangent linear (Mx)
 
                  scaled_matrix_vector_kernel_type( vector_mx, vector_x, div_star, u_normalisation, Hb_lumped_inv, &
-                                                   const_u ),                                                        &
+                                                   const_u ),                                                     &
 
     ! <Mx,Mx>
 
@@ -156,7 +156,7 @@ module adjt_scaled_matrix_vector_alg_mod
     ! Adjoint (AMx)
 
                  adj_scaled_matrix_vector_kernel_type( vector_mx, vector_amx, div_star, u_normalisation,          &
-                                                       Hb_lumped_inv, const_u ),                                   &
+                                                       Hb_lumped_inv, const_u ),                                  &
 
     ! <AMx,x>
 

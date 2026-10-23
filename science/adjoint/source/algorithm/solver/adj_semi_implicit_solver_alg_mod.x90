@@ -264,7 +264,6 @@ contains
     ! obtain the correct operator scaling constants when applied
     adj_mixed_operator_out = adj_mixed_operator_type( stepper )
 
-
     select case(si_method)
       case(SI_METHOD_BLOCK_GCR)
         allocate ( adj_mixed_solver_out,                                   &
