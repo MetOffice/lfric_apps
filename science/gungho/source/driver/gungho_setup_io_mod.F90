@@ -25,6 +25,7 @@ module gungho_setup_io_mod
                                        albedo_nir_ancil_names, &
                                        chloro_sea_ancil_names, &
                                        easy_aerosol_collection_name
+  use jules_control_init_mod,    only: pft_ancil_file_owned
   use lfric_xios_write_mod,      only: create_checkpoint_list
   use linked_list_mod,           only: linked_list_type
   use log_mod,                   only: log_event, log_level_error, &
@@ -253,7 +254,9 @@ module gungho_setup_io_mod
       if ( easyaerosol_cdnc ) then
         cdnc_ancil_fields => get_required_collection(modeldb, "cdnc_ancil_fields")
       end if
-      plant_func_ancil_fields => get_required_collection(modeldb, "plant_func_ancil_fields")
+      if ( pft_ancil_file_owned ) then
+        plant_func_ancil_fields => get_required_collection(modeldb, "plant_func_ancil_fields")
+      end if
       if ( l_sea_alb_var_chl ) then
         sea_ancil_fields => get_required_collection(modeldb, "sea_ancil_fields")
       end if
@@ -445,7 +448,7 @@ module gungho_setup_io_mod
         ! Set plant functional type ancil filename from namelist
         write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                  trim(plant_func_ancil_path)
-        if (ancil_option == ancil_option_updating) then
+        if (ancil_option == ancil_option_updating .and. pft_ancil_file_owned) then
           call files_list%insert_item( lfric_xios_file_type( ancil_fname,        &
                                                            xios_id="plant_func_ancil", &
                                                            io_mode=FILE_MODE_READ, &

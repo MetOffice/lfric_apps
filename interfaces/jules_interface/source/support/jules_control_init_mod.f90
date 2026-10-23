@@ -12,7 +12,7 @@ module jules_control_init_mod
   use jules_sea_seaice_config_mod,          only : nice_in => nice
 
   ! Other LFRic modules used
-  use constants_mod,        only : i_def, imdi
+  use constants_mod,        only : i_def, l_def, imdi
 
   implicit none
 
@@ -22,6 +22,11 @@ module jules_control_init_mod
   ! to cell faces in um_physics/source/kernel/bl_exp_kernel_mod.F90
   ! Has nothing to do with number of surface types
   integer(kind=i_def), parameter :: n_surf_interp = 11
+
+  ! Temporary development switch. When true and ancil_option is 'updating',
+  ! leaf_area_index and canopy_height are read by an ancillary file object
+  ! rather than the legacy time axis.
+  logical(kind=l_def), parameter :: pft_ancil_file_owned = .false.
 
   integer(kind=i_def), protected :: n_land_tile
   integer(kind=i_def), protected :: n_sea_ice_tile
@@ -33,7 +38,7 @@ module jules_control_init_mod
   private
   public :: n_land_tile, n_sea_tile, n_sea_ice_tile, n_surf_tile, &
        first_sea_tile, first_sea_ice_tile, jules_control_init,    &
-       soil_lev_tile, n_surf_interp
+       soil_lev_tile, n_surf_interp, pft_ancil_file_owned
 
 contains
 

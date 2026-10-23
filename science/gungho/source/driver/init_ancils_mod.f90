@@ -27,7 +27,8 @@ module init_ancils_mod
   use driver_modeldb_mod,             only : modeldb_type
   use pure_abstract_field_mod,        only : pure_abstract_field_type
   use lfric_xios_time_axis_mod,       only : time_axis_type
-  use jules_control_init_mod,         only : n_land_tile, n_sea_ice_tile
+  use jules_control_init_mod,         only : n_land_tile, n_sea_ice_tile, &
+                                             pft_ancil_file_owned
   use jules_physics_init_mod,         only : snow_lev_tile
   use jules_surface_types_mod,        only : npft
   use dust_parameters_mod,            only : ndiv
@@ -239,7 +240,7 @@ contains
                               ndata=n_land_tile)
     end if
 
-    if ( ancil_option == ancil_option_updating ) then
+    if ( ancil_option == ancil_option_updating .and. pft_ancil_file_owned ) then
       ! Read and updated by the file object
       do i_pft = 1, size(pft_ancil_names)
         call setup_ancil_field( pft_ancil_names(i_pft), depository, ancil_fields, &
@@ -1000,12 +1001,14 @@ contains
                                     collection, mesh, twod_mesh, twod=.true. )
     end if
 
-    collection => modeldb%fields%get_field_collection("plant_func_ancil_fields")
-    do i = 1, size(pft_ancil_names)
-      call create_file_owned_field( pft_ancil_names(i), depository, &
-                                    collection, mesh, twod_mesh,    &
-                                    twod=.true., ndata=npft )
-    end do
+    if ( pft_ancil_file_owned ) then
+      collection => modeldb%fields%get_field_collection("plant_func_ancil_fields")
+      do i = 1, size(pft_ancil_names)
+        call create_file_owned_field( pft_ancil_names(i), depository, &
+                                      collection, mesh, twod_mesh,    &
+                                      twod=.true., ndata=npft )
+      end do
+    end if
 
     if ( l_sea_alb_var_chl ) then
       collection => modeldb%fields%get_field_collection("sea_ancil_fields")
