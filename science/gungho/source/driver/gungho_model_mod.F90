@@ -1007,6 +1007,8 @@ contains
     call modeldb%fields%add_empty_field_collection("albedo_vis_ancil_fields", table_len = 4)
     call modeldb%fields%add_empty_field_collection("albedo_nir_ancil_fields", table_len = 4)
     call modeldb%fields%add_empty_field_collection("cdnc_ancil_fields", table_len = 4)
+    call modeldb%fields%add_empty_field_collection("plant_func_ancil_fields", table_len = 4)
+    call modeldb%fields%add_empty_field_collection("sea_ancil_fields", table_len = 4)
     do ancil_index = 1, size(easy_aerosol_names)
       call modeldb%fields%add_empty_field_collection( &
              easy_aerosol_collection_name(easy_aerosol_names(ancil_index)), table_len = 4 )

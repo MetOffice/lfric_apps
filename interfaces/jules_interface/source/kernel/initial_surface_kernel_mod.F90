@@ -29,6 +29,7 @@ module initial_surface_kernel_mod
   use pftparm, only: emis_pft
   use jules_sea_seaice_mod, only: emis_sea, emis_sice
   use section_choice_config_mod, only: surface, surface_jules
+  use initialization_config_mod, only: ancil_option, ancil_option_updating
 
   implicit none
 
@@ -100,11 +101,14 @@ contains
 
     if (surface == surface_jules) then
 
-      ! Set from a namelist variable when no ancil read
-      do i = 1, npft
-        leaf_area_index(map_pft(1)+i-1) = leaf_area_index_in(i)
-        canopy_height(map_pft(1)+i-1) = canopy_height_in(i)
-      end do
+      ! Set from a namelist variable when no ancil read. In updating mode the
+      ! ancillary file object has already set these fields.
+      if (ancil_option /= ancil_option_updating) then
+        do i = 1, npft
+          leaf_area_index(map_pft(1)+i-1) = leaf_area_index_in(i)
+          canopy_height(map_pft(1)+i-1) = canopy_height_in(i)
+        end do
+      end if
 
       ! Initialise grey_albedos for all tiles
       do i = 1, n_land_tile

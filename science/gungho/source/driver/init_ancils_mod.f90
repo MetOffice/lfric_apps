@@ -99,6 +99,8 @@ module init_ancils_mod
               aerosol_ancil_names,        &
               albedo_vis_ancil_names,     &
               albedo_nir_ancil_names,     &
+              chloro_sea_ancil_names,     &
+              pft_ancil_names,            &
               easy_aerosol_names,         &
               easy_aerosol_collection_name
 
@@ -131,6 +133,16 @@ module init_ancils_mod
     [ character(len=str_def) :: "albedo_obs_nir",                              &
       "surface_diffuse_albedo_of_near_infra_red_radiation_assuming_no_snow" ],  &
     [2,1] )
+
+  ! Pair of (model field name, variable name in the sea chlorophyll file)
+  character(len=str_def), parameter :: chloro_sea_ancil_names(2,1) = reshape( &
+    [ character(len=str_def) :: "chloro_sea",                                 &
+      "mass_concentration_of_chlorophyll_a_in_sea_water" ], [2,1] )
+
+  ! Names of the plant functional type fields. Their file variables have the
+  ! same names as the fields, so no mapping is needed.
+  character(len=str_def), parameter :: pft_ancil_names(2) = &
+    [ character(len=str_def) :: "canopy_height", "leaf_area_index" ]
 
 contains
 
@@ -204,6 +216,7 @@ contains
 
     integer(i_def) :: i_aer
     integer(i_def) :: i_easy
+    integer(i_def) :: i_pft
     ! Time axis options
     logical(l_def),   parameter :: interp_flag=.true.
 
@@ -226,16 +239,25 @@ contains
                               ndata=n_land_tile)
     end if
 
-    call pft_time_axis%initialise("plant_func_time",          &
-                                  file_id="plant_func_ancil", &
-                                  interp_flag=interp_flag, pop_freq="daily")
-    call setup_ancil_field("canopy_height", depository, ancil_fields,         &
-                              mesh, twod_mesh, twod=.true., ndata=npft, &
-                              time_axis=pft_time_axis)
-    call setup_ancil_field("leaf_area_index", depository, ancil_fields,       &
-                              mesh, twod_mesh, twod=.true., ndata=npft, &
-                              time_axis=pft_time_axis)
-    call ancil_times_list%insert_item(pft_time_axis)
+    if ( ancil_option == ancil_option_updating ) then
+      ! Read and updated by the file object
+      do i_pft = 1, size(pft_ancil_names)
+        call setup_ancil_field( pft_ancil_names(i_pft), depository, ancil_fields, &
+                                mesh, twod_mesh, twod=.true., ndata=npft,         &
+                                read_by_file=.true. )
+      end do
+    else
+      call pft_time_axis%initialise("plant_func_time",          &
+                                    file_id="plant_func_ancil", &
+                                    interp_flag=interp_flag, pop_freq="daily")
+      call setup_ancil_field("canopy_height", depository, ancil_fields,         &
+                                mesh, twod_mesh, twod=.true., ndata=npft, &
+                                time_axis=pft_time_axis)
+      call setup_ancil_field("leaf_area_index", depository, ancil_fields,       &
+                                mesh, twod_mesh, twod=.true., ndata=npft, &
+                                time_axis=pft_time_axis)
+      call ancil_times_list%insert_item(pft_time_axis)
+    end if
 
     if ( l_urban2t .and. (init_option == init_option_fd_start_dump .and. &
          .not. checkpoint_read) ) then
@@ -248,7 +270,11 @@ contains
     endif
 
     !=====  SEA ANCILS  =====
-    if ( l_sea_alb_var_chl ) then
+    if ( l_sea_alb_var_chl .and. ancil_option == ancil_option_updating ) then
+      ! Read and updated by the file object
+      call setup_ancil_field("chloro_sea", depository, ancil_fields, mesh, &
+                              twod_mesh, twod=.true., read_by_file=.true.)
+    else if ( l_sea_alb_var_chl ) then
       call sea_time_axis%initialise("sea_time", file_id="sea_ancil", &
                                     interp_flag=interp_flag, pop_freq="daily")
       call setup_ancil_field("chloro_sea", depository, ancil_fields, mesh, &
@@ -971,6 +997,19 @@ contains
                                     collection, mesh, twod_mesh, twod=.true. )
       collection => modeldb%fields%get_field_collection("albedo_nir_ancil_fields")
       call create_file_owned_field( albedo_nir_ancil_names(1,1), depository, &
+                                    collection, mesh, twod_mesh, twod=.true. )
+    end if
+
+    collection => modeldb%fields%get_field_collection("plant_func_ancil_fields")
+    do i = 1, size(pft_ancil_names)
+      call create_file_owned_field( pft_ancil_names(i), depository, &
+                                    collection, mesh, twod_mesh,    &
+                                    twod=.true., ndata=npft )
+    end do
+
+    if ( l_sea_alb_var_chl ) then
+      collection => modeldb%fields%get_field_collection("sea_ancil_fields")
+      call create_file_owned_field( chloro_sea_ancil_names(1,1), depository, &
                                     collection, mesh, twod_mesh, twod=.true. )
     end if
 
