@@ -364,6 +364,10 @@ subroutine casim_code( nlayers,                     &
     ! rather than the vapour, and shrink the liquid cloud fraction to match
     ! (the Bergeron-Findeisen response lsp_deposition makes in Wilson-Ballard).
     logical, parameter :: l_use_pc2_bergeron = .true.
+    ! Turn the liquid cloud fraction over to ice cloud where CASIM has frozen
+    ! the liquid homogeneously (the response lsp_nucleation makes in
+    ! Wilson-Ballard).
+    logical, parameter :: l_use_pc2_homfrz = .true.
 
     ! Relative humidity limits for the Wood and Field cloud fraction: the upper
     ! limit is the point at which the cloud fraction reaches one, the lower is
@@ -398,6 +402,8 @@ subroutine casim_code( nlayers,                     &
     real(r_def) :: liq_mix       ! Liquid water in the mixed phase region
     real(r_def) :: area_mix      ! Area holding both liquid and ice cloud
     real(r_def) :: cfl_temp      ! Estimate of the liquid cloud fraction
+    real(r_def) :: dq_hom        ! Liquid frozen homogeneously over the timestep
+    real(r_def) :: frac_frozen   ! Share of the liquid cloud frozen
     real(r_def) :: x_cff         ! Frozen plus vapour content over saturation
     real(r_def) :: qsi           ! Saturation mixing ratio with respect to ice
     real(r_def) :: t_pc2         ! Temperature after the CASIM increments
@@ -572,13 +578,14 @@ subroutine casim_code( nlayers,                     &
     if (murk_prognostic) casdiags % l_snowfall_3d = .true.
 
     ! The cloud fraction response below needs the rates at which CASIM
-    ! sublimates, melts and deposits onto ice and snow.
+    ! sublimates, melts and deposits onto ice and snow, and freezes liquid.
     casdiags % l_pisub = l_pc2_response
     casdiags % l_pssub = l_pc2_response
     casdiags % l_pimlt = l_pc2_response
     casdiags % l_psmlt = l_pc2_response
     casdiags % l_pidep = l_pc2_response
     casdiags % l_psdep = l_pc2_response
+    casdiags % l_phomc = l_pc2_response
 
     call allocate_diagnostic_space(its, ite, jts, jte, kts, kte)
 
@@ -921,6 +928,62 @@ subroutine casim_code( nlayers,                     &
 
         end do ! k
       end if ! l_use_pc2_bergeron
+
+      if (l_use_pc2_homfrz) then
+        ! Homogeneous freezing, following lsp_nucleation, which freezes all
+        ! the liquid below its threshold and so sets the ice cloud fraction
+        ! to the bulk fraction and the liquid cloud fraction to zero.  CASIM
+        ! freezes the liquid below its own threshold, but only as much as
+        ! brings the temperature back up to it, so it can leave some liquid
+        ! behind.  The liquid cloud fraction is therefore turned over to ice
+        ! in step with the share of the liquid frozen, which comes to the
+        ! same thing as lsp_nucleation once all of it has frozen.  CASIM
+        ! freezes rain to graupel, which this response leaves out, so the
+        ! freezing of rain in lsp_nucleation has no counterpart here.
+
+        do k = 1, nlayers
+
+          ! Liquid frozen homogeneously over the timestep
+          dq_hom = casdiags % phomc(1,1,k) * timestep
+          dq_hom = max( dq_hom, 0.0_r_def )
+
+          ! Liquid the freezing acted on: what is left plus what was frozen
+          qcl_now = max( ml_wth(map_wth(1) + k) + dml_wth(map_wth(1) + k),    &
+                         0.0_r_def ) + dq_hom
+
+          if (dq_hom > 0.0_r_def .and. qcl_now > ql_tidy) then
+
+            !--------------------------------------------------------------
+            ! Calculate the share of the liquid cloud frozen
+            !--------------------------------------------------------------
+            ! PC2 holds the liquid cloud fraction proportional to the square
+            ! root of the liquid content.  dq_hom can be no more than
+            ! qcl_now, so the share lies between zero and one, and is one
+            ! where all the liquid has frozen.
+            frac_frozen = 1.0_r_def - sqrt( max( 1.0_r_def - dq_hom/qcl_now,  &
+                                                 0.0_r_def ) )
+
+            cff_now = cff_wth(map_wth(1) + k) + dcff_wth(map_wth(1) + k)
+            cfl_now = cfl_wth(map_wth(1) + k) + dcfl_wth(map_wth(1) + k)
+            cf_now  = bcf_wth(map_wth(1) + k) + dbcf_wth(map_wth(1) + k)
+
+            !--------------------------------------------------------------
+            ! Turn the frozen liquid cloud over to ice cloud
+            !--------------------------------------------------------------
+            ! The part of the frozen liquid cloud that already held ice
+            ! adds nothing to the ice cloud fraction, so the ice cloud
+            ! fraction gains the same share of the cloud that held only
+            ! liquid.  The bulk cloud fraction is unchanged.
+            dcfl_wth(map_wth(1) + k) = dcfl_wth(map_wth(1) + k)                &
+                                     - frac_frozen * cfl_now
+            dcff_wth(map_wth(1) + k) = dcff_wth(map_wth(1) + k)                &
+                                     + frac_frozen                             &
+                                     * max( cf_now - cff_now, 0.0_r_def )
+
+          end if
+
+        end do ! k
+      end if ! l_use_pc2_homfrz
 
       if (l_use_pc2_icemelt) then
         ! shrink the ice cloud fraction in step with the ice that CASIM has
