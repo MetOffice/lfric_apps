@@ -62,7 +62,7 @@
 
     {# Import macros to set custom directive values for this platform #}
     {% from "site/"~SITE~"/macros/macros_"~task_ns.platform~".cylc" import
-        set_task_resources,
+        set_task_resources, set_psyclone_transformation,
         with context %}
 
     {% if task_values["custom_task"] %}
