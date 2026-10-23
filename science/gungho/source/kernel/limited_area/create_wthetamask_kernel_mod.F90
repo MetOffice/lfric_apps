@@ -18,8 +18,7 @@ module create_wthetamask_kernel_mod
   use constants_mod,             only : r_def, i_def, l_def
   use fs_continuity_mod,         only : Wtheta, Wchi
   use kernel_mod,                only : kernel_type
-
-  use mesh_mod, only: geometry_spherical
+  use mesh_mod,                  only : geometry_spherical
 
   use base_mesh_config_mod,      only : geometry
   use finite_element_config_mod, only : coord_system, &

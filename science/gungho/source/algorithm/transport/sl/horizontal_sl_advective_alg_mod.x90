@@ -17,9 +17,9 @@ module horizontal_sl_advective_alg_mod
   use constants_mod,                    only: r_tran, i_def, l_def
   use field_mod,                        only: field_type
   use integer_field_mod,                only: integer_field_type
-  use mesh_mod,                         only: mesh_type,             &
-                                              geometry_spherical,    &
-                                              topology_non_periodic, &
+  use mesh_mod,                         only: mesh_type,                 &
+                                              geometry_spherical,        &
+                                              topology_non_periodic,     &
                                               topology_periodic
   use r_tran_field_mod,                 only: r_tran_field_type
   use timing_mod,                       only: start_timing, stop_timing, &

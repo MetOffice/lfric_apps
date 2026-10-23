@@ -6,11 +6,10 @@
 module ancil_orography_spherical_mod_test
 
   use constants_mod,                 only : i_def, r_def
+  use extrusion_config_mod,          only : method_uniform, &
+                                            stretching_method_linear
   use mesh_mod,                      only : geometry_spherical, &
                                             topology_periodic
-
-  use extrusion_config_mod,          only : method_uniform,       &
-                                            stretching_method_linear
   use funit
 
   implicit none
