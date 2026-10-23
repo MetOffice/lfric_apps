@@ -268,37 +268,37 @@ contains
                                       yearly=.false., interp_flag=.false., &
                                       pop_freq="daily", window_size=1)
 
-      call setup_ancil_field("tile_snow_rgrain_analysis", depository, ancil_fields, &
+      call setup_ancil_field("snow_grain_size_analysis_on_land_tiles", depository, ancil_fields, &
                               mesh, twod_mesh, twod=.true., ndata=n_land_tile, &
                               time_axis=snow_time_axis)
-      call setup_ancil_field("tile_snow_mass_analysis", depository, ancil_fields, &
+      call setup_ancil_field("snow_mass_analysis_on_land_tiles", depository, ancil_fields, &
                              mesh, twod_mesh, twod=.true., ndata=n_land_tile, &
                              time_axis=snow_time_axis)
-      call setup_ancil_field("snow_under_canopy_analysis", depository, ancil_fields, &
+      call setup_ancil_field("snow_under_canopy_analysis_on_land_tiles", depository, ancil_fields, &
                               mesh, twod_mesh, twod=.true., ndata=n_land_tile, &
                               time_axis=snow_time_axis)
-      call setup_ancil_field("snow_depth_analysis", depository, ancil_fields, &
+      call setup_ancil_field("snow_depth_analysis_on_land_tiles", depository, ancil_fields, &
                               mesh, twod_mesh, twod=.true., ndata=n_land_tile, &
                               time_axis=snow_time_axis)
-      call setup_ancil_field("snowpack_density_analysis", depository, ancil_fields, &
+      call setup_ancil_field("snowpack_density_analysis_on_land_tiles", depository, ancil_fields, &
                               mesh, twod_mesh, twod=.true., ndata=n_land_tile, &
                               time_axis=snow_time_axis)
-      call setup_ancil_field("n_snow_layers_analysis", depository, ancil_fields, &
+      call setup_ancil_field("n_snow_layers_real_analysis_on_land_tiles", depository, ancil_fields, &
                               mesh, twod_mesh, twod=.true., ndata=n_land_tile, &
                               time_axis=snow_time_axis)
-      call setup_ancil_field("snow_layer_thickness_analysis", depository, ancil_fields, &
+      call setup_ancil_field("snow_layer_thickness_analysis_on_land_tiles", depository, ancil_fields, &
                             mesh, twod_mesh, twod=.true., ndata=snow_lev_tile, &
                             time_axis=snow_time_axis)
-      call setup_ancil_field("snow_layer_ice_mass_analysis", depository, ancil_fields, &
+      call setup_ancil_field("snow_layer_ice_mass_analysis_on_land_tiles", depository, ancil_fields, &
                             mesh, twod_mesh, twod=.true., ndata=snow_lev_tile, &
                             time_axis=snow_time_axis)
-      call setup_ancil_field("snow_layer_liq_mass_analysis", depository, ancil_fields, &
+      call setup_ancil_field("snow_layer_liq_mass_analysis_on_land_tiles", depository, ancil_fields, &
                             mesh, twod_mesh, twod=.true., ndata=snow_lev_tile, &
                             time_axis=snow_time_axis)
-      call setup_ancil_field("snow_layer_temp_analysis", depository, ancil_fields, &
+      call setup_ancil_field("snow_layer_temp_analysis_on_land_tiles", depository, ancil_fields, &
                             mesh, twod_mesh, twod=.true., ndata=snow_lev_tile, &
                             time_axis=snow_time_axis)
-      call setup_ancil_field("snow_layer_rgrain_analysis", depository, ancil_fields, &
+      call setup_ancil_field("snow_layer_rgrain_analysis_on_land_tiles", depository, ancil_fields, &
                             mesh, twod_mesh, twod=.true., ndata=snow_lev_tile, &
                             time_axis=snow_time_axis)
       call ancil_times_list%insert_item(snow_time_axis)

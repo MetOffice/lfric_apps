@@ -31,7 +31,9 @@ module create_fd_prognostics_mod
                                              sst_source,                  &
                                              sst_source_start_dump,       &
                                              sea_ice_source,              &
-                                             sea_ice_source_start_dump
+                                             sea_ice_source_start_dump,    &
+                                             snow_source,                 &
+                                             snow_source_surf
   use nlsizes_namelist_mod,           only : sm_levels
   use jules_control_init_mod,         only : n_land_tile, n_sea_ice_tile
   use jules_physics_init_mod,         only : snow_lev_tile
@@ -273,42 +275,44 @@ contains
       endif
 
       ! snow fields
-      call setup_ancil_field("tile_snow_mass", depository, &
+      if (snow_source /= snow_source_surf) then
+        call setup_ancil_field("snow_mass_on_land_tiles", depository, &
                              fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=n_land_tile)
-      call setup_ancil_field("n_snow_layers", depository, &
+        call setup_ancil_field("n_snow_layers_real_on_land_tiles", depository, &
                              fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=n_land_tile)
-      call setup_ancil_field("snow_depth", depository, &
+        call setup_ancil_field("snow_depth_on_land_tiles", depository, &
                              fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=n_land_tile)
-      call setup_ancil_field("tile_snow_rgrain", depository, &
+        call setup_ancil_field("snow_grain_size_on_land_tiles", depository, &
                              fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=n_land_tile)
-      call setup_ancil_field("snow_soot", depository, &
+        call setup_ancil_field("snow_soot", depository, &
                              fd_field_collection, mesh, twod_mesh, &
                              twod=.true.)
-      call setup_ancil_field("snow_under_canopy", depository, &
+        call setup_ancil_field("snow_under_canopy_on_land_tiles", depository, &
                              fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=n_land_tile)
-      call setup_ancil_field("snowpack_density", depository, &
+        call setup_ancil_field("snowpack_density_on_land_tiles", depository, &
                              fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=n_land_tile)
-      call setup_ancil_field("snow_layer_thickness", depository, &
+        call setup_ancil_field("snow_layer_thickness_on_land_tiles", depository, &
                              fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=snow_lev_tile)
-      call setup_ancil_field("snow_layer_ice_mass", depository, &
+        call setup_ancil_field("snow_layer_ice_mass_on_land_tiles", depository, &
                              fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=snow_lev_tile)
-      call setup_ancil_field("snow_layer_liq_mass", depository, &
+        call setup_ancil_field("snow_layer_liq_mass_on_land_tiles", depository, &
                              fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=snow_lev_tile)
-      call setup_ancil_field("snow_layer_temp", depository, &
+        call setup_ancil_field("snow_layer_temp_on_land_tiles", depository, &
                              fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=snow_lev_tile)
-      call setup_ancil_field("snow_layer_rgrain", depository, &
+        call setup_ancil_field("snow_layer_rgrain_on_land_tiles", depository, &
                              fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=snow_lev_tile)
+      end if
     end if
 
     ! Dust fields

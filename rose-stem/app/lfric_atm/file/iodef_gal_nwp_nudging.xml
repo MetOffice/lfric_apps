@@ -77,18 +77,18 @@
 	<field id="read_land_tile_temp" name="tile_temperature" long_name="land_tile_temperature" unit="K" domain_ref="face" operation="once" axis_ref="land_tiles"/>
 	<field id="read_tstar_sea_ice" name="tstar_sea_ice" long_name="sea_ice_surface_temperature" standard_name="surface_temperature" unit="K" domain_ref="face" operation="once" />
 	<field id="read_sea_ice_temperature" name="sea_ice_temperature" long_name="sea_ice_temperature" unit="K" domain_ref="face" operation="once" />
-	<field id="read_tile_snow_mass" name="tile_snow_mass" long_name="tile_snow_mass" unit="kg m-2" domain_ref="face" operation="once" axis_ref="land_tiles"/>
-	<field id="read_n_snow_layers" name="tile_n_snow_layers" long_name="number_of_snow_layers" unit="1" domain_ref="face" operation="once" axis_ref="land_tiles"/>
-	<field id="read_snow_depth" name="tile_snow_depth" long_name="snow_depth_on_tiles" unit="m" domain_ref="face" operation="once" axis_ref="land_tiles"/>
-	<field id="read_tile_snow_rgrain" name="tile_snow_rgrain" long_name="tile_snow_grain_size" unit="microns" domain_ref="face" operation="once" axis_ref="land_tiles"/>
+	<field id="read_snow_mass_on_land_tiles" name="tile_snow_mass" long_name="tile_snow_mass" unit="kg m-2" domain_ref="face" operation="once" axis_ref="land_tiles"/>
+	<field id="read_n_snow_layers_real_on_land_tiles" name="tile_n_snow_layers" long_name="number_of_snow_layers" unit="1" domain_ref="face" operation="once" axis_ref="land_tiles"/>
+	<field id="read_snow_depth_on_land_tiles" name="tile_snow_depth" long_name="snow_depth_on_tiles" unit="m" domain_ref="face" operation="once" axis_ref="land_tiles"/>
+	<field id="read_snow_grain_size_on_land_tiles" name="tile_snow_rgrain" long_name="tile_snow_grain_size" unit="microns" domain_ref="face" operation="once" axis_ref="land_tiles"/>
 	<field id="read_snow_soot" name="snow_soot" long_name="snow_soot_content" unit="kg kg-1" domain_ref="face" operation="once" />
-	<field id="read_snow_under_canopy" name="tile_snow_under_canopy" long_name="snow_under_canopy_on_tiles" unit="m" domain_ref="face" operation="once" axis_ref="land_tiles"/>
-	<field id="read_snowpack_density" name="tile_snowpack_density" long_name="snowpack_density_on_tiles" unit="kg m-3" domain_ref="face" operation="once" axis_ref="land_tiles"/>
-	<field id="read_snow_layer_thickness" name="tile_snow_layer_thickness" long_name="snow_layer_thickness_on_tiles" unit="m" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
-	<field id="read_snow_layer_ice_mass" name="tile_snow_layer_ice_mass" long_name="snow_layer_ice_mass_on_tiles" unit="kg m-2" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
-	<field id="read_snow_layer_liq_mass" name="tile_snow_layer_liq_mass" long_name="snow_layer_liquid_mass_on_tiles" unit="kg m-2" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
-	<field id="read_snow_layer_temp" name="tile_snow_layer_temp" long_name="snow_layer_temperature_on_tiles" unit="K" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
-	<field id="read_snow_layer_rgrain" name="tile_snow_layer_rgrain" long_name="snow_layer_grain_size_on_tiles" unit="microns" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
+	<field id="read_snow_under_canopy_on_land_tiles" name="tile_snow_under_canopy" long_name="snow_under_canopy_on_tiles" unit="m" domain_ref="face" operation="once" axis_ref="land_tiles"/>
+	<field id="read_snowpack_density_on_land_tiles" name="tile_snowpack_density" long_name="snowpack_density_on_tiles" unit="kg m-3" domain_ref="face" operation="once" axis_ref="land_tiles"/>
+	<field id="read_snow_layer_thickness_on_land_tiles" name="tile_snow_layer_thickness" long_name="snow_layer_thickness_on_tiles" unit="m" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
+	<field id="read_snow_layer_ice_mass_on_land_tiles" name="tile_snow_layer_ice_mass" long_name="snow_layer_ice_mass_on_tiles" unit="kg m-2" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
+	<field id="read_snow_layer_liq_mass_on_land_tiles" name="tile_snow_layer_liq_mass" long_name="snow_layer_liquid_mass_on_tiles" unit="kg m-2" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
+	<field id="read_snow_layer_temp_on_land_tiles" name="tile_snow_layer_temp" long_name="snow_layer_temperature_on_tiles" unit="K" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
+	<field id="read_snow_layer_rgrain_on_land_tiles" name="tile_snow_layer_rgrain" long_name="snow_layer_grain_size_on_tiles" unit="microns" domain_ref="face" operation="once" axis_ref="snow_layers_and_tiles"/>
       </file>
 
     </file_definition>
