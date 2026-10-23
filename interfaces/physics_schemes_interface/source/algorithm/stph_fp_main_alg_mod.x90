@@ -125,7 +125,6 @@ contains
   type( mesh_type ),  pointer :: mesh => null()
   type( mesh_type ),  pointer :: twod_mesh => null()
 
-  integer(i_def)     :: fs_id
   ! iterators in for loops
   integer(kind=i_def) :: n, m, n_row, k
   ! Timing handle

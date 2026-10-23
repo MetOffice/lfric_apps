@@ -43,8 +43,9 @@
 
 module mixed_operator_alg_mod
 
-  use base_mesh_config_mod,            only: prime_mesh_name
+  use base_mesh_config_mod,        only: prime_mesh_name
   use combine_w2_field_kernel_mod, only: combine_w2_field_kernel_type
+  use config_mod,                  only: config_type
   use constants_mod,               only: r_solver, i_def, l_def
   use sci_geometric_constants_mod, only: get_face_selector_ew, &
                                          get_face_selector_ns
@@ -91,9 +92,10 @@ contains
   !> @brief Applies the mixed operator to the vector, \f$ y = M x \f$.
   !>
   !> @param[in,out] self Instance of the mixed operator
-  !> @param[in] x Field vector to be read
-  !> @param[in,out] y Field vector to be written
-  subroutine apply_mixed_operator(self, x, y)
+  !> @param[in]     config Application configuration object
+  !> @param[in]     x      Field vector to be read
+  !> @param[in,out] y      Field vector to be written
+  subroutine apply_mixed_operator(self, config, x, y)
 
     use boundaries_config_mod,              only: limited_area
     use timestepping_config_mod,            only: dt, tau_r
@@ -131,6 +133,9 @@ contains
     implicit none
 
     class(mixed_operator_type),  intent(inout) :: self
+
+    type(config_type), intent(in) :: config
+
     class(abstract_vector_type), intent(in)    :: x
     class(abstract_vector_type), intent(inout) :: y
 
@@ -197,10 +202,10 @@ contains
     end if
 
     ! Obtain operators from runtime constants
-    mt_lumped_inv => get_normalisation_r_solver(Wtheta, mesh%get_id())
-    m2_diag       => get_normalisation_r_solver(W2, mesh%get_id())
+    mt_lumped_inv => get_normalisation_r_solver(config, mesh, Wtheta)
+    m2_diag       => get_normalisation_r_solver(config, mesh, W2)
     ! mm_vel = m2 (or dl) + tau_u*dt*coriolis
-    mm_vel => get_w2_mass_matrix_r_solver(w2_si_matrix, mesh%get_id())
+    mm_vel => get_w2_mass_matrix_r_solver(config, mesh, w2_si_matrix)
 
     ! Obtain operators from SI operators
     p2theta       => get_p2theta()

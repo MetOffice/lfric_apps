@@ -15,6 +15,7 @@
 module swe_predictors_alg_mod
 
   ! Constants and types
+  use config_mod,                 only: config_type
   use constants_mod,              only: r_def
   use sci_fem_constants_mod,      only: get_im3_div_fe
   use field_indices_mod,          only: isw_u, isw_g
@@ -45,17 +46,21 @@ contains
   !!          used in the geopotential predictor, can be capped to lie between
   !!          two given values.
   !!
+  !> @param[in]     config         Application configuration object
   !> @param[in,out] advected_state The state variables that will be transported
   !> @param[in]     wind           The wind at time n
   !> @param[in]     rhs_n          The RHS terms for u at time n
   !> @param[in]     minus_beta_dt  The time n centring parameter multiplied
   !!                               by the model timestep length
-  subroutine swe_predictors_alg( advected_state, &
+  subroutine swe_predictors_alg( config,         &
+                                 advected_state, &
                                  wind,           &
                                  rhs_n,          &
                                  minus_beta_dt )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Arguments
     type( field_vector_type ), intent(inout) :: advected_state
@@ -73,7 +78,7 @@ contains
     type(operator_type), pointer :: im3_div => null()
 
     ! Predictor of the wind field (u-beta*dt*rhs)
-    call mass_matrix_solver_alg(advected_state%vector(isw_u), rhs_n)
+    call mass_matrix_solver_alg(config, advected_state%vector(isw_u), rhs_n)
 
     ! Geopotential predictor
     if ( use_density_predictor ) then
@@ -82,7 +87,7 @@ contains
       ! div_factor = 1 - beta*dt*m3_inv*div*wind_n
 
       ! Get div operator
-      im3_div  => get_im3_div_fe(advected_state%vector(isw_g)%get_mesh_id())
+      im3_div  => get_im3_div_fe(config, advected_state%vector(isw_g)%get_mesh())
 
       ! Initialise fields used in divergence factor computation
       call divergence%initialise( advected_state%vector(isw_g)%get_function_space() )

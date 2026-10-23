@@ -163,11 +163,11 @@ contains
       select case (regrid_method)
         case (regrid_method_map)
           if (fs_id == W2) then
-            call lfric2lfric_map_regrid(u_in_w3_dst, u_in_w3_src)
-            call lfric2lfric_map_regrid(v_in_w3_dst, v_in_w3_src)
-            call lfric2lfric_map_regrid(w_in_wth_dst, w_in_wth_src)
+            call lfric2lfric_map_regrid(modeldb%config, u_in_w3_dst, u_in_w3_src)
+            call lfric2lfric_map_regrid(modeldb%config, v_in_w3_dst, v_in_w3_src)
+            call lfric2lfric_map_regrid(modeldb%config, w_in_wth_dst, w_in_wth_src)
           else
-            call lfric2lfric_map_regrid(field_dst, field_src)
+            call lfric2lfric_map_regrid(modeldb%config, field_dst, field_src)
           end if
 
         case (regrid_method_lfric2lfric)

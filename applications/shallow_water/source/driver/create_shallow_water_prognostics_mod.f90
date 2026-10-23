@@ -26,6 +26,7 @@ module create_shallow_water_prognostics_mod
                                                 use_xios_io,      &
                                                 checkpoint_write, &
                                                 checkpoint_read
+  use mesh_mod,                           only: mesh_type
   use pure_abstract_field_mod,            only: pure_abstract_field_type
   use lfric_xios_write_mod,               only: write_field_generic, &
                                                 checkpoint_write_xios
@@ -35,7 +36,6 @@ module create_shallow_water_prognostics_mod
   use log_mod,                            only: log_event,      &
                                                 LOG_LEVEL_INFO, &
                                                 LOG_LEVEL_ERROR
-  use mesh_mod,                           only: mesh_type
 
   implicit none
 
@@ -58,7 +58,8 @@ module create_shallow_water_prognostics_mod
 
     implicit none
 
-    type(mesh_type), pointer,    intent(in)    :: mesh
+    type(mesh_type), intent(in) :: mesh
+
     type(field_collection_type), intent(inout) :: depository
     type(field_collection_type), intent(inout) :: prognostics
 

@@ -108,7 +108,7 @@ module tl_test_project_eos_pressure_mod
     chi      => get_coordinates(mesh)
     panel_id => get_panel_id(mesh)
     qr => get_qr_fe()
-    m3_inv => get_inverse_mass_matrix_fe(W3, mesh%get_id())
+    m3_inv => get_inverse_mass_matrix_fe(modeldb%config, mesh, W3)
 
     prognostic_fields => modeldb%fields%get_field_collection( &
                                            "prognostic_fields")
