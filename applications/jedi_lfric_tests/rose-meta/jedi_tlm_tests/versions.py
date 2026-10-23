@@ -428,3 +428,21 @@ class vn32_t670(MacroUpgrade):
                 )
 
         return config, self.reports
+
+
+class vn32_t752(MacroUpgrade):
+    """Upgrade macro for ticket #752 by Adrian Lock."""
+
+    BEFORE_TAG = "vn3.2_t670"
+    AFTER_TAG = "vn3.2_t752"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(
+            config, ["namelist:mixing", "cap_blended_ml"], ".false."
+        )
+        self.add_setting(
+            config, ["namelist:mixing", "shallow_cu_maxtop"], "3000.0"
+        )
+
+        return config, self.reports

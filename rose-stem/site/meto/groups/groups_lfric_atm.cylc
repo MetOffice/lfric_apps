@@ -39,6 +39,7 @@
     "lfric_atm_ral_azspice_developer": [
         "lfric_atm_ral4-seuk_MG_azspice_gnu_fast-debug-32bit",
         "lfric_atm_ral4_ens-seuk_MG_azspice_gnu_fast-debug-32bit",
+        "lfric_atm_ral_dev-seuk_MG_azspice_gnu_fast-debug-32bit",
         "lfric_atm_ral4_mixmol-seuk_MG_azspice_gnu_fast-debug-32bit",
     ],
     "lfric_atm_scm_azspice_developer": [
@@ -144,6 +145,7 @@
     "lfric_atm_ral_ex1a_developer": [
         "lfric_atm_ral4-seuk_MG_ex1a_cce_fast-debug-32bit",
         "lfric_atm_ral4_ens-seuk_MG_ex1a_cce_fast-debug-32bit",
+        "lfric_atm_ral_dev-seuk_MG_ex1a_cce_fast-debug-32bit",
         "lfric_atm_ral4_mixmol-seuk_MG_ex1a_cce_fast-debug-32bit",
     ],
     "lfric_atm_ral_ex1a_weekly": [
