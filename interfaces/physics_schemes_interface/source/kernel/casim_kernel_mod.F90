@@ -209,7 +209,7 @@ subroutine casim_code( nlayers,                     &
 
     use atm_fields_bounds_mod,      only: pdims
 
-    use planet_constants_mod,       only: p_zero, kappa, planet_radius
+    use planet_constants_mod,       only: p_zero, kappa, planet_radius, lcrcp
     use water_constants_mod,        only: tm
 
     use micro_main,                 only: shipway_microphysics
@@ -360,6 +360,10 @@ subroutine casim_code( nlayers,                     &
     ! Take the ice cloud fraction down where CASIM has melted ice or snow (the
     ! same response lsp_melting makes in Wilson-Ballard).
     logical, parameter :: l_use_pc2_icemelt = .true.
+    ! Take the ice that CASIM deposits within the liquid cloud from the liquid
+    ! rather than the vapour, and shrink the liquid cloud fraction to match
+    ! (the Bergeron-Findeisen response lsp_deposition makes in Wilson-Ballard).
+    logical, parameter :: l_use_pc2_bergeron = .true.
 
     ! Relative humidity limits for the Wood and Field cloud fraction: the upper
     ! limit is the point at which the cloud fraction reaches one, the lower is
@@ -388,6 +392,12 @@ subroutine casim_code( nlayers,                     &
     real(r_def) :: ice_presub    ! Frozen water content before sublimating
     real(r_def) :: dqi_melt      ! Frozen water melted over the timestep
     real(r_def) :: ice_premelt   ! Frozen water content before melting
+    real(r_def) :: dqi_dep       ! Frozen water deposited over the timestep
+    real(r_def) :: dqil          ! Liquid taken by the deposition
+    real(r_def) :: qcl_now       ! Liquid water content after CASIM
+    real(r_def) :: liq_mix       ! Liquid water in the mixed phase region
+    real(r_def) :: area_mix      ! Area holding both liquid and ice cloud
+    real(r_def) :: cfl_temp      ! Estimate of the liquid cloud fraction
     real(r_def) :: x_cff         ! Frozen plus vapour content over saturation
     real(r_def) :: qsi           ! Saturation mixing ratio with respect to ice
     real(r_def) :: t_pc2         ! Temperature after the CASIM increments
@@ -561,12 +571,14 @@ subroutine casim_code( nlayers,                     &
     if (l_refl_tot .or. l_refl_1km) casdiags % l_radar = .true.
     if (murk_prognostic) casdiags % l_snowfall_3d = .true.
 
-    ! The ice cloud fraction response below needs the rates at which CASIM
-    ! sublimates and melts ice and snow.
+    ! The cloud fraction response below needs the rates at which CASIM
+    ! sublimates, melts and deposits onto ice and snow.
     casdiags % l_pisub = l_pc2_response
     casdiags % l_pssub = l_pc2_response
     casdiags % l_pimlt = l_pc2_response
     casdiags % l_psmlt = l_pc2_response
+    casdiags % l_pidep = l_pc2_response
+    casdiags % l_psdep = l_pc2_response
 
     call allocate_diagnostic_space(its, ite, jts, jte, kts, kte)
 
@@ -822,6 +834,94 @@ subroutine casim_code( nlayers,                     &
         end do ! k
       end if ! l_use_pc2_icesub
 
+      !---------------------------------------------------------------------
+      ! Increment liquid cloud fraction
+      !---------------------------------------------------------------------
+      if (l_use_pc2_bergeron) then
+        ! Bergeron-Findeisen, following lsp_deposition.  Where ice and liquid
+        ! cloud overlap, the liquid holds the vapour at liquid saturation, so
+        ! the ice grows at the expense of the liquid.  CASIM deposits onto ice
+        ! from the vapour alone (its condensation is left to PC2), so the
+        ! part of the deposition that falls in the mixed phase region is
+        ! moved over to come from the liquid here, and the liquid cloud
+        ! fraction is reduced to match.
+
+        do k = 1, nlayers
+
+          ! Ice and snow gained by deposition over the timestep.  Graupel is
+          ! left out, as it is everywhere else in this response.
+          dqi_dep = ( casdiags % pidep(1,1,k)                                  &
+                    + casdiags % psdep(1,1,k) ) * timestep
+          dqi_dep = max( dqi_dep, 0.0_r_def )
+
+          ! Liquid water content after CASIM, and the area of overlap
+          ! between the liquid and ice cloud CASIM deposited within
+          qcl_now  = ml_wth(map_wth(1) + k) + dml_wth(map_wth(1) + k)
+          cfl_now  = cfl_wth(map_wth(1) + k) + dcfl_wth(map_wth(1) + k)
+          area_mix = min( cfl_wth(map_wth(1) + k), cff_wth(map_wth(1) + k),   &
+                          max( cfl_wth(map_wth(1) + k)                         &
+                             + cff_wth(map_wth(1) + k)                         &
+                             - bcf_wth(map_wth(1) + k), 0.0_r_def ) )
+
+          if (dqi_dep > 0.0_r_def .and. qcl_now > ql_tidy .and.                &
+              cfl_now > 0.0_r_def .and. area_mix > 0.0_r_def) then
+
+            ! Liquid water in the mixed phase region, which is the most the
+            ! deposition there can take
+            liq_mix = qcl_now * area_mix / cfl_now
+
+            ! First estimate of the liquid removed is explicit.  CASIM
+            ! deposits over the whole ice cloud, so the mixed phase region
+            ! takes area_mix / cff of it.
+            dqil = max( min( dqi_dep * area_mix / cff_wth(map_wth(1) + k),     &
+                             liq_mix ), 0.0_r_def )
+
+            ! First estimate of the liquid cloud fraction is based on this
+            ! explicit estimate of liquid lost by deposition
+            cfl_temp = cfl_now * sqrt( max( 1.0_r_def - dqil/qcl_now,         &
+                                            0.0_r_def ) )
+
+            ! Now form a half timestep estimate of the proportion of the
+            ! depositing volume which contains liquid cloud
+            cfl_temp = 0.5_r_def * max( area_mix - (cfl_now - cfl_temp),      &
+                                        0.0_r_def ) / cff_wth(map_wth(1) + k) &
+                     + 0.5_r_def * area_mix / cff_wth(map_wth(1) + k)
+
+            ! Recalculate an estimate of the liquid water removed
+            dqil = max( min( dqi_dep * cfl_temp, liq_mix ), 0.0_r_def )
+
+            !--------------------------------------------------------------
+            ! Move the liquid taken over to the vapour
+            !--------------------------------------------------------------
+            ! CASIM has already taken all of dqi_dep from the vapour and
+            ! warmed by the latent heat of sublimation.  Taking dqil of it
+            ! from the liquid instead returns that much to the vapour and
+            ! leaves only the latent heat of freezing for it, so cools by
+            ! the latent heat of condensation.  The cloud drops in the part
+            ! of the liquid cloud lost go with the liquid.
+            dml_wth(map_wth(1) + k) = dml_wth(map_wth(1) + k) - dqil
+            dmv_wth(map_wth(1) + k) = dmv_wth(map_wth(1) + k) + dqil
+            theta_inc(map_wth(1) + k) = theta_inc(map_wth(1) + k)              &
+                                      - real(lcrcp, r_def) * dqil              &
+                                      / exner_in_wth(map_wth(1) + k)
+            nl_mphys(map_wth(1) + k) = nl_mphys(map_wth(1) + k)                &
+                                     * ( 1.0_r_def - dqil/qcl_now )
+
+            !--------------------------------------------------------------
+            ! Calculate change in liquid cloud fraction
+            !--------------------------------------------------------------
+            ! The liquid lost was all within the ice cloud, so the bulk
+            ! cloud fraction is unchanged.
+            dcfl_wth(map_wth(1) + k) = dcfl_wth(map_wth(1) + k)                &
+                                     + cfl_now * ( sqrt( max( 1.0_r_def       &
+                                       - dqil/qcl_now, 0.0_r_def ) )          &
+                                       - 1.0_r_def )
+
+          end if
+
+        end do ! k
+      end if ! l_use_pc2_bergeron
+
       if (l_use_pc2_icemelt) then
         ! shrink the ice cloud fraction in step with the ice that CASIM has
         ! melted, the same response lsp_melting makes.  CASIM only melts
@@ -944,7 +1044,12 @@ subroutine casim_code( nlayers,                     &
       end if  ! l_use_wf2000_inc
 
       ! Increment level 0 the same as level 1
-      !  (as done for the other increments above)
+      !  (as done for the other increments above, which the Bergeron-Findeisen
+      !   response has since altered)
+      theta_inc(map_wth(1) + 0) = theta_inc(map_wth(1) + 1)
+      dmv_wth(map_wth(1) + 0) = dmv_wth(map_wth(1) + 1)
+      dml_wth(map_wth(1) + 0) = dml_wth(map_wth(1) + 1)
+      nl_mphys(map_wth(1) + 0) = nl_mphys(map_wth(1) + 1)
       dcfl_wth(map_wth(1) + 0) = dcfl_wth(map_wth(1) + 1)
       dcff_wth(map_wth(1) + 0) = dcff_wth(map_wth(1) + 1)
       dbcf_wth(map_wth(1) + 0) = dbcf_wth(map_wth(1) + 1)
