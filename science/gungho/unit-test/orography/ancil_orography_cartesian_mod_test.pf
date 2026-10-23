@@ -6,13 +6,10 @@
 module ancil_orography_cartesian_mod_test
 
   use constants_mod,                 only : i_def, r_def
+  use extrusion_config_mod,          only : method_uniform, &
+                                            stretching_method_linear
   use mesh_mod,                      only : geometry_planar, &
                                             topology_periodic
-
-  use extrusion_config_mod,          only : method_uniform,       &
-                                            stretching_method_linear
-
-
   use funit
 
   implicit none
