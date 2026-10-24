@@ -524,7 +524,7 @@ contains
         p2theta => get_p2theta()
         call invoke( name="adj_si_solver_6",                                             &
                      enforce_bc_kernel_type(rhs_rsol(igh_u)),                            &
-                     inc_X_plus_Y( rhs_tmp, rhs_rsol(igh_u) ),                           &
+                     setval_X( rhs_tmp, rhs_rsol(igh_u) ),                               &
                      inc_a_times_X( const_u, rhs_tmp ),                                  &
                      inc_X_times_Y( rhs_tmp, m2_diag ),                                  &
                      adj_matrix_vector_kernel_type( rhs_tmp, rhs_rsol(igh_t), p2theta ), &
