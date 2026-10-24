@@ -14,12 +14,8 @@ module apply_mixed_u_operator_kernel_mod
 use argument_mod,      only : arg_type,              &
                               GH_FIELD, GH_OPERATOR, &
                               GH_READ,               &
-<<<<<<< HEAD
-                              GH_WRITE,              &
-                              GH_SCALAR,             &
-=======
                               GH_READWRITE,          &
->>>>>>> upstream/main
+                              GH_SCALAR,             &
                               GH_REAL, CELL_COLUMN
 use constants_mod,     only : r_solver, i_def
 use kernel_mod,        only : kernel_type
