@@ -446,3 +446,43 @@ class vn32_t752(MacroUpgrade):
         )
 
         return config, self.reports
+
+
+class vn32_t763(MacroUpgrade):
+    """Upgrade macro for ticket #763 by Chris Smith."""
+
+    BEFORE_TAG = "vn3.2_t752"
+    AFTER_TAG = "vn3.2_t763"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        """Add new wind_relax namelist"""
+        source = self.get_setting_value(
+            config, ["file:configuration.nml", "source"]
+        )
+        source = source + "\n" + " (namelist:wind_relax)"
+        self.change_setting_value(
+            config, ["file:configuration.nml", "source"], source
+        )
+        """Add wind_relaxation setting to external_forcing namelist"""
+        self.add_setting(
+            config, ["namelist:external_forcing", "wind_relaxation"], ".false."
+        )
+        """Data for wind_relax namelist"""
+        self.add_setting(config, ["namelist:wind_relax"])
+        self.add_setting(
+            config, ["namelist:wind_relax", "coordinate"], "'height'"
+        )
+        self.add_setting(config, ["namelist:wind_relax", "heights"], "0.0")
+        self.add_setting(config, ["namelist:wind_relax", "number_heights"], "1")
+        self.add_setting(config, ["namelist:wind_relax", "number_times"], "1")
+        self.add_setting(config, ["namelist:wind_relax", "times"], "0.0")
+        self.add_setting(config, ["namelist:wind_relax", "timescale"], "1.0")
+        self.add_setting(
+            config, ["namelist:wind_relax", "u_profile_data"], "0.0"
+        )
+        self.add_setting(
+            config, ["namelist:wind_relax", "v_profile_data"], "0.0"
+        )
+
+        return config, self.reports
