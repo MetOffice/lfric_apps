@@ -141,6 +141,9 @@ contains
     integer(kind=i_def),    allocatable :: fs_ids(:)
     character(len=str_def), allocatable :: fs_names(:)
 
+    integer(i_def) :: element_order_h, element_order_v
+
+
     if ( LPROF ) call start_timing( id, 'gungho_diagnostics_driver' )
 
     call log_event("Gungho: writing diagnostic output", LOG_LEVEL_DEBUG)
@@ -164,6 +167,9 @@ contains
     call prognostic_fields%get_field('u', u)
     call prognostic_fields%get_field('rho', rho)
     call prognostic_fields%get_field('exner', exner)
+
+    element_order_h = theta%get_element_order_h()
+    element_order_v = theta%get_element_order_v()
 
     ! Scalar fields
     call write_scalar_diagnostic('rho', rho, &
@@ -343,7 +349,8 @@ contains
       ! Wet bulb freezing level
       call freeze_lev_alg(modeldb%config,theta, mr, moist_dyn, exner_in_wth)
       ! Aviation diagnostics
-      call aviation_diags_alg(plev_geopot)
+      call aviation_diags_alg(plev_geopot, &
+        u, exner, mesh, element_order_h, element_order_v)
 #endif
 
       temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')

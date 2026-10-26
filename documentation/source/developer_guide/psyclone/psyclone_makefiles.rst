@@ -34,8 +34,8 @@ The next sections will detail each of these points and how to add a PSyclone
 transformation script for a single module.
 
 
-Targeting platform with OPTIMISATION_PATH
------------------------------------------
+Targeting site specific architecture with OPTIMISATION_PATH
+-------------------------------------------------------------
 
 .. note::
     As a developer, you should not have to modify this variable. It is included
@@ -44,23 +44,26 @@ Targeting platform with OPTIMISATION_PATH
 The ``OPTIMISATION_PATH`` variable is consistent across all applications, and is
 set as::
 
-    optimisation/<target_platform>
+    optimisation/<architecture>
 
-Where ``<target_platform>`` refers to the hardware that the application will run
-on (EX machines, Archer2, etc.). This information is picked up from the
+Where ``<architecture>`` refers to the site hardware that the application will
+run on (EX machines, Archer2, etc.). This information is picked up from the
 task name within rose-stem. For example, the task::
 
     "lfric_atm_nwp_gal9-C224_MG_ex1a_cce_production-64bit"
 
-has specified a platform of ``ex1a``, so the OPTIMISATION_PATH variable will be
-updated by rose-stem to::
+has specified a site of ``ex1a``, so the OPTIMISATION_PATH variable will be
+updated by rose-stem in the cylc marco belonging to the meto-ex1a site to use
+the cpu specific architecture::
 
-    optimisation/ex1a/
+    optimisation/cpu/
 
 .. note::
-    Most platforms will be able to share optimisations and can therefore
-    contain symbolic links to other platform directories containing the
-    required transformation scripts.
+    Most architectures will be able to share optimisations, so site macros in
+    cylc point to the architecture required. Where a new architecture is
+    required, but there is also duplication with existing architecture scripts,
+    symbolic links to other architecture directories scripts is acceptable to
+    reduce duplication.
 
 
 PSyclone method with DSL

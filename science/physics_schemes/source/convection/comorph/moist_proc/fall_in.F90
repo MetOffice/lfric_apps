@@ -31,7 +31,7 @@ subroutine fall_in( n_points, nc, index_ic,                                    &
                     l_diags, i_cond, moist_proc_diags,                         &
                     n_points_diag, n_diags, diags_super )
 
-use comorph_constants_mod, only: real_cvprec, indi_thresh, one
+use comorph_constants_mod, only: real_cvprec, indi_thresh, zero, one
 use moist_proc_diags_type_mod, only: moist_proc_diags_type
 
 implicit none
@@ -55,7 +55,8 @@ real(kind=real_cvprec), intent(in) :: dt_over_rhod_lz(n_points)
 ! Inward flux of the current hydrometeor species / kg m-2 s-1
 real(kind=real_cvprec), intent(in out) :: flux_cond(n_points)
 ! (this is an input, but needs intent(inout) as we convert it
-!  to an increment)
+!  to an increment, and then reset it to zero ready for
+!  reusing the array for the fall-out flux)
 
 ! Winds and temperature of the air from which the falling-in
 ! hydrometeros have fallen
@@ -176,6 +177,10 @@ if ( real(nc,real_cvprec) > indi_thresh * real(n_points,real_cvprec) ) then
     end if
   end if
 
+  ! Zero the flux ready for reusing the array as the fall-out flux
+  do ic = 1, n_points
+    flux_cond(ic) = zero
+  end do
 
   ! If non-zero fall-in flux at minority of points, use the
   ! stored indices to do calculations at only those points
@@ -217,6 +222,11 @@ else !( REAL(nc,real_cvprec) > indi_thresh * REAL(n_points,real_cvprec) )
       end do
     end if
   end if
+
+  do ic2 = 1, nc
+    ic = index_ic(ic2)
+    flux_cond(ic) = zero
+  end do
 
 end if !( REAL(nc,real_cvprec) > indi_thresh * REAL(n_points,real_cvprec) )
 
