@@ -7,7 +7,7 @@
 !> Test the initial_rho_sample_kernel
 module initial_rho_sample_kernel_mod_test
 
-  use constants_mod,                       only : r_def, i_def
+  use constants_mod,                       only : r_def, i_def, pi
   use get_unit_test_3x3x3_chi_mod,         only : get_w0_3x3x3_field
   use get_unit_test_m3x3_dofmap_mod,       only : get_w0_m3x3_dofmap, &
                                                   get_w3_m3x3_dofmap
@@ -35,8 +35,8 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine setUp( this )
 
-    use base_mesh_config_mod,       only : geometry_planar, &
-                                           topology_fully_periodic
+    use mesh_mod,                   only : geometry_planar, &
+                                           topology_periodic
     use sci_chi_transform_mod,      only : init_chi_transforms
     use feign_config_mod,           only : feign_base_mesh_config,      &
                                            feign_finite_element_config, &
@@ -54,13 +54,17 @@ contains
 
     class(initial_rho_sample_kernel_test_type), intent(inout) :: this
 
+    real(r_def), parameter :: geostrophic_north_pole(2) = [0.0_r_def, PI/2.0_r_def]
+    real(r_def), parameter :: null_island(2) = [0.0_r_def, 0.0_r_def]
+    real(r_def), parameter :: equator_latitude = 0.0_r_def
+
     integer(kind=i_def) :: nlayers
 
     call feign_base_mesh_config( file_prefix='foo',                &
                                  prime_mesh_name='unit_test',      &
                                  geometry=geometry_planar,         &
                                  prepartitioned=.false.,           &
-                                 topology=topology_fully_periodic, &
+                                 topology=topology_periodic,       &
                                  fplane=.false., f_lat_deg=45.0_r_def )
 
     call feign_finite_element_config(      &
@@ -84,7 +88,14 @@ contains
                                  perturb_init=.false., perturb_magnitude=0,    &
                                  perturb_seed=0 )
 
-    call init_chi_transforms(geometry_planar, topology_fully_periodic)
+    ! Note: Calling 'init_chi_transforms' is only valid for meshes which have a
+    !       spherical geometry and coordinate system. While it may not be relevant
+    !       to this mesh, it is called due to an unknown interaction which changes
+    !       results. If it is not applicable to this mesh, it should be removed once
+    !       this issue is resolved.
+    call init_chi_transforms( geostrophic_north_pole, &
+                              null_island, &
+                              equator_latitude )
 
   end subroutine setUp
 
