@@ -1,10 +1,18 @@
+# -----------------------------------------------------------------------------
+# (C) Crown copyright Met Office. All rights reserved.
+# The file LICENCE, distributed with this code, contains details of the terms
+# under which the code may be used.
+# -----------------------------------------------------------------------------
+
 name: Lint Fortran
 
 on:
-  pull_request_target:
+  pull_request:
 
 jobs:
   fortitude-lint:
-    uses: MetOffice/growss/.github/workflows/fortran-lint.yaml@main
+    permissions:
+      contents: read  # Required to evaluate the event trigger metadata safely
+    uses: MetOffice/growss/.github/workflows/fortran-lint.yaml@0f9ffe6a138ae9943053621916a850a075997db8 # v1.0.0
     with:
       runner: 'ubuntu-24.04'

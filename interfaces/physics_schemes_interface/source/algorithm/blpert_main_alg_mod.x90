@@ -126,9 +126,9 @@ contains
             ntml, cumulus, blpert_flag, blpert_rand_fld,          &
             rand_numb_data)
 
-    call turbulence_fields%get_field('ntml', ntml) 
+    call turbulence_fields%get_field('ntml', ntml)
     call turbulence_fields%get_field('cumulus', cumulus)
-    call stph_fields%get_field('blpert_flag', blpert_flag) 
+    call stph_fields%get_field('blpert_flag', blpert_flag)
     call stph_fields%get_field('blpert_rand_fld', blpert_rand_fld)
 
     call blpert_flag % copy_field_properties(blpert_area)

@@ -19,9 +19,10 @@ module initial_swe_streamfunc_kernel_mod
   use fs_continuity_mod,       only : W1
   use kernel_mod,              only : kernel_type
 
+  use mesh_mod, only: geometry_spherical
+
   ! Configuration modules
-  use base_mesh_config_mod,      only: geometry, topology, &
-                                       geometry_spherical
+  use base_mesh_config_mod,      only: geometry, topology
   use finite_element_config_mod, only: coord_system
   use planet_config_mod,         only: scaled_radius
 

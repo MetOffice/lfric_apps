@@ -50,16 +50,16 @@ module fastjx_inphot_mod
                  ! Variables used for/ set from solar cycle data
                   n_solcyc_ts, solcyc_av, solcyc_quanta, solcyc_ts,        &
                   solcyc_spec )
-      
+
       use fastjx_specs_mod,        only: fastjx_rd_xxx,                        &
                                      fastjx_rd_sol, fastjx_rd_mie
       use chemistry_config_mod,    only: fastjx_dir, fjx_spec_file,            &
                                      fjx_scat_file, fjx_solar_file,            &
-                                     fastjx_numwavel, fjx_solcyc_type   
+                                     fastjx_numwavel, fjx_solcyc_type
 
       use errormessagelength_mod,  only: errormessagelength
       use io_utility_mod,          only: claim_io_unit, release_io_unit
-      
+
       implicit none
 
       ! Arguments - dimensions
@@ -111,7 +111,7 @@ module fastjx_inphot_mod
       integer                  :: ukcafjsol_unit
 
       character(len=errormessagelength) :: cmessage   ! Error message
-      
+
       write( log_scratch_space, '(A,I6)' ) 'fastjx_numwl=', fastjx_numwavel
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
 
@@ -174,7 +174,7 @@ module fastjx_inphot_mod
       call fastjx_rd_mie( ukcafjsc_unit, jv_fullpath, jtaumx, naa, atau,      &
                          atau0, daa, paa, qaa, raa, saa, waa )
       call release_io_unit( ukcafjsc_unit )
-   
+
       return
     end subroutine fastjx_inphot
   end module fastjx_inphot_mod
