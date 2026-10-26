@@ -166,8 +166,7 @@ do ic = 1, n_points
 
   ! Precalculate and store the term  3/8 coef 1/R
   ! (same for all wind compenents)
-  drag_fac(ic) = three_over_eight * drag_coef_par * delta_t(ic)                &
-               / par_radius(ic)
+  drag_fac(ic) = three_over_eight * drag_coef_par / par_radius(ic)
 
   ! Also precalculate the reaction force term 1 + M dt / (rho dz)
   reaction_term(ic) = one + sum_massflux(ic) * comorph_timestep                &
@@ -196,8 +195,8 @@ do i_field = i_wind_u, i_wind_v
   do ic = 1, n_points
 
     ! Calculate alpha term
-    alpha = drag_fac(ic) * abs( env_k_winds(ic,i_field)                        &
-                              - par_next_winds(ic,i_field) )
+    alpha = drag_fac(ic) * delta_t(ic) * abs( env_k_winds(ic,i_field)          &
+                                            - par_next_winds(ic,i_field) )
     ! Note: we should really use the vector magnitude of the wind difference
     ! here, not just the difference of the current wind component;
     ! this is a bug and will make the CMT sensitive to grid orientation.
@@ -266,7 +265,7 @@ end if
 
 ! Calculate the drag coefficient in s-1
 do ic = 1, n_points
-  par_w_drag(ic) = ( drag_fac(ic) / delta_t(ic) )                              &
+  par_w_drag(ic) = drag_fac(ic)                                                &
         * half * ( wind_ex(ic)                                                 &
                  + sqrt( wind_ex(ic)**2 + wavedrag_fac * max(Nsq_dry(ic),zero) &
                                                        * par_radius(ic)**2 ) )
