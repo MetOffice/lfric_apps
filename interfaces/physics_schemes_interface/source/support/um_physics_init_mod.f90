@@ -172,6 +172,7 @@ module um_physics_init_mod
            hetnuc_temp_in            => hetnuc_temp,                           &
            max_cmr_in                => max_cmr,                               &
            min_cmr_in                => min_cmr,                               &
+           min_radius_fac_in         => min_radius_fac,                        &
            n_dndraft_types_in        => n_dndraft_types,                       &
            nconc_cf_in               => nconc_cf,                              &
            nconc_cl_in               => nconc_cl,                              &
@@ -202,6 +203,7 @@ module um_physics_init_mod
            resdep_precipramp_in      => resdep_precipramp,                     &
            tdep_n_cf_in              => tdep_n_cf,                             &
            tdep_n_cl_in              => tdep_n_cl,                             &
+           turb_len_fac_in           => turb_len_fac,                          &
            vent_factor_in            => vent_factor,                           &
            wind_w_buoy_fac_in        => wind_w_buoy_fac,                       &
            wind_w_fac_in             => wind_w_fac
@@ -442,13 +444,13 @@ contains
          ass_min_radius, autoc_opt, cf_area_coef, cf_conv_fac, coef_auto,      &
          col_eff_coef, core_ent_fac, drag_coef_cond, drag_coef_par, dx_ref,    &
          ent_coef, hetnuc_temp, l_core_ent_cmr, l_resdep_precipramp,           &
-         max_cmr, min_cmr, n_dndraft_types,                                    &
+         max_cmr, min_cmr, min_radius_fac, n_dndraft_types,                    &
          nconc_cf, nconc_cl, nconc_graup, nconc_rain, nconc_snow,              &
          overlap_power, par_gen_core_fac, par_gen_mass_fac,                    &
          par_gen_pert_fac, par_gen_rhpert, par_radius_evol_method,             &
          par_radius_init_method, par_radius_knob, par_radius_knob_max,         &
          par_radius_ppn_max, rain_area_min, rho_rim, tdep_n_cf, tdep_n_cl,     &
-         vent_factor, wind_w_buoy_fac, wind_w_fac,                             &
+         turb_len_fac, vent_factor, wind_w_buoy_fac, wind_w_fac,               &
          ! Namelis checking subroutine
          check_run_comorph,                                                    &
          ! Allowed values for multi-option switches
@@ -969,6 +971,8 @@ contains
         l_resdep_precipramp    = resdep_precipramp_in
         dx_ref                 = real( dx_ref_in,                 r_um )
         ass_min_radius         = real( ass_min_radius_in,         r_um )
+        min_radius_fac         = real( min_radius_fac_in,         r_um )
+        turb_len_fac           = real( turb_len_fac_in,           r_um )
 
         ! Plume model
         ent_coef               = real( ent_coef_in,               r_um )

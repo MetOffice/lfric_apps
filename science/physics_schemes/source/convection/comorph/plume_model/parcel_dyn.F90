@@ -699,7 +699,6 @@ if ( .not. i_call == i_call_det ) then
   call calc_sat_height(                                                        &
          n_points, n_points_sublevs, l_mean_with_core, l_down, j_buoy,         &
          prev_ss, next_ss, prev_tvl, next_tvl,                                 &
-         par_prev_fields(:,i_q_cl), par_next_fields(:,i_q_cl),                 &
          i_next, i_sat, sublevs,                                               &
          i_core_sat=i_core_sat )
 

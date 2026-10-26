@@ -25,7 +25,7 @@ subroutine init_sublevs( n_points, n_points_super, l_down,                     &
                          sublevs, i_next, i_sat, i_core_sat )
 
 use comorph_constants_mod, only: real_cvprec, zero, min_float,                 &
-                                 l_par_core
+                                 l_par_core, comorph_timestep, alpha_detrain
 use sublevs_mod, only: max_sublevs, n_sublev_vars, i_prev,                     &
                        j_height, j_massflux_d, j_env_tv, j_delta_tv, j_env_w,  &
                        j_mean_buoy, j_core_buoy,                               &
@@ -151,13 +151,14 @@ do ic = 1, n_points
   ! usually set to 1.0
   !
   ! The input "delta_tv" stores the above, except for the final multiplying
-  ! factor of the mass-flux at the current height, so scale by mass-flux here.
+  ! factor of dt * alpha_detrain * mass-flux, so scale by that here.
   ! Note we want the mass-flux at next, whereas sum_massflux_det is at prev,
   ! so scaling up by ratio next/prev mass-fluxes to account for entrainment.
   sublevs(ic,j_delta_tv,i_next(ic)) = delta_tv(ic)                             &
-                      * sum_massflux_det(ic)                                   &
+                      * comorph_timestep * sum_massflux_det(ic)                &
                       * ( par_conv_super(ic,i_massflux_d)                      &
-                   / max( par_prev_super(ic,i_massflux_d), min_float ) )
+                   / max( par_prev_super(ic,i_massflux_d), min_float ) )       &
+                      * alpha_detrain
 
 end do
 

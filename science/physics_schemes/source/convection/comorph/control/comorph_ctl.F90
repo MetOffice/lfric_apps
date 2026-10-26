@@ -56,6 +56,7 @@ use calc_layer_mass_mod, only: calc_layer_mass
 use copy_field_mod, only: copy_field_3d
 use calc_turb_diags_mod, only: calc_turb_diags
 use calc_virt_temp_mod, only: calc_virt_temp_3d
+use interp_virt_temp_mod, only: interp_virt_temp
 use init_test_mod, only: init_test
 use comorph_main_mod, only: comorph_main
 
@@ -146,6 +147,9 @@ real(kind=real_hmprec) :: virt_temp_n( nx_full, ny_full,                       &
 ! Latest fields
 real(kind=real_hmprec) :: virt_temp_np1( nx_full, ny_full,                     &
                                          k_bot_conv:k_top_conv )
+! Latest virtual temperature interpolated to half-levels
+real(kind=real_hmprec) :: virt_temp_half( nx_full, ny_full,                    &
+                                          k_bot_conv:k_top_conv+1 )
 
 ! 3-D mask of points where convective initiation mass-sources
 ! for updrafts or downdrafts might be possible
@@ -182,6 +186,8 @@ integer :: lb_s(3), ub_s(3)
 integer :: lb_g(3), ub_g(3)
 integer :: lb_1(3), ub_1(3)
 integer :: lb_2(3), ub_2(3)
+integer :: lb_3(3), ub_3(3)
+integer :: lb_4(3), ub_4(3)
 
 ! String indicating where in the code bad-value checks are done
 character(len=name_length) :: where_string
@@ -369,6 +375,21 @@ call calc_virt_temp_3d( lb_t, ub_t, fields_np1 % temperature,                  &
                         lb_g, ub_g, fields_np1 % q_graup,                      &
                         virt_temp_np1 )
 
+! Interpolate latest virtual temperature to half-levels
+lb_1 = lbound( grid%height_full )
+ub_1 = ubound( grid%height_full )
+lb_2 = lbound( grid%height_half )
+ub_2 = ubound( grid%height_half )
+lb_3 = lbound( grid%pressure_full )
+ub_3 = ubound( grid%pressure_full )
+lb_4 = lbound( grid%pressure_half )
+ub_4 = ubound( grid%pressure_half )
+call interp_virt_temp( lb_1, ub_1, grid%height_full,                           &
+                       lb_2, ub_2, grid%height_half,                           &
+                       lb_3, ub_3, grid%pressure_full,                         &
+                       lb_4, ub_4, grid%pressure_half,                         &
+                       virt_temp_np1, virt_temp_half )
+
 
 !----------------------------------------------------------------
 ! 2) Compute any diagnostics not calculated inside the convection
@@ -469,7 +490,7 @@ end do
 !$OMP  SHARED(  n_segments, seg_n_points, seg_ij_last,                         &
 !$OMP           n_fields_tot, l_tracer,                                        &
 !$OMP           grid, turb, cloudfracs, fields_np1,                            &
-!$OMP           layer_mass, virt_temp_n, virt_temp_np1,                        &
+!$OMP           layer_mass, virt_temp_n, virt_temp_np1, virt_temp_half,        &
 !$OMP           l_init_poss, comorph_diags )                                   &
 !$OMP  PRIVATE( i_seg )
 !$OMP DO SCHEDULE(DYNAMIC)
@@ -484,7 +505,7 @@ do i_seg = 1, n_segments
                      n_fields_tot, l_tracer,                                   &
                      grid, turb, cloudfracs, fields_np1,                       &
                      layer_mass, virt_temp_n, virt_temp_np1,                   &
-                     l_init_poss, comorph_diags )
+                     virt_temp_half, l_init_poss, comorph_diags )
 
 end do  ! i_seg = 1, n_segments
 !$OMP END DO NOWAIT

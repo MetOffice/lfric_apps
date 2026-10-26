@@ -119,6 +119,13 @@ real(kind=real_umphys):: wind_w_buoy_fac = rmdi
 ! (assymptotic value above the BL-top; reduced near the surface)
 real(kind=real_umphys) :: ass_min_radius = rmdi
 
+! Rate at which minimum parcel radius increases with height near the surface
+! min_radius = MIN( fac * height, ass_min_radius )
+real(kind=real_umphys) :: min_radius_fac = rmdi
+
+! Scaling factor for turbulence length-scale (scales all parcel radii)
+real(kind=real_umphys) :: turb_len_fac = rmdi
+
 ! Scaling factor for par_gen core perturbations relative to
 ! the parcel mean properties (used if l_par_core = .TRUE.)
 real(kind=real_umphys) :: par_gen_core_fac = rmdi
@@ -203,8 +210,8 @@ n_dndraft_types,                                                               &
 par_radius_knob, par_radius_knob_max, par_radius_ppn_max, dx_ref,              &
 core_ent_fac, rain_area_min, cf_conv_fac, drag_coef_par, par_gen_rhpert,       &
 par_gen_mass_fac, wind_w_fac, wind_w_buoy_fac, par_gen_pert_fac,               &
-ass_min_radius, par_gen_core_fac, overlap_power, ent_coef,                     &
-min_cmr, max_cmr,                                                              &
+ass_min_radius, min_radius_fac, turb_len_fac, par_gen_core_fac, overlap_power, &
+ent_coef, min_cmr, max_cmr,                                                    &
 
 ! Plume  microphysics parameters
 rho_rim, tdep_n_cl, tdep_n_cf, hetnuc_temp, cf_area_coef, drag_coef_cond,      &
@@ -285,6 +292,10 @@ call chk_var(wind_w_buoy_fac,'wind_w_buoy_fac','[0.5:2.0]')
 
 call chk_var(ass_min_radius,'ass_min_radius','[0.0:10000.0]')
 
+call chk_var(min_radius_fac,'min_radius_fac','[0.0:1.0E6]')
+
+call chk_var(turb_len_fac,'turb_len_fac','[1.0:100.0]')
+
 call chk_var(par_gen_core_fac,'par_gen_core_fac','[2.0:6.0]')
 
 call chk_var(overlap_power,'overlap_power','[1.0E-6:1.0]')
@@ -344,6 +355,10 @@ call umPrint(lineBuffer,src=ModuleName)
 write(lineBuffer,"(A,ES14.6)")' par_gen_pert_fac = ',par_gen_pert_fac
 call umPrint(lineBuffer,src=ModuleName)
 write(lineBuffer,"(A,ES14.6)")' ass_min_radius = ',ass_min_radius
+call umPrint(lineBuffer,src=ModuleName)
+write(lineBuffer,"(A,ES14.6)")' min_radius_fac = ',min_radius_fac
+call umPrint(lineBuffer,src=ModuleName)
+write(lineBuffer,"(A,ES14.6)")' turb_len_fac = ',turb_len_fac
 call umPrint(lineBuffer,src=ModuleName)
 write(lineBuffer,"(A,ES14.6)")' par_gen_core_fac = ',par_gen_core_fac
 call umPrint(lineBuffer,src=ModuleName)
@@ -447,7 +462,7 @@ character(len=*), parameter :: RoutineName='READ_NML_RUN_COMORPH'
 ! set number of each type of variable in my_namelist type
 integer, parameter :: no_of_types = 3
 integer, parameter :: n_int = 4
-integer, parameter :: n_real = 34
+integer, parameter :: n_real = 36
 integer, parameter :: n_log = 2
 
 type :: my_namelist
@@ -470,6 +485,8 @@ type :: my_namelist
   real(kind=real_umphys) :: par_gen_rhpert
   real(kind=real_umphys) :: par_gen_pert_fac
   real(kind=real_umphys) :: ass_min_radius
+  real(kind=real_umphys) :: min_radius_fac
+  real(kind=real_umphys) :: turb_len_fac
   real(kind=real_umphys) :: par_gen_core_fac
   real(kind=real_umphys) :: overlap_power
   real(kind=real_umphys) :: ent_coef
@@ -531,6 +548,8 @@ if (mype == 0) then
   my_nml % par_gen_rhpert       = par_gen_rhpert
   my_nml % par_gen_pert_fac     = par_gen_pert_fac
   my_nml % ass_min_radius       = ass_min_radius
+  my_nml % min_radius_fac       = min_radius_fac
+  my_nml % turb_len_fac         = turb_len_fac
   my_nml % par_gen_core_fac     = par_gen_core_fac
   my_nml % overlap_power        = overlap_power
   my_nml % ent_coef             = ent_coef
@@ -581,6 +600,8 @@ if (mype /= 0) then
   par_gen_rhpert       = my_nml % par_gen_rhpert
   par_gen_pert_fac     = my_nml % par_gen_pert_fac
   ass_min_radius       = my_nml % ass_min_radius
+  min_radius_fac       = my_nml % min_radius_fac
+  turb_len_fac         = my_nml % turb_len_fac
   par_gen_core_fac     = my_nml % par_gen_core_fac
   overlap_power        = my_nml % overlap_power
   ent_coef             = my_nml % ent_coef
