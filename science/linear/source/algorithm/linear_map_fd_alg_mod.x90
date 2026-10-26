@@ -123,15 +123,16 @@ contains
 
     if ( read_w2h_wind ) then
       ! We read in the horizontal (normal to face) winds on the w2h points - without scaling
-      face_selector_ew => get_face_selector_ew(u%get_mesh_id())
-      face_selector_ns => get_face_selector_ns(u%get_mesh_id())
+      face_selector_ew => get_face_selector_ew(u%get_mesh())
+      face_selector_ns => get_face_selector_ns(u%get_mesh())
       call invoke( combine_w2_field_kernel_type( u, h_wind_in_w2h,      &
                                                  upward_wind_in_wtheta, &
                                                  face_selector_ew,      &
                                                  face_selector_ns ) )
     else
       ! We read in cell centred zonal/meridional winds
-      call set_wind( u, ew_wind_in_w3, ns_wind_in_w3, upward_wind_in_wtheta )
+      call set_wind( modeldb%config, u, ew_wind_in_w3, &
+                     ns_wind_in_w3, upward_wind_in_wtheta )
     end if
 
    call log_field_minmax( LOG_LEVEL_INFO, 'theta pert', theta )

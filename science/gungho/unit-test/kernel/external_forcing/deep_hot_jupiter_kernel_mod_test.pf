@@ -8,7 +8,7 @@
 !>
 module deep_hot_jupiter_kernel_mod_test
 
-  use constants_mod,       only : i_def, r_def, r_second, PI, imdi
+  use constants_mod,       only : i_def, r_def, r_second, PI
   use coord_transform_mod, only : llr2xyz
   use funit
 
@@ -35,12 +35,16 @@ contains
                                            feign_planet_config,         &
                                            feign_timestepping_config
     use finite_element_config_mod,  only : cellshape_quadrilateral, &
-                                           coord_system_xyz
+                                           coord_system_xyz, coord_space_wchi
     use sci_chi_transform_mod,      only : init_chi_transforms
     use timestepping_config_mod,    only : method_semi_implicit, &
                                            runge_kutta_method_ssp3
 
     implicit none
+
+    real(r_def), parameter :: geostrophic_north_pole(2) = [0.0_r_def, PI/2.0_r_def]
+    real(r_def), parameter :: null_island(2) = [0.0_r_def, 0.0_r_def]
+    real(r_def), parameter :: equator_latitude = 0.0_r_def
 
     call feign_extrusion_config( planet_radius=9.44E7_r_def,                 &
                                  domain_height=10.0_r_def,                   &
@@ -52,6 +56,8 @@ contains
 
     call feign_finite_element_config( cellshape=cellshape_quadrilateral, &
                                       coord_order=0_i_def,               &
+                                      coord_order_nonprime=1_i_def,      &
+                                      coord_space=coord_space_wchi,      &
                                       coord_system=coord_system_xyz,     &
                                       element_order_h=0_i_def,           &
                                       element_order_v=0_i_def,           &
@@ -70,7 +76,14 @@ contains
                                     runge_kutta_method=runge_kutta_method_ssp3,         &
                                     spinup_period=0.0_r_second, spinup_alpha=.false.)
 
-    call init_chi_transforms(imdi, imdi)
+    ! Note: Calling 'init_chi_transforms' is only valid for meshes which have a
+    !       spherical geometry and coordinate system. While it may not be relevant
+    !       to this mesh, it is called due to an unknown interaction which changes
+    !       results. If it is not applicable to this mesh, it should be removed once
+    !       this issue is resolved.
+    call init_chi_transforms( geostrophic_north_pole, &
+                              null_island, &
+                              equator_latitude )
 
   end subroutine set_up
 
@@ -79,7 +92,7 @@ contains
   subroutine tear_down()
 
     use sci_chi_transform_mod, only: final_chi_transforms
-    use configuration_mod, only: final_configuration
+    use config_loader_mod,     only: final_configuration
 
     implicit none
 
@@ -132,6 +145,7 @@ contains
     real(kind=r_def), allocatable :: panel_id(:)
     real(kind=r_def), allocatable :: theta_data(:)
     real(kind=r_def), allocatable :: exner_data(:)
+    real(kind=r_def), allocatable :: height_data(:)
     real(kind=r_def), allocatable :: dtheta_data(:)
 
     real(kind=r_def) :: answer_dtheta
@@ -164,6 +178,7 @@ contains
     allocate(panel_id(undf_w3))
     allocate(theta_data(undf_wth))
     allocate(exner_data(undf_wth))
+    allocate(height_data(undf_wth))
     allocate(dtheta_data(undf_wth))
 
     ! Make a 3x3x3 chi field
@@ -195,11 +210,14 @@ contains
 
     ! This unit test checks for the case when deep in the atmosphere at the surface.
     exner_data(:)            = 1.0_r_def
+    height_data(:)           = 0.0_r_def
+
     cell = 5
     call deep_hot_jupiter_code( nlayers,                            &
                                 dtheta_data,                        &
                                 theta_data,                         &
                                 exner_data,                         &
+                                height_data,                        &
                                 chi_data(:,1),                      &
                                 chi_data(:,2),                      &
                                 chi_data(:,3),                      &
@@ -219,11 +237,15 @@ contains
 
     ! This unit test checks for the case when high up in atmosphere.
     exner_data(:) = 0.05_r_def
+
+    ! equivalent height to Exner=0.05 for Deep Hot Jupiter
+    height_data(:) = 8333333.3333333284_r_def
     cell = 1
     call deep_hot_jupiter_code( nlayers,                            &
                                 dtheta_data,                        &
                                 theta_data,                         &
                                 exner_data,                         &
+                                height_data,                        &
                                 chi_data(:,1),                      &
                                 chi_data(:,2),                      &
                                 chi_data(:,3),                      &
@@ -235,7 +257,7 @@ contains
                                 undf_pid=undf_w3,                   &
                                 map_pid=map_w3(:,cell)              &
                               )
-    answer_dtheta = 1080.37082614347614_r_def
+    answer_dtheta = 1090.0296317090501_r_def
     tol = 10.0_r_def * spacing(answer_dtheta) ! Factor of 10 here to
                                               ! accommodate for variation
                                               ! between compute platforms
@@ -249,6 +271,7 @@ contains
     deallocate(panel_id)
     deallocate(theta_data)
     deallocate(exner_data)
+    deallocate(height_data)
     deallocate(dtheta_data)
 
   end subroutine test_all

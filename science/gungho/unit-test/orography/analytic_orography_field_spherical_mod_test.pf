@@ -13,6 +13,10 @@ module analytic_orography_field_spherical_mod_test
   use global_mesh_mod,            only : global_mesh_type
   use analytic_orography_mod,     only : orography_profile
   use ugrid_mesh_data_mod,        only : ugrid_mesh_data_type
+  use extrusion_config_mod,       only : method_uniform, &
+                                         stretching_method_linear
+
+  use mesh_mod, only: mesh_type, geometry_spherical, topology_periodic
 
   use funit
 
@@ -35,18 +39,23 @@ module analytic_orography_field_spherical_mod_test
     procedure     :: test_analytic_orography_field_spherical
   end type analytic_orography_field_spherical_test_type
 
-  character(str_def), parameter   :: mesh_name     = 'unit_test'
-  character(len=str_max_filename) :: file_prefix   = "data/mesh_C16"
-  real(r_def),        parameter   :: domain_height         = 10000.0_r_def
-  integer(i_def),     parameter   :: nlayers               = 10_i_def
-  integer(i_def),     parameter   :: total_ranks           = 1_i_def
-  integer(i_def),     parameter   :: local_rank            = 0_i_def
-  integer(i_def),     parameter   :: xproc                 = 1_i_def
-  integer(i_def),     parameter   :: yproc                 = 1_i_def
+  character(str_def), parameter   :: mesh_name   = 'unit_test'
+  character(len=str_max_filename) :: file_prefix = "data/mesh_C16"
 
-  real(r_def),        parameter   :: radius                = 6371229.0_r_def
+  real(r_def), parameter :: radius        = 6371229.0_r_def
+  real(r_def), parameter :: domain_height = 10000.0_r_def
+  real(r_def), parameter :: stretching_height = 1.0_r_def
 
-  logical(l_def),     parameter   :: generate_inner_halos = .true.
+  integer(i_def), parameter :: nlayers     = 10_i_def
+  integer(i_def), parameter :: total_ranks = 1_i_def
+  integer(i_def), parameter :: local_rank  = 0_i_def
+  integer(i_def), parameter :: xproc       = 1_i_def
+  integer(i_def), parameter :: yproc       = 1_i_def
+
+
+  integer(i_def), parameter :: max_stencil_depth    = 1_i_def
+  logical(l_def), parameter :: generate_inner_halos = .true.
+  logical(l_def), parameter :: enforce_constraints  = .false.
 
 contains
 
@@ -54,12 +63,9 @@ contains
   subroutine setUp(this)
 
     use agnesi_orography_spherical_mod, only : agnesi_spherical_type
-    use base_mesh_config_mod,           only : geometry_spherical, &
-                                               topology_fully_periodic
-    use extrusion_config_mod,           only : method_uniform, &
-                                               stretching_method_linear
     use finite_element_config_mod,      only : cellshape_quadrilateral, &
-                                               coord_system_xyz
+                                               coord_system_xyz,        &
+                                               coord_space_wchi
     use feign_config_mod,               only : feign_base_mesh_config,      &
                                                feign_extrusion_config,      &
                                                feign_finite_element_config, &
@@ -69,12 +75,15 @@ contains
     use orography_agnesi_spherical_config_mod, only :              &
                                         lambda_centre, phi_centre, &
                                         lambda_focus, phi_focus
-    use extrusion_config_mod,    only : method_uniform, stretching_method_linear
     use sci_chi_transform_mod,   only : init_chi_transforms
 
     implicit none
 
     class(analytic_orography_field_spherical_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: geostrophic_north_pole(2) = [0.0_r_def, PI/2.0_r_def]
+    real(r_def), parameter :: null_island(2) = [0.0_r_def, 0.0_r_def]
+    real(r_def), parameter :: equator_latitude = 0.0_r_def
 
     ! Set mesh configuration
     call feign_base_mesh_config(                                    &
@@ -82,7 +91,7 @@ contains
                          prime_mesh_name = mesh_name,               &
                          geometry        = geometry_spherical,      &
                          prepartitioned  = .false.,                 &
-                         topology        = topology_fully_periodic, &
+                         topology        = topology_periodic,       &
                          fplane          = .false.,                 &
                          f_lat_deg       = 0.0_r_def )
 
@@ -90,7 +99,7 @@ contains
                                  planet_radius=radius,        &
                                  domain_height=domain_height, &
                                  number_of_layers=nlayers,    &
-                                 stretching_height=1.0_r_def, &
+                                 stretching_height=stretching_height,        &
                                  stretching_method=stretching_method_linear, &
                                  eta_values=(/0.5_r_def/) )
 
@@ -119,6 +128,8 @@ contains
 
     call feign_finite_element_config( cellshape=cellshape_quadrilateral, &
                                       coord_order=0_i_def,               &
+                                      coord_order_nonprime=1_i_def,      &
+                                      coord_space=coord_space_wchi,      &
                                       coord_system=coord_system_xyz,     &
                                       element_order_h=0_i_def,           &
                                       element_order_v=0_i_def,           &
@@ -134,15 +145,22 @@ contains
                                               lambda_focus,         &
                                               phi_focus ) )
 
-    call init_chi_transforms(geometry_spherical, topology_fully_periodic)
+    ! Note: Calling 'init_chi_transforms' is only valid for meshes which have a
+    !       spherical geometry and coordinate system. While it may not be relevant
+    !       to this mesh, it is called due to an unknown interaction which changes
+    !       results. If it is not applicable to this mesh, it should be removed once
+    !       this issue is resolved.
+    call init_chi_transforms( geostrophic_north_pole, &
+                              null_island, &
+                              equator_latitude )
 
   end subroutine setUp
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown(this)
 
-    use configuration_mod,        only: final_configuration
-    use sci_chi_transform_mod,    only: final_chi_transforms
+    use config_loader_mod,     only: final_configuration
+    use sci_chi_transform_mod, only: final_chi_transforms
 
     implicit none
 
@@ -160,7 +178,6 @@ contains
 
     use, intrinsic :: iso_fortran_env,  only : real64
     use local_mesh_mod,                 only : local_mesh_type
-    use mesh_mod,                       only : mesh_type
     use panel_decomposition_mod,        only : custom_decomposition_type
     use partition_mod,                  only : partition_type,        &
                                                partitioner_interface, &
@@ -194,6 +211,7 @@ contains
     real(r_def)               :: use_tol
     real(r_def)               :: height_flat_surface, height_domain_top
     real(r_def)               :: chi_1(undf), chi_2(undf), chi_3(undf)
+    real(r_def)               :: chi_1_in(undf), chi_2_in(undf), chi_3_in(undf)
     real(r_def)               :: chi_1_cart(undf), chi_2_cart(undf), chi_3_cart(undf)
     real(r_def)               :: panel_id(undf)
     real(r_def)               :: eta(0:nlayers)
@@ -208,12 +226,13 @@ contains
     ! Assign partitioner
     decomposition = custom_decomposition_type( xproc, yproc )
     partitioner_ptr => partitioner_cubedsphere_serial
-    partition = partition_type( global_mesh_ptr,       &
-                                partitioner_ptr,       &
-                                decomposition,         &
-                                1,                     &
+    partition = partition_type( global_mesh_ptr,      &
+                                partitioner_ptr,      &
+                                decomposition,        &
+                                max_stencil_depth,    &
                                 generate_inner_halos, &
-                                local_rank,            &
+                                enforce_constraints,  &
+                                local_rank,           &
                                 total_ranks )
     call local_mesh%initialise( global_mesh_ptr, partition )
     call local_mesh%init_cell_owner()
@@ -251,11 +270,19 @@ contains
       call llr2xyz(chi_1(i), chi_2(i), chi_3(i), &
                    chi_1_cart(i), chi_2_cart(i), chi_3_cart(i))
     end do
+
+    chi_1_in(:) = chi_1_cart(:)
+    chi_2_in(:) = chi_2_cart(:)
+    chi_3_in(:) = chi_3_cart(:)
+
     ! Test spherical orography assignment
-    call analytic_orography_spherical_xyz( nlayers, ndf, undf, map, &
-                                           ndf, undf, map,          &
-                                           height_flat_surface,     &
-                                           height_domain_top,       &
+    call analytic_orography_spherical_xyz( nlayers, ndf, undf, map,            &
+                                           ndf, undf, map,                     &
+                                           height_flat_surface,                &
+                                           height_domain_top,                  &
+                                           stretching_height,                  &
+                                           stretching_method_linear,           &
+                                           chi_1_in, chi_2_in, chi_3_in,       &
                                            chi_1_cart, chi_2_cart, chi_3_cart, &
                                            panel_id )
     ! Transform coordinate field back to (long, lat, r) for comparison

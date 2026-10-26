@@ -6,6 +6,10 @@
 module ancil_orography_cartesian_mod_test
 
   use constants_mod,                 only : i_def, r_def
+  use extrusion_config_mod,          only : method_uniform, &
+                                            stretching_method_linear
+  use mesh_mod,                      only : geometry_planar, &
+                                            topology_periodic
   use funit
 
   implicit none
@@ -17,6 +21,7 @@ module ancil_orography_cartesian_mod_test
   real(r_def), parameter :: dx = 6000.0_r_def
   real(r_def), parameter :: dy = 1000.0_r_def
   real(r_def), parameter :: dz = 2000.0_r_def
+  real(r_def), parameter :: stretching_height = 1.0_r_def
   real(r_def), parameter :: domain_height = nlayers*dz
   real(r_def), parameter :: domain_surface = 0.0_r_def
 
@@ -28,12 +33,8 @@ contains
   @before
   subroutine set_up()
 
-    use base_mesh_config_mod,      only : geometry_planar, &
-                                          topology_fully_periodic
-    use extrusion_config_mod,      only : method_uniform,       &
-                                          stretching_method_linear
     use finite_element_config_mod, only : cellshape_quadrilateral, &
-                                          coord_system_xyz
+                                          coord_system_xyz, coord_space_wchi
     use feign_config_mod,          only : feign_finite_element_config, &
                                           feign_base_mesh_config, &
                                           feign_extrusion_config
@@ -45,7 +46,7 @@ contains
                          prime_mesh_name = 'unit_test',              &
                          geometry        = geometry_planar,          &
                          prepartitioned  = .false.,                  &
-                         topology        = topology_fully_periodic,  &
+                         topology        = topology_periodic,        &
                          fplane          = .false.,                  &
                          f_lat_deg       = 0.0_r_def )
 
@@ -54,13 +55,15 @@ contains
                          planet_radius    = 0.0_r_def,               &
                          domain_height    = domain_height,           &
                          number_of_layers = nlayers,                 &
-                         stretching_height= 1.0_r_def,               &
+                         stretching_height= stretching_height,       &
                          stretching_method= stretching_method_linear,&
                          eta_values=(/0.5_r_def/) )
 
     call feign_finite_element_config(                       &
                          cellshape=cellshape_quadrilateral, &
                          coord_order=0_i_def,               &
+                         coord_order_nonprime=1_i_def,      &
+                         coord_space=coord_space_wchi,      &
                          coord_system=coord_system_xyz,     &
                          element_order_h=0_i_def,           &
                          element_order_v=0_i_def,           &
@@ -73,7 +76,7 @@ contains
   @after
   subroutine tear_down()
 
-    use configuration_mod, only: final_configuration
+    use config_loader_mod, only: final_configuration
 
     implicit none
 
@@ -108,6 +111,7 @@ contains
     real(r_def), allocatable :: srf_alt_w0(:)
     real(r_def), allocatable :: multipl_w0_sl(:)
     real(r_def), allocatable :: chi1(:), chi2(:), chi3(:), panel_id(:)
+    real(r_def), allocatable :: chi1_in(:), chi2_in(:), chi3_in(:)
 
     real(r_def) :: answer
 
@@ -155,6 +159,9 @@ contains
     allocate( chi1(undf_wchi) )
     allocate( chi2(undf_wchi) )
     allocate( chi3(undf_wchi) )
+    allocate( chi1_in(undf_wchi) )
+    allocate( chi2_in(undf_wchi) )
+    allocate( chi3_in(undf_wchi) )
     allocate( srf_alt_w3(undf_w3_sl) )
     allocate( srf_alt_w0(undf_w0_sl) )
     allocate( multipl_w0_sl(undf_w0_sl) )
@@ -172,6 +179,11 @@ contains
     ! This generates the w0 surface_altitude
     srf_alt_w3(:)=0.0_r_def
     srf_alt_w3(5)=400.0_r_def
+
+    chi1_in(:) = chi1(:)
+    chi2_in(:) = chi2(:)
+    chi3_in(:) = chi3(:)
+
     do cell = 1, ncells
 
       call average_w3_to_w0_code(1,                  &
@@ -195,10 +207,15 @@ contains
                                      chi1,               &
                                      chi2,               &
                                      chi3,               &
+                                     chi1_in,            &
+                                     chi2_in,            &
+                                     chi3_in,            &
                                      panel_id,           &
                                      srf_alt_w0,         &
                                      domain_surface,     &
                                      domain_height,      &
+                                     stretching_height,  &
+                                     stretching_method_linear, &
                                      ndf_wchi,           &
                                      undf_wchi,          &
                                      map_wchi(:, cell),  &
@@ -237,6 +254,9 @@ contains
     deallocate( chi1 )
     deallocate( chi2 )
     deallocate( chi3 )
+    deallocate( chi1_in )
+    deallocate( chi2_in )
+    deallocate( chi3_in )
     deallocate( panel_id )
     deallocate( basis_w0_on_wchi )
 

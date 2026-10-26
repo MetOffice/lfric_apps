@@ -33,6 +33,8 @@ use comorph_constants_mod, only: real_cvprec, zero, one, cond_params,          &
 use linear_qs_mod, only: n_linear_qs_fields, i_ref_temp,                       &
                          i_qsat_liq_ref, i_dqsatdT_liq
 use cmpr_type_mod, only: cmpr_type
+use fields_type_mod, only: field_min, field_max,                               &
+                           i_temperature, i_q_vap, i_qc_first
 
 use moist_proc_conservation_mod, only: moist_proc_conservation
 use set_cp_tot_mod, only: set_cp_tot
@@ -95,7 +97,7 @@ real(kind=real_cvprec), intent(in) :: vert_len(n_points)
 ! parcel relative to the environment, such that
 ! wind_w_excess = delta_z/delta_t
 real(kind=real_cvprec), intent(in) :: wind_w_excess(n_points)
-! Note that wind_w_excess does not modify the fall velocities
+! Note that wind_w_excess does NOT modify the fall velocities
 ! used in sedimentation.
 ! For Lagrangian ascents, the frame of reference moves with
 ! the vertical wind, and sedimentation is relative to the
@@ -138,9 +140,9 @@ real(kind=real_cvprec), intent(in) :: fallin_wind_w(n_points)
 real(kind=real_cvprec), intent(in) :: fallin_temp(n_points)
 
 ! Properties of the current air:
-! in:  -updated by advection and mixing, but not yet any phase
+! IN:  -updated by advection and mixing, but not yet any phase
 !       changes or microphysical processes.
-! out: -fully updated by phase changes and microphysical
+! OUT: -fully updated by phase changes and microphysical
 !       processes
 real(kind=real_cvprec), intent(in out) :: wind_u(n_points)
 real(kind=real_cvprec), intent(in out) :: wind_v(n_points)
@@ -153,8 +155,8 @@ real(kind=real_cvprec), intent(in out) :: q_cond                               &
 
 ! Super-array containing fall-fluxes of all condened
 ! water species / kg m-2 s-1
-! in:  - fluxes falling into the current air
-! out: - fluxes falling out of the current air
+! IN:  - fluxes falling into the current air
+! OUT: - fluxes falling out of the current air
 real(kind=real_cvprec), intent(in out) :: flux_cond                            &
                                    ( n_points, n_cond_species )
 
@@ -212,11 +214,13 @@ real(kind=real_cvprec) :: dq_frz_cond                                          &
 ! this gets incremented by phase-changes
 real(kind=real_cvprec) :: cp_tot(n_points)
 
+! Total water mixing ratio q_vap + sum q_cond
+real(kind=real_cvprec) :: q_tot(n_points)
+
 ! Dry-density
 real(kind=real_cvprec) :: rho_dry(n_points)
 
 ! Wet density
-! (also used to store total-water q_vap + sum q_cond)
 real(kind=real_cvprec) :: rho_wet(n_points)
 
 ! Work array used for conservation checks
@@ -230,8 +234,6 @@ integer :: nc( n_cond_species )
 
 ! Name of a field (for error message)
 character(len=name_length) :: field_name
-! Flag for whether field is positive-only
-logical :: l_positive
 ! Description of where we are in the code, for error messages
 character(len=name_length) :: where_string
 
@@ -241,20 +243,21 @@ integer :: ic, ic2, i_cond, i_super
 
 ! Check inputs for bad values (NaN, Inf, etc)
 if ( i_check_bad_values_cmpr > i_check_bad_none ) then
-  where_string = "Start of moist_proc call for "              //               &
-                 trim(adjustl(call_string))
-  l_positive = .true.
+  where_string = "Start of moist_proc call for " // trim(adjustl(call_string))
   field_name = "temperature"
-  call check_bad_values_cmpr( cmpr, k, temperature,                            &
-         where_string, field_name, l_positive )
+  call check_bad_values_cmpr( cmpr, k, temperature, where_string, field_name,  &
+                              field_min=field_min(i_temperature),              &
+                              field_max=field_max(i_temperature) )
   field_name = "q_vap"
-  call check_bad_values_cmpr( cmpr, k, q_vap,                                  &
-         where_string, field_name, l_positive )
+  call check_bad_values_cmpr( cmpr, k, q_vap, where_string, field_name,        &
+                              field_min=field_min(i_q_vap),                    &
+                              field_max=field_max(i_q_vap) )
   do i_cond = 1, n_cond_species
-    field_name = "q_" //                                                       &
-                 trim(adjustl( cond_params(i_cond)%pt % cond_name ))
+    field_name = "q_" // trim(adjustl( cond_params(i_cond)%pt % cond_name ))
     call check_bad_values_cmpr( cmpr, k, q_cond(:,i_cond),                     &
-           where_string, field_name, l_positive )
+                                where_string, field_name,                      &
+                                field_min=field_min(i_qc_first-1+i_cond),      &
+                                field_max=field_max(i_qc_first-1+i_cond) )
   end do
 end if
 
@@ -277,9 +280,18 @@ end if
 call set_cp_tot( n_points, n_points_super,                                     &
                  q_vap, q_cond, cp_tot )
 
-! Set total-water mixing-ratio (stored in rho_wet)
+! Set total-water mixing-ratio
 call calc_q_tot( n_points, n_points_super,                                     &
-                 q_vap, q_cond, rho_wet )
+                 q_vap, q_cond, q_tot )
+
+! Calculate air dry-density
+call calc_rho_dry( n_points, temperature, q_vap, pressure,                     &
+                   rho_dry )
+
+! Calculate rho_wet
+do ic = 1, n_points
+  rho_wet(ic) = rho_dry(ic) * ( one + q_tot(ic) )
+end do
 
 
 !----------------------------------------------------------------
@@ -308,10 +320,11 @@ do i_cond = 1, n_cond_species
                   dt_over_rhod_lz, flux_cond(:,i_cond),                        &
                   fallin_wind_u, fallin_wind_v, fallin_wind_w,                 &
                   fallin_temp,                                                 &
-                  cp_tot, rho_wet, wind_u, wind_v, wind_w,                     &
+                  cp_tot, q_tot, wind_u, wind_v, wind_w,                       &
                   temperature, q_cond(:,i_cond),                               &
                   l_diags, i_cond, moist_proc_diags,                           &
                   n_points_diag, n_diags, diags_super )
+    ! This routine resets flux_cond to zero ready for storing the fall-out flux
 
   end if
 
@@ -335,16 +348,6 @@ do i_cond = 1, n_cond_species
   end do
 end do
 
-! Calculate air dry-density
-call calc_rho_dry( n_points, temperature, q_vap, pressure,                     &
-                   rho_dry )
-
-! Complete calculation of rho_wet (currently stores q_tot;
-! dry-mass to wet-mass conversion factor = 1 + q_tot)
-do ic = 1, n_points
-  rho_wet(ic) = rho_dry(ic) * ( one + rho_wet(ic) )
-end do
-
 ! Call microphysics routine:
 ! Back-Of-The-Envelope Microphysics Scheme (BOTEMS)
 call microphysics_1( n_points, n_points_super, nc, index_ic,                   &
@@ -359,7 +362,7 @@ call microphysics_1( n_points, n_points_super, nc, index_ic,                   &
 
 ! Note: the above call to microphysics_1 needs to be done even
 ! if all the condensed water species are currently zero
-! everywhere, as the test for activation of new condesation
+! everywhere, as the test for activation of new condensation
 ! is done inside microphysics_1.
 
 ! If any condensed water species are non-zero anywhere
@@ -382,7 +385,7 @@ if ( maxval(nc) > 0 ) then
              l_diags, moist_proc_diags, n_points_diag, n_diags, diags_super )
 
 
-  ! do not add any more processes that alter T or q after this
+  ! DO NOT add any more processes that alter T or q after this
   ! point; it will ruin the implicit solve!
 
   ! Now you maybe wondering, what happened to stage number 5)
@@ -423,12 +426,12 @@ if ( maxval(nc) > 0 ) then
       ! left-over.
       do ic2 = 1, nc(i_cond)
         ic = index_ic(ic2,i_cond)
-        ! Some compilers allow values less than tiny to exist with
+        ! Some compilers allow values less than TINY to exist with
         ! reduced precision; the reduced precision can make some
         ! calculations unsafe, so reset to zero when this happens.
         ! Note: just removing water here, but shouldn't matter for
         ! conservation because the amounts removed will be less than
-        ! epsilon * q_tot and therefore not representable increments.
+        ! EPSILON * q_tot and therefore not representable increments.
         if ( q_cond(ic,i_cond) < min_float ) then
           q_cond(ic,i_cond) = zero
         end if
@@ -464,7 +467,7 @@ if ( maxval(nc) > 0 ) then
   end if
 
 
-end if  ! ( maxval(nc) > 0 )
+end if  ! ( MAXVAL(nc) > 0 )
 
 
 if ( i_check_conservation > i_check_bad_none ) then
@@ -481,20 +484,21 @@ end if
 
 ! Check outputs for bad values (NaN, Inf, etc)
 if ( i_check_bad_values_cmpr > i_check_bad_none ) then
-  where_string = "End of moist_proc call for "                //               &
-                 trim(adjustl(call_string))
-  l_positive = .true.
+  where_string = "End of moist_proc call for " // trim(adjustl(call_string))
   field_name = "temperature"
-  call check_bad_values_cmpr( cmpr, k, temperature,                            &
-         where_string, field_name, l_positive )
+  call check_bad_values_cmpr( cmpr, k, temperature, where_string, field_name,  &
+                              field_min=field_min(i_temperature),              &
+                              field_max=field_max(i_temperature) )
   field_name = "q_vap"
-  call check_bad_values_cmpr( cmpr, k, q_vap,                                  &
-         where_string, field_name, l_positive )
+  call check_bad_values_cmpr( cmpr, k, q_vap, where_string, field_name,        &
+                              field_min=field_min(i_q_vap),                    &
+                              field_max=field_max(i_q_vap) )
   do i_cond = 1, n_cond_species
-    field_name = "q_" //                                                       &
-                 trim(adjustl( cond_params(i_cond)%pt % cond_name ))
+    field_name = "q_" // trim(adjustl( cond_params(i_cond)%pt % cond_name ))
     call check_bad_values_cmpr( cmpr, k, q_cond(:,i_cond),                     &
-           where_string, field_name, l_positive )
+                                where_string, field_name,                      &
+                                field_min=field_min(i_qc_first-1+i_cond),      &
+                                field_max=field_max(i_qc_first-1+i_cond) )
   end do
 end if
 

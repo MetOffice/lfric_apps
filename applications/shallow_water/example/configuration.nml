@@ -34,6 +34,7 @@ counter_output_suffix='counter.txt',
 timer_output_path='timer.txt',
 write_conservation_diag=.false.,
 write_fluxes=.false.,
+write_initial=.true.,
 write_minmax_tseries=.false.,
 /
 
@@ -208,6 +209,7 @@ min_value                = 0.0,0.0,-99999999.0,-99999999.0,0.0,-99999999.0,0.0
 min_val_abs_tol          = -1.0e-12
 min_val_max_iterations   = 10
 min_val_method           = 'iterative'
+native_w2_wind_transport = .false.,
 oned_reconstruction      = .false.
 operators                = 'fv'
 panel_edge_high_order    = .true.,
@@ -276,6 +278,8 @@ start_dump_directory = ''
         ! These do not need changing
 cellshape       = 'quadrilateral'
 coord_order     = 1
+coord_order_nonprime = 1
+coord_space     = 'Wchi'
 coord_system    = 'native'
 element_order_h = 0
 element_order_v = 0

@@ -24,8 +24,10 @@ module create_w2mask_tang_kernel_mod
   use constants_mod,             only : r_def, i_def, l_def
   use fs_continuity_mod,         only : W2, Wchi
   use kernel_mod,                only : kernel_type
-  use base_mesh_config_mod,      only : geometry,           &
-                                        geometry_spherical
+
+  use mesh_mod,                  only : geometry_spherical
+
+  use base_mesh_config_mod,      only : geometry
   use finite_element_config_mod, only : coord_system, &
                                         coord_system_xyz
 
@@ -147,7 +149,7 @@ subroutine create_w2mask_tang_code( nlayers,      &
                                             query_value_ns, &
                                             query_value_ew, &
                                             mask_value
-  real(kind=r_def), parameter            :: tol = 1.0e-9_r_def
+  real(kind=r_def), parameter            :: tol = 1.0e-15_r_def
   logical(kind=l_def)                    :: ew_innerbox, &
                                             ns_innerbox, &
                                             ew_outerbox, &

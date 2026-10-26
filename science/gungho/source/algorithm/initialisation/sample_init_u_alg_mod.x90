@@ -6,6 +6,7 @@
 !> @brief Initialise wind components by sampling specified profiles
 module sample_init_u_alg_mod
 
+  use config_mod,                    only: config_type
   use constants_mod,                 only: i_def, l_def, rmdi
   use field_mod,                     only: field_type
   use fs_continuity_mod,             only: W3, Wtheta
@@ -44,38 +45,43 @@ module sample_init_u_alg_mod
 
 contains
 
-  subroutine sample_init_u_alg( u )
+  subroutine sample_init_u_alg( config, u )
 
     implicit none
 
-    type( field_type ), intent( inout ) :: u
+    type(config_type), intent(in)    :: config
+    type(field_type),  intent(inout) :: u
 
     integer( kind=i_def ) :: mesh_id
     integer( kind=i_def ) :: element_order_h
     integer( kind=i_def ) :: element_order_v
     logical( kind=l_def ) :: profile_extrap
 
-    type( mesh_type ),  pointer :: mesh => null()
-    type( field_type ), pointer :: panel_id => null()
-    type( field_type ), pointer :: height_wth => null()
-    type( field_type ), pointer :: height_w3  => null()
+    type( mesh_type ),  pointer :: mesh
+    type( field_type ), pointer :: panel_id
+    type( field_type ), pointer :: height_wth
+    type( field_type ), pointer :: height_w3
 
     type( field_type ) :: u_in_w3
     type( field_type ) :: v_in_w3
     type( field_type ) :: w_in_wth
 
-    mesh_id = u%get_mesh_id()
-    mesh => u%get_mesh()
+    mesh_id =  u%get_mesh_id()
+    mesh    => u%get_mesh()
     element_order_h = u%get_element_order_h()
     element_order_v = u%get_element_order_v()
 
-    panel_id => get_panel_id( mesh_id )
+    panel_id => get_panel_id(mesh)
     if ( element_order_h > 0 .or. element_order_v > 0 ) then
-      height_wth => get_height_fe( Wtheta, mesh_id )
-      height_w3 => get_height_fe( W3, mesh_id )
+
+      height_wth => get_height_fe(config, mesh, Wtheta)
+      height_w3  => get_height_fe(config, mesh, W3)
+
     else
-      height_wth => get_height_fv( Wtheta, mesh_id )
-      height_w3 => get_height_fv( W3, mesh_id )
+
+      height_wth => get_height_fv(config, mesh, Wtheta)
+      height_w3  => get_height_fv(config, mesh, W3)
+
     end if
 
     call u_in_w3%initialise( vector_space =                              &
@@ -119,7 +125,7 @@ contains
                                                profile_extrap ) )
     end if
 
-    call set_wind( u, u_in_w3, v_in_w3, w_in_wth )
+    call set_wind( config, u, u_in_w3, v_in_w3, w_in_wth )
 
     nullify( panel_id )
     nullify( height_w3, height_wth )

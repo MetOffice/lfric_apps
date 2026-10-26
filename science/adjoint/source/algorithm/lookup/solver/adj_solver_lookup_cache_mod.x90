@@ -53,10 +53,10 @@ module adj_solver_lookup_cache_mod
     use formulation_config_mod,              only: l_multigrid
     use fs_continuity_mod,                   only: W3
     use function_space_mod,                  only: function_space_type
-    use function_space_chain_mod,            only: multigrid_function_space_chain
     use function_space_collection_mod,       only: function_space_collection
     use mesh_mod,                            only: mesh_type
     use multigrid_config_mod,                only: multigrid_chain_nitems
+    use multigrid_mod,                       only: multigrid_function_space_chain
     use r_solver_field_mod,                  only: r_solver_field_type
 
 

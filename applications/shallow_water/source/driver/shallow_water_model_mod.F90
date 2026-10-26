@@ -12,7 +12,7 @@ module shallow_water_model_mod
   use check_configuration_mod,        only: get_required_stencil_depth
   use sci_checksum_alg_mod,           only: checksum_alg
   use conservation_algorithm_mod,     only: conservation_algorithm
-  use constants_mod,                  only: i_def, str_def, r_def, &
+  use constants_mod,                  only: i_def, str_def, r_def, imdi, &
                                             PRECISION_REAL, l_def
   use convert_to_upper_mod,           only: convert_to_upper
   use create_mesh_mod,                only: create_mesh, create_extrusion
@@ -25,6 +25,7 @@ module shallow_water_model_mod
   use extrusion_mod,                  only: extrusion_type,         &
                                             uniform_extrusion_type, &
                                             PRIME_EXTRUSION, TWOD
+  use multigrid_mod,                  only: get_multigrid_tile_size
   use field_mod,                      only: field_type
   use field_parent_mod,               only: write_interface
   use field_collection_mod,           only: field_collection_type
@@ -43,8 +44,6 @@ module shallow_water_model_mod
   use minmax_tseries_mod,             only: minmax_tseries,      &
                                             minmax_tseries_init, &
                                             minmax_tseries_final
-  use namelist_collection_mod,        only: namelist_collection_type
-  use namelist_mod,                   only: namelist_type
   use runtime_constants_mod,          only: create_runtime_constants
   use shallow_water_setup_io_mod,     only: init_shallow_water_files
   use xios,                           only: xios_update_calendar
@@ -82,25 +81,33 @@ module shallow_water_model_mod
     character(len=*),   parameter   :: io_context_name = "shallow_water"
 
     character(str_def), allocatable :: base_mesh_names(:)
+    character(str_def), allocatable :: chain_mesh_tags(:)
     character(str_def), allocatable :: twod_names(:)
     integer(i_def),     allocatable :: stencil_depths(:)
 
     class(extrusion_type),        allocatable :: extrusion
     type(uniform_extrusion_type), allocatable :: extrusion_2d
 
-    type(namelist_type), pointer :: base_mesh_nml => null()
-    type(namelist_type), pointer :: planet_nml    => null()
-    type(namelist_type), pointer :: extrusion_nml => null()
-
     character(str_def) :: prime_mesh_name
 
     integer(i_def) :: geometry
+    integer(i_def) :: topology
     integer(i_def) :: method
     integer(i_def) :: number_of_layers
     real(r_def)    :: domain_bottom
     real(r_def)    :: domain_height
     real(r_def)    :: scaled_radius
-    logical        :: check_partitions
+
+    logical :: check_partitions
+    logical :: prepartitioned
+    logical :: inner_halo_tiles
+    logical :: use_multigrid
+
+    integer(i_def) :: tile_size_x
+    integer(i_def) :: tile_size_y
+
+    integer(i_def), allocatable :: tile_size(:,:)
+    integer(i_def), allocatable :: multigrid_tile_size(:,:)
 
     integer(i_def), parameter :: one_layer = 1_i_def
     integer(i_def) :: i
@@ -108,20 +115,29 @@ module shallow_water_model_mod
     !=======================================================================
     ! 0.0 Extract configuration variables
     !=======================================================================
-    base_mesh_nml => modeldb%configuration%get_namelist('base_mesh')
-    planet_nml    => modeldb%configuration%get_namelist('planet')
-    extrusion_nml => modeldb%configuration%get_namelist('extrusion')
+    use_multigrid = modeldb%config%formulation%l_multigrid()
+    if (use_multigrid) then
+      chain_mesh_tags = modeldb%config%multigrid%chain_mesh_tags()
+    end if
 
-    call base_mesh_nml%get_value( 'prime_mesh_name', prime_mesh_name )
-    call base_mesh_nml%get_value( 'geometry', geometry )
-    call extrusion_nml%get_value( 'method', method )
-    call extrusion_nml%get_value( 'domain_height', domain_height )
-    call extrusion_nml%get_value( 'number_of_layers', number_of_layers )
-    call planet_nml%get_value( 'scaled_radius', scaled_radius )
+    prime_mesh_name  = modeldb%config%base_mesh%prime_mesh_name()
+    geometry         = modeldb%config%base_mesh%geometry()
+    topology         = modeldb%config%base_mesh%topology()
+    prepartitioned   = modeldb%config%base_mesh%prepartitioned()
+    method           = modeldb%config%extrusion%method()
+    domain_height    = modeldb%config%extrusion%domain_height()
+    number_of_layers = modeldb%config%extrusion%number_of_layers()
+    scaled_radius    = modeldb%config%planet%scaled_radius()
 
-    base_mesh_nml => null()
-    planet_nml    => null()
-    extrusion_nml => null()
+    if (prepartitioned) then
+      inner_halo_tiles = .false.
+      tile_size_x = 1
+      tile_size_y = 1
+    else
+      inner_halo_tiles = modeldb%config%partitioning%inner_halo_tiles()
+      tile_size_x = maxval([1,modeldb%config%partitioning%tile_size_x()])
+      tile_size_y = maxval([1,modeldb%config%partitioning%tile_size_y()])
+    end if
 
     !-------------------------------------------------------------------------
     ! Initialise aspects of the infrastructure
@@ -181,13 +197,26 @@ module shallow_water_model_mod
     ! ---------------------------------------------------------
     check_partitions = .false.
     allocate(stencil_depths(size(base_mesh_names)))
-    call get_required_stencil_depth(                                           &
-        stencil_depths, base_mesh_names, modeldb%configuration                 &
-    )
-    call init_mesh( modeldb%configuration,       &
+    call get_required_stencil_depth( stencil_depths,  &
+                                     base_mesh_names, &
+                                     modeldb%config )
+
+    if (allocated(tile_size)) deallocate(tile_size)
+    allocate(tile_size(2, size(base_mesh_names)))
+    tile_size(1,:) = tile_size_x
+    tile_size(2,:) = tile_size_y
+    if (use_multigrid) then
+      multigrid_tile_size = get_multigrid_tile_size( modeldb%config,  &
+                                                     base_mesh_names, &
+                                                     extrusion )
+      where (multigrid_tile_size /= imdi) tile_size = multigrid_tile_size
+    end if
+
+    call init_mesh( modeldb%config,              &
                     modeldb%mpi%get_comm_rank(), &
                     modeldb%mpi%get_comm_size(), &
                     base_mesh_names, extrusion,  &
+                    inner_halo_tiles, tile_size, &
                     stencil_depths, check_partitions )
 
 
@@ -195,7 +224,19 @@ module shallow_water_model_mod
     do i=1, size(twod_names)
       twod_names(i) = trim(twod_names(i))//'_2d'
     end do
+
+    if (allocated(tile_size)) deallocate(tile_size)
+    allocate(tile_size(2, size(base_mesh_names)))
+    tile_size(1,:) = tile_size_x
+    tile_size(2,:) = tile_size_y
+    if (use_multigrid) then
+      multigrid_tile_size = get_multigrid_tile_size( modeldb%config,  &
+                                                     base_mesh_names, &
+                                                     extrusion_2d )
+      where (multigrid_tile_size /= imdi) tile_size = multigrid_tile_size
+    end if
     call create_mesh( base_mesh_names, extrusion_2d, &
+                      inner_halo_tiles, tile_size,   &
                       alt_name=twod_names )
     call assign_mesh_maps(twod_names)
 
@@ -204,7 +245,7 @@ module shallow_water_model_mod
     !-------------------------------------------------------------------------
     chi_inventory => get_chi_inventory()
     panel_id_inventory => get_panel_id_inventory()
-    call init_fem(mesh_collection, chi_inventory, panel_id_inventory)
+    call init_fem(modeldb%config, chi_inventory, panel_id_inventory)
 
     !-------------------------------------------------------------------------
     ! Initialise aspects of output
@@ -216,6 +257,7 @@ module shallow_water_model_mod
     files_init_ptr => init_shallow_water_files
     call init_io( io_context_name, prime_mesh_name, modeldb, &
                   chi_inventory, panel_id_inventory,         &
+                  geometry, topology,                        &
                   populate_filelist=files_init_ptr )
 
     !-------------------------------------------------------------------------

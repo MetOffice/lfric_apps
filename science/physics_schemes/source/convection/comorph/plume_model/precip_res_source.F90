@@ -20,11 +20,11 @@ contains
 ! new surroundings on arrival.
 subroutine precip_res_source( n_points, n_points_src_super, n_points_res_super,&
                               l_fall_in, dt_over_rhod_lz, massflux_d,          &
-                              src_air_fields, flux_cond,                       &
+                              flux_cond, src_air_fields,                       &
                               res_source_fields )
 
 use comorph_constants_mod, only: real_cvprec, cond_params, n_cond_species
-use fields_type_mod, only: i_qc_first, i_qc_last, i_temperature,               &
+use fields_type_mod, only: n_fields, i_qc_first, i_temperature,                &
                            i_wind_u, i_wind_w
 
 implicit none
@@ -48,6 +48,10 @@ real(kind=real_cvprec), intent(in) :: dt_over_rhod_lz(n_points)
 ! Dry-mass flux in kg m-2 s-1 (per m2 of surface area)
 real(kind=real_cvprec), intent(in) :: massflux_d(n_points)
 
+! Fall-flux of each hydrometeor species (in a super-array)
+real(kind=real_cvprec), intent(in) :: flux_cond                                &
+                                      ( n_points, n_cond_species )
+
 ! Super-array containing mean-fields in the source air
 ! (the air that the precip has fallen FROM)
 ! For precip falling out of the parcel and into the environment,
@@ -55,32 +59,26 @@ real(kind=real_cvprec), intent(in) :: massflux_d(n_points)
 ! But for precip falling from the environment into the parcel,
 ! this should be the mean environment properties.
 real(kind=real_cvprec), intent(in) :: src_air_fields                           &
-                              ( n_points_src_super, i_wind_u:i_temperature )
-
-! Fall-flux of each hydrometeor species (in a super-array)
-real(kind=real_cvprec), intent(in) :: flux_cond                                &
-                                      ( n_points, n_cond_species )
+                              ( n_points_src_super, n_fields )
 
 ! Resolved-scale source terms for primary fields
 real(kind=real_cvprec), intent(in out) :: res_source_fields                    &
-                              ( n_points_res_super, i_wind_u:i_qc_last )
+                              ( n_points_res_super, n_fields )
 
 ! Work array:
 ! Mass-flux * parcel mixing-ratio increment over the level-step
 ! = environment condensate mass source term within the
 !   model-level, in kg m-2 s-1
-real(kind=real_cvprec) :: dmass_cond(n_points)
+real(kind=real_cvprec) :: dmass_cond ( n_points, n_cond_species )
 
 ! Loop counters
 integer :: ic, i_cond, i_field
 
 
-! For each condensed water species...
+! Change parcel precip fall-fluxes to resolved-scale flux
+! of condensate onto the layer
+! (find mass of condensate transfered to the environment per s)
 do i_cond = 1, n_cond_species
-
-  ! Change parcel precip fall-fluxes to resolved-scale flux
-  ! of condensate onto the layer
-  ! (find mass of condensate transfered to the environment per s)
   do ic = 1, n_points
     ! Convert the fall-flux:
     ! Scale by delta_t / ( rho_dry lz )
@@ -89,23 +87,30 @@ do i_cond = 1, n_cond_species
     ! Scale by convective flux of dry-mass
     !   converts to flux of condensate (kg m-2 s-1)
     !   into the current model-level
-    dmass_cond(ic) = flux_cond(ic,i_cond)                                      &
-                     * dt_over_rhod_lz(ic) * massflux_d(ic)
+    dmass_cond(ic,i_cond) = flux_cond(ic,i_cond)                               &
+                            * dt_over_rhod_lz(ic) * massflux_d(ic)
   end do
+end do
 
+if ( l_fall_in ) then
   ! Change sign if precip is falling from the environment into the parcel
-  if ( l_fall_in ) then
+  do i_cond = 1, n_cond_species
     do ic = 1, n_points
-      dmass_cond(ic) = -dmass_cond(ic)
+      dmass_cond(ic,i_cond) = -dmass_cond(ic,i_cond)
     end do
-  end if
+  end do
+end if
+
+! For each condensed water species...
+do i_cond = 1, n_cond_species
 
   ! Find field address of current species
   i_field = i_qc_first - 1 + i_cond
+
   ! Add on resolved-scale source term for the precip mixing ratio
   do ic = 1, n_points
     res_source_fields(ic,i_field) = res_source_fields(ic,i_field)              &
-                                  + dmass_cond(ic)
+                                  + dmass_cond(ic,i_cond)
   end do
 
   ! Add on source of enthalpy carried from the source air by the
@@ -113,8 +118,8 @@ do i_cond = 1, n_cond_species
   ! (using water species heat capacities stored in cond_params)
   do ic = 1, n_points
     res_source_fields(ic,i_temperature) = res_source_fields(ic,i_temperature)  &
-      + dmass_cond(ic) * src_air_fields(ic,i_temperature)                      &
-                         * cond_params(i_cond)%pt % cp
+      + dmass_cond(ic,i_cond) * src_air_fields(ic,i_temperature)               &
+                              * cond_params(i_cond)%pt % cp
   end do
 
   ! Add on source of momentum carried from the source air by the
@@ -122,7 +127,7 @@ do i_cond = 1, n_cond_species
   do i_field = i_wind_u, i_wind_w
     do ic = 1, n_points
       res_source_fields(ic,i_field) = res_source_fields(ic,i_field)            &
-        + dmass_cond(ic) * src_air_fields(ic,i_field)
+        + dmass_cond(ic,i_cond) * src_air_fields(ic,i_field)
     end do
   end do
 

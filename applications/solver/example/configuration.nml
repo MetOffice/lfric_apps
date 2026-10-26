@@ -27,6 +27,8 @@ element_order_h=0,
 element_order_v=0,
 rehabilitate=.true.,
 coord_order=1,
+coord_order_nonprime=1,
+coord_space='Wchi',
 coord_system='native',
 /
 
@@ -60,6 +62,7 @@ use_xios_io=.false.,
 write_diag=.true.,
 write_dump=.false.,
 write_fluxes=.false.,
+write_initial=.true.,
 write_minmax_tseries=.false.,
 /
 
@@ -84,6 +87,9 @@ scaling_factor=125.0,
 &partitioning
 partitioner='cubedsphere',
 panel_decomposition='auto'
+tile_size_x = 1
+tile_size_y = 1
+inner_halo_tiles = .false.
 /
 
 &solver

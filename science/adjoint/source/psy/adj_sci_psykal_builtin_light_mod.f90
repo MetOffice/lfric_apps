@@ -7,6 +7,7 @@
 !> @brief Adjoint of the sci_psykal_builtin_light_mod routines
 module adj_sci_psykal_builtin_light_mod
 
+  use adjoint_config_mod,            only: l_compute_annexed_dofs
   use, intrinsic :: iso_fortran_env, only : real32, real64
   use constants_mod,                 only: r_def, i_def
   use field_mod,                     only: field_type, field_proxy_type
@@ -65,12 +66,20 @@ module adj_sci_psykal_builtin_light_mod
      ! Set-up all of the loop bounds
      !
      loop0_start = 1
-     if (fsrce_32_proxy%is_dirty(depth=1)) then
-       ! only copy the owned dofs
-       loop0_stop = fdest_64_proxy%vspace%get_last_dof_annexed()
+     ! Need namelist variable to replicate COMPUTE_ANNEXED_DOFS
+     ! from PSyclone config. This is a workaround until
+     ! https://github.com/stfc/PSyclone/issues/2674 is fixed.
+     if (l_compute_annexed_dofs) then
+       if (fsrce_32_proxy%is_dirty(depth=1)) then
+         ! only copy the owned + annexed dofs
+         loop0_stop = fdest_64_proxy%vspace%get_last_dof_annexed()
+       else
+         ! copy the 1st halo row as well
+         loop0_stop = fdest_64_proxy%vspace%get_last_dof_halo(1)
+       end if
      else
-       ! copy the 1st halo row as well
-       loop0_stop = fdest_64_proxy%vspace%get_last_dof_halo(1)
+       ! only copy the owned dofs
+       loop0_stop = fdest_64_proxy%vspace%get_last_dof_owned()
      end if
      !
      ! Call kernels and communication routines
@@ -131,12 +140,20 @@ module adj_sci_psykal_builtin_light_mod
      ! Set-up all of the loop bounds
      !
      loop0_start = 1
-     if (fsrce_32_proxy%is_dirty(depth=1)) then
-       ! only copy the owned dofs
-       loop0_stop = fdest_32_proxy%vspace%get_last_dof_annexed()
+     ! Need namelist variable to replicate COMPUTE_ANNEXED_DOFS
+     ! from PSyclone config. This is a workaround until
+     ! https://github.com/stfc/PSyclone/issues/2674 is fixed.
+     if (l_compute_annexed_dofs) then
+       if (fsrce_32_proxy%is_dirty(depth=1)) then
+         ! only copy the owned + annexed dofs
+         loop0_stop = fdest_32_proxy%vspace%get_last_dof_annexed()
+       else
+         ! copy the 1st halo row as well
+         loop0_stop = fdest_32_proxy%vspace%get_last_dof_halo(1)
+       end if
      else
-       ! copy the 1st halo row as well
-       loop0_stop = fdest_32_proxy%vspace%get_last_dof_halo(1)
+       ! only copy the owned dofs
+       loop0_stop = fdest_32_proxy%vspace%get_last_dof_owned()
      end if
      !
      ! Call kernels and communication routines
@@ -197,12 +214,20 @@ module adj_sci_psykal_builtin_light_mod
      ! Set-up all of the loop bounds
      !
      loop0_start = 1
-     if (fsrce_64_proxy%is_dirty(depth=1)) then
-       ! only copy the owned dofs
-       loop0_stop = fdest_64_proxy%vspace%get_last_dof_annexed()
+     ! Need namelist variable to replicate COMPUTE_ANNEXED_DOFS
+     ! from PSyclone config. This is a workaround until
+     ! https://github.com/stfc/PSyclone/issues/2674 is fixed.
+     if (l_compute_annexed_dofs) then
+       if (fsrce_64_proxy%is_dirty(depth=1)) then
+         ! only copy the owned + annexed dofs
+         loop0_stop = fdest_64_proxy%vspace%get_last_dof_annexed()
+       else
+         ! copy the 1st halo row as well
+         loop0_stop = fdest_64_proxy%vspace%get_last_dof_halo(1)
+       end if
      else
-       ! copy the 1st halo row as well
-       loop0_stop = fdest_64_proxy%vspace%get_last_dof_halo(1)
+       ! only copy the owned dofs
+       loop0_stop = fdest_64_proxy%vspace%get_last_dof_owned()
      end if
      !
      ! Call kernels and communication routines

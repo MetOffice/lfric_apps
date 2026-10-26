@@ -21,6 +21,7 @@ module set_tracer_field_kernel_mod
   use kernel_mod,           only : kernel_type
   use log_mod,              only : log_event, LOG_LEVEL_ERROR
 
+  ! Configuration modules
   use base_mesh_config_mod,      only: geometry, topology
   use finite_element_config_mod, only: coord_system
   use idealised_config_mod,      only: test
@@ -172,8 +173,10 @@ subroutine set_tracer_field_code(nlayers, tracer,                        &
           end do
 
           ! Need (X,Y,Z) coordinate
-          call chi2xyz(coords(1), coords(2), coords(3), &
-                       ipanel, xyz(1), xyz(2), xyz(3))
+          call chi2xyz( coords(1), coords(2), coords(3), &
+                        ipanel, geometry, topology,      &
+                        coord_system, scaled_radius,     &
+                        xyz(1), xyz(2), xyz(3) )
 
           if (const_flag == 1_i_def) then
             ! Set tracer field to be 1 everywhere

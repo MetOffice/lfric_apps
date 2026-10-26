@@ -9,6 +9,7 @@
 
 module dry_rho_alg_mod
 
+  use config_mod,                  only: config_type
   use constants_mod,               only: r_def, i_def
   use extrusion_config_mod,        only: planet_radius
   use field_mod,                   only: field_type
@@ -23,14 +24,17 @@ contains
 
   !> @brief Converts wet density increment to dry density increment and adds
   !>        it to the prognostic density rho.
+  !> @param[in]     config         Application namelist configuration object
   !> @param[in,out] rho            Air density
   !> @param[in]     rho_r2_tot_inc Wet air density total increment
   !> @param[in]     one_minus_qs   One minus total water content
-  subroutine dry_rho( rho, rho_r2_tot_inc, one_minus_qs )
+  subroutine dry_rho(config,  rho, rho_r2_tot_inc, one_minus_qs )
 
     implicit none
 
     ! Arguments
+    type(config_type), intent(in) :: config
+
     type( field_type ), intent(inout) :: rho
     type( field_type ), intent(in)    :: rho_r2_tot_inc
     type( field_type ), intent(in)    :: one_minus_qs
@@ -42,8 +46,9 @@ contains
     type( field_type )          :: rho_inc
     integer( kind=i_def )       :: mesh_id
 
-    mesh_id     =  rho%get_mesh_id()
-    height_w3   => get_height_fv( W3, mesh_id )
+    mesh_id   =  rho%get_mesh_id()
+    height_w3 => get_height_fv(config, rho%get_mesh(), W3)
+
     call rho_r2_tot_inc % copy_field_properties( wetrho_inc )
     call rho % copy_field_properties( rho_inc )
     call height_w3 % copy_field_properties( radius_w3 )

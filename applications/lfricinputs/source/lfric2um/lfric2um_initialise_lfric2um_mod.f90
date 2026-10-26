@@ -20,6 +20,7 @@ subroutine lfric2um_initialise_lfric2um()
 use lfric2um_namelists_mod, only: lfric2um_config
 use lfricinp_stashmaster_mod, only: lfricinp_read_stashmaster
 use lfricinp_stash_to_lfric_map_mod, only: lfricinp_init_stash_to_lfric_map
+use lfricinp_lfric_driver_mod,         only: local_rank
 use lfric2um_regrid_weights_mod, only: lfric2um_regrid_weightsfile_ctl
 implicit none
 
@@ -29,8 +30,10 @@ call lfric2um_config%load_namelists()
 ! Read in STASHmaster file
 call lfricinp_read_stashmaster(lfric2um_config%stashmaster_file)
 
-! Read in weights files
-call lfric2um_regrid_weightsfile_ctl()
+if (local_rank == 0) then
+  ! Read in weights files
+  call lfric2um_regrid_weightsfile_ctl()
+end if
 
 end subroutine lfric2um_initialise_lfric2um
 

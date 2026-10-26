@@ -35,9 +35,16 @@ export EXTERNAL_DYNAMIC_LIBRARIES = netcdff netcdf yaxt yaxt_c
 
 export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 
+export EXTRA_ROSE_META = jules
+export META_DIR = $(WORKING_DIR)/../rose-meta
+export ROSE_META_DIRS = $(APPS_ROOT_DIR)/rose-meta $(META_DIR)
+
 export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
-                               $(APPS_ROOT_DIR)/science/gungho \
+                               $(CORE_ROOT_DIR)/components/driver \
+                               $(CORE_ROOT_DIR)/components/science \
+                               $(CORE_ROOT_DIR)/components/inventory \
                                $(CORE_ROOT_DIR)/components/lfric-xios \
+                               $(APPS_ROOT_DIR)/science/gungho \
                                $(APPS_ROOT_DIR)/science/adjoint
 
 META_VN       ?= HEAD
@@ -51,6 +58,7 @@ default: unit-tests integration-tests
 documentation doc docs: document-uml document-api
 	$(Q)echo > /dev/null
 
+include $(APPS_ROOT_DIR)/build/extract/extract_meta.mk
 include $(CORE_ROOT_DIR)/infrastructure/build/lfric.mk
 include $(PROJECT_DIR)/build/import.mk
 include $(INTERNAL_DEPENDENCIES:=/build/import.mk)
@@ -82,9 +90,10 @@ unit-tests/%: export BIN_DIR ?= $(PROJECT_DIR)/test
 unit-tests/%: export CXX_LINK = YES
 unit-tests/%: export FFLAGS += -D UNIT_TEST
 unit-tests/%: export IMPORT_PARTS = $(CORE_ROOT_DIR)/infrastructure \
-                                    $(CORE_ROOT_DIR)/components/science \
-                                    $(CORE_ROOT_DIR)/components/lfric-xios \
                                     $(CORE_ROOT_DIR)/components/driver \
+                                    $(CORE_ROOT_DIR)/components/science \
+                                    $(CORE_ROOT_DIR)/components/inventory \
+                                    $(CORE_ROOT_DIR)/components/lfric-xios \
                                     $(APPS_ROOT_DIR)/science/gungho
 unit-tests/%: export META_FILE_DIR = rose-meta/jedi_lfric_interface/HEAD
 unit-tests/%: export PROGRAMS = jedi_lfric_unit_tests
@@ -92,7 +101,8 @@ unit-tests/%: export PROJECT = jedi_lfric
 unit-tests/%: export SOURCE_DIR = source
 unit-tests/%: export TEST_DIR = unit-test
 unit-tests/%: export WORKING_DIR := $(WORKING_DIR)/unit-tests
-unit-tests: unit-tests/run
+unit-tests: extract_meta unit-tests/run
+unit-tests/build: extract_meta unit-tests/build
 
 
 ##############################################################################
@@ -109,7 +119,8 @@ integration-tests/%: export PROJECT       = $(PROJECT_NAME)
 integration-tests/%: export SOURCE_DIR    = source
 integration-tests/%: export TEST_DIR      = integration-test
 integration-tests/%: export WORKING_DIR  := $(WORKING_DIR)/integration-tests
-integration-tests: integration-tests/run
+integration-tests: extract_meta integration-tests/run
+integration-tests/build: extract_meta integration-tests/build
 
 
 ##############################################################################

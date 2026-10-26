@@ -7,6 +7,7 @@
 !> @brief Module containing adjoint tests for the adj_transport_controller routines
 module adjt_transport_controller_alg_mod
 
+  use config_mod,                         only : config_type
   use constants_mod,                      only : i_def, r_def, l_def
   use field_mod,                          only : field_type
   use r_tran_field_mod,                   only : r_tran_field_type
@@ -44,13 +45,15 @@ module adjt_transport_controller_alg_mod
   !> @details Passes if adjoint is transpose of tangent linear.
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  config       Application namelist configuration object
   !> @param[in]  mesh         The model mesh
   !> @param[in]  model_clock  The model clock
-  subroutine adjt_ls_wind_pert_rho_initialiser_alg( mesh, model_clock )
+  subroutine adjt_ls_wind_pert_rho_initialiser_alg( config, mesh, model_clock )
 
     implicit none
 
     ! Arguments
+    type(config_type),        intent(in) :: config
     type(mesh_type), pointer, intent(in) :: mesh
     type(model_clock_type),   intent(in) :: model_clock
 
@@ -82,7 +85,8 @@ module adjt_transport_controller_alg_mod
     cheap_update_step = .false._l_def
 
     do outer = 1_i_def, 2_i_def
-      call run_adjt_ls_w_pert_r_init_alg( vector_space_w3_ptr, &
+      call run_adjt_ls_w_pert_r_init_alg( config,              &
+                                          vector_space_w3_ptr, &
                                           model_clock,         &
                                           ls_wind_n_rdef,      &
                                           ls_wind_np1_rdef,    &
@@ -95,6 +99,7 @@ module adjt_transport_controller_alg_mod
   !=============================================================================
   !> @brief   Runs the adjoint test for initialisation of the ls_wind_pert_rho transport_controller object
   !!          for a given set of parameters.
+  !> @param[in]  config               Application namelist configuration object
   !> @param[in]  vector_space_w3_ptr  W3 function space pointer
   !> @param[in]  model_clock          The model clock
   !> @param[in]  ls_wind_n_rdef       The LS wind field at timestep n and rdef precision
@@ -102,7 +107,8 @@ module adjt_transport_controller_alg_mod
   !> @param[in]  outer                The outer iteration variable
   !> @param[in]  cheap_update_step    Boolean to determine whether or not to do cheap update
   !>
-  subroutine run_adjt_ls_w_pert_r_init_alg( vector_space_w3_ptr, &
+  subroutine run_adjt_ls_w_pert_r_init_alg( config,              &
+                                            vector_space_w3_ptr, &
                                             model_clock,         &
                                             ls_wind_n_rdef,      &
                                             ls_wind_np1_rdef,    &
@@ -115,6 +121,8 @@ module adjt_transport_controller_alg_mod
     implicit none
 
     ! Arguments
+    type(config_type), intent(in) :: config
+
     type(function_space_type), pointer, intent(in) :: vector_space_w3_ptr
     type(model_clock_type),             intent(in) :: model_clock
     type(field_type),                   intent(in) :: ls_wind_n_rdef
@@ -156,7 +164,8 @@ module adjt_transport_controller_alg_mod
 
     ! Initialise transport_controller object
     ref_field_inner_prod = 0.0_r_def
-    call ls_wind_pert_rho_controller%initialise( model_clock,      &
+    call ls_wind_pert_rho_controller%initialise( config,           &
+                                                 model_clock,      &
                                                  ref_field_rdef,   &
                                                  ls_wind_n_rdef,   &
                                                  ls_wind_np1_rdef, &
@@ -220,13 +229,15 @@ module adjt_transport_controller_alg_mod
   !> @details Passes if adjoint is transpose of tangent linear.
   !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
   !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  config       Application namelist configuration object
   !> @param[in]  mesh         The model mesh
   !> @param[in]  model_clock  The model clock
-  subroutine adjt_pert_wind_ls_rho_initialiser_alg( mesh, model_clock )
+  subroutine adjt_pert_wind_ls_rho_initialiser_alg( config, mesh, model_clock )
 
     implicit none
 
     ! Arguments
+    type(config_type),        intent(in) :: config
     type(mesh_type), pointer, intent(in) :: mesh
     type(model_clock_type),   intent(in) :: model_clock
 
@@ -255,7 +266,8 @@ module adjt_transport_controller_alg_mod
     cheap_update_step = .false._l_def
 
     do outer = 1_i_def, 2_i_def
-      call run_adjt_pert_w_ls_r_init_alg( vector_space_w2_ptr, &
+      call run_adjt_pert_w_ls_r_init_alg( config,              &
+                                          vector_space_w2_ptr, &
                                           model_clock,         &
                                           ls_ref_field_rdef,   &
                                           outer,               &
@@ -267,13 +279,15 @@ module adjt_transport_controller_alg_mod
   !=============================================================================
   !> @brief   Runs the adjoint test for initialisation of the pert_wind_ls_rho transport_controller object
   !!          for a given set of parameters.
+  !> @param[in]  config               Application namelist configuration object
   !> @param[in]  vector_space_w2_ptr  W2 function space pointer
   !> @param[in]  model_clock          The model clock
   !> @param[in]  ls_ref_field_rdef    The LS reference field at rdef precision
   !> @param[in]  outer                The outer iteration variable
   !> @param[in]  cheap_update_step    Boolean to determine whether or not to do cheap update
   !>
-  subroutine run_adjt_pert_w_ls_r_init_alg( vector_space_w2_ptr, &
+  subroutine run_adjt_pert_w_ls_r_init_alg( config,              &
+                                            vector_space_w2_ptr, &
                                             model_clock,         &
                                             ls_ref_field_rdef,   &
                                             outer,               &
@@ -285,6 +299,8 @@ module adjt_transport_controller_alg_mod
     implicit none
 
     ! Arguments
+    type(config_type), intent(in) :: config
+
     type(function_space_type), pointer, intent(in) :: vector_space_w2_ptr
     type(model_clock_type),             intent(in) :: model_clock
     type(field_type),                   intent(in) :: ls_ref_field_rdef
@@ -337,7 +353,8 @@ module adjt_transport_controller_alg_mod
     ! Initialise transport_controller object
     wind_n_inner_prod = 0.0_r_def
     wind_np1_inner_prod = 0.0_r_def
-    call pert_wind_ls_rho_controller%initialise( model_clock,       &
+    call pert_wind_ls_rho_controller%initialise( config,            &
+                                                 model_clock,       &
                                                  ls_ref_field_rdef, &
                                                  wind_n_rdef,       &
                                                  wind_np1_rdef,     &

@@ -7,15 +7,16 @@
 
 module tracer_emission_alg_mod
 
-  use constants_mod,                 only: r_def, pi, i_def, l_def
-  use field_mod,                     only: field_type
-  use field_collection_mod,          only: field_collection_type
-  use fs_continuity_mod,             only: W3, WTheta
-  use mesh_mod,                      only: mesh_type
-  use xios,                          only: xios_date, xios_get_current_date
-  use sci_geometric_constants_mod,   only: get_height_fv
-  use sci_calc_dz_face_kernel_mod,   only: calc_dz_face_kernel_type
-  use timestepping_config_mod,       only: dt
+  use config_mod,                  only: config_type
+  use constants_mod,               only: r_def, pi, i_def, l_def
+  use field_mod,                   only: field_type
+  use field_collection_mod,        only: field_collection_type
+  use fs_continuity_mod,           only: W3, WTheta
+  use mesh_mod,                    only: mesh_type
+  use xios,                        only: xios_date, xios_get_current_date
+  use sci_geometric_constants_mod, only: get_height_fv
+  use sci_calc_dz_face_kernel_mod, only: calc_dz_face_kernel_type
+  use timestepping_config_mod,     only: dt
 
   implicit none
 
@@ -25,15 +26,18 @@ module tracer_emission_alg_mod
 contains
 
   !>@details Add emissions source to a tracer field
+  !>@param[in]     config            Application namelist configuration object
   !>@param[in,out] tracer            tracer field to be updated
   !>@param[in]     tracer_emissions  emissions of the tracer field
   !>@param[in]     derived_fields    contains dry rho in wtheta
   !>@param[in]     amplitude         diurnal amplitude of source
   !>@param[in]     emission_scaling  scaling factor to apply to emissions
-  subroutine tracer_emission_alg(tracer, tracer_emissions, derived_fields, &
-                                 amplitude, emission_scaling)
+  subroutine tracer_emission_alg( config, tracer, tracer_emissions, &
+                                  derived_fields, amplitude, emission_scaling )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type( field_collection_type ), intent(in) :: derived_fields
 
@@ -69,8 +73,9 @@ contains
 
     call derived_fields%get_field('rho_in_wth',rho_in_wth)
     mesh => rho_in_wth%get_mesh()
-    height_wth => get_height_fv(WTheta, mesh%get_id() )
-    height_w3 => get_height_fv(W3, mesh%get_id() )
+    height_wth => get_height_fv(config, mesh, wtheta)
+    height_w3  => get_height_fv(config, mesh, W3)
+
     call tracer_emissions%copy_field_properties(scaled_emission)
     call tracer_emissions%copy_field_properties(dz_wth)
 

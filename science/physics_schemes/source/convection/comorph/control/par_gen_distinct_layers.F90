@@ -266,8 +266,8 @@ if ( n_conv_layers > 0 ) then
 
             end if
 
-          end do  ! i_layr = minval(i_layr_cmpr(i_type,k)%i),
-                  !          maxval(i_layr_cmpr(i_type,k)%i)
+          end do  ! i_layr = MINVAL(i_layr_cmpr(i_type,k)%i),
+                  !          MAXVAL(i_layr_cmpr(i_type,k)%i)
 
           deallocate( index_ic )
 

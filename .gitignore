@@ -40,6 +40,9 @@ documentation/build
 # vscode
 .vscode
 
+# uv
+uv.lock
+
 #  vi/vim
 *~
 *.swp

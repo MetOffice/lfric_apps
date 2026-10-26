@@ -8,28 +8,27 @@
 !>
 module multigrid_preconditioner_alg_mod
 
-  use base_mesh_config_mod,    only: prime_mesh_name
-  use boundaries_config_mod,   only: limited_area
-  use constants_mod,           only: i_def, r_solver, l_def
-  use function_space_mod,      only: function_space_type
-  use function_space_chain_mod, &
-                               only: function_space_chain_type, &
-                                     multigrid_function_space_chain
-  use log_mod,                 only: log_event, &
-                                     LOG_LEVEL_INFO, &
-                                     LOG_LEVEL_ERROR, &
-                                     log_scratch_space
-  use r_solver_field_mod,      only: r_solver_field_type
+  use base_mesh_config_mod,     only: prime_mesh_name
+  use boundaries_config_mod,    only: limited_area
+  use constants_mod,            only: i_def, r_solver, l_def
+  use function_space_mod,       only: function_space_type
+  use function_space_chain_mod, only: function_space_chain_type
+  use log_mod,                  only: log_event, &
+                                      LOG_LEVEL_INFO, &
+                                      LOG_LEVEL_ERROR, &
+                                      log_scratch_space
+  use multigrid_mod,            only: multigrid_function_space_chain
+  use r_solver_field_mod,       only: r_solver_field_type
   use sci_abstract_field_operator_mod, &
-                               only: abstract_field_operator_type
+                                only: abstract_field_operator_type
   use sci_r_solver_field_vector_mod, &
-                               only: r_solver_field_vector_type
+                                only: r_solver_field_vector_type
   use sci_hierarchical_linear_operator_mod, &
-                               only: abstract_hierarchical_linear_operator_type
+                                only: abstract_hierarchical_linear_operator_type
   use sci_hierarchical_preconditioner_mod, &
-                               only: abstract_hierarchical_preconditioner_type
-  use sci_preconditioner_mod,  only: abstract_preconditioner_type
-  use vector_mod,              only: abstract_vector_type
+                                only: abstract_hierarchical_preconditioner_type
+  use sci_preconditioner_mod,   only: abstract_preconditioner_type
+  use vector_mod,               only: abstract_vector_type
 
   implicit none
 

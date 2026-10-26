@@ -7,13 +7,15 @@
 !> @brief Apply water vapour tendency forcing to the water vapour field
 module vapour_forcing_profile_alg_mod
 
+use config_mod,                  only: config_type
 use constants_mod,               only: i_def, l_def, r_def
-use kernel_mod,                  only: kernel_type
 use field_mod,                   only: field_type
 use fs_continuity_mod,           only: Wtheta
-use sci_geometric_constants_mod, only: get_height_fv
+use kernel_mod,                  only: kernel_type
 use log_mod,                     only: log_event, LOG_LEVEL_ERROR
+use mesh_mod,                    only: mesh_type
 use planet_config_mod,           only: kappa, p_zero
+use sci_geometric_constants_mod, only: get_height_fv
 use timestepping_config_mod,     only: dt
 
 implicit none
@@ -33,10 +35,12 @@ contains
 !>          input profile may be either height, in metres, or pressure in
 !>          Pascals. Linear interpolation is used to map the input profile
 !>          onto finite element nodal points in Wtheta.
+!> @param[in]     config       Application namelist configuration object
 !> @param[in,out] dmv_forcing  Forcing increment for vapour mixing ratio (kg/kg)
 !> @param[in]     exner_in_wth Exner field mapped into Wtheta space
 !> @param[in]     time_now     Current model time (s)
-subroutine vapour_forcing_profile_alg( dmv_forcing, exner_in_wth, time_now )
+subroutine vapour_forcing_profile_alg(config,  dmv_forcing, exner_in_wth, &
+                                      time_now )
 
 use vapour_forcing_config_mod, only: number_times,                 &
                                      number_heights,               &
@@ -59,6 +63,8 @@ use prof_temporal_interp_mod,    only: prof_temporal_interp
 implicit none
 
 ! Arguments
+type(config_type), intent(in) :: config
+
 type(field_type), intent(inout)      :: dmv_forcing
 type(field_type), intent(in), target :: exner_in_wth
 real(kind=r_def), intent(in)         :: time_now
@@ -66,11 +72,15 @@ real(kind=r_def), intent(in)         :: time_now
 ! Local variables
 real(kind=r_def)    :: dt_rdef
 real(kind=r_def)    :: vapour_forcing_now(number_heights)
-integer(kind=i_def) :: mesh_id, k
+integer(kind=i_def) :: k
+
 logical(kind=l_def) :: pressure_coord, profile_extrap
 
-type(field_type)    :: dmr_v
-type( field_type ), pointer :: height_wth => null()
+type(field_type)          :: dmr_v
+type(field_type), pointer :: height_wth
+type(mesh_type),  pointer :: mesh
+
+nullify(mesh, height_wth)
 
 ! dt is r_second, and must be needs casting to r_def in invokes
 dt_rdef = real( dt, kind=r_def)
@@ -94,8 +104,8 @@ else
       height_wth => exner_in_wth
       pressure_coord = .true.
     case(coordinate_height)
-      mesh_id = dmr_v%get_mesh_id()
-      height_wth => get_height_fv(Wtheta, mesh_id)
+      mesh => dmr_v%get_mesh()
+      height_wth => get_height_fv(config, mesh, Wtheta)
       pressure_coord = .false.
     case default
       call log_event('Unknown coordinate', LOG_LEVEL_ERROR)

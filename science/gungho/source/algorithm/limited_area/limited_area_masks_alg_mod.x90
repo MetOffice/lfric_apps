@@ -12,6 +12,7 @@
 module limited_area_masks_alg_mod
 
   use field_mod,                          only: field_type
+  use fs_continuity_mod,                  only: Wchi
   use constants_mod,                      only: i_def, r_def, l_def, PI, &
                                                 degrees_to_radians,      &
                                                 radians_to_degrees
@@ -20,9 +21,14 @@ module limited_area_masks_alg_mod
                                                 log_scratch_space, &
                                                 LOG_LEVEL_ERROR,   &
                                                 LOG_LEVEL_INFO,    &
+                                                LOG_LEVEL_DEBUG,   &
                                                 LOG_LEVEL_WARNING
   use function_space_mod,                 only: function_space_type
-  use mesh_mod,                           only: mesh_type
+  use function_space_collection_mod,      only: function_space_collection
+  use mesh_mod,                           only: mesh_type, &
+                                                geometry_spherical, &
+                                                geometry_planar, &
+                                                topology_non_periodic
   use create_edge_mask_kernel_mod,        only: create_edge_mask_kernel_type
   use propagate_onion_layers_kernel_mod,  only: propagate_onion_layers_kernel_type
   use create_threshold_mask_kernel_mod,   only: create_threshold_mask_kernel_type
@@ -31,6 +37,8 @@ module limited_area_masks_alg_mod
   use create_boundary_mask_kernel_mod,    only: create_boundary_mask_kernel_type
   use boundaries_config_mod,              only: rim_width_ns, lbc_method, &
                                                 lbc_method_onion_layer
+  use finite_element_config_mod,          only: coord_order
+  use sci_nodal_coordinates_kernel_mod,   only: nodal_coordinates_kernel_type
 
   implicit none
 
@@ -191,9 +199,9 @@ contains
                                              domain )
 
     use boundaries_config_mod,        only: edge_cells_ns, edge_cells_ew
-    use base_mesh_config_mod,         only: geometry, geometry_spherical, &
-                                            geometry_planar, topology,    &
-                                            topology_non_periodic
+    use base_mesh_config_mod,         only: geometry, topology
+
+
 
     implicit none
 
@@ -296,10 +304,11 @@ contains
 
     implicit none
 
-    type(field_type), intent(inout)  :: mask
-    type(field_type), intent(in)     :: onion_layers
-    type(field_type), intent(in)     :: chi(:)
-    integer(i_def)                   :: fs_enum
+    type(field_type),         intent(inout)  :: mask
+    type(field_type),         intent(in)     :: onion_layers
+    type(field_type), target, intent(in)     :: chi(:)
+
+    integer(i_def)                   :: i, fs_enum
     integer(i_def)                   :: rim_s, rim_n, &
                                         rim_e, rim_w
     integer(i_def)                   :: outer_s, outer_n, &
@@ -310,6 +319,9 @@ contains
                                         coord_rim_e,   coord_rim_w
     real(r_def) :: threshold
 
+    type(field_type),          target  :: chi_trgt(3)
+    type(field_type),          pointer :: chi_ptr(:)
+    type(function_space_type), pointer :: wchi_fs
     type(function_space_type), pointer :: function_space => null()
     type(mesh_type),           pointer :: mesh => null()
 
@@ -350,6 +362,22 @@ contains
       function_space => mask%get_function_space()
       mesh => function_space%get_mesh()
       domain = mesh%get_domain()
+
+      ! The kernels require chi to be in Wchi
+      if (chi(1)%which_function_space() /= Wchi) then
+        ! Convert to Wchi
+        wchi_fs => function_space_collection%get_fs(                           &
+            mesh, coord_order, coord_order, Wchi                               &
+        )
+        do i = 1, 3
+          call chi_trgt(i)%initialise(wchi_fs)
+        end do
+        call invoke( nodal_coordinates_kernel_type(chi_trgt, chi) )
+        chi_ptr => chi_trgt
+      else
+        ! Chi is already in Wchi, so can be used directly
+        chi_ptr => chi
+      end if
 
       if ( rim_width_ns > 0 ) then
         outer_n = boundary_n - outer_width_ns
@@ -411,7 +439,7 @@ contains
             coord_rim_e,   &
             coord_rim_w,   &
             mask,          &
-            chi ) )
+            chi_ptr ) )
 
         case(W2)
           call invoke( create_w2mask_lbc_kernel_type ( &
@@ -426,7 +454,7 @@ contains
             rim_width_ns,  &
             rim_width_ew,  &
             mask,          &
-            chi ) )
+            chi_ptr ) )
 
         case(Wtheta)
           call invoke( create_wthetamask_lbc_kernel_type ( &
@@ -439,7 +467,7 @@ contains
             coord_rim_e,   &
             coord_rim_w,   &
             mask,          &
-            chi ) )
+            chi_ptr ) )
 
         case default
           call log_event("No LBC mask rule for this function space", &
@@ -479,10 +507,11 @@ contains
 
     implicit none
 
-    type(field_type), intent(inout)  :: mask
-    type(field_type), intent(in)     :: onion_layers
-    type(field_type), intent(in)     :: chi(:)
-    integer(i_def)                   :: fs_enum
+    type(field_type),         intent(inout)  :: mask
+    type(field_type),         intent(in)     :: onion_layers
+    type(field_type), target, intent(in)     :: chi(:)
+
+    integer(i_def)                   :: i, fs_enum
     integer(i_def)                   :: rim_s, rim_n,                 &
                                         rim_e, rim_w
     integer(i_def)                   :: blend_s, blend_n,             &
@@ -497,12 +526,17 @@ contains
                                         coord_blend_e, coord_blend_w
     integer(i_def) :: stencil_depth = 1
 
+    type(field_type),          target  :: chi_trgt(3)
+    type(field_type),          pointer :: chi_ptr(:)
+    type(function_space_type), pointer :: wchi_fs
     type(function_space_type), pointer :: function_space => null()
     type(mesh_type),           pointer :: mesh => null()
 
     type(domain_type) :: domain
 
     if ( lbc_method == lbc_method_onion_layer )then
+
+      call log_event('Creating blend mask using onion layers', LOG_LEVEL_DEBUG)
 
       fs_enum = mask%which_function_space()
 
@@ -527,6 +561,8 @@ contains
 
     else
 
+      call log_event('Creating blend mask using coordinates', LOG_LEVEL_DEBUG)
+
       !     |<-------------rim_width------------>|
       !     |            |           |           |
       !     |<--outer--> |<--inner-->|           |
@@ -540,6 +576,22 @@ contains
       function_space => mask%get_function_space()
       mesh => function_space%get_mesh()
       domain = mesh%get_domain()
+
+      ! The kernels require chi to be in Wchi
+      if (chi(1)%which_function_space() /= Wchi) then
+        ! Convert to Wchi
+        wchi_fs => function_space_collection%get_fs(                           &
+            mesh, coord_order, coord_order, Wchi                               &
+        )
+        do i = 1, 3
+          call chi_trgt(i)%initialise(wchi_fs)
+        end do
+        call invoke( nodal_coordinates_kernel_type(chi_trgt, chi) )
+        chi_ptr => chi_trgt
+      else
+        ! Chi is already in Wchi, so can be used directly
+        chi_ptr => chi
+      end if
 
       if ( rim_width_ns > 0 ) then
         outer_n = boundary_n - outer_width_ns
@@ -624,7 +676,7 @@ contains
           coord_blend_e, &
           coord_blend_w, &
           mask,          &
-          chi ) )
+          chi_ptr ) )
 
       case(W2)
         call invoke( create_w2mask_blend_kernel_type ( &
@@ -643,7 +695,7 @@ contains
           rim_width_ns,  &
           rim_width_ew,  &
           mask,          &
-          chi ) )
+          chi_ptr ) )
 
       case(Wtheta)
         call invoke( create_wthetamask_blend_kernel_type ( &
@@ -660,7 +712,7 @@ contains
           coord_blend_e, &
           coord_blend_w, &
           mask,          &
-          chi ) )
+          chi_ptr ) )
 
       case default
         call log_event("No blend mask rule for this function space", &
@@ -688,9 +740,10 @@ contains
 
     implicit none
 
-    type(field_type), intent(inout)  :: mask
-    type(field_type), intent(in)     :: chi(:)
-    integer(i_def)                   :: fs_enum
+    type(field_type),         intent(inout)  :: mask
+    type(field_type), target, intent(in)     :: chi(:)
+
+    integer(i_def)                   :: i, fs_enum
     integer(i_def)                   :: rim_s, rim_n, &
                                         rim_e, rim_w
     real(r_def)                      :: coord_bound_s, coord_bound_n, &
@@ -698,6 +751,9 @@ contains
                                         coord_rim_s,   coord_rim_n,   &
                                         coord_rim_e,   coord_rim_w
 
+    type(field_type),          target  :: chi_trgt(3)
+    type(field_type),          pointer :: chi_ptr(:)
+    type(function_space_type), pointer :: wchi_fs
     type(function_space_type), pointer :: function_space => null()
     type(mesh_type),           pointer :: mesh => null()
 
@@ -715,6 +771,22 @@ contains
     function_space => mask%get_function_space()
     mesh => function_space%get_mesh()
     domain = mesh%get_domain()
+
+    ! The kernels require chi to be in Wchi
+    if (chi(1)%which_function_space() /= Wchi) then
+      ! Convert to Wchi
+      wchi_fs => function_space_collection%get_fs(                             &
+          mesh, coord_order, coord_order, Wchi                                 &
+      )
+      do i = 1, 3
+        call chi_trgt(i)%initialise(wchi_fs)
+      end do
+      call invoke( nodal_coordinates_kernel_type(chi_trgt, chi) )
+      chi_ptr => chi_trgt
+    else
+      ! Chi is already in Wchi, so can be used directly
+      chi_ptr => chi
+    end if
 
     call calculate_boundary_coordinates( &
       coord_bound_s, &
@@ -752,7 +824,7 @@ contains
           rim_width_ns,  &
           rim_width_ew,  &
           mask,          &
-          chi ) )
+          chi_ptr ) )
 
       case default
         call log_event("No parallel mask rule for this function space", &
@@ -782,14 +854,18 @@ contains
 
     implicit none
 
-    type(field_type), intent(inout)  :: mask
-    type(field_type), intent(in)     :: onion_layers
-    type(field_type), intent(in)     :: chi(:)
-    integer(i_def)                   :: fs_enum
+    type(field_type),         intent(inout)  :: mask
+    type(field_type),         intent(in)     :: onion_layers
+    type(field_type), target, intent(in)     :: chi(:)
+
+    integer(i_def)                   :: i, fs_enum
     real(r_def)                      :: coord_bound_s, coord_bound_n, &
                                         coord_bound_e, coord_bound_w
     real(r_def) :: threshold
 
+    type(field_type),          target  :: chi_trgt(3)
+    type(field_type),          pointer :: chi_ptr(:)
+    type(function_space_type), pointer :: wchi_fs
     type(function_space_type), pointer :: function_space => null()
     type(mesh_type),           pointer :: mesh => null()
 
@@ -808,6 +884,22 @@ contains
       function_space => mask%get_function_space()
       mesh => function_space%get_mesh()
       domain = mesh%get_domain()
+
+      ! The kernels require chi to be in Wchi
+      if (chi(1)%which_function_space() /= Wchi) then
+        ! Convert to Wchi
+        wchi_fs => function_space_collection%get_fs(                           &
+            mesh, coord_order, coord_order, Wchi                               &
+        )
+        do i = 1, 3
+          call chi_trgt(i)%initialise(wchi_fs)
+        end do
+        call invoke( nodal_coordinates_kernel_type(chi_trgt, chi) )
+        chi_ptr => chi_trgt
+      else
+        ! Chi is already in Wchi, so can be used directly
+        chi_ptr => chi
+      end if
 
       call calculate_boundary_coordinates( &
          coord_bound_s, &
@@ -830,7 +922,7 @@ contains
            rim_width_ns,  &
            rim_width_ew,  &
            mask,          &
-           chi ) )
+           chi_ptr ) )
 
       case(W3)
         call invoke( create_w3mask_kernel_type ( &
@@ -839,7 +931,7 @@ contains
            coord_bound_e, &
            coord_bound_w, &
            mask,          &
-           chi ) )
+           chi_ptr ) )
 
       case(Wtheta)
         call invoke( create_wthetamask_kernel_type ( &
@@ -848,7 +940,7 @@ contains
            coord_bound_e, &
            coord_bound_w, &
            mask,          &
-           chi ) )
+           chi_ptr ) )
 
       case default
         call log_event("No limited area mask rule for this function space", &
@@ -876,15 +968,19 @@ contains
 
     implicit none
 
-    type(field_type), intent(inout)  :: boundary_mask
-    type(field_type), intent(in)     :: onion_layers
-    type(field_type), intent(in)     :: chi(:)
-    integer(i_def)                   :: fs_enum
+    type(field_type),         intent(inout)  :: boundary_mask
+    type(field_type),         intent(in)     :: onion_layers
+    type(field_type), target, intent(in)     :: chi(:)
+
+    integer(i_def)                   :: i, fs_enum
     real(r_def)                      :: coord_bound_s, coord_bound_n, &
                                         coord_bound_e, coord_bound_w
     real(r_def)                      :: inner_boundary_cell
     integer(i_def) :: stencil_depth = 1
 
+    type(field_type),          target  :: chi_trgt(3)
+    type(field_type),          pointer :: chi_ptr(:)
+    type(function_space_type), pointer :: wchi_fs
     type(function_space_type), pointer :: function_space => null()
     type(mesh_type),           pointer :: mesh => null()
 
@@ -905,6 +1001,22 @@ contains
       function_space => boundary_mask%get_function_space()
       mesh => function_space%get_mesh()
       domain = mesh%get_domain()
+
+      ! The kernels require chi to be in Wchi
+      if (chi(1)%which_function_space() /= Wchi) then
+        ! Convert to Wchi
+        wchi_fs => function_space_collection%get_fs(                           &
+            mesh, coord_order, coord_order, Wchi                               &
+        )
+        do i = 1, 3
+          call chi_trgt(i)%initialise(wchi_fs)
+        end do
+        call invoke( nodal_coordinates_kernel_type(chi_trgt, chi) )
+        chi_ptr => chi_trgt
+      else
+        ! Chi is already in Wchi, so can be used directly
+        chi_ptr => chi
+      end if
 
       call calculate_boundary_coordinates( &
          coord_bound_s, &
@@ -927,7 +1039,7 @@ contains
            rim_width_ns,  &
            rim_width_ew,  &
            boundary_mask, &
-           chi ) )
+           chi_ptr ) )
       case default
         call log_event("No boundary mask rule for this function space", &
            LOG_LEVEL_ERROR)

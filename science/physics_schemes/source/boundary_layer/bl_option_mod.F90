@@ -120,6 +120,10 @@ integer, parameter :: ntml_level_corrn    = 2
 ! free_trop_layers (=3) => as "ntml_level_corrn" but also diagnose
 ! FA turbulent layer depths
 integer, parameter :: free_trop_layers    = 3
+! smooth_to_bdys (=4) => as "free_trop_layers" but smoothly interpolate
+! between sub- and super-critical model-levels to find depth of turbulent
+! layers, and taper the mixing-length down near top and bottom of each layer.
+integer, parameter :: smooth_to_bdys = 4
 
 ! 10 Switch to keep local mixing in free atmosphere
 integer :: Keep_Ri_FA = imdi
@@ -278,7 +282,10 @@ integer, parameter :: blend_gridindep_fa =3
 ! as minimum, and use cloud-top as blending length-scale only for shallow cu
 integer, parameter :: blend_cth_shcu_only =4
 
-! 11a max permitted cloud top height in metres for shallow cu, used for
+! 11a switch to cap the blended mixing length by the 1D
+logical :: cap_blended_ml = .false.
+
+! 11b max permitted cloud top height in metres for shallow cu, used for
 !     blending_option=blend_cth_shcu_only
 real(kind=r_bl) :: shallow_cu_maxtop = rmdi
 
@@ -297,12 +304,12 @@ real(kind=r_bl) :: tke_diag_fac = rmdi
 ! 16 Include convective effects in TKE diagnostic
 logical :: l_conv_tke = .false.
 
-! 17 Use separate rhokm_ent arrays to hold momentum entrainment coefficients
-!    (preferred)
-logical :: l_use_var_fixes = .false.
 ! Use fixes (separate rhokm_ent variables instead of rhokm array,
 ! don't create DSC layers when no top-driven turbulence and
 ! set zh to max(zh, zsml_top), not just ntml to keep consistent
+
+! 17a Improvements to the TKE diagnostic, for consistency with rhok
+logical :: improved_tke_diag = .false.
 
 ! 18 Switch to ignore cloud ice (qcf) in the BL scheme
 logical :: l_noice_in_turb = .false.
@@ -519,7 +526,7 @@ logical :: l_calc_tau_at_p = .false.
 namelist/run_bl/ i_bl_vn, sbl_op, cbl_op, cbl_mix_fac_nml,                     &
     l_use_surf_in_ri, lambda_min_nml, ritrans, c_gust,                         &
     dzrad_disc_opt, num_sweeps_bflux, l_converge_ga,                           &
-    local_fa, Keep_Ri_FA, l_bl_mix_qcf, l_conv_tke, l_use_var_fixes,           &
+    local_fa, Keep_Ri_FA, l_bl_mix_qcf, l_conv_tke,                            &
     l_reset_neg_q, tke_diag_fac, i_interp_local,                               &
     sg_orog_mixing, fric_heating, calc_prob_of_vis, z_nl_bl_levels,            &
     idyndiag, zhloc_depth_fac, flux_grad, entr_smooth_dec,                     &
@@ -621,7 +628,7 @@ write(linebuffer,'(A,I4)') 'num_sweeps_bflux = ',num_sweeps_bflux
 call umprint(linebuffer,src='bl_option_mod')
 write(linebuffer,'(A,L1)') 'l_converge_ga = ',l_converge_ga
 call umprint(linebuffer,src='bl_option_mod')
-write(linebuffer,'(A,L1)') 'l_use_var_fixes = ',l_use_var_fixes
+write(linebuffer,'(A,L1)') 'improved_tke_diag = ',improved_tke_diag
 call umprint(linebuffer,src='bl_option_mod')
 write(linebuffer,'(A,ES12.4)') 'tke_diag_fac = ',tke_diag_fac
 call umprint(linebuffer,src='bl_option_mod')
@@ -630,6 +637,8 @@ call umprint(linebuffer,src='bl_option_mod')
 write(linebuffer,'(A,L1)') 'l_noice_in_turb = ',l_noice_in_turb
 call umprint(linebuffer,src='bl_option_mod')
 write(lineBuffer,'(A,ES12.4)') 'shallow_cu_maxtop = ',shallow_cu_maxtop
+call umprint(linebuffer,src='bl_option_mod')
+write(lineBuffer,'(A,L1)') ' cap_blended_ml = ',cap_blended_ml
 call umprint(linebuffer,src='bl_option_mod')
 write(lineBuffer,'(2(A,F0.5))') 'alpha_cd_in = ',                              &
                                     alpha_cd_in(1),' ',alpha_cd_in(2)

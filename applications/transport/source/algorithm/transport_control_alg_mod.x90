@@ -7,7 +7,9 @@
 
 module transport_control_alg_mod
 
-  use constants_mod,                     only: i_def, r_def, l_def, str_def, r_tran
+  use config_mod,                        only: config_type
+  use constants_mod,                     only: i_def, r_def, l_def, &
+                                               str_def, r_tran
   use extrusion_mod,                     only: SHIFTED
   use field_mod,                         only: field_type
   use flux_precomputations_alg_mod,      only: flux_precomputations_type
@@ -103,7 +105,7 @@ contains
     implicit none
 
     integer(kind=i_def), intent(in) :: number_of_meshes
-    integer(kind=i_def)             :: config
+    integer(kind=i_def)             :: i
     type(transport_metadata_type)   :: transport_metadata
 
     ! ------------------------------------------------------------------------ !
@@ -139,37 +141,37 @@ contains
     use_w2_vector = .false.
 
     ! Set up configs using namelist entries
-    do config = 1, profile_size
+    do i=1, profile_size
 
-      write(log_scratch_space,'(3A)') 'Setting up ',trim(field_names(config)),' transport metadata'
+      write(log_scratch_space,'(3A)') 'Setting up ',trim(field_names(i)),' transport metadata'
       call log_event(log_scratch_space, LOG_LEVEL_INFO)
 
-      transport_metadata = transport_metadata_type( field_names(config),             &
-                                                    equation_form(config),           &
-                                                    splitting(config),               &
-                                                    scheme(config),                  &
-                                                    horizontal_method(config),       &
-                                                    vertical_method(config),         &
-                                                    horizontal_monotone(config),     &
-                                                    vertical_monotone(config),       &
-                                                    vertical_monotone_order(config), &
-                                                    special_edges_monotone(config),  &
-                                                    enforce_min_value(config),       &
-                                                    min_value(config),               &
-                                                    log_space(config),               &
-                                                    reversible(config),              &
-                                                    ffsl_splitting(config),          &
-                                                    ffsl_vertical_order(config) )
+      transport_metadata = transport_metadata_type( field_names(i),             &
+                                                    equation_form(i),           &
+                                                    splitting(i),               &
+                                                    scheme(i),                  &
+                                                    horizontal_method(i),       &
+                                                    vertical_method(i),         &
+                                                    horizontal_monotone(i),     &
+                                                    vertical_monotone(i),       &
+                                                    vertical_monotone_order(i), &
+                                                    special_edges_monotone(i),  &
+                                                    enforce_min_value(i),       &
+                                                    min_value(i),               &
+                                                    log_space(i),               &
+                                                    reversible(i),              &
+                                                    ffsl_splitting(i),          &
+                                                    ffsl_vertical_order(i) )
 
       call transport_metadata_collection%set_transport_metadata(transport_metadata)
 
-      if (trim(field_names(config)) == 'w2_vector') then
+      if (trim(field_names(i)) == 'w2_vector') then
         use_w2_vector = .true.
       end if
-      if (trim(field_names(config)) == 'w3_aerosol') then
+      if (trim(field_names(i)) == 'w3_aerosol') then
         use_w3_aerosol = .true.
       end if
-      if (trim(field_names(config)) == 'wt_aerosol') then
+      if (trim(field_names(i)) == 'wt_aerosol') then
         use_wt_aerosol = .true.
       end if
 
@@ -196,7 +198,8 @@ contains
   !> @param[in] w2_vector   Vector-valued field replicating wind transport (in W2)
   !> @param[in] w3_aerosol  Tracer in W3 on coarse mesh
   !> @param[in] wt_aerosol  Tracer in Wtheta on coarse mesh
-  subroutine transport_init( rho, theta, tracer_con, tracer_adv, constant, mr, &
+  subroutine transport_init( rho, theta, tracer_con,   &
+                             tracer_adv, constant, mr, &
                              w2_vector, w3_aerosol, wt_aerosol )
 
     implicit none
@@ -236,6 +239,7 @@ contains
   !!          transporting rho, theta, tracer and moisture mixing ratios. The
   !!          transporting wind field is prescribed, but may be updated if a
   !!          time-varying profile has been specified.
+  !> @param[in]     config             Application namelist configuration object
   !> @param[in]     model_clock        Time within the model
   !> @param[in,out] wind               The transporting wind field
   !> @param[in,out] rho                Dry density field to transport
@@ -249,11 +253,11 @@ contains
   !> @param[in,out] wt_aerosol         Tracer in Wtheta on coarse mesh to transport advectively
   !> @param[in,out] aerosol_wind       Transporting wind field on the coarse mesh
   !> @param[in]     nummr_to_transport Number of moisture species to transport
-  subroutine transport_step( model_clock, wind,        &
-                             rho, theta, tracer_con,   &
-                             tracer_adv, constant, mr, &
-                             w2_vector, w3_aerosol,    &
-                             wt_aerosol, aerosol_wind, &
+  subroutine transport_step( config, model_clock, wind, &
+                             rho, theta, tracer_con,    &
+                             tracer_adv, constant, mr,  &
+                             w2_vector, w3_aerosol,     &
+                             wt_aerosol, aerosol_wind,  &
                              nummr_to_transport )
 
     use sci_field_bundle_builtins_mod,    only: clone_bundle, copy_bundle
@@ -274,6 +278,7 @@ contains
     implicit none
 
     ! Arguments
+    type(config_type),       intent(in)    :: config
     class(model_clock_type), intent(in)    :: model_clock
     type(field_type),        intent(inout) :: wind, rho, theta, w2_vector
     type(field_type),        intent(inout) :: tracer_con, tracer_adv, constant
@@ -307,7 +312,7 @@ contains
     cast_dt = real(model_clock%get_seconds_per_step(), r_def)
     if ( time_varying_wind ) then
       current_time = model_clock%get_step() * cast_dt
-      call init_u_field(wind, current_time)
+      call init_u_field(config, wind, current_time)
       call map_w2_intermesh( aerosol_wind, wind )
     end if
 
@@ -320,12 +325,10 @@ contains
     call map_rho_intermesh(aerosol_reference_rho, rho)
 
     ! Initialise the main transport controller ---------------------------------
-    call transport_controller%initialise(                                      &
-            model_clock, rho, wind                                             &
-    )
-    call aerosol_transport_controller%initialise(                              &
-            model_clock, aerosol_reference_rho, aerosol_wind                   &
-    )
+    call transport_controller%initialise( config, model_clock, rho, wind )
+    call aerosol_transport_controller%initialise( config, model_clock,   &
+                                                  aerosol_reference_rho, &
+                                                  aerosol_wind )
 
     ! Transport dry density
     call log_event( "Transporting density...", LOG_LEVEL_INFO)

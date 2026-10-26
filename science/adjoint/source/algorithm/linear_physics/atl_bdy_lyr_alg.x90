@@ -87,14 +87,14 @@ subroutine atl_bdy_lyr_alg(modeldb, u_bl_inc, u, ls_state, dt)
   call ls_fields%get_field('ls_land_fraction', ls_land_fraction)
 
   mesh => u%get_mesh()
-  height_w2  => get_height_fe(W2, mesh%get_id())
-  height_w3  => get_height_fe(W3, mesh%get_id())
-  height_wth => get_height_fe(Wtheta, mesh%get_id())
+  height_w2  => get_height_fe(modeldb%config, mesh, W2)
+  height_w3  => get_height_fe(modeldb%config, mesh, W3)
+  height_wth => get_height_fe(modeldb%config, mesh, Wtheta)
 
   w2_rmultiplicity => get_rmultiplicity_fe(W2, mesh%get_id())
 
-  face_selector_ew => get_face_selector_ew(mesh%get_id())
-  face_selector_ns => get_face_selector_ns(mesh%get_id())
+  face_selector_ew => get_face_selector_ew(mesh)
+  face_selector_ns => get_face_selector_ns(mesh)
 
   call ls_state(igh_d)%copy_field_properties(Q)
   call ls_state(igh_d)%copy_field_properties(E)

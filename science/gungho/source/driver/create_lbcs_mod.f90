@@ -27,6 +27,9 @@ module create_lbcs_mod
                                          lbc_option_analytic,    &
                                          lbc_option_gungho_file, &
                                          lbc_option_um2lfric_file
+  use boundaries_config_mod,      only : lbc_bal_meth, &
+                                         lbc_bal_meth_keep_rho, &
+                                         lbc_bal_meth_keep_exner_eos_lev
   use aerosol_config_mod,         only : murk_lbc
 
   implicit none
@@ -100,7 +103,15 @@ module create_lbcs_mod
         case ( lbc_option_um2lfric_file )
           !------ Fields updated directly from LBC file-----------------
           call proc%apply(make_spec('lbc_theta', main%lbc, Wtheta, time_axis=axis%lbc))
-          call proc%apply(make_spec('lbc_rho_r2', main%lbc, W3, time_axis=axis%lbc))
+          select case (lbc_bal_meth)
+          case(lbc_bal_meth_keep_rho)
+            call proc%apply(make_spec('lbc_rho_r2', main%lbc, W3, time_axis=axis%lbc))
+            call proc%apply(make_spec('lbc_exner', main%lbc, W3))
+          case(lbc_bal_meth_keep_exner_eos_lev)
+            call proc%apply(make_spec('lbc_rho_r2', main%lbc, W3))
+            call proc%apply(make_spec('lbc_exner', main%lbc, W3, time_axis=axis%lbc))
+          end select
+
           call proc%apply(make_spec('lbc_h_u', main%lbc, W2H, time_axis=axis%lbc))
           call proc%apply(make_spec('lbc_v_u', main%lbc, Wtheta, time_axis=axis%lbc))
 
@@ -117,7 +128,6 @@ module create_lbcs_mod
 
           !----- Fields derived from the fields in the LBC file---------
           call proc%apply(make_spec('lbc_rho', main%lbc, W3))
-          call proc%apply(make_spec('lbc_exner', main%lbc, W3))
           call proc%apply(make_spec('lbc_u', main%lbc, W2))
           call proc%apply(make_spec('boundary_u_diff', main%lbc, W2))
           call proc%apply(make_spec('boundary_u_driving', main%lbc, W2))
@@ -140,16 +150,12 @@ module create_lbcs_mod
     !>          limited area model.
     !> @param[in]    mesh       The current 3d mesh
     !> @param[in]    twod_mesh  The current 2d mesh (not used here)
-    !> @param[in]    coarse_mesh      The coarse 3d mesh
-    !> @param[in]    coarse_twod_mesh The coarse 2d mesh
     !> @param[in]    mapper     Provides access to the field collections
     !> @param[in]    clock      The model clock
-    subroutine create_lbc_fields(mesh, twod_mesh, coarse_mesh, coarse_twod_mesh, mapper, clock)
+    subroutine create_lbc_fields(mesh, twod_mesh, mapper, clock)
      implicit none
      type(mesh_type), intent(in), pointer    :: mesh
      type(mesh_type), intent(in), pointer    :: twod_mesh
-     type(mesh_type), intent(in), pointer    :: coarse_mesh
-     type(mesh_type), intent(in), pointer    :: coarse_twod_mesh
      type(field_mapper_type), intent(in)     :: mapper
      class(clock_type), intent(in)           :: clock
 
@@ -162,7 +168,7 @@ module create_lbcs_mod
      gungho_axes => mapper%get_gungho_axes()
      if (lbc_option /= lbc_option_analytic) call gungho_axes%make_lbc_time_axis()
 
-     call creator%init(mesh, twod_mesh, coarse_mesh, coarse_twod_mesh, mapper, clock)
+     call creator%init(mesh, twod_mesh, mapper, clock)
 
      call process_lbc_fields(creator)
 

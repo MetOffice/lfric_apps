@@ -11,12 +11,14 @@
 !>          mixing ratios and dry density.
 module map_um_lbc_inputs_alg_mod
 
+  use config_mod,                     only: config_type
   use extrusion_config_mod,           only: planet_radius
   use field_mod,                      only: field_type
   use fs_continuity_mod,              only: W3
   use constants_mod,                  only: i_def, r_def
   use sci_sample_wtheta_to_w3_kernel_mod, only: sample_wtheta_to_w3_kernel_type
   use sci_geometric_constants_mod,    only: get_height_fv
+  use boundaries_config_mod,          only: lbc_bal_meth_keep_rho
 
   implicit none
 
@@ -29,41 +31,48 @@ contains
   !> @details The LBC inputs are currently provided as specific humidities and
   !>          a total density.  This routine converts them to the equivalent
   !>          mixing ratios and dry density.
-  !> @param[in]     q      vapour specific humidity
-  !> @param[in]     qcl    liquid specific humidity
-  !> @param[in]     qcf    frozen specific humidity
-  !> @param[in]     qrain  rain specific humidity
-  !> @param[in]     rho_r2 wet density multiplied by radius squared
-  !> @param[in,out] m_v    vapour mixing ratio
-  !> @param[in,out] m_cl   liquid mixing ratio
-  !> @param[in,out] m_s    frozen mixing ratio
-  !> @param[in,out] m_r    rain mixing ratio
-  !> @param[in,out] rho    dry density
-  subroutine map_um_lbc_inputs( q, qcl, qcf, qrain, rho_r2, &
-                                m_v, m_cl, m_s, m_r, rho    &
-                                )
+  !> @param[in]     config  Application namelist configuration object
+  !> @param[in]     q       vapour specific humidity
+  !> @param[in]     qcl     liquid specific humidity
+  !> @param[in]     qcf     frozen specific humidity
+  !> @param[in]     qrain   rain specific humidity
+  !> @param[in]     rho_r2  wet density multiplied by radius squared
+  !> @param[in,out] m_v     vapour mixing ratio
+  !> @param[in,out] m_cl    liquid mixing ratio
+  !> @param[in,out] m_s     frozen mixing ratio
+  !> @param[in,out] m_r     rain mixing ratio
+  !> @param[in,out] rho     dry density
+  !> @param[in]     lbc_bal_meth  Whether to keep rho or Exner from the LBCs
+  subroutine map_um_lbc_inputs( config, q, qcl, qcf, qrain, rho_r2, &
+                                m_v, m_cl, m_s, m_r, rho,           &
+                                lbc_bal_meth)
 
     implicit none
 
+    type(config_type), intent(in) :: config
+
     type(field_type), intent(in)    :: q, qcl, qcf, qrain, rho_r2
     type(field_type), intent(inout) :: m_v, m_cl, m_s, m_r, rho
+    integer(i_def),   intent(in)    :: lbc_bal_meth
     type(field_type), pointer       :: height_w3 => null()
     type(field_type)                :: radius_w3
     type(field_type)                :: qsum
     type(field_type)                :: qsum_w3
-    integer(i_def)                  :: mesh_id
 
-    mesh_id     =  rho%get_mesh_id()
-    height_w3   => get_height_fv( W3, mesh_id )
+    if (lbc_bal_meth == lbc_bal_meth_keep_rho) then
 
-    ! Convert to a total air density
-    ! rho = rho/r/r
-    ! at this stage rho is not yet dry
-    call height_w3%copy_field_properties( radius_w3 )
+      height_w3   => get_height_fv( config, rho%get_mesh(), W3 )
 
-    call invoke( a_plus_X( radius_w3, planet_radius, height_w3 ), &
-                 X_divideby_Y( rho, rho_r2, radius_w3 ),          &
-                 inc_X_divideby_Y( rho, radius_w3 ) )
+      ! Convert to a total air density
+      ! rho = rho/r/r
+      ! at this stage rho is not yet dry
+      call height_w3%copy_field_properties( radius_w3 )
+
+      call invoke( a_plus_X( radius_w3, planet_radius, height_w3 ), &
+                   X_divideby_Y( rho, rho_r2, radius_w3 ),          &
+                   inc_X_divideby_Y( rho, radius_w3 ) )
+
+    end if
 
     ! Next we need the specific humidity variables
     ! Can get rho_d = rho_T(1 - S)
@@ -74,8 +83,6 @@ contains
     ! of the dry density.
 
     call q%copy_field_properties( qsum )
-    call rho%copy_field_properties( qsum_w3 )
-
     call invoke( setval_c( qsum, 1.0_r_def ),      &
                  inc_X_minus_Y( qsum, q ),         &
                  inc_X_minus_Y( qsum, qcl ),       &
@@ -84,10 +91,13 @@ contains
                  X_divideby_Y( m_v, q, qsum ),     &
                  X_divideby_Y( m_cl, qcl, qsum ),  &
                  X_divideby_Y( m_s, qcf, qsum ),   &
-                 X_divideby_Y( m_r, qrain, qsum ), &
-                 sample_wtheta_to_w3_kernel_type( qsum_w3, qsum ), &
-                 inc_X_times_Y( rho, qsum_w3 )     &
-                 )
+                 X_divideby_Y( m_r, qrain, qsum ) )
+
+    if (lbc_bal_meth == lbc_bal_meth_keep_rho) then
+      call rho%copy_field_properties( qsum_w3 )
+      call invoke( sample_wtheta_to_w3_kernel_type( qsum_w3, qsum ), &
+                   inc_X_times_Y( rho, qsum_w3 ) )
+    end if
 
   end subroutine map_um_lbc_inputs
 

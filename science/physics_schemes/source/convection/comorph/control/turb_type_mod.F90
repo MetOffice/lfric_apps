@@ -82,12 +82,6 @@ integer, parameter :: i_f_wind_v = 5
 character(len=name_length), parameter :: turb_names(n_turb)                    &
               = [ "w_var   ", "f_templ ", "f_q_tot ", "f_wind_u", "f_wind_v" ]
 
-! Flag for whether each turbulence field should only be positive
-logical, parameter :: turb_positive(n_turb)                                    &
-              = [ .true., .false., .false., .false., .false. ]
-! TKE and diffusivities must be positive,
-! but fluxes could go either way.
-
 ! Max allowed ratio of heat-flux over sqrt(TKE) / K
 real(kind=real_hmprec), parameter :: max_templ = 20.0
 ! Max allowed ratio of moisture-flux over sqrt(TKE) / kg kg-1
@@ -269,6 +263,54 @@ deallocate( turb % list )
 
 return
 end subroutine turb_list_clear
+
+
+!----------------------------------------------------------------
+! Subroutine to check turb fields for bad values
+!----------------------------------------------------------------
+subroutine turb_check_bad_values( turb, where_string )
+
+use comorph_constants_mod, only: name_length, zero
+use check_bad_values_mod, only: check_bad_values_3d
+
+implicit none
+
+type(turb_type), intent(in) :: turb
+
+! Character string describing where in the convection scheme
+! we are, for constructing error message if bad value found.
+character(len=name_length), intent(in) :: where_string
+
+! Character string to store field names
+character(len=name_length) :: field_name
+
+! Lower and upper bounds of array
+integer :: lb(3), ub(3)
+
+! Loop counter
+integer :: i_turb
+
+! Check the turbulent fluxes and w-variance in the list
+do i_turb = 1, n_turb
+  lb = lbound( turb % list(i_turb)%pt )
+  ub = ubound( turb % list(i_turb)%pt )
+  call check_bad_values_3d( lb, ub, turb%list(i_turb)%pt,                      &
+                            where_string, turb_names(i_turb),                  &
+                            l_half=.true., l_init=.true. )
+end do
+
+! Check other fields that are not in the list...
+
+field_name = "lengthscale"
+lb = lbound( turb % lengthscale )
+ub = ubound( turb % lengthscale )
+call check_bad_values_3d( lb, ub, turb % lengthscale,                          &
+                          where_string, field_name,                            &
+                          field_min=zero, l_init=.true. )
+
+
+return
+end subroutine turb_check_bad_values
 
 
 !----------------------------------------------------------------

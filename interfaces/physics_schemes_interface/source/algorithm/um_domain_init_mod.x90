@@ -22,11 +22,11 @@ module um_domain_init_mod
   use constants_mod,               only : i_um, r_um, rmdi, i_def, r_def
   use conversions_mod,             only : pi_over_180
   use field_mod,                   only : field_type
-  use mesh_mod,                    only: mesh_type
-  use local_mesh_mod,              only: local_mesh_type
+  use mesh_mod,                    only : mesh_type
+  use local_mesh_mod,              only : local_mesh_type
   use log_mod,                     only : log_event,   &
                                           log_scratch_space, &
-                                    log_level_error
+                                          log_level_error
 
   implicit none
 
@@ -80,7 +80,7 @@ contains
     ! the global mean of a field - once psyclone#489 is live,
     ! it should be changed to use the built-in function
 
-    delta => get_delta_at_wtheta( mesh%get_id() )
+    delta => get_delta_at_wtheta(mesh)
     call delta%copy_field_properties(ones)
     call invoke( setval_c(ones, 1.0_r_def), &
                  sum_X(sum_delta, delta)  , &
@@ -134,15 +134,14 @@ contains
     cells_per_panel = n_cells / n_panels
     cells_per_side = nint( sqrt( real( cells_per_panel, r_def ) ), i_def )
 
+    ! number of iters is number of points on panel
+    n_iter_pmsl = cells_per_side
+
     ! Calculate parameters derived from mesh size
     if (n_panels > 1) then
-      ! global model, number of iters is equatorial number of points
-      n_iter_pmsl = 4_i_def * cells_per_side
       ! max wavenumber is half equatorial number of points
       model_wavenumber_max = 2_i_def * cells_per_side
     else
-      ! limited area model, number of iters is number of points
-      n_iter_pmsl = cells_per_side
       ! max wavenumber is half number of points
       model_wavenumber_max = cells_per_side / 2_i_def
     end if

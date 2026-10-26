@@ -1,3 +1,6 @@
+&adjoint
+l_compute_annexed_dofs=.true.,
+/
 &base_mesh
 file_prefix='mesh_C12_MG',
 geometry='spherical',
@@ -30,10 +33,8 @@ stochastic_physics='none',
 surface='none',
 /
 &convection
-dx_ref=50000.0,
 l_cvdiag_ctop_qmax=.false.,
 qlmin=4.0e-4,
-resdep_precipramp=.false.,
 /
 &cosp
 l_cosp=.false.,
@@ -76,8 +77,10 @@ start_dump_filename='final_pert',
 /
 &finite_element
 cellshape='quadrilateral',
-coord_order=1,
+coord_order=2,
 coord_system='native',
+coord_order_nonprime=1,
+coord_space='Wchi',
 element_order_h=0,
 element_order_v=0,
 rehabilitate=.true.,
@@ -99,6 +102,7 @@ p2theta_vert=.true.,
 rotating=.true.,
 shallow=.true.,
 si_momentum_equation=.false.,
+solver_moisture_conservation=.false.,
 theta_moist_source=.false.,
 use_multires_coupling=.false.,
 use_physics=.true.,
@@ -151,15 +155,15 @@ ancil_option='none',
 coarse_aerosol_ancil=.false.,
 coarse_orography_ancil=.false.,
 coarse_ozone_ancil=.false.,
+init_eos_height=100,
+init_exner_method='hydrostatic',
 init_option='fd_start_dump',
+init_sort_theta=.true.,
 lbc_option='none',
 ls_option='file',
-model_eos_height=100,
-n_orog_smooth=0,
 read_w2h_wind=.true.,
 sea_ice_source='ancillary',
 snow_source='start_dump',
-w0_orography_mapping=.false.,
 zero_w2v_wind=.false.,
 /
 &initial_density
@@ -217,6 +221,7 @@ write_conservation_diag=.false.,
 write_diag=.true.,
 write_dump=.false.,
 write_fluxes=.false.,
+write_initial=.true.
 write_minmax_tseries=.false.,
 /
 &linear
@@ -266,6 +271,9 @@ l_esm_couple_test=.false.,
 /
 &orography
 orog_init_option='ancil',
+orography_order=2,
+n_orog_smooth=0,
+w0_multigrid_mapping=.true.
 /
 &partitioning
 generate_inner_halos=.false.,
@@ -392,6 +400,7 @@ min_val_abs_tol=-1.0e-12,
 min_val_max_iterations=10,
 min_val_method='iterative',
 min_value=0.0,0.0,-99999999.0,0.0,0.0,
+native_w2_wind_transport=.false.,
 oned_reconstruction=.false.,
 operators='fv',
 panel_edge_high_order=.true.,

@@ -19,10 +19,14 @@ module initial_rho_sample_kernel_mod
                                    ANY_DISCONTINUOUS_SPACE_1,  &
                                    ANY_DISCONTINUOUS_SPACE_3,  &
                                    CELL_COLUMN, GH_EVALUATOR
-  use fs_continuity_mod,    only : Wchi
   use constants_mod,        only : r_def, i_def
-  use idealised_config_mod, only : test
   use kernel_mod,           only : kernel_type
+
+  ! Configuration modules
+  use base_mesh_config_mod,      only: geometry, topology
+  use finite_element_config_mod, only: coord_system
+  use idealised_config_mod,      only: test
+  use planet_config_mod,         only: scaled_radius
 
   implicit none
 
@@ -35,12 +39,12 @@ module initial_rho_sample_kernel_mod
     private
     type(arg_type) :: meta_args(4) = (/                                      &
          arg_type(GH_FIELD,   GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  Wchi),                      &
+         arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),               &
          arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), &
          arg_type(GH_SCALAR,  GH_REAL, GH_READ)                              &
          /)
     type(func_type) :: meta_funcs(1) = (/                                    &
-         func_type(Wchi, GH_BASIS)                                           &
+         func_type(ANY_SPACE_9, GH_BASIS)                                    &
          /)
     integer :: operates_on = CELL_COLUMN
     integer :: gh_shape = GH_EVALUATOR
@@ -131,8 +135,10 @@ contains
           coords(3) = coords(3) + chi_3_e(df1)*chi_basis(1,df1,df)
         end do
 
-        call chi2xyz(coords(1), coords(2), coords(3), &
-                     ipanel, xyz(1), xyz(2), xyz(3))
+        call chi2xyz( coords(1), coords(2), coords(3), &
+                      ipanel, geometry, topology,      &
+                      coord_system, scaled_radius,     &
+                      xyz(1), xyz(2), xyz(3) )
 
         rho(map_rho(df) + k) = analytic_density(xyz, test, time)
 

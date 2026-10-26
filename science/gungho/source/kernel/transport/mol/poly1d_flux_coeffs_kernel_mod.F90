@@ -35,6 +35,12 @@ use constants_mod,     only : r_def, i_def, l_def, r_tran
 use fs_continuity_mod, only : W3
 use kernel_mod,        only : kernel_type
 
+use mesh_mod, only: geometry_spherical
+
+! Configuration modules
+use base_mesh_config_mod,      only: geometry, topology
+use finite_element_config_mod, only: coord_system
+
 implicit none
 
 private
@@ -160,8 +166,6 @@ subroutine poly1d_flux_coeffs_code(one_layer,                  &
 
   use matrix_invert_mod,         only: matrix_invert_lu
   use cross_product_mod,         only: cross_product
-  use base_mesh_config_mod,      only: geometry, &
-                                       geometry_spherical
   use poly_helper_functions_mod, only: local_distance_1d
   use sci_chi_transform_mod,     only: chir2xyz
 
@@ -293,8 +297,9 @@ subroutine poly1d_flux_coeffs_code(one_layer,                  &
     ipanel = int(panel_id(smap_pid(1,1)), i_def)
   end if
   chi = x0 + r0
-  call chir2xyz(chi(1), chi(2), chi(3), &
-                ipanel, x0(1), x0(2), x0(3))
+  call chir2xyz( chi(1), chi(2), chi(3), ipanel,   &
+                 geometry, topology, coord_system, &
+                 x0(1), x0(2), x0(3) )
 
   ! Initialise polynomial coefficients to zero
   do df = 0, ndata-1
@@ -318,8 +323,9 @@ subroutine poly1d_flux_coeffs_code(one_layer,                  &
     ! Convert x1 to XYZ coordinate system
     if ( .not. extended_mesh ) ipanel = int(panel_id(smap_pid(1,face+1)), i_def)
     chi = x1 + r0
-    call chir2xyz(chi(1), chi(2), chi(3), &
-                  ipanel, x1(1), x1(2), x1(3))
+    call chir2xyz( chi(1), chi(2), chi(3), ipanel,   &
+                   geometry, topology, coord_system, &
+                   x1(1), x1(2), x1(3) )
 
     x1(3) = ispherical*x1(3) + (1_i_def-ispherical)*x0(3)
     ! Unit normal to plane containing points 0 and 1
@@ -341,8 +347,9 @@ subroutine poly1d_flux_coeffs_code(one_layer,                  &
         ! Convert xq to XYZ coordinate system
         if ( .not. extended_mesh ) ipanel = int(panel_id(smap_pid(1, map1d(stencil,face))), i_def)
         chi = xq + r0
-        call chir2xyz(chi(1), chi(2), chi(3), &
-                      ipanel, xq(1), xq(2), xq(3))
+        call chir2xyz( chi(1), chi(2), chi(3), ipanel,   &
+                       geometry, topology, coord_system, &
+                       xq(1), xq(2), xq(3) )
 
         ! Second: Compute the local coordinate of each quadrature point from the
         !         physical coordinate
@@ -377,8 +384,9 @@ subroutine poly1d_flux_coeffs_code(one_layer,                  &
       ! Convert xq to XYZ coordinate system
       if ( .not. extended_mesh ) ipanel = int(panel_id(smap_pid(1,1)), i_def)
       chi = xq + r0
-      call chir2xyz(chi(1), chi(2), chi(3), &
-                    ipanel, xq(1), xq(2), xq(3))
+      call chir2xyz( chi(1), chi(2), chi(3), ipanel,   &
+                     geometry, topology, coord_system, &
+                     xq(1), xq(2), xq(3) )
 
       ! Obtain local coordinates of gauss points on this face
       xx = local_distance_1d(x0, xq, xn1, domain_x, domain_y, spherical)

@@ -63,12 +63,14 @@ contains
     type(field_collection_type),   pointer :: derived_fields
     type(field_collection_type),   pointer :: cloud_fields
     type(field_collection_type),   pointer :: aerosol_fields
+    type(field_collection_type),   pointer :: convection_fields
 
     collection => modeldb%fields%get_field_collection( "moisture_fields" )
     microphysics_fields => modeldb%fields%get_field_collection("microphysics_fields")
     derived_fields => modeldb%fields%get_field_collection("derived_fields")
     cloud_fields => modeldb%fields%get_field_collection("cloud_fields")
     aerosol_fields => modeldb%fields%get_field_collection("aerosol_fields")
+    convection_fields => modeldb%fields%get_field_collection("convection_fields")
 
     call collection%get_field( "mr", mr )
     call clone_bundle( mr%bundle, dmr_mphys, nummr )
@@ -85,12 +87,14 @@ contains
 
     ! Call the algorithm
     call log_event( "Running CASIM", LOG_LEVEL_INFO )
-    call casim_alg( mr%bundle, theta, rho,                  &
+    call casim_alg( modeldb%config,                         &
+                    mr%bundle, theta, rho,                  &
                     derived_fields,                         &
                     microphysics_fields,                    &
                     cloud_fields,                           &
                     aerosol_fields,                         &
-                    turbulence_fields, mesh,                &
+                    turbulence_fields, convection_fields,   &
+                    mesh,                                   &
                     dmr_mphys, dtheta_mphys, dcfl, dcff, dbcf )
     call log_event( "CASIM completed", LOG_LEVEL_INFO )
 

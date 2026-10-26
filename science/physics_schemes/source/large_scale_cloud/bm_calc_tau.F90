@@ -26,7 +26,8 @@ use lsp_dif_mod,           only: air_conductivity0, air_diffusivity0, tcor1,   &
                                  tcor2, cpwr
 use cloud_inputs_mod,      only: i_bm_ez_opt, i_bm_ez_entpar
 ! Stochastic physics
-use stochastic_physics_run_mod, only:  l_rp2, rp_idx, mp_czero_rp
+use stochastic_physics_run_mod, only: l_rp2, i_rp_scheme, i_rp2b,              &
+                                      rp_idx, mp_czero_rp
 
 !General and constants modules
 use gen_phys_inputs_mod,   only: l_mr_physics
@@ -82,16 +83,16 @@ integer, intent(in) :: bl_levels
 
 real, intent(in) ::  qcf(tdims_l%i_start:tdims_l%i_end,                        &
                          tdims_l%j_start:tdims_l%j_end,                        &
-                         tdims_l%k_start:tdims_l%k_end)
+                                         tdims_l%k_end)
 !                    snow content (kg per kg air)
 real, intent(in) ::  qcf2(tdims_l%i_start:tdims_l%i_end,                       &
                          tdims_l%j_start:tdims_l%j_end,                        &
-                         tdims_l%k_start:tdims_l%k_end)
+                                         tdims_l%k_end)
 !                    Cloud ice content (kg per kg air)
 
 real, intent(in) ::  cff(tdims_l%i_start:tdims_l%i_end,                        &
                          tdims_l%j_start:tdims_l%j_end,                        &
-                         tdims_l%k_start:tdims_l%k_end)
+                                         tdims_l%k_end)
 !                    Cloud ice fraction
 
 real, intent(in) ::  icenumber(tdims_l%i_start:tdims_l%i_end,                  &
@@ -105,17 +106,17 @@ real, intent(in) ::  snownumber(tdims_l%i_start:tdims_l%i_end,                 &
 
 real, intent(in) ::  q(tdims_l%i_start:tdims_l%i_end,                          &
                        tdims_l%j_start:tdims_l%j_end,                          &
-                       tdims_l%k_start:tdims_l%k_end)
+                                       tdims_l%k_end)
 !                    Specific humidity (kg/kg)
 
 real, intent(in) ::  theta(tdims_s%i_start:tdims_s%i_end,                      &
                            tdims_s%j_start:tdims_s%j_end,                      &
-                           tdims_s%k_start:tdims_s%k_end)
+                                           tdims_s%k_end)
 !                    Potential temperature (K)
 
 real, intent(in) ::  exner_theta(tdims_s%i_start:tdims_s%i_end,                &
                                  tdims_s%j_start:tdims_s%j_end,                &
-                                 tdims_s%k_start:tdims_s%k_end)
+                                                 tdims_s%k_end)
 !                    Exner on theta levels
 
 real, intent(in) ::  bl_w_var(tdims%i_start : tdims%i_end,                     &
@@ -227,8 +228,8 @@ if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 ! START OF PHYSICS
 !=============================================================================
 
-! If RP scheme is in use, set parameters to their perturbed values
-if ( l_rp2 ) then
+! If RP2B scheme is in use, set parameters to their perturbed values
+if (l_rp2 .and. i_rp_scheme == i_rp2b) then
   mp_czero = mp_czero_rp(rp_idx)
 end if
 

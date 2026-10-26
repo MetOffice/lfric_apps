@@ -9,6 +9,7 @@
 module lipschitz_diag_alg_mod
 
   ! Constants and types
+  use config_mod,                      only: config_type
   use constants_mod,                   only: r_def, r_tran, l_def, i_def, str_def
   use r_tran_field_mod,                only: r_tran_field_type
   use function_space_mod,              only: function_space_type
@@ -46,15 +47,18 @@ contains
 
   !===========================================================================!
   !> @brief Computes Lipschitz diagnostics for a given splitting
+  !> @param[in] config         Application namelist configuration object
   !> @param[in] splitting      Directional splitting to compute diagnostics for
   !> @param[in] wind           Transporting wind
   !> @param[in] dt_r_tran      The time step
   !> @param[in] log_level_in   Logging level to be used
-  subroutine lipschitz_diag_alg(splitting, wind, dt_r_tran, log_level_in)
+  subroutine lipschitz_diag_alg(config, splitting, wind, dt_r_tran, log_level_in)
 
     implicit none
 
     ! Arguments
+    type(config_type), intent(in) :: config
+
     integer(kind=i_def),       intent(in) :: splitting
     type(r_tran_field_type),   intent(in) :: wind
     real(kind=r_tran),         intent(in) :: dt_r_tran
@@ -78,45 +82,44 @@ contains
     ! Calculate 1D Lipschitz numbers
     ! ------------------------------------------------------------------------ !
 
-    call lipschitz_computation_alg(                                            &
-            lipschitz_x, lipschitz_y, lipschitz_z, wind, dt_r_tran             &
-    )
+    call lipschitz_computation_alg( config, lipschitz_x, lipschitz_y, &
+                                    lipschitz_z, wind, dt_r_tran )
 
     ! ------------------------------------------------------------------------ !
     ! Print stats for x, y and z Lipschitz numbers
     ! ------------------------------------------------------------------------ !
 
-    call print_field_stats_alg_rtran(                                          &
-            lipschitz_x, log_level_in, -0.5_r_tran, 0.5_r_tran, 'lipschitz_x'  &
-    )
-    call print_field_stats_alg_rtran(                                          &
-            lipschitz_y, log_level_in, -0.5_r_tran, 0.5_r_tran, 'lipschitz_y'  &
-    )
-    call print_field_stats_alg_rtran(                                          &
-            lipschitz_z, log_level_in, -0.5_r_tran, 0.5_r_tran, 'lipschitz_z'  &
-    )
+    call print_field_stats_alg_rtran( config, lipschitz_x, log_level_in, &
+                                      -0.5_r_tran, 0.5_r_tran, 'lipschitz_x' )
+
+    call print_field_stats_alg_rtran( config, lipschitz_y, log_level_in, &
+                                      -0.5_r_tran, 0.5_r_tran, 'lipschitz_y' )
+
+    call print_field_stats_alg_rtran( config, lipschitz_z, log_level_in, &
+                                      -0.5_r_tran, 0.5_r_tran, 'lipschitz_z' )
 
     ! ------------------------------------------------------------------------ !
     ! Calculate the splitting's Lipschitz numbers
     ! ------------------------------------------------------------------------ !
 
-    call lipschitz_splitting_alg(                                              &
-            max_lipschitz, splitting, log_level_in,                            &
-            lipschitz_x, lipschitz_y, lipschitz_z                              &
-    )
+    call lipschitz_splitting_alg( config, max_lipschitz, splitting,       &
+                                  log_level_in, lipschitz_x, lipschitz_y, &
+                                  lipschitz_z )
 
 
   end subroutine lipschitz_diag_alg
 
   !===========================================================================!
   !> @brief Computes the Lipschitz numbers for a given splitting
+  !> @param[in]     config         Application namelist configuration object
   !> @param[out]    max_lipschitz  Maximum Lipschitz number, to be computed
   !> @param[in]     splitting      Directional splitting to use
   !> @param[in]     log_level_in   Logging level to be used
   !> @param[in]     lipschitz_x    Lipschitz number in x
   !> @param[in]     lipschitz_y    Lipschitz number in y
   !> @param[in]     lipschitz_z    Lipschitz number in z
-  subroutine lipschitz_splitting_alg(max_lipschitz, splitting, log_level_in,   &
+  subroutine lipschitz_splitting_alg(config,                                 &
+                                     max_lipschitz, splitting, log_level_in, &
                                      lipschitz_x, lipschitz_y, lipschitz_z)
 
     use split_transport_utils_mod,      only: get_splitting_factor,            &
@@ -128,6 +131,8 @@ contains
     implicit none
 
     ! Arguments
+    type(config_type), intent(in) :: config
+
     real(kind=r_tran),       intent(out) :: max_lipschitz
     integer(kind=i_def),     intent(in)  :: splitting
     integer(kind=i_def),     intent(in)  :: log_level_in
@@ -190,22 +195,16 @@ contains
           write(step_name, '(I4)') step
 
           field_name = 'lipschitz_sx' // adjustl(trim(step_name))
-          call print_field_stats_alg_rtran(                                    &
-                  lipschitz_sx, log_level_in, -0.5_r_tran, 0.5_r_tran,         &
-                  field_name                                                   &
-          )
+          call print_field_stats_alg_rtran( config, lipschitz_sx, log_level_in, &
+                                            -0.5_r_tran, 0.5_r_tran, field_name )
 
           field_name = 'lipschitz_sy' // adjustl(trim(step_name))
-          call print_field_stats_alg_rtran(                                    &
-                  lipschitz_sy, log_level_in, -0.5_r_tran, 0.5_r_tran,         &
-                  field_name                                                   &
-          )
+          call print_field_stats_alg_rtran( config, lipschitz_sy, log_level_in, &
+                                            -0.5_r_tran, 0.5_r_tran, field_name )
 
           field_name = 'lipschitz_s' // adjustl(trim(step_name))
-          call print_field_stats_alg_rtran(                                    &
-                  lipschitz_s, log_level_in, -0.5_r_tran, 0.5_r_tran,          &
-                  field_name                                                   &
-          )
+          call print_field_stats_alg_rtran( config, lipschitz_s, log_level_in, &
+                                            -0.5_r_tran, 0.5_r_tran, field_name )
         end if
 
       case (direction_v)
@@ -219,10 +218,8 @@ contains
           write(step_name, '(I4)') step
 
           field_name = 'lipschitz_s' // adjustl(trim(step_name))
-          call print_field_stats_alg_rtran(                                    &
-                  lipschitz_s, log_level_in, -0.5_r_tran, 0.5_r_tran,          &
-                  field_name                                                   &
-          )
+          call print_field_stats_alg_rtran( config, lipschitz_s, log_level_in, &
+                                            -0.5_r_tran, 0.5_r_tran, field_name )
         end if
 
       case default
@@ -236,17 +233,21 @@ contains
 
   !===========================================================================!
   !> @brief Computes the 1D Lipschitz numbers for a given wind
+  !> @param[in]     config         Application namelist configuration object
   !> @param[in,out] lipschitz_x    The Lipschitz number in x
   !> @param[in,out] lipschitz_y    The Lipschitz number in y
   !> @param[in,out] lipschitz_z    The vertical Lipschitz number
   !> @param[in]     wind           The advecting wind
   !> @param[in]     dt             The time step
-  subroutine lipschitz_computation_alg(lipschitz_x, lipschitz_y,   &
+  subroutine lipschitz_computation_alg(config,                   &
+                                       lipschitz_x, lipschitz_y, &
                                        lipschitz_z, wind, dt)
 
     implicit none
 
     ! Arguments
+    type(config_type), intent(in) :: config
+
     type(r_tran_field_type), intent(inout) :: lipschitz_x
     type(r_tran_field_type), intent(inout) :: lipschitz_y
     type(r_tran_field_type), intent(inout) :: lipschitz_z
@@ -268,9 +269,9 @@ contains
     call wind_w2h%initialise( w2h_fs )
     call wind_w2v%initialise( w2v_fs )
 
-    face_selector_ew => get_face_selector_ew(mesh%get_id())
-    face_selector_ns => get_face_selector_ns(mesh%get_id())
-    detj => get_detj_at_w3_r_tran(mesh%get_id())
+    face_selector_ew => get_face_selector_ew(mesh)
+    face_selector_ns => get_face_selector_ns(mesh)
+    detj => get_detj_at_w3_r_tran(config, mesh)
 
     ! ------------------------------------------------------------------------ !
     ! Calculate x, y and z Lipschitz numbers

@@ -10,14 +10,14 @@ use, intrinsic :: iso_fortran_env,     only: int64, real64
 use constants_mod,                     only: r_def
 
 ! lfric2um modules
-use lfricinp_lfric_driver_mod,         only: local_rank
 use lfric2um_initialise_um_mod,        only: um_output_file
-use lfricinp_um_grid_mod,              only: um_grid
 
 ! lfricinp modules
-use lfricinp_um_level_codes_mod,       only: lfricinp_get_num_levels
 use lfricinp_check_shumlib_status_mod, only: shumlib
+use lfricinp_lfric_driver_mod,         only: local_rank
 use lfricinp_stashmaster_mod,          only: stashcode_theta
+use lfricinp_um_grid_mod,              only: um_grid
+use lfricinp_um_level_codes_mod,       only: lfricinp_get_num_levels
 
 ! lfric modules
 use log_mod, only: log_event, log_scratch_space, LOG_LEVEL_INFO, &

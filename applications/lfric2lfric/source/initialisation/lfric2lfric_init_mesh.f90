@@ -24,8 +24,10 @@
 !>
 module lfric2lfric_init_mesh_mod
 
-  use add_mesh_map_mod,            only: assign_mesh_maps
-  use constants_mod,               only: i_def, l_def, str_max_filename
+  use add_mesh_map_mod,            only: add_mesh_map
+  use config_mod,                  only: config_type
+  use constants_mod,               only: i_def, l_def, str_def, &
+                                         str_max_filename
   use check_local_mesh_mod,        only: check_local_mesh
   use create_mesh_mod,             only: create_mesh
   use extrusion_mod,               only: extrusion_type
@@ -37,16 +39,21 @@ module lfric2lfric_init_mesh_mod
                                          log_level_info,    &
                                          log_level_error,   &
                                          log_level_debug
-  use namelist_collection_mod,     only: namelist_collection_type
-  use namelist_mod,                only: namelist_type
-  use panel_decomposition_mod,     only: panel_decomposition_type
+  use panel_decomposition_mod,     only: panel_decomposition_type, &
+                                         calc_mapping_factor
   use partition_mod,               only: partitioner_interface
+
   use runtime_partition_mod,       only: mesh_cubedsphere,       &
                                          mesh_planar,            &
                                          create_local_mesh_maps, &
                                          create_local_mesh
   use runtime_partition_lfric_mod, only: get_partition_parameters
   use global_mesh_collection_mod,  only: global_mesh_collection
+  use local_mesh_collection_mod,   only: local_mesh_collection
+  use mesh_collection_mod,         only: mesh_collection
+  use mesh_mod,                    only: mesh_type
+  use global_mesh_mod,             only: global_mesh_type
+  use local_mesh_mod,              only: local_mesh_type
 
   ! Lfric2lfric modules
   use lfric2lfric_config_mod,      only: regrid_method_map,                   &
@@ -67,37 +74,46 @@ contains
 !===============================================================================
 !> @brief  Generates mesh(es) from mesh input file(s) on a given extrusion.
 !>
-!> @param[in] configuration          Application configuration object.
-!>                                   This configuration object should contain the
-!>                                   following defined namelist objects:
-!>                                      * partititioning
-!> @param[in] local_rank             The MPI rank of this process.
-!> @param[in] total_ranks            Total number of MPI ranks in this job.
-!> @param[in] mesh_names             Mesh names to load from the mesh input file(s).
-!> @param[in] extrusion              Extrusion object to be applied to meshes.
-!> @param[in] stencil_depths_in      Required stencil depth for the application
-!!                                   for each mesh.
-!> @param[in] regrid_method          Apply check for even partitions with the
-!>                                   configured partition strategy if the
-!>                                   regridding method is 'map'.
-!>                                   (unpartitioned mesh input only)
+!> @param[in] config             Application configuration object.
+!>                               This configuration object should contain the
+!>                               following defined namelist objects:
+!>                                 * partititioning
+!> @param[in] local_rank         The MPI rank of this process.
+!> @param[in] total_ranks        Total number of MPI ranks in this job.
+!> @param[in] mesh_names         Mesh names to load from the mesh input file(s).
+!> @param[in] extrusion          Extrusion object to be applied to meshes.
+!> @param[in] inner_halo_tiles   Flag to apply tiling to inner halos
+!> @param[in] tile_size          Inner halo tile sizes in x/y direction for each mesh.
+!> @param[in] stencil_depths_in  Required stencil depth for the application
+!!                               for each mesh.
+!> @param[in] regrid_method      Apply check for even partitions with the
+!>                               configured partition strategy if the
+!>                               regridding method is 'map'.
+!>                               (unpartitioned mesh input only)
 !===============================================================================
-subroutine init_mesh( configuration,           &
+subroutine init_mesh( config,                  &
                       local_rank, total_ranks, &
                       mesh_names,              &
                       extrusion,               &
+                      inner_halo_tiles,        &
+                      tile_size,               &
                       stencil_depths_in,       &
                       regrid_method )
+
+  use partitioning_nml_iterator_mod, only: partitioning_nml_iterator_type
+  use partitioning_nml_mod,          only: partitioning_nml_type
 
   implicit none
 
   ! Arguments
-  type(namelist_collection_type) :: configuration
+  type(config_type),     intent(in) :: config
 
   integer(kind=i_def),   intent(in) :: local_rank
   integer(kind=i_def),   intent(in) :: total_ranks
-  character(len=*),      intent(in) :: mesh_names(2)
+  character(*),          intent(in) :: mesh_names(2)
   class(extrusion_type), intent(in) :: extrusion
+  logical(l_def),        intent(in) :: inner_halo_tiles
+  integer(i_def),        intent(in) :: tile_size(:,:)
   integer(kind=i_def),   intent(in) :: stencil_depths_in(:)
   integer(kind=i_def),   intent(in) :: regrid_method
 
@@ -108,9 +124,9 @@ subroutine init_mesh( configuration,           &
   integer(kind=i_def), parameter :: src = 2
 
   ! Namelist variables
-  type(namelist_type), pointer :: lfric2lfric_nml      => null()
-  type(namelist_type), pointer :: src_partitioning_nml => null()
-  type(namelist_type), pointer :: dst_partitioning_nml => null()
+  type(partitioning_nml_type), pointer :: partitioning
+  type(partitioning_nml_type), pointer :: src_partitioning_nml
+  type(partitioning_nml_type), pointer :: dst_partitioning_nml
 
   ! partitioning namelist variables
   logical(l_def)                   :: generate_inner_halos(2)
@@ -124,48 +140,74 @@ subroutine init_mesh( configuration,           &
   integer(kind=i_def)              :: mesh_selection(2)
 
   ! Local variables
-  integer(kind=i_def)                 :: i
-  character(len=str_max_filename)     :: mesh_file(2)
-  integer(kind=i_def)                 :: stencil_depths(2)
+  integer(kind=i_def)             :: i
+  character(len=str_max_filename) :: mesh_file(2)
+  character(str_max_filename)     :: mesh_input_file
+  integer(kind=i_def)             :: stencil_depths(2)
 
-  procedure(partitioner_interface), pointer :: partitioner_src => null()
-  procedure(partitioner_interface), pointer :: partitioner_dst => null()
+  character(str_def) :: stored_mesh_names(2)
+
+  procedure(partitioner_interface), pointer :: partitioner_src
+  procedure(partitioner_interface), pointer :: partitioner_dst
 
   class(panel_decomposition_type), allocatable :: decomposition_src, &
                                                   decomposition_dst
 
+  type(partitioning_nml_iterator_type) :: iter
+
+  type(global_mesh_type), pointer :: src_global_mesh
+  type(global_mesh_type), pointer :: dst_global_mesh
+  type(local_mesh_type),  pointer :: src_local_mesh
+  type(local_mesh_type),  pointer :: dst_local_mesh
+  type(mesh_type),        pointer :: src_mesh
+  type(mesh_type),        pointer :: dst_mesh
+
+  logical(l_def) :: enforce_constraints
+  integer(i_def) :: mapping_factors(2)
+
+  nullify( src_global_mesh, src_mesh, partitioner_src)
+  nullify( dst_global_mesh, dst_mesh, partitioner_dst)
+
+  stored_mesh_names(src) = 'src_'//trim(mesh_names(src))
+  stored_mesh_names(dst) = 'dst_'//trim(mesh_names(dst))
 
   !============================================================================
   ! Extract and check configuration variables
   !============================================================================
-  ! Read partitioning namelist for source and destination meshes
-  src_partitioning_nml  => configuration%get_namelist('partitioning', &
-                                                      'source')
-  call src_partitioning_nml%get_value( 'generate_inner_halos', &
-                                        generate_inner_halos(src) )
+  call iter%initialise(config%partitioning)
+  do while (iter%has_next())
 
-  dst_partitioning_nml  => configuration%get_namelist('partitioning', &
-                                                      'destination')
-  call dst_partitioning_nml%get_value( 'generate_inner_halos', &
-                                        generate_inner_halos(dst) )
+    partitioning => iter%next()
+
+    if (trim(partitioning%get_profile_name()) == 'source') then
+      src_partitioning_nml => partitioning
+    else if (trim(partitioning%get_profile_name()) == 'destination') then
+      dst_partitioning_nml => partitioning
+    end if
+  end do
+
+  if (.not. associated(src_partitioning_nml)) then
+    write( log_scratch_space, '(A)' )                                     &
+         'Source mesh partitioning namelist (partitioning:source) not found.'
+    call log_event(log_scratch_space, log_level_error)
+  end if
+  if (.not. associated(dst_partitioning_nml)) then
+    write( log_scratch_space, '(A)' )                                          &
+         'Destination mesh partitioning namelist (partitioning:destination) not found.'
+    call log_event(log_scratch_space, log_level_error)
+  end if
+
+  generate_inner_halos(src) = src_partitioning_nml%generate_inner_halos()
+  generate_inner_halos(dst) = dst_partitioning_nml%generate_inner_halos()
 
   ! Read lfric2lfric namelist
-  lfric2lfric_nml    => configuration%get_namelist('lfric2lfric')
-
-  call lfric2lfric_nml%get_value( 'prepartitioned_meshes', &
-                                   prepartitioned )
-  call lfric2lfric_nml%get_value( 'destination_meshfile_prefix', &
-                                   meshfile_prefix(dst) )
-  call lfric2lfric_nml%get_value( 'destination_geometry', &
-                                   geometry(dst) )
-  call lfric2lfric_nml%get_value( 'destination_topology', &
-                                   topology(dst) )
-  call lfric2lfric_nml%get_value( 'source_meshfile_prefix', &
-                                   meshfile_prefix(src) )
-  call lfric2lfric_nml%get_value( 'source_geometry', &
-                                   geometry(src) )
-  call lfric2lfric_nml%get_value( 'source_topology', &
-                                   topology(src) )
+  prepartitioned       = config%lfric2lfric%prepartitioned_meshes()
+  meshfile_prefix(src) = config%lfric2lfric%source_meshfile_prefix()
+  meshfile_prefix(dst) = config%lfric2lfric%destination_meshfile_prefix()
+  geometry(src)        = config%lfric2lfric%source_geometry()
+  geometry(dst)        = config%lfric2lfric%destination_geometry()
+  topology(src)        = config%lfric2lfric%source_topology()
+  topology(dst)        = config%lfric2lfric%destination_topology()
 
   if ( regrid_method == regrid_method_map .and. &
      trim(meshfile_prefix(src)) /= trim(meshfile_prefix(dst)) ) then
@@ -177,12 +219,12 @@ subroutine init_mesh( configuration,           &
   end if
 
   ! Set up stencil depths
-  if ( size(stencil_depths) == 1 ) then
+  if ( size(stencil_depths_in) == 1 ) then
     ! Single stencil depth specified, apply to all meshes
     do i = 1, size(mesh_names)
       stencil_depths(i) = stencil_depths_in(1)
     end do
-  else if ( size(stencil_depths) == size(mesh_names) ) then
+  else if ( size(stencil_depths_in) == size(mesh_names) ) then
     ! Stencil depths specified per mesh
     stencil_depths(:) = stencil_depths_in(:)
   else
@@ -192,6 +234,14 @@ subroutine init_mesh( configuration,           &
     call log_event(log_scratch_space, log_level_error)
   end if
 
+  ! Check stencil depths are valid
+  do i = 1, size(stencil_depths)
+    if (stencil_depths(i) < 0_i_def) then
+      write(log_scratch_space,'(A)') &
+        'Standard partitioned meshes must support a not -ve stencil_depth'
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+  end do
 
   !===========================================================================
   ! Create local mesh objects:
@@ -230,29 +280,16 @@ subroutine init_mesh( configuration,           &
     !===========================================================
     ! Each partitioned mesh file will contain meshes of the
     ! same name as all other partitions.
-    call log_event( 'Using pre-partitioned mesh file:', log_level_info )
-    call log_event( '   '//trim(mesh_file(dst)), log_level_info )
-    call log_event( "Loading local mesh(es)", log_level_info )
 
-    if (mesh_file(dst) == mesh_file(src)) then
-      call load_local_mesh( mesh_file(dst), mesh_names )
-    else
-      call load_local_mesh( mesh_file(dst), mesh_names(dst) )
-
-      call log_event( 'Using pre-partitioned mesh file:', log_level_info )
-      call log_event( '   '//trim(mesh_file(src)), log_level_info )
-      call log_event( "Loading local mesh(es)", log_level_info )
-
-      call load_local_mesh( mesh_file(src), mesh_names(src) )
-    endif
+    call load_local_mesh( mesh_file(src), mesh_names(src))
+    call load_local_mesh( mesh_file(dst), mesh_names(dst))
 
     ! Apply configuration related checks to ensure that these
     ! meshes are suitable for the supplied application
     ! configuration.
     !===========================================================
-    call check_local_mesh( configuration,  &
-                           stencil_depths, &
-                           mesh_names )
+    call check_local_mesh( config, stencil_depths, mesh_names(src:src) )
+    call check_local_mesh( config, stencil_depths, mesh_names(dst:dst) )
 
     ! Load and assign mesh maps.
     !===========================================================
@@ -261,8 +298,18 @@ subroutine init_mesh( configuration,           &
     ! need to be loaded after the relevant local meshes have
     ! been loaded.
     if (regrid_method == regrid_method_map) then
-      call load_local_mesh_maps( mesh_file(dst), mesh_names )
+      ! Intergrid mesh maps should be in the mesh input file,
+      ! i.e. the source and destination file should be the same.
+      if (trim(mesh_file(dst)) == trim(mesh_file(src))) then
+         mesh_input_file = mesh_file(src)
+         call load_local_mesh_maps( mesh_input_file, mesh_names )
+      else
+         call log_event( "Inter-grid maps/meshes should be "// &
+                         "sourced from the same input files)", &
+                         log_level_error )
+      end if
     end if
+
   else
 
     !==========================================================================
@@ -310,34 +357,54 @@ subroutine init_mesh( configuration,           &
 
     ! Read in all global meshes from input file
     !===========================================================
-    if (mesh_file(dst) == mesh_file(src)) then
-      call load_global_mesh( mesh_file(dst), mesh_names )
-    else
-      call load_global_mesh( mesh_file(dst), mesh_names(dst) )
-      call load_global_mesh( mesh_file(src), mesh_names(src) )
-    endif
+    call load_global_mesh( mesh_file(src), mesh_names(src), &
+                           rename_to=stored_mesh_names(src) )
+
+    call load_global_mesh( mesh_file(dst), mesh_names(dst), &
+                           rename_to=stored_mesh_names(dst) )
 
     ! Partition the global meshes
     !===========================================================
-    call create_local_mesh( mesh_names(dst:dst),           &
-                            local_rank, total_ranks,       &
-                            decomposition_dst,             &
-                            stencil_depths,                &
-                            generate_inner_halos(dst),     &
-                            partitioner_dst )
+    enforce_constraints = .false.
 
-    call create_local_mesh( mesh_names(src:src),           &
-                            local_rank, total_ranks,       &
-                            decomposition_src,             &
-                            stencil_depths,                &
-                            generate_inner_halos(src),     &
-                            partitioner_src )
+    src_global_mesh => global_mesh_collection%get_global_mesh(stored_mesh_names(src))
+    dst_global_mesh => global_mesh_collection%get_global_mesh(stored_mesh_names(dst))
+
+    mapping_factors = 1
+    if (regrid_method == regrid_method_map) then
+      mapping_factors(src) = calc_mapping_factor( src_global_mesh, &
+                                                  dst_global_mesh )
+      mapping_factors(dst) = calc_mapping_factor( dst_global_mesh, &
+                                                  src_global_mesh )
+    end if
+
+    call create_local_mesh( stored_mesh_names(dst:dst), &
+                            local_rank, total_ranks,    &
+                            decomposition_dst,          &
+                            stencil_depths,             &
+                            generate_inner_halos(dst),  &
+                            partitioner_dst,            &
+                            mapping_factors(dst:dst),   &
+                            enforce_constraints )
+
+    call create_local_mesh( stored_mesh_names(src:src), &
+                            local_rank, total_ranks,    &
+                            decomposition_src,          &
+                            stencil_depths,             &
+                            generate_inner_halos(src),  &
+                            partitioner_src,            &
+                            mapping_factors(src:src),   &
+                            enforce_constraints )
 
     ! Read in the global intergrid mesh mappings,
     ! then create the associated local mesh maps
     !===========================================================
     if (regrid_method == regrid_method_map) then
-      call create_local_mesh_maps( mesh_file(dst) )
+      src_local_mesh => local_mesh_collection%get_local_mesh(stored_mesh_names(src))
+      dst_local_mesh => local_mesh_collection%get_local_mesh(stored_mesh_names(dst))
+
+      call create_local_mesh_maps( src_local_mesh )
+      call create_local_mesh_maps( dst_local_mesh )
     end if
 
   end if  ! prepartitioned
@@ -348,13 +415,19 @@ subroutine init_mesh( configuration,           &
   ! Alternative names are needed in case the source and destination
   ! mesh files use the same mesh name.
   !============================================================================
-  call create_mesh( mesh_names, extrusion )
+  call create_mesh( stored_mesh_names(src), extrusion,  &
+                    inner_halo_tiles, tile_size(:,src) )
+
+  call create_mesh( stored_mesh_names(dst), extrusion,  &
+                    inner_halo_tiles, tile_size(:,dst) )
 
   !============================================================================
   ! Generate intergrid LiD-LiD maps and assign them to mesh objects.
   !============================================================================
   if (regrid_method == regrid_method_map) then
-    call assign_mesh_maps(mesh_names)
+    src_mesh => mesh_collection%get_mesh(stored_mesh_names(src))
+    dst_mesh => mesh_collection%get_mesh(stored_mesh_names(dst))
+    call add_mesh_map(src_mesh, dst_mesh)
   end if
 
 end subroutine init_mesh

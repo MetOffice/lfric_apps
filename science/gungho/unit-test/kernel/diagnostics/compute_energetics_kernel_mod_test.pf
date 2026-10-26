@@ -9,7 +9,7 @@
 !>
 module compute_energetics_kernel_mod_test
 
-  use constants_mod, only: i_def, r_def, imdi
+  use constants_mod, only: i_def, r_def, pi
 
   use driver_water_constants_mod,  only : Lv => latent_heat_h2o_condensation, &
                                           Lf => latent_heat_h2o_fusion
@@ -58,7 +58,7 @@ contains
   subroutine setUp( this )
 
     use finite_element_config_mod, only : cellshape_quadrilateral, &
-                                          coord_system_xyz
+                                          coord_system_xyz, coord_space_wchi
     use feign_config_mod,          only : feign_finite_element_config
     use sci_chi_transform_mod,     only : init_chi_transforms
 
@@ -66,24 +66,37 @@ contains
 
     class(compute_energetics_kernel_test_type), intent(inout) :: this
 
+    real(r_def), parameter :: geostrophic_north_pole(2) = [0.0_r_def, PI/2.0_r_def]
+    real(r_def), parameter :: null_island(2) = [0.0_r_def, 0.0_r_def]
+    real(r_def), parameter :: equator_latitude = 0.0_r_def
+
     call feign_finite_element_config(           &
              cellshape=cellshape_quadrilateral, &
              coord_order=0_i_def,               &
+             coord_order_nonprime=1_i_def,      &
+             coord_space=coord_space_wchi,      &
              coord_system=coord_system_xyz,     &
              element_order_h=0_i_def,           &
              element_order_v=0_i_def,           &
              rehabilitate=.true.,               &
              vorticity_in_w1=.false. )
 
-    call init_chi_transforms(imdi, imdi)
+    ! Note: Calling 'init_chi_transforms' is only valid for meshes which have a
+    !       spherical geometry and coordinate system. While it may not be relevant
+    !       to this mesh, it is called due to an unknown interaction which changes
+    !       results. If it is not applicable to this mesh, it should be removed once
+    !       this issue is resolved.
+    call init_chi_transforms( geostrophic_north_pole, &
+                              null_island, &
+                              equator_latitude )
 
   end subroutine setUp
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
-    use configuration_mod,        only: final_configuration
-    use sci_chi_transform_mod,    only: final_chi_transforms
+    use config_loader_mod,     only: final_configuration
+    use sci_chi_transform_mod, only: final_chi_transforms
 
     implicit none
 
@@ -143,7 +156,7 @@ contains
     real(r_def), allocatable :: phi(:)
 
     real(kind=r_def) :: p, t, m
-    real(r_def) :: cv, chi3_av, phi0
+    real(r_def) :: cv, chi3_av
 
     nlayers=3
     call get_w0_m3x3_q3x3x3_size( ndf_w0, undf_w0, ncells, &
@@ -225,7 +238,6 @@ contains
     moist_int(:) = 0.0_r_def
 
     cv = cp - rd
-    phi0 = 19.0_r_def
 
     cell = 1
     call compute_energetics_code(                                &
@@ -239,7 +251,6 @@ contains
                                  mr_v, mr_cl, mr_r,              &
                                  mr_ci, mr_s, mr_g,              &
                                  phi,                            &
-                                 phi0,                           &
                                  chi1,                           &
                                  chi2,                           &
                                  chi3,                           &
@@ -260,7 +271,7 @@ contains
                                  )
 
     ! Potential energy
-    p = rho(1)*( phi0 + gravity*0.5_r_def*dz )*dx*dy*dz
+    p = rho(1)*( gravity*0.5_r_def*dz )*dx*dy*dz
     ! Internal energy
     t = rho(1)*( cv*theta(1)*exner(1) )*dx*dy*dz
     ! Latent heat of water

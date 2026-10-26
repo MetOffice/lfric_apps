@@ -1,0 +1,141 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Adjoint kernel of matrix vector operation for use on continuous spaces
+module adj_matrix_vector_kernel_mod
+  use argument_mod,  only : arg_type,                 &
+                            GH_FIELD, GH_REAL,        &
+                            GH_OPERATOR,              &
+                            GH_INC, GH_READ,          &
+                            ANY_SPACE_1, ANY_SPACE_2, &
+                            CELL_COLUMN
+  use constants_mod, only : i_def, r_double, r_single
+  use kernel_mod,    only : kernel_type
+
+  implicit none
+
+  private
+
+  !-------------------------------------------------------------------------------
+  ! Public types
+  !-------------------------------------------------------------------------------
+  type, public, extends(kernel_type) :: adj_matrix_vector_kernel_type
+    private
+    type(arg_type) :: meta_args(3) = (/                                    &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ, ANY_SPACE_1),             & ! lhs
+         arg_type(GH_FIELD,    GH_REAL, GH_INC,  ANY_SPACE_2),             & ! x
+         arg_type(GH_OPERATOR, GH_REAL, GH_READ, ANY_SPACE_1, ANY_SPACE_2) & ! matrix
+         /)
+    integer :: operates_on = CELL_COLUMN
+  end type adj_matrix_vector_kernel_type
+
+  !-------------------------------------------------------------------------------
+  ! Contained functions/subroutines
+  !-------------------------------------------------------------------------------
+  public :: adj_matrix_vector_code
+
+  ! Generic interface for real32 and real64 types
+  interface adj_matrix_vector_code
+    module procedure  &
+      adj_matrix_vector_code_r_single, &
+      adj_matrix_vector_code_r_double
+  end interface adj_matrix_vector_code
+
+contains
+
+  !> @brief Computes adjoint of lhs = lhs + matrix*x
+  !!        (x = x + matrix*lhs)
+  !!        with real32 and real64 variants
+  !> @param[in]     cell      Horizontal cell index
+  !> @param[in]     nlayers   Number of layers
+  !> @param[in]     lhs       Left hand side field of lhs = matrix*x
+  !> @param[inout]  x         Right hand side field of lhs = matrix*x
+  !> @param[in]     ncell_3d  Total number of cells
+  !> @param[in]     matrix    Local matrix assembly form of the operator A
+  !> @param[in]     ndf1      Number of degrees of freedom per cell for the output field
+  !> @param[in]     undf1     Unique number of degrees of freedom  for the output field
+  !> @param[in]     map1      Dofmap for the cell at the base of the column for the
+  !!                          output field
+  !> @param[in]     ndf2      Number of degrees of freedom per cell for the input field
+  !> @param[in]     undf2     Unique number of degrees of freedom for the input field
+  !> @param[in]     map2      Dofmap for the cell at the base of the column for the input
+  !!                          field
+
+  ! R_SINGLE PRECISION
+  ! ==================
+  subroutine adj_matrix_vector_code_r_single(cell,              &
+                                             nlayers,           &
+                                             lhs,               &
+                                             x,                 &
+                                             ncell_3d,          &
+                                             matrix,            &
+                                             ndf1, undf1, map1, &
+                                             ndf2, undf2, map2)
+    implicit none
+
+    ! Arguments
+    integer(kind=i_def),                  intent(in) :: cell, nlayers, ncell_3d
+    integer(kind=i_def),                  intent(in) :: undf1, ndf1
+    integer(kind=i_def),                  intent(in) :: undf2, ndf2
+    integer(kind=i_def), dimension(ndf1), intent(in) :: map1
+    integer(kind=i_def), dimension(ndf2), intent(in) :: map2
+
+    real(kind=r_single), dimension(undf2),              intent(inout) :: x
+    real(kind=r_single), dimension(undf1),              intent(in)    :: lhs
+    real(kind=r_single), dimension(ncell_3d,ndf1,ndf2), intent(in)    :: matrix
+
+    ! Internal variables
+    integer(kind=i_def) :: df, ik, df2, i1, i2, nl
+
+    nl = nlayers - 1
+    ik = cell * nlayers - nlayers + 1
+    do df2 = ndf2, 1, -1
+      i2 = map2(df2)
+      do df = ndf1, 1, -1
+        i1 = map1(df)
+        x(i2:i2+nl) = x(i2:i2+nl) + matrix(ik:ik+nl,df,df2)*lhs(i1:i1+nl)
+      end do
+    end do
+
+  end subroutine adj_matrix_vector_code_r_single
+
+  ! R_DOUBLE PRECISION
+  ! ==================
+ subroutine adj_matrix_vector_code_r_double(cell,              &
+                                            nlayers,           &
+                                            lhs, x,            &
+                                            ncell_3d,          &
+                                            matrix,            &
+                                            ndf1, undf1, map1, &
+                                            ndf2, undf2, map2)
+
+    implicit none
+
+    ! Arguments
+    integer(kind=i_def),                  intent(in) :: cell, nlayers, ncell_3d
+    integer(kind=i_def),                  intent(in) :: undf1, ndf1
+    integer(kind=i_def),                  intent(in) :: undf2, ndf2
+    integer(kind=i_def), dimension(ndf1), intent(in) :: map1
+    integer(kind=i_def), dimension(ndf2), intent(in) :: map2
+
+    real(kind=r_double), dimension(undf2),              intent(inout) :: x
+    real(kind=r_double), dimension(undf1),              intent(in)    :: lhs
+    real(kind=r_double), dimension(ncell_3d,ndf1,ndf2), intent(in)    :: matrix
+
+    integer(kind=i_def) :: df, ik, df2, i1, i2, nl
+
+    nl = nlayers-1
+    ik = (cell-1)*nlayers +1
+    do df2 = 1, ndf2
+      i2 = map2(df2)
+      do df = 1, ndf1
+        i1 = map1(df)
+        x(i2:i2+nl) = x(i2:i2+nl) + matrix(ik:ik+nl,df,df2)*lhs(i1:i1+nl)
+      end do
+    end do
+
+  end subroutine adj_matrix_vector_code_r_double
+
+end module adj_matrix_vector_kernel_mod

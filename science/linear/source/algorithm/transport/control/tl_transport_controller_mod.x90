@@ -12,6 +12,7 @@
 module tl_transport_controller_mod
 
   ! Infrastructure
+  use config_mod,                     only: config_type
   use constants_mod,                  only: i_def, l_def
   use field_mod,                      only: field_type
   use model_clock_mod,                only: model_clock_type
@@ -29,6 +30,8 @@ module tl_transport_controller_mod
 
     private
 
+    type(config_type), pointer :: config
+
     type(transport_controller_type) :: ls_wind_ls_rho_controller
     type(transport_controller_type) :: ls_wind_pert_rho_controller
     type(transport_controller_type) :: pert_wind_ls_rho_controller
@@ -38,10 +41,12 @@ module tl_transport_controller_mod
     procedure, public  :: initialise
     procedure, public  :: before_transport_field
     procedure, public  :: after_transport_field
+    procedure, public  :: get_config
     procedure, public  :: get_ls_wind_ls_rho_controller
     procedure, public  :: get_ls_wind_pert_rho_controller
     procedure, public  :: get_pert_wind_ls_rho_controller
     procedure, public  :: finalise
+
     final              :: destroy_tl_transport_controller
 
   end type tl_transport_controller_type
@@ -52,6 +57,7 @@ contains
   !> @details The tangent linear transport controller objects contains the
   !!          transport controller objects for different combinations of linear
   !!          and perturbed winds and densities.
+  !> @param[in] config                Application namelist configuration object
   !> @param[in] model_clock           Tracks the time within the model
   !> @param[in] ref_field_rdef        Perturbed reference density to use for
   !!                                  conservative transport of tracers.
@@ -71,12 +77,14 @@ contains
   !!                                  the transporting wind is the *difference*
   !!                                  in wind from the previous step, rather
   !!                                  than the full transport wind.
-  subroutine initialise(self, model_clock, ref_field_rdef, ls_ref_field_rdef,  &
-                        wind_n_rdef, wind_np1_rdef,                            &
-                        ls_wind_n_rdef, ls_wind_np1_rdef,                      &
+  subroutine initialise(self, config, model_clock, ref_field_rdef,     &
+                        ls_ref_field_rdef, wind_n_rdef, wind_np1_rdef, &
+                        ls_wind_n_rdef, ls_wind_np1_rdef,              &
                         outer, cheap_update_step)
 
     implicit none
+
+    type(config_type), target, intent(in) :: config
 
     class(tl_transport_controller_type), intent(inout) :: self
     type(model_clock_type),              intent(in)    :: model_clock
@@ -89,18 +97,19 @@ contains
     integer(kind=i_def),       optional, intent(in)    :: outer
     logical(kind=l_def),       optional, intent(in)    :: cheap_update_step
 
-    call self%ls_wind_ls_rho_controller%initialise(                            &
+    self%config => config
+
+    call self%ls_wind_ls_rho_controller%initialise( self%config,               &
             model_clock, ls_ref_field_rdef, ls_wind_n_rdef, ls_wind_np1_rdef,  &
-            outer=outer, cheap_update_step=cheap_update_step                   &
-    )
-    call self%ls_wind_pert_rho_controller%initialise(                          &
+            outer=outer, cheap_update_step=cheap_update_step )
+
+    call self%ls_wind_pert_rho_controller%initialise( self%config,             &
             model_clock, ref_field_rdef, ls_wind_n_rdef, ls_wind_np1_rdef,     &
-            outer=outer, cheap_update_step=cheap_update_step                   &
-    )
-    call self%pert_wind_ls_rho_controller%initialise(                          &
+            outer=outer, cheap_update_step=cheap_update_step )
+
+    call self%pert_wind_ls_rho_controller%initialise( self%config,             &
             model_clock, ls_ref_field_rdef, wind_n_rdef, wind_np1_rdef,        &
-            outer=outer, cheap_update_step=cheap_update_step                   &
-    )
+            outer=outer, cheap_update_step=cheap_update_step )
 
   end subroutine initialise
 
@@ -211,5 +220,19 @@ contains
     transport_controller => self%pert_wind_ls_rho_controller
 
   end function get_pert_wind_ls_rho_controller
+
+  !> @brief Return the configuration object used to initialise this
+  !         transport controller object.
+  !> @return config <config_type> object used to initialise the controller.
+  function get_config(self) result (config)
+
+   implicit none
+
+   class(tl_transport_controller_type), intent(in) :: self
+   type(config_type), pointer :: config
+
+   config => self%config
+
+ end function get_config
 
 end module tl_transport_controller_mod

@@ -28,6 +28,7 @@ module swe_rhs_alg_mod
   use mesh_mod,                       only: mesh_type
   use operator_mod,                   only: operator_type
   use sci_field_vector_mod,           only: field_vector_type
+  use mesh_mod,                       only: geometry_spherical
 
   ! Quadrature and Psykal Lite
   use quadrature_face_mod,            only: quadrature_face_type
@@ -35,8 +36,7 @@ module swe_rhs_alg_mod
   use quadrature_xyoz_mod,            only: quadrature_xyoz_type
 
   ! Configuration Options
-  use base_mesh_config_mod,           only: geometry, &
-                                            geometry_spherical
+  use base_mesh_config_mod,           only: geometry
   use finite_element_config_mod,      only: element_order_h, element_order_v
   use formulation_config_mod,         only: rotating
   use shallow_water_settings_config_mod,                                     &
@@ -116,10 +116,10 @@ contains
 
     ! Get mesh and operators
     mesh     => rhs%vector(isw_g)%get_mesh()
-    chi      => get_coordinates(mesh%get_id())
+    chi      => get_coordinates(mesh)
     div      => get_div(mesh%get_id())
     coriolis => get_coriolis(mesh%get_id())
-    panel_id => get_panel_id(mesh%get_id())
+    panel_id => get_panel_id(mesh)
 
     ! Quadrature set up
     reference_element => mesh%get_reference_element()

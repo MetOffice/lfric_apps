@@ -44,7 +44,7 @@ module gw_pressure_operator_alg_mod
                                                 b_space_w0, &
                                                 b_space_w3, &
                                                 b_space_wtheta
-  use function_space_chain_mod,           only: multigrid_function_space_chain
+  use multigrid_mod,                      only: multigrid_function_space_chain
 
   implicit none
 
@@ -183,8 +183,8 @@ contains
     ! Compute inverse approximate \tilde{M}_b^{-1}
     qr = quadrature_xyoz_type(element_order_h+2, element_order_h+2, &
                               element_order_v+2, quadrature_rule)
-    chi => get_coordinates(mesh%get_id())
-    panel_id => get_panel_id(mesh%get_id())
+    chi      => get_coordinates(mesh)
+    panel_id => get_panel_id(mesh)
     extend_mesh = .false.
     call ones%initialise( vector_space = wb )
     call M_lumped%initialise( vector_space = wb )

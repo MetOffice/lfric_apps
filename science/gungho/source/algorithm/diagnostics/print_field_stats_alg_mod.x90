@@ -7,13 +7,13 @@
 
 module print_field_stats_alg_mod
 
+  use config_mod,               only: config_type
   use field_mod,                only: field_type
   use r_tran_field_mod,         only: r_tran_field_type
   use mesh_mod,                 only: mesh_type
   use constants_mod,            only: r_def, str_def, i_def, rmdi,             &
                                       radians_to_degrees, r_tran, l_def
   use log_mod,                  only: log_event, log_at_level, log_scratch_space
-  use base_mesh_config_mod,     only: prime_mesh_name
   use mesh_collection_mod,      only: mesh_collection
   use fs_continuity_mod,        only: W3, Wtheta, W2H, W2V
   use sci_geometric_constants_mod,    &
@@ -24,13 +24,13 @@ module print_field_stats_alg_mod
   use extrusion_mod,            only: TWOD
   use sci_field_minmax_alg_mod, only: get_field_minmax
 
-implicit none
+  implicit none
 
-private
+  private
 
-public  :: print_field_stats_alg
-public  :: print_field_stats_alg_rtran
-private :: post_print_field_stats_alg
+  public  :: print_field_stats_alg
+  public  :: print_field_stats_alg_rtran
+  private :: post_print_field_stats_alg
 
 contains
 
@@ -49,16 +49,19 @@ contains
 !!          information regarding the location of the max and min values
 !!          (latitude, longitude, height). If no user input is provided,
 !!          the location information will always be printed.
+!> @param[in] config            Application namelist configuration object
 !> @param[in] field             Field to print info about
 !> @param[in] level_of_logging  Compile-time logging level for output, to be
 !!                              compared to the current runtime logging level
 !> @param[in] printmin          User defined min to print info below
 !> @param[in] printmax          User defined max to print info above
 !> @param[in] name              Name of the field to appear in print messages
-subroutine print_field_stats_alg(field_rdef, level_of_logging,                 &
+subroutine print_field_stats_alg(config, field_rdef, level_of_logging, &
                                  printmin, printmax, name)
 
   implicit none
+
+  type(config_type), intent(in) :: config
 
   type(field_type),              intent(in) :: field_rdef
   integer(kind=i_def),           intent(in) :: level_of_logging
@@ -122,7 +125,8 @@ subroutine print_field_stats_alg(field_rdef, level_of_logging,                 &
       elt_order_h = field_rdef%get_element_order_h()
       elt_order_v = field_rdef%get_element_order_v()
 
-      call pre_print_field_stats_alg(mesh, fs_id, elt_order_h, elt_order_v,    &
+      call pre_print_field_stats_alg(config,                                   &
+                                     mesh, fs_id, elt_order_h, elt_order_v,    &
                                      latitude, longitude, height,              &
                                      max_lev, min_lev,                         &
                                      max_excess_count, min_excess_count,       &
@@ -154,10 +158,12 @@ subroutine print_field_stats_alg(field_rdef, level_of_logging,                 &
 
 end subroutine print_field_stats_alg
 
-subroutine print_field_stats_alg_rtran(field_rtran, level_of_logging,          &
+subroutine print_field_stats_alg_rtran(config, field_rtran, level_of_logging, &
                                        printmin_rtran, printmax_rtran, name)
 
   implicit none
+
+  type(config_type), intent(in) :: config
 
   type(r_tran_field_type),       intent(in) :: field_rtran
   integer(kind=i_def),           intent(in) :: level_of_logging
@@ -221,7 +227,8 @@ subroutine print_field_stats_alg_rtran(field_rtran, level_of_logging,          &
       elt_order_h = field_rtran%get_element_order_h()
       elt_order_v = field_rtran%get_element_order_v()
 
-      call pre_print_field_stats_alg(mesh, fs_id, elt_order_h, elt_order_v,    &
+      call pre_print_field_stats_alg(config,                                   &
+                                     mesh, fs_id, elt_order_h, elt_order_v,    &
                                      latitude, longitude, height,              &
                                      max_lev, min_lev,                         &
                                      max_excess_count, min_excess_count,       &
@@ -256,6 +263,7 @@ end subroutine print_field_stats_alg_rtran
 !> @brief Steps to be taken before calling the field stats kernel. Designed to
 !!        be shared between different precision implementations of the algorithm
 !!        to print field stats.
+!> @param[in]     config             Application namelist configuration object
 !> @param[in]     mesh               Mesh the field being logged is defined on
 !> @param[in]     fs_id              Function space ID of the field being logged
 !> @param[in]     elt_order_h        Element order in horizontal direction
@@ -277,18 +285,21 @@ end subroutine print_field_stats_alg_rtran
 !> @param[in,out] min_lon            2D field containing longitude of min value
 !> @param[in,out] max_height         2D field containing height of max value
 !> @param[in,out] min_height         2D field containing height of min value
-subroutine pre_print_field_stats_alg(mesh, fs_id, elt_order_h, elt_order_v,    &
-                                     latitude, longitude, height,              &
-                                     max_lev, min_lev,                         &
-                                     max_excess_count, min_excess_count,       &
-                                     max_count, min_count,                     &
-                                     max_lat, min_lat,                         &
-                                     max_lon, min_lon,                         &
-                                     max_height, min_height                    )
+subroutine pre_print_field_stats_alg(config, mesh, fs_id,                &
+                                     elt_order_h, elt_order_v,           &
+                                     latitude, longitude, height,        &
+                                     max_lev, min_lev,                   &
+                                     max_excess_count, min_excess_count, &
+                                     max_count, min_count,               &
+                                     max_lat, min_lat,                   &
+                                     max_lon, min_lon,                   &
+                                     max_height, min_height)
 
   implicit none
 
   ! Arguments
+  type(config_type), intent(in) :: config
+
   type(mesh_type),  pointer, intent(in)    :: mesh
   integer(kind=i_def),       intent(in)    :: fs_id
   integer(kind=i_def),       intent(in)    :: elt_order_h, elt_order_v
@@ -302,14 +313,11 @@ subroutine pre_print_field_stats_alg(mesh, fs_id, elt_order_h, elt_order_v,    &
 
   ! Local variables
   type(mesh_type),  pointer :: twod_mesh
-  integer(kind=i_def)       :: mesh_id, twod_mesh_id
   integer(kind=i_def)       :: fs_2d, fs_3d
 
   ! Ensure coordinate fields have correct function space for the field being
   ! logged
   twod_mesh => mesh_collection%get_mesh(mesh, TWOD)
-  mesh_id = mesh%get_id()
-  twod_mesh_id = twod_mesh%get_id()
 
   fs_2d = fs_id
   fs_3d = fs_id
@@ -321,13 +329,17 @@ subroutine pre_print_field_stats_alg(mesh, fs_id, elt_order_h, elt_order_v,    &
 
   ! Get fields relating to coordinates to print out location
   if (elt_order_h > 0 .or. elt_order_v > 0) then
-    latitude  => get_latitude_fe(fs_2d, twod_mesh_id)
-    longitude => get_longitude_fe(fs_2d, twod_mesh_id)
-    height => get_height_fe(fs_3d, mesh_id)
+
+    latitude  => get_latitude_fe(config, twod_mesh, fs_2d)
+    longitude => get_longitude_fe(config, twod_mesh, fs_2d)
+    height    => get_height_fe(config, mesh, fs_3d)
+
   else
-    latitude  => get_latitude_fv(fs_2d, twod_mesh_id)
-    longitude => get_longitude_fv(fs_2d, twod_mesh_id)
-    height => get_height_fv(fs_3d, mesh_id)
+
+    latitude  => get_latitude_fv(config, twod_mesh, fs_2d)
+    longitude => get_longitude_fv(config, twod_mesh, fs_2d)
+    height    => get_height_fv(config, mesh, fs_3d)
+
   end if
 
   ! Initialise 2D fields by copying function space from latitude field

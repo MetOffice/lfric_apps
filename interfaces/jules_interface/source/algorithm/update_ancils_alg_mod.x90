@@ -6,12 +6,13 @@
 !>@brief Processing of ancillary files
 module update_ancils_alg_mod
 
-  use clock_mod,            only : clock_type
-  use constants_mod,        only : str_def
-  use field_collection_mod, only : field_collection_type
-  use field_mod,            only : field_type
-  use fs_continuity_mod,    only : W3
-  use mesh_mod,             only : mesh_type
+  use clock_mod,            only: clock_type
+  use config_mod,           only: config_type
+  use constants_mod,        only: str_def
+  use field_collection_mod, only: field_collection_type
+  use field_mod,            only: field_type
+  use fs_continuity_mod,    only: W3
+  use mesh_mod,             only: mesh_type
 
   use section_choice_config_mod,   only: surface, surface_jules
   use process_ssi_kernel_mod,      only: process_ssi_kernel_type
@@ -34,14 +35,17 @@ contains
 
   !> @details Derive ancillary fields required by the model from ancillary
   !>          fields that are read from file
+  !> @param[in] config                  Application namelist configuration object
   !> @param[in] time_axis_list (in)     List of time axes
   !> @param[in] clock          (in)     The clock object
   !> @param[in] ancil_fields   (in)     Ancil fields read in
   !> @param[in] surface_fields (in,out) Surface field collection to update
-  subroutine update_ancils_alg(time_axis_list, clock, ancil_fields, &
+  subroutine update_ancils_alg(config, time_axis_list, clock, ancil_fields, &
                                surface_fields)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(linked_list_type),        intent(in) :: time_axis_list
     class(clock_type),             intent(in) :: clock
@@ -65,7 +69,7 @@ contains
 
     if (surface == surface_jules) then
       call surface_fields%get_field('sea_ice_thickness', sea_ice_thickness)
-      call surface_fields%get_field('tile_fraction', tile_fraction)     
+      call surface_fields%get_field('tile_fraction', tile_fraction)
       call surface_fields%get_field('tile_temperature', tile_temperature)
 
       ! Get the data from ancil_fields (if applicable for your model)
@@ -77,7 +81,7 @@ contains
       end if
 
       twod_mesh => sea_ice_thickness%get_mesh()
-      latitude => get_latitude_fv( W3, twod_mesh%get_id() )
+      latitude  => get_latitude_fv(config, twod_mesh, W3)
 
       ! Start at the head of the time_axis linked list
       loop => time_axis_list%get_head()

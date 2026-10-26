@@ -70,7 +70,7 @@ type :: fields_type
   real(kind=real_hmprec), pointer :: q_snow(:,:,:) => null()
   real(kind=real_hmprec), pointer :: q_graup(:,:,:) => null()
 
-  ! Liquid and ice cloud fractions, and combined cloud fraction
+  ! Liquid, ice and bulk cloud fractions
   real(kind=real_hmprec), pointer :: cf_liq(:,:,:) => null()
   real(kind=real_hmprec), pointer :: cf_ice(:,:,:) => null()
   real(kind=real_hmprec), pointer :: cf_bulk(:,:,:) => null()
@@ -135,6 +135,10 @@ integer, allocatable :: i_tracers(:)
 integer :: i_qc_first = 0
 integer :: i_qc_last = 0
 
+! Addresses of first and last cloud-fraction fields
+integer :: i_cf_first = 0
+integer :: i_cf_last = 0
+
 ! Dummy array for unused pointers to point at, just to be safe.
 real(kind=real_hmprec), allocatable, target :: dummy_full(:,:,:)
 
@@ -145,6 +149,13 @@ character(len=name_length), allocatable :: field_names(:)
 ! List of flags for whether each field is positive-only
 ! (e.g. mixing-ratios are not allowed to go negative)
 logical, allocatable :: field_positive(:)
+
+! Min and max plausible values for each field, used in run-time checks
+real(kind=real_cvprec), allocatable :: field_min(:)
+real(kind=real_cvprec), allocatable :: field_max(:)
+! Min and max values when in conserved-variable form
+real(kind=real_cvprec), allocatable :: field_min_cons(:)
+real(kind=real_cvprec), allocatable :: field_max_cons(:)
 
 
 contains
@@ -161,7 +172,8 @@ use comorph_constants_mod, only: l_cv_rain, l_cv_cf, l_cv_snow, l_cv_graup,    &
                                  cond_params, k_bot_conv, k_top_conv,          &
                                  i_cond_cl, i_cond_rain,                       &
                                  i_cond_cf, i_cond_snow, i_cond_graup,         &
-                                 tracer_positive
+                                 tracer_positive,                              &
+                                 max_float, zero, one, cp_dry
 
 implicit none
 
@@ -169,7 +181,7 @@ implicit none
 character(len=5) :: tr_num
 
 ! Loop counter
-integer :: i_field
+integer :: i_field, i_cond
 
 
 ! Set flag to indicate that we don't need to call this routine again!
@@ -213,6 +225,12 @@ if ( l_cv_cloudfrac ) then
   n_fields = n_fields + 3
 end if
 
+! Store addresses of first and last cloud-fraction field
+if ( l_cv_cloudfrac ) then
+  i_cf_first = i_cf_liq
+  i_cf_last = n_fields
+end if
+
 ! Tracers
 if ( n_tracers > 0 ) then
   allocate( i_tracers(n_tracers) )
@@ -230,10 +248,13 @@ end if
 ! Allocate dummy array for unused fields to point at for safety
 allocate( dummy_full(1,1,k_bot_conv:k_top_conv) )
 
-! Allocate list of field names and list of flags for fields
-! that aren't allowed to have negative values
+! Allocate lists
 allocate( field_names(n_fields+n_tracers) )
 allocate( field_positive(n_fields+n_tracers) )
+allocate( field_min(n_fields+n_tracers) )
+allocate( field_max(n_fields+n_tracers) )
+allocate( field_min_cons(n_fields+n_tracers) )
+allocate( field_max_cons(n_fields+n_tracers) )
 
 ! Set the field names...
 field_names(i_wind_u) = "wind_u"
@@ -242,9 +263,9 @@ field_names(i_wind_w) = "wind_w"
 field_names(i_temperature) = "temperature"
 field_names(i_q_vap) = "q_vap"
 ! Use condensed water species names already set in cond_params
-do i_field = 1, n_cond_species
-  field_names(i_qc_first+i_field-1) = "q_" //                                  &
-              trim(adjustl( cond_params(i_field)%pt % cond_name ))
+do i_cond = 1, n_cond_species
+  field_names(i_qc_first+i_cond-1) = "q_" //                                   &
+              trim(adjustl( cond_params(i_cond)%pt % cond_name ))
 end do
 if ( l_cv_cloudfrac ) then
   field_names(i_cf_liq) = "cf_liq"
@@ -278,6 +299,62 @@ if ( n_tracers > 0 ) then
       field_positive(i_tracers(i_field)) = tracer_positive(i_field)
     end do
   end if
+end if
+
+! Set min and max plausible values for each field
+! Winds
+do i_field = i_wind_u, i_wind_w
+  field_min(i_field) = -100.0_real_cvprec
+  field_max(i_field) =  100.0_real_cvprec
+end do
+! Temperature: use bounds of the qsat look-up table
+field_min(i_temperature) = zero  ! 183.15_real_cvprec
+field_max(i_temperature) = 338.15_real_cvprec
+! q_vap: max 50 g kg-1?
+field_min(i_q_vap) = zero
+field_max(i_q_vap) = 0.05_real_cvprec
+! Condensate: max 50 g kg-1?
+do i_field = i_qc_first, i_qc_last
+  field_min(i_field) = zero
+  field_max(i_field) = 0.05_real_cvprec
+end do
+! Cloud fractions: Should be between 0 and 1.
+if ( l_cv_cloudfrac ) then
+  do i_field = i_cf_first, i_cf_last
+    field_min(i_field) = zero
+    field_max(i_field) = one
+  end do
+end if
+! Tracers: don't know so just set to +/- max possible float
+if ( n_tracers > 0 ) then
+  do i_field = 1, n_tracers
+    field_min(i_tracers(i_field)) = -max_float
+    field_max(i_tracers(i_field)) =  max_float
+  end do
+  if ( allocated(tracer_positive) ) then
+    ! If host-model has specified tracers positive-only, reset min value
+    ! to zero for those tracers
+    do i_field = 1, n_tracers
+      if ( tracer_positive(i_field) )  field_min(i_tracers(i_field)) = zero
+    end do
+  end if
+end if
+
+! Max and min limits for fields in conserved-variable form:
+! Initialise the same as above
+do i_field = 1, n_fields + n_tracers
+  field_min_cons(i_field) = field_min(i_field)
+  field_max_cons(i_field) = field_max(i_field)
+end do
+! Winds are scaled by 1+qt but that doesn't change it much.
+! Temperature is scaled by cp:
+field_min_cons(i_temperature) = field_min(i_temperature) * cp_dry
+field_max_cons(i_temperature) = field_max(i_temperature) * cp_dry
+! Cloud fractions are scaled by Tv:
+if ( l_cv_cloudfrac ) then
+  do i_field = i_cf_first, i_cf_last
+    field_max_cons(i_field) = field_max(i_field) * field_max(i_temperature)
+  end do
 end if
 
 
@@ -327,8 +404,8 @@ end subroutine fields_nullify
 subroutine fields_list_make( l_tracer, fields )
 
 use comorph_constants_mod, only: l_cv_rain, l_cv_cf, l_cv_snow, l_cv_graup,    &
-                     l_cv_cloudfrac, n_tracers,                                &
-                     nx_full, ny_full, k_bot_conv, k_top_conv
+                                 l_cv_cloudfrac, n_tracers,                    &
+                                 nx_full, ny_full, k_bot_conv, k_top_conv
 use raise_error_mod, only: raise_fatal
 
 implicit none
@@ -393,8 +470,8 @@ else
   fields % q_graup          => dummy_full
 end if
 
+! Cloud fractions
 if ( l_cv_cloudfrac ) then
-  ! Cloud fractions
   fields%list(i_cf_liq)%pt  => fields % cf_liq
   fields%list(i_cf_ice)%pt  => fields % cf_ice
   fields%list(i_cf_bulk)%pt => fields % cf_bulk
@@ -535,7 +612,7 @@ end do
 
 ! Note: temperature is needed in its normal form for the
 ! conversion of cloud fractions to / from conserved form.
-! Therefore when converting to conserved variables,
+! Therefore when converting TO conserved variables,
 ! need to convert cloud fractions before temperature,
 ! but when converting FROM conserved variables,
 ! need to convert temperature first.
@@ -573,8 +650,8 @@ if ( l_reverse ) then
     end do
 
     ! Convert from CF * Tv_dry to CF
-    ! Loop over the 3 cloud-fraction fields in the super-array:
-    do i_field = i_cf_liq, i_cf_bulk
+    ! Loop over all the cloud-fraction fields in the super-array:
+    do i_field = i_cf_first, i_cf_last
       do ic = 1, n_points
         fields_k_super(ic,i_field) = fields_k_super(ic,i_field)                &
                                    * factor(ic)
@@ -597,8 +674,8 @@ else  ! ( l_reverse )
                              factor )
 
     ! Convert from CF to CF * Tv_dry
-    ! Loop over the 3 cloud-fraction fields in the super-array:
-    do i_field = i_cf_liq, i_cf_bulk
+    ! Loop over all the cloud-fraction fields in the super-array:
+    do i_field = i_cf_first, i_cf_last
       do ic = 1, n_points
         fields_k_super(ic,i_field) = fields_k_super(ic,i_field)                &
                                    * factor(ic)
@@ -629,12 +706,11 @@ end subroutine fields_k_conserved_vars
 !----------------------------------------------------------------
 ! Subroutine to adjust the fields under a change in pressure
 !----------------------------------------------------------------
-subroutine fields_k_pressure_adjust( n_points, n_points_super,                 &
-                                     n_fields_tot,                             &
-                                     fields_k_super,                           &
-                                     pressure_1, pressure_2 )
+subroutine fields_k_pressure_adjust( n_points, n_points_fields,                &
+                                     n_fields_tot, pressure_1, pressure_2,     &
+                                     fields_k_super )
 
-use comorph_constants_mod, only: l_cv_cloudfrac, real_cvprec
+use comorph_constants_mod, only: l_cv_cloudfrac, real_cvprec, one
 use dry_adiabat_mod, only: dry_adiabat
 
 implicit none
@@ -643,36 +719,38 @@ implicit none
 integer, intent(in) :: n_points
 
 ! Size of super-array
-integer, intent(in) :: n_points_super
+integer, intent(in) :: n_points_fields
 
 ! Number of fields in the super-array
 integer, intent(in) :: n_fields_tot
-
-! Super-array containing fields to be adjusted
-real(kind=real_cvprec), intent(in out) :: fields_k_super                       &
-                                ( n_points_super, n_fields_tot )
 
 ! Pressure before and after the adjustment
 real(kind=real_cvprec), intent(in) :: pressure_1(n_points)
 real(kind=real_cvprec), intent(in) :: pressure_2(n_points)
 
-! Work array storing exner ratio for adjusting temperature
-real(kind=real_cvprec) :: exner_ratio(n_points)
+! Super-array containing fields to be adjusted, in conserved variable form
+real(kind=real_cvprec), intent(in out) :: fields_k_super                       &
+                                          ( n_points_fields, n_fields_tot )
+
+! Tv dry factor scaling the cloud-fractions
+real(kind=real_cvprec) :: factor(n_points)
 
 ! Loop counters
 integer :: ic, i_field
 
-! Compute exner ratio between the pressures at k and k2
-call dry_adiabat( n_points, n_points_super,                                    &
+
+! Dry-adiabatically adjust the temperature
+do ic = 1, n_points
+  factor(ic) = one
+end do
+call dry_adiabat( n_points, n_points_fields,                                   &
                   pressure_1, pressure_2,                                      &
                   fields_k_super(:,i_q_vap),                                   &
                   fields_k_super(:,i_qc_first:i_qc_last),                      &
-                  exner_ratio )
-
-! Calculate temperature the air at k would have if moved to k2
+                  factor )
 do ic = 1, n_points
-  fields_k_super(ic,i_temperature)                                             &
-    = fields_k_super(ic,i_temperature) * exner_ratio(ic)
+  fields_k_super(ic,i_temperature) = fields_k_super(ic,i_temperature)          &
+                                     * factor(ic)
 end do
 
 ! If using cloud-fractions, these currently store
@@ -680,10 +758,9 @@ end do
 ! Therefore, these need to be adjusted in the same way
 ! as temperature
 if ( l_cv_cloudfrac ) then
-  do i_field = i_cf_liq, i_cf_bulk
+  do i_field = i_cf_first, i_cf_last
     do ic = 1, n_points
-      fields_k_super(ic,i_field)                                               &
-        = fields_k_super(ic,i_field) * exner_ratio(ic)
+      fields_k_super(ic,i_field) = fields_k_super(ic,i_field) * factor(ic)
     end do
   end do
 end if

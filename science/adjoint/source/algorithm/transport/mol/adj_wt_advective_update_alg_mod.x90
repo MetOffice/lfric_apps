@@ -7,6 +7,7 @@
 
 module adj_wt_advective_update_alg_mod
 
+  use config_mod,                           only : config_type
   use constants_mod,                        only : r_tran, i_def, l_def
   use r_tran_field_mod,                     only : r_tran_field_type
   use finite_element_config_mod,            only : element_order_h,            &
@@ -46,16 +47,19 @@ contains
 
   !=============================================================================
   !> @brief Compute the adjoint of horizontal advective update of a Wtheta field.
+  !> @param[in]     config                  Application namelist configuration object
   !> @param[in,out] u_grad_f                Horizontal part of u.grad(f)
   !> @param[in]     ls_wind                 Linearisation state wind field
   !> @param[in]     wind_dir                Wind field used to determine direction in kernel
   !> @param[in,out] field                   Wtheta field to advect
   !> @param[in]     transport_metadata      Contains transport configuration options
   !> @param[in]     adj_lookup_table_cache  Lookup table cache
-  subroutine adj_hori_wt_update_alg( u_grad_f, ls_wind, wind_dir, field, &
+  subroutine adj_hori_wt_update_alg( config, u_grad_f, ls_wind, wind_dir, field, &
                                      transport_metadata, adj_lookup_table_cache )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(r_tran_field_type),           intent(inout) :: u_grad_f
     type(r_tran_field_type),           intent(in)    :: ls_wind
@@ -101,7 +105,7 @@ contains
       stencil_size = MAX(1, 4*fv_horizontal_order + fv_horizontal_order**2)
     end if
 
-    adv_coeffs => get_hori_wt_mol_coeffs(mesh_id)
+    adv_coeffs => get_hori_wt_mol_coeffs(config, mesh)
 
     ! Copy field to a large halo version
     call field_big_halo%initialise( field%get_function_space(), &
@@ -121,8 +125,8 @@ contains
     if ( panel_edge_treatment /= panel_edge_treatment_none                     &
          .and. (monotone .or. oned_reconstruction) ) then
       remap_depth = int(fv_horizontal_order/2)
-      call remap_on_extended_mesh(remap_field, field_big_halo,                 &
-                                  monotone,                                    &
+      call remap_on_extended_mesh(config,                                      &
+                                  remap_field, field_big_halo, monotone,       &
                                   transport_metadata%get_enforce_min_value(),  &
                                   transport_metadata%get_min_value(),          &
                                   remap_depth)

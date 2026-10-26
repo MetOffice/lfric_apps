@@ -21,9 +21,13 @@ export PSYCLONE_TRANSFORMATION ?= minimum
 export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 
 # Use custom PSyclone configuration.
-ADJT_CONFIG_FILE := $(PROJECT_DIR)/build/psyclone.cfg
+export PSYCLONE_CONFIG_FILE := $(PROJECT_DIR)/build/psyclone.cfg
 export BUILD_ADJ_TESTS   := TRUE
-export PSYAD_CONFIG_FILE := $(ADJT_CONFIG_FILE)
+export PSYAD_CONFIG_FILE := $(PSYCLONE_CONFIG_FILE)
+
+export EXTRA_ROSE_META = jules
+export META_DIR = $(WORKING_DIR)/../rose-meta
+export ROSE_META_DIRS = $(APPS_ROOT_DIR)/rose-meta $(META_DIR)
 
 export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
                                $(CORE_ROOT_DIR)/components/driver \
@@ -123,6 +127,10 @@ build: ALWAYS
 	$(call MESSAGE,========================================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
 	          SOURCE_DIR=source
+	$(call MESSAGE,========================================)
+	$(call MESSAGE,Extracting External Rose Metadata)
+	$(call MESSAGE,========================================)
+	$Q$(MAKE) $(QUIET_ARG) -f $(APPS_ROOT_DIR)/build/extract/extract_meta.mk
 	$(call MESSAGE,=========================================================)
 	$(call MESSAGE,Generating $(PROJECT) namelist loaders)
 	$(call MESSAGE,=========================================================)
@@ -134,8 +142,7 @@ build: ALWAYS
 	$(call MESSAGE,========================================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone_psykal.mk \
 	          SOURCE_DIR=source \
-	          OPTIMISATION_PATH=$(OPTIMISATION_PATH) \
-	          PSYCLONE_CONFIG_FILE=$(ADJT_CONFIG_FILE)
+	          OPTIMISATION_PATH=$(OPTIMISATION_PATH)
 	$(call MESSAGE,=========================================================)
 	$(call MESSAGE,Analysing $(PROJECT) build dependencies)
 	$(call MESSAGE,=========================================================)

@@ -7,7 +7,7 @@
 !> Test the computation of the cubed-sphere panel extension
 module panel_edge_coords_kernel_mod_test
 
-  use constants_mod, only: i_def, r_def, pi, IMDI
+  use constants_mod, only: i_def, r_def, pi, imdi, pi
   use funit
 
   implicit none
@@ -29,13 +29,13 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine setUp( this )
 
-    use base_mesh_config_mod,      only : geometry_spherical,                  &
-                                          topology_fully_periodic
+    use mesh_mod,                  only : geometry_spherical, &
+                                          topology_periodic
     use sci_chi_transform_mod,     only : init_chi_transforms
     use extrusion_config_mod,      only : method_uniform,                      &
                                           stretching_method_linear
     use finite_element_config_mod, only : cellshape_quadrilateral,             &
-                                          coord_system_native
+                                          coord_system_native, coord_space_wchi
     use feign_config_mod,          only : feign_finite_element_config,         &
                                           feign_base_mesh_config,              &
                                           feign_extrusion_config,              &
@@ -45,12 +45,16 @@ contains
 
     class(panel_edge_coords_test_type), intent(inout) :: this
 
+    real(r_def), parameter :: geostrophic_north_pole(2) = [0.0_r_def, PI/2.0_r_def]
+    real(r_def), parameter :: null_island(2) = [0.0_r_def, 0.0_r_def]
+    real(r_def), parameter :: equator_latitude = 0.0_r_def
+
     call feign_base_mesh_config(                                               &
         file_prefix='foo',                                                     &
         prime_mesh_name='unit_test',                                           &
         geometry=geometry_spherical,                                           &
         prepartitioned=.false.,                                                &
-        topology=topology_fully_periodic,                                      &
+        topology=topology_periodic,                                            &
         fplane=.false., f_lat_deg=0.0_r_def                                    &
     )
     call feign_extrusion_config(                                               &
@@ -73,6 +77,8 @@ contains
     call feign_finite_element_config(                                          &
         cellshape=cellshape_quadrilateral,                                     &
         coord_order=0_i_def,                                                   &
+        coord_order_nonprime=1_i_def,                                          &
+        coord_space=coord_space_wchi,                                          &
         coord_system=coord_system_native,                                      &
         element_order_h=0_i_def,                                               &
         element_order_v=0_i_def,                                               &
@@ -80,15 +86,22 @@ contains
         vorticity_in_w1=.false.                                                &
     )
 
-    call init_chi_transforms(geometry_spherical, topology_fully_periodic)
+    ! Note: Calling 'init_chi_transforms' is only valid for meshes which have a
+    !       spherical geometry and coordinate system. While it may not be relevant
+    !       to this mesh, it is called due to an unknown interaction which changes
+    !       results. If it is not applicable to this mesh, it should be removed once
+    !       this issue is resolved.
+    call init_chi_transforms( geostrophic_north_pole, &
+                              null_island, &
+                              equator_latitude )
 
   end subroutine setUp
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tearDown( this )
 
-    use configuration_mod,        only: final_configuration
-    use sci_chi_transform_mod,    only: final_chi_transforms
+    use config_loader_mod,     only: final_configuration
+    use sci_chi_transform_mod, only: final_chi_transforms
 
     implicit none
 

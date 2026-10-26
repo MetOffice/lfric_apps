@@ -7,7 +7,7 @@
 !> @brief Apply geostrophic forcing to the horizontal wind component fields
 module geostrophic_forcing_alg_mod
 
-use base_mesh_config_mod,          only: f_lat
+use config_mod,                    only: config_type
 use constants_mod,                 only: i_def, r_def, l_def
 use kernel_mod,                    only: kernel_type
 use field_mod,                     only: field_type
@@ -19,8 +19,11 @@ use sci_geometric_constants_mod,   only: get_height_fv
 use log_mod,                       only: log_event, LOG_LEVEL_ERROR
 use map_fd_to_prognostics_alg_mod, only: set_wind
 use mesh_mod,                      only: mesh_type
-use planet_config_mod,             only: kappa, p_zero, omega
 use timestepping_config_mod,       only: dt
+
+! Configuration modules
+use base_mesh_config_mod, only: f_lat
+use planet_config_mod,    only: kappa, p_zero, omega
 
 implicit none
 
@@ -52,11 +55,12 @@ contains
 !>          onto finite element nodal points in Wtheta. Profiles at
 !>          multiple validity times may be specified, with linear interpolation
 !>          being used to evaluate profiles at the current model time.
+!> @param[in]     config          Application namelist configuration object
 !> @param[in,out] du              Forcing increment for wind
 !> @param[in]     derived_fields  Group of derived fields
 !> @param[in]     exner           Exner field
 !> @param[in]     time_now        Current model time (s)
-subroutine geostrophic_forcing_alg( du, derived_fields, exner, time_now )
+subroutine geostrophic_forcing_alg(config, du, derived_fields, exner, time_now )
 
 use geostrophic_forcing_config_mod, only: number_times,       &
                                           number_heights,     &
@@ -80,6 +84,8 @@ use prof_temporal_interp_mod,    only: prof_temporal_interp
 implicit none
 
 ! Arguments
+type(config_type), intent(in) :: config
+
 type( field_type ), intent( inout )         :: du
 type( field_collection_type ), intent( in ) :: derived_fields
 type( field_type ), intent( in ), target    :: exner
@@ -147,7 +153,7 @@ else
       pressure_coord = .true.
     case(coordinate_height)
       mesh_id = du_in_w3%get_mesh_id()
-      height_w3 => get_height_fv(W3, mesh_id)
+      height_w3 => get_height_fv(config, mesh, W3)
       pressure_coord = .false.
     case default
       call log_event('Unknown coordinate', LOG_LEVEL_ERROR)
@@ -201,7 +207,7 @@ end if
 call invoke( inc_a_times_X( minus_dt_f3, du_in_w3 ), &
              inc_a_times_X( dt_f3, dv_in_w3 ) )
 
-call set_wind( du, du_in_w3, dv_in_w3, dw_in_wth )
+call set_wind( config, du, du_in_w3, dv_in_w3, dw_in_wth )
 
 end subroutine geostrophic_forcing_alg
 
