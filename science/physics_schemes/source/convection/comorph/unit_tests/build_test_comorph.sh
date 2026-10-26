@@ -52,6 +52,7 @@ gfortran -O0 -g -Wall -Wextra \
       "$comorph/moist_thermo/calc_virt_temp.F90" \
       "$comorph/moist_thermo/linear_qs_mod.F90" \
       "$comorph/moist_thermo/calc_qvl_supersat.F90" \
+      "$comorph/moist_thermo/interp_virt_temp.F90" \
       "$comorph/moist_thermo/calc_rho_dry.F90" \
       "$comorph/moist_thermo/calc_layer_mass.F90" \
       \
@@ -151,7 +152,7 @@ gfortran -O0 -g -Wall -Wextra \
       "$comorph/plume_genesis/cor_init_mass_liq_1.F90" \
       "$comorph/plume_genesis/cfl_limit_init_mass.F90" \
       "$comorph/plume_genesis/add_region_parcel.F90" \
-      "$comorph/plume_genesis/normalise_init_parcel.F90" \
+      "$comorph/plume_genesis/finalise_init_parcel.F90" \
       "$comorph/plume_genesis/init_mass_moist_frac.F90" \
       \
       "$comorph/control/draft_diags_type_mod.F90" \

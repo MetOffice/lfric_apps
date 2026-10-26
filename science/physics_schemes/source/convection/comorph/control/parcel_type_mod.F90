@@ -704,11 +704,7 @@ do ic = 1, parcel_a % cmpr % n_points
     norm = parcel_m % par_super(ic2,i_massflux_d)                              &
          + parcel_a % par_super(ic,i_massflux_d)
     weight_a(ic) = parcel_a % par_super(ic,i_massflux_d) / norm
-    !weight_m(ic) = parcel_m % par_super(ic2,i_massflux_d) / norm
-    ! TEMPORARY CODE TO PRESERVE KGO
-    ! More accurate to compute weight_m as commented-out above, but this
-    ! changes answers so keeping old version of the calculation for now.
-    weight_m(ic) = one - weight_a(ic)
+    weight_m(ic) = parcel_m % par_super(ic2,i_massflux_d) / norm
   end if
 end do
 

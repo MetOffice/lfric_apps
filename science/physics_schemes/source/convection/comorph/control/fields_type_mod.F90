@@ -710,8 +710,9 @@ subroutine fields_k_pressure_adjust( n_points, n_points_fields,                &
                                      n_fields_tot, pressure_1, pressure_2,     &
                                      fields_k_super )
 
-use comorph_constants_mod, only: l_cv_cloudfrac, real_cvprec, one
+use comorph_constants_mod, only: l_cv_cloudfrac, real_cvprec
 use dry_adiabat_mod, only: dry_adiabat
+use calc_virt_temp_dry_mod, only: calc_virt_temp_dry
 
 implicit none
 
@@ -739,25 +740,34 @@ real(kind=real_cvprec) :: factor(n_points)
 integer :: ic, i_field
 
 
+if ( l_cv_cloudfrac ) then
+  ! If using cloud-fractions, these currently store
+  ! cloud volume per unit dry-mass ~ Tv_dry * CF.
+  ! Divide by the old Tv_dry
+  call calc_virt_temp_dry( n_points,                                           &
+                           fields_k_super(:,i_temperature),                    &
+                           fields_k_super(:,i_q_vap),                          &
+                           factor )
+  do i_field = i_cf_first, i_cf_last
+    do ic = 1, n_points
+      fields_k_super(ic,i_field) = fields_k_super(ic,i_field) / factor(ic)
+    end do
+  end do
+end if
+
 ! Dry-adiabatically adjust the temperature
-do ic = 1, n_points
-  factor(ic) = one
-end do
 call dry_adiabat( n_points, n_points_fields,                                   &
                   pressure_1, pressure_2,                                      &
                   fields_k_super(:,i_q_vap),                                   &
                   fields_k_super(:,i_qc_first:i_qc_last),                      &
-                  factor )
-do ic = 1, n_points
-  fields_k_super(ic,i_temperature) = fields_k_super(ic,i_temperature)          &
-                                     * factor(ic)
-end do
+                  fields_k_super(:,i_temperature) )
 
-! If using cloud-fractions, these currently store
-! cloud volume per unit dry-mass ~ Tv_dry * CF.
-! Therefore, these need to be adjusted in the same way
-! as temperature
 if ( l_cv_cloudfrac ) then
+  ! Scale cloud fractions by the new Tv_dry
+  call calc_virt_temp_dry( n_points,                                           &
+                           fields_k_super(:,i_temperature),                    &
+                           fields_k_super(:,i_q_vap),                          &
+                           factor )
   do i_field = i_cf_first, i_cf_last
     do ic = 1, n_points
       fields_k_super(ic,i_field) = fields_k_super(ic,i_field) * factor(ic)
