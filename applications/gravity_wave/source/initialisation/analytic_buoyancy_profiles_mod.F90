@@ -14,12 +14,13 @@ use log_mod,                      only : log_event,                &
                                          log_scratch_space,        &
                                          LOG_LEVEL_ERROR
 use coord_transform_mod,           only : xyz2llr
-use base_mesh_config_mod,          only : geometry,           &
-                                          geometry_spherical
+use base_mesh_config_mod,          only : geometry
 use planet_config_mod,             only : scaled_radius, gravity
 use generate_global_gw_fields_mod, only : generate_global_gw_pert
 use reference_profile_mod,         only : reference_profile
 use idealised_config_mod,          only : test_gravity_wave
+
+use mesh_mod, only: geometry_spherical
 
 implicit none
 

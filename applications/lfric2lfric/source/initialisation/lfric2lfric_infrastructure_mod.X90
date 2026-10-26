@@ -74,13 +74,14 @@ module lfric2lfric_infrastructure_mod
   use coupler_exchange_2d_mod,     only: coupler_exchange_2d_type
 #endif
 
+  use mesh_mod,                    only: geometry_planar,    &
+                                         geometry_spherical, &
+                                         topology_periodic,  &
+                                         topology_non_periodic
+
   !------------------------------------
   ! Configuration modules
   !------------------------------------
-  use base_mesh_config_mod, only: geometry_planar,         &
-                                  geometry_spherical,      &
-                                  topology_fully_periodic, &
-                                  topology_non_periodic
   use extrusion_config_mod,       only: key_from_method,              &
                                         method_uniform,               &
                                         method_geometric,             &
@@ -236,8 +237,8 @@ contains
     type(lfric_xios_context_type), pointer :: io_context_src
     type(lfric_xios_context_type), pointer :: io_context_dst
 
-    integer(i_def) :: geometry
-    integer(i_def) :: topology
+    integer(i_def) :: geometry(2)
+    integer(i_def) :: topology(2)
     integer(i_def) :: coord_system
     real(r_def)    :: scaled_radius
 
@@ -328,30 +329,71 @@ contains
            log_level_debug)
     end if
 
-    !=======================================================================
-    ! Mesh
-    !=======================================================================
-    !-----------------------------------------------------------------------
-    ! Create the required extrusions
-    !-----------------------------------------------------------------------
     select case (source_geometry)
 
       case (source_geometry_planar)
         domain_bottom = 0.0_r_def
-        geometry = geometry_planar
+        geometry(src) = geometry_planar
 
       case (source_geometry_spherical)
         domain_bottom = scaled_radius
-        geometry = geometry_spherical
+        geometry(src) = geometry_spherical
 
       case default
         call log_event("Invalid geometry for mesh initialisation", &
                        log_level_error)
     end select
 
+    select case (source_topology)
+
+      case (source_topology_fully_periodic)
+        topology(src) = topology_periodic
+
+      case (source_topology_non_periodic)
+        topology(src) = topology_non_periodic
+
+      case default
+        call log_event("Invalid topology for mesh initialisation", &
+                       log_level_error)
+    end select
+
+    select case (destination_geometry)
+
+      case (destination_geometry_planar)
+        domain_bottom = 0.0_r_def
+        geometry(dst) = geometry_planar
+
+      case (destination_geometry_spherical)
+        domain_bottom = scaled_radius
+        geometry(dst) = geometry_spherical
+
+      case default
+        call log_event("Invalid geometry for mesh initialisation", &
+                       log_level_error)
+    end select
+
+    select case (destination_topology)
+
+      case (destination_topology_fully_periodic)
+        topology(dst) = topology_periodic
+
+      case (destination_topology_non_periodic)
+        topology(dst) = topology_non_periodic
+
+      case default
+        call log_event("Invalid topology for mesh initialisation", &
+                       log_level_error)
+    end select
+
+    !=======================================================================
+    ! Mesh
+    !=======================================================================
+    !-----------------------------------------------------------------------
+    ! Create the required extrusions
+    !-----------------------------------------------------------------------
     allocate( src_extrusion, source = &
              create_extrusion( src_extrusion_method, &
-                               geometry,             &
+                               geometry(src),        &
                                src_number_of_layers, &
                                src_domain_height,    &
                                scaled_radius ))
@@ -362,24 +404,9 @@ contains
 
     if (vertical_change) then
 
-      select case (destination_geometry)
-
-        case (destination_geometry_planar)
-          domain_bottom = 0.0_r_def
-          geometry = geometry_planar
-
-        case (destination_geometry_spherical)
-          domain_bottom = scaled_radius
-          geometry = geometry_spherical
-
-        case default
-          call log_event("Invalid geometry for mesh initialisation", &
-                         log_level_error)
-      end select
-
       allocate( dst_extrusion, source = &
              create_extrusion( dst_extrusion_method, &
-                               geometry,             &
+                               geometry(dst),        &
                                dst_number_of_layers, &
                                dst_domain_height,    &
                                scaled_radius ))
@@ -500,40 +527,12 @@ contains
     files_init_ptr => init_lfric2lfric_dst_files
 
     ! Initialise the IO context with all the required info
-    select case (destination_geometry)
-
-      case (destination_geometry_planar)
-        domain_bottom = 0.0_r_def
-        geometry = geometry_planar
-
-      case (destination_geometry_spherical)
-        domain_bottom = scaled_radius
-        geometry = geometry_spherical
-
-      case default
-        call log_event("Invalid geometry for mesh initialisation", &
-                       log_level_error)
-    end select
-
-    select case (destination_topology)
-
-      case (destination_topology_fully_periodic)
-        topology = topology_fully_periodic
-
-      case (destination_topology_non_periodic)
-        topology = topology_non_periodic
-
-      case default
-        call log_event("Invalid topology for mesh initialisation", &
-                       log_level_error)
-    end select
-
     call init_io( context_dst,                      &
                   mesh_names_dst_ext(dst),          &
                   modeldb,                          &
                   chi_inventory,                    &
                   panel_id_inventory,               &
-                  geometry, topology,               &
+                  geometry(dst), topology(dst),     &
                   populate_filelist=files_init_ptr  )
 
 
@@ -584,43 +583,16 @@ contains
     files_init_ptr => init_lfric2lfric_src_files
 
     ! Initialise the IO context with all the required info
-    select case (source_geometry)
-
-      case (source_geometry_planar)
-        domain_bottom = 0.0_r_def
-        geometry = geometry_planar
-
-      case (source_geometry_spherical)
-        domain_bottom = scaled_radius
-        geometry = geometry_spherical
-
-      case default
-        call log_event("Invalid geometry for mesh initialisation", &
-                       log_level_error)
-    end select
-
-    select case (source_topology)
-
-      case (source_topology_fully_periodic)
-        topology = topology_fully_periodic
-
-      case (source_topology_non_periodic)
-        topology = topology_non_periodic
-
-      case default
-        call log_event("Invalid topology for mesh initialisation", &
-                       log_level_error)
-    end select
-
     call init_io( context_src,                      &
-                  mesh_names(src),                  &
+                  stored_mesh_names(src),           &
                   modeldb,                          &
                   chi_inventory,                    &
                   panel_id_inventory,               &
-                  geometry, topology,               &
+                  geometry(src), topology(src),     &
                   populate_filelist=files_init_ptr  )
 
     call modeldb%io_contexts%get_io_context(context_src, io_context_src)
+    call io_context_src%set_current()
 
     !=======================================================================
     ! Initialise source orography
