@@ -5,4 +5,8 @@
 {# ########################################################################### #}
 {% do LOG.debug("Entered site/meto/lfric_atm/tasks_lfric_atm_azspice.cylc") %}
 
+{% if task_ns.conf_name == "nwp_gal9_snow_fd_start_surf-C12" %}
+  {% do task_dict["opt_confs"].append("snow_fd_start_surf_azspice") %}
+{% endif %}
+
 {% do LOG.debug("Finised in site/meto/lfric_atm/tasks_lfric_atm_azspice.cylc") %}
