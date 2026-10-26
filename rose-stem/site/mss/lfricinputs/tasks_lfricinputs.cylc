@@ -51,7 +51,7 @@
     {% do task_dict.update({
         "build_families": ["ASP2A_BUILD_"~task_ns.compiler|upper],
         "run_families": ["LFRICINPUTS_BASE", "MSS_ASP2A_NORMAL_QUEUE", "MSS_ASP2A_RUN_TASKS", "ASP2A_LFRICINPUTS"],
-        "rose_ana_families": ["LFRICINPUTS_BASE", "MSS_ASP2A_1_TASKS", "ASP2A_LFRICINPUTS", "ROSE_ANA_ASP2A"]
+        "full_kgo_families": ["LFRICINPUTS_BASE", "MSS_ASP2A_1_TASKS", "ASP2A_LFRICINPUTS", "FULL_KGO_ASP2A"]
     }) %}
 {% endif %}
 

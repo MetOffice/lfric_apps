@@ -118,7 +118,7 @@
         [[[environment]]]
             PLATFORM_SYNC = false
 
-    [[CASCADE_ROSE_ANA]]
+    [[CASCADE_FULL_KGO]]
         inherit = CASCADE_BG
         pre-script = ". /opt/niwa/profile/conda_24.11.3_2025.05.1.sh ; conda activate niwa_tools_2025.07.1 ;"
 
