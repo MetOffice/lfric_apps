@@ -20,19 +20,16 @@ contains
 ! - parcel radius
 subroutine set_par_fields( n_points, n_points_super, n_fields_tot,             &
                            cmpr_init, k, l_tracer, l_down, i_type,             &
-                           grid_k, fields_k, frac_r_k,                         &
+                           fields_k, frac_r_k,                                 &
                            par_radius_amp, turb_pert_k, turb_len_k,            &
                            par_gen_par, par_gen_mean, par_gen_core,            &
                            rhpert_t, frac_r_t )
 
 use comorph_constants_mod, only: real_cvprec, zero, one,                       &
-                                 par_gen_radius_fac,                           &
-                                 ass_min_radius, min_radius_fac,               &
                                  par_gen_core_fac,                             &
                                  n_tracers, name_length, l_par_core,           &
                                  i_check_bad_values_cmpr, i_check_bad_none,    &
                                  par_gen_rhpert
-use grid_type_mod, only: n_grid, i_height
 use fields_type_mod, only: i_wind_u, i_wind_w, i_tracers,                      &
                            i_temperature, i_q_vap, i_qc_first, i_qc_last,      &
                            field_min, field_max, field_names
@@ -70,9 +67,6 @@ logical, intent(in) :: l_down
 ! Convection type indicator
 integer, intent(in) :: i_type
 
-! Height and pressure at level k
-real(kind=real_cvprec), intent(in) :: grid_k                                   &
-                                      ( n_points_super, n_grid )
 ! Primary model-fields at level k
 real(kind=real_cvprec), intent(in) :: fields_k                                 &
                                       ( n_points_super, n_fields_tot )
@@ -118,17 +112,9 @@ character(len=name_length) :: field_name
 integer :: ic, i_field, i_region
 
 
-! Use max of turbulence-based radius and an arbitrary linear
-! ramp from the surface
 do ic = 1, n_points
-  par_gen_par(ic,i_radius) = max( par_gen_radius_fac * turb_len_k(ic),       &
-                                  min( min_radius_fac * grid_k(ic,i_height), &
-                                       ass_min_radius ) )
-end do
-
-! Amplify the parcel radius using input variable scaling factor...
-do ic = 1, n_points
-  par_gen_par(ic,i_radius) = par_gen_par(ic,i_radius) * par_radius_amp(ic)
+  ! Scale parcel radius by input amplification factor
+  par_gen_par(ic,i_radius) = turb_len_k(ic) * par_radius_amp(ic)
 end do
 
 ! Set environment virtual temperature stored in the parcel

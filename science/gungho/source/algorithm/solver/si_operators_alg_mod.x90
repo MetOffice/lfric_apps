@@ -394,7 +394,6 @@ contains
     use planet_config_mod,                    only: kappa, cp, rd, p_zero
     use timestepping_config_mod,              only: tau_r, tau_t, tau_u
     use reference_element_mod,                only: reference_element_type
-    use mesh_mod,                             only: mesh_type
     use matrix_vector_kernel_mod,             only: matrix_vector_kernel_type
     use dg_inc_matrix_vector_kernel_mod, only: dg_inc_matrix_vector_kernel_type
     use formulation_config_mod,               only: dlayer_on,       &

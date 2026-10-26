@@ -23,7 +23,7 @@ subroutine set_ent( n_points, n_fields_tot, max_points,                        &
                     par_conv_super,                                            &
                     l_within_bl, core_mean_ratio,                              &
                     layer_mass_step, sum_massflux,                             &
-                    ent_fields, exner_ratio, ent_mass_d, core_ent_ratio,       &
+                    ent_fields, ent_mass_d, core_ent_ratio,                    &
                     plume_model_diags, diags_super )
 
 use comorph_constants_mod, only: real_cvprec, min_float, one,                  &
@@ -93,9 +93,6 @@ real(kind=real_cvprec), intent(in) :: sum_massflux(n_points)
 real(kind=real_cvprec), intent(out) :: ent_fields                              &
                                        ( n_points, n_fields_tot )
 
-! Exner pressure factor for dry-adiabatic adjustment to prev
-real(kind=real_cvprec), intent(out) :: exner_ratio(n_points)
-
 ! Rate of entrainment of dry-mass from current level / kg m-2 s-1
 real(kind=real_cvprec), intent(out) :: ent_mass_d(n_points)
 
@@ -139,18 +136,11 @@ if ( l_to_full_level ) then
   ! Adjust the temperature of the entrained air to what it would be at the
   ! start of the level-step, so that we entrain it into the parcel
   ! consistently...
-  do ic = 1, n_points
-    exner_ratio(ic) = one
-  end do
   call dry_adiabat( n_points, n_points,                                        &
                   grid_next_super(:,i_pressure), grid_prev_super(:,i_pressure),&
                     ent_fields(:,i_q_vap),                                     &
                     ent_fields(:,i_qc_first:i_qc_last),                        &
-                    exner_ratio )
-  do ic = 1, n_points
-    ent_fields(ic,i_temperature) = ent_fields(ic,i_temperature)                &
-                                 * exner_ratio(ic)
-  end do
+                    ent_fields(:,i_temperature) )
 end if
 
 

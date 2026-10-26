@@ -1,3 +1,4 @@
+import re
 import sys
 
 from metomi.rose.upgrade import MacroUpgrade  # noqa: F401
@@ -109,5 +110,28 @@ class vn32_t717(MacroUpgrade):
         self.add_setting(config, [nml, "nconc_graup"], "100.0")
         self.add_setting(config, [nml, "tdep_n_cl"], "0.0")
         self.add_setting(config, [nml, "tdep_n_cf"], "8.18")
+        return config, self.reports
+
+
+class vn32_t776(MacroUpgrade):
+    """Upgrade macro for ticket TTTT by Unknown."""
+
+    BEFORE_TAG = "vn3.2_t717"
+    AFTER_TAG = "vn3.2_t776"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-convection
+        # CoMorph settings
+        nml = "namelist:comorph"
+        # Rearrangement of code means min_radius need to be scaled by
+        # 1 / par_radius_knob to get same behaviour as before
+        prk = float(self.get_setting_value(config, [nml, "par_radius_knob"]))
+        asm = float(self.get_setting_value(config, [nml, "ass_min_radius"]))
+        self.change_setting_value(
+            config, [nml, "ass_min_radius"], str(asm / prk)
+        )
+        self.add_setting(config, [nml, "min_radius_fac"], str(0.25 / prk))
+        # Was the hard-wired comorph_constants_mod value par_gen_radius_fac
+        self.add_setting(config, [nml, "turb_len_fac"], "8.0")
 
         return config, self.reports

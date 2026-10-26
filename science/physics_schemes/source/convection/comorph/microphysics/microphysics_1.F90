@@ -215,24 +215,17 @@ if ( maxval(nc) > 0 ) then
         call ice_nucleation( n_points,                                         &
                              nc(i_liq), index_ic(:,i_liq),                     &
                              nc(i_ice), index_ic(:,i_ice),                     &
-                             delta_t, ref_temp,                                &
-                             q_cond(:,i_liq), q_cond(:,i_ice),                 &
+                             ref_temp, q_cond(:,i_liq), q_cond(:,i_ice),       &
                              temperature, cp_tot,                              &
                              dq_frz_cond(:,i_ice), l_diags,                    &
                              i_liq, i_ice, moist_proc_diags,                   &
                              n_points_diag, n_diags, diags_super )
-        ! Note: currently using q_cond to calculate the
-        ! heterogeneous freezing rate in here, but q_cond maybe
-        ! more of a numerical rather than physical quantity at
-        ! this point, as fall-in has been added to q_cond but
-        ! fall-out has not.  This should be fine provided that
-        ! the heter freeze rate comes out very small and is
-        ! dwarfed by other ice formation processes.  But if
-        ! we wish to use a heter freeze formulation where the
-        ! actual rate of heter freeze is significant, we'll
-        ! need to move heter freeze to after calc_cond_properties
-        ! and compute the rate using q_loc_cond (which accounts
-        ! for fall-out) instead.
+        ! Note: q_cond maybe more of a numerical rather than physical quantity
+        ! at this point, as fall-in has been added to q_cond but fall-out
+        ! has not.  Therefore, q_cond should not be used to estimate the
+        ! heterogeneous freezing rate here.  Currently heterogeneous nucleation
+        ! is just acting to "seed" negligibly small ice concentrations,
+        ! to allow vapour deposition and riming to actually grow the ice.
 
       end if
     end do  ! i_liq = 1, n_cond_species_liq
