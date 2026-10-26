@@ -24,7 +24,7 @@
 
     [[NCI_GADI_NORMAL_QUEUE]]
 
-    [[ROSE_ANA_GADI]]
+    [[FULL_KGO_GADI]]
         pre-script = """
                      module use /g/data/access/ngm/modules
                      module use /g/data/access/projects/access/modules

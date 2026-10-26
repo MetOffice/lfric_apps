@@ -111,9 +111,6 @@ integer :: index_ic_above(max_points)
 integer :: lbz(2), ubz(2)
 integer :: lbh(3), ubh(3)
 
-! Model-level up-to-which to homogenise source-terms
-integer :: k_bl_top
-
 ! Loop counters
 integer :: i, j, ij, k, ic, i_type, i_layr
 
@@ -175,23 +172,16 @@ if ( k_max >= k_bot_conv ) then
         do k = k_bot_conv, k_max
           if ( par_bl_top(i_type,i_layr,k) % cmpr % n_points > 0 ) then
 
-            ! TEMPORARY CODE TO PRESERVE KGO; TO BE REMOVED SOON
-            ! (only homogenize up to and including k-1 for downdrafts)
-            if ( l_down ) then
-              k_bl_top = k - 1
-            else
-              k_bl_top = k
-            end if
-
             ! Call routine to vertically homogenise the
             ! resolved-scale source terms in columns which
             ! hit the BL-top at the current model-level
             call homog_conv_bl( par_bl_top(i_type,i_layr,k) % cmpr % n_points, &
                                 n_conv_types, n_conv_layers,                   &
                                 n_fields_tot, l_down,                          &
-                                i_type, i_layr, k_bl_top,                      &
+                                i_type, i_layr, k,                             &
                                 ij_first, ij_last, index_ic,                   &
                                 grid, fields_np1, layer_mass,                  &
+                                lbz, ubz, turb % z_bl_top,                     &
                                 par_bl_top(i_type,i_layr,k) % cmpr,            &
                                 par_bl_top(i_type,i_layr,k) % par_super        &
                                                               (:,i_massflux_d),&

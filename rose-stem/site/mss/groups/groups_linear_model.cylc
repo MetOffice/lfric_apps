@@ -1,0 +1,58 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/groups/groups_linear_model.cylc") %}
+
+{# asp2a Groups #}
+{% do site_groups.update({
+    "linear_model_asp2a_developer": [
+        "linear_model_nwp_gal9-C12_asp2a_intel_fast-debug-64bit",
+        "linear_model_nwp_gal9_random-C12_asp2a_intel_fast-debug-64bit",
+        "linear_model_nwp_gal9_zero-C12_asp2a_intel_fast-debug-64bit",
+        "linear_model_runge-kutta-C12_asp2a_intel_fast-debug-64bit",
+        "linear_model_semi-implicit-C12_asp2a_intel_fast-debug-64bit",
+        "linear_model_dcmip301-C24_asp2a_intel_fast-debug-64bit",
+        "linear_model_asp2a_canned",
+    ],
+    "linear_model_asp2a": [
+        "linear_model_asp2a_developer",
+    ],
+    "linear_model_asp2a_build": [
+        "build_linear_model_asp2a_intel_fast-debug-64bit",
+    ],
+    "linear_model_asp2a_canned": [
+        "linear_model_canned_asp2a_intel_fast-debug-64bit",
+    ],
+    }) %}
+
+{# Platform Generic Groups #}
+{% do site_groups.update({
+    "linear_model_developer": [
+        "scripts",
+        "linear_model_asp2a_developer",
+    ],
+    "linear_model": [
+        "linear_model_developer",
+        "linear_model_asp2a",
+    ],
+    "linear_model_build": [
+        "linear_model_asp2a_build",
+    ],
+    "linear_model_canned": [
+        "linear_model_asp2a_canned",
+    ],
+    }) %}
+
+{# Platform Generic Extends #}
+{% do site_groups.developer.extend(site_groups.linear_model_developer) %}
+{% do site_groups.all.extend(site_groups.linear_model) %}
+{% do site_groups.build.extend(site_groups.linear_model_build) %}
+
+{# asp2a Extends #}
+{% do site_groups.developer.extend(site_groups.linear_model_asp2a_developer) %}
+{% do site_groups.asp2a.extend(site_groups.linear_model_asp2a) %}
+{% do site_groups.asp2a_build.extend(site_groups.linear_model_asp2a_build) %}
+
+{% do LOG.debug("Finished in site/meto/groups/groups_linear_model.cylc") %}
