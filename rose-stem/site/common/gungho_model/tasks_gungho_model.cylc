@@ -258,10 +258,10 @@
         "kgo_checks": [],
     }) %}
 
-{% elif task_ns.conf_name == "relax_theta-BiP4x4-600x400" %}
+{% elif task_ns.conf_name == "relax_profile-BiP4x4-600x400" %}
 
     {% do task_dict.update({
-        "opt_confs": ["relax_theta"],
+        "opt_confs": ["relax_profile"],
         "resolution": "BiP4x4-600x400",
         "DT": 60,
         "tsteps": 90,
@@ -398,6 +398,22 @@
         "use_xios": false,
         "plot_str": "cartesian_mountain_plot.py diagGungho $NODAL_DATA_DIR u 3 T000900 2 2 8 schar zoom_1 lines $PLOT_DIR",
     }) %}
+
+{% elif task_ns.conf_name == "schar_cart-consistent-BiP200x8-500x500" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["schar_cart", "consistent_metric"],
+        "resolution": "BiP200x8-500x500",
+        "DT": 20,
+        "mpi_parts": 5,
+        "tsteps": 900,
+        "threads": 3,
+        "panel_decomp": "row",
+        "wallclock": 30,
+        "use_xios": false,
+        "plot_str": "cartesian_mountain_plot.py diagGungho $NODAL_DATA_DIR u 3 T000900 2 2 8 schar zoom_1 lines $PLOT_DIR",
+    }) %}
+
 
 {% elif task_ns.conf_name == "schar_cart-alt2-BiP100x4-1000x1000" %}
 

@@ -168,7 +168,7 @@ end subroutine sync_multidata_field_dimensions
     use aerosol_config_mod,      only: l_radaer
     use chemistry_config_mod,    only: chem_scheme, chem_scheme_strattrop
     use um_ukca_init_mod,        only: n_phot_spc
-    use nudging_config_mod,      only: nudge_data_levels
+    use nudging_config_mod,      only: num_ref_data_levels
 #endif
 
     use log_mod,                 only: log_event, LOG_LEVEL_ERROR,             &
@@ -280,7 +280,7 @@ end subroutine sync_multidata_field_dimensions
                dim = 1
             end if
       case ('nudging_levels')
-           dim = nudge_data_levels
+           dim = num_ref_data_levels
       case ('')
             dim = 1 ! ordinary (non-multidata) field
 #endif
