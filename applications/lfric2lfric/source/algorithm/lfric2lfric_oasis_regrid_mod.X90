@@ -290,7 +290,8 @@ contains
           ! write the received layer information in the destination field
           call invoke(name = "insert_multigrid_layer",                       &
                               level_insert_kernel_type(field_dst,  &
-                                                       dst_field, l, k))
+                              dst_field, l, k))
+          
         end do
 
       end if
