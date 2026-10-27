@@ -45,7 +45,7 @@
 	time_counter="none">
 
       <!-- JULES site forcing data, read when initialization:jules_forcing is true -->
-      <file id="jules_forcing" name="jules_forcing" mode="read" output_freq="30mi" convention="CF" cyclic="false" enabled=".FALSE.">
+      <file id="jules_forcing" name="jules_forcing" mode="read" output_freq="30mi" convention="CF" cyclic="true" enabled=".FALSE.">
         <field id="jules_forcing_time" name="time" unit="seconds" operation="once" axis_ref="jules_forcing_time_axis" />
         <field id="forcing_wind_data" name="Wind" long_name="wind_speed_at_10m" unit="m s-1" operation="instant" grid_ref="jules_forcing_grid" />
         <field id="forcing_tair_data" name="Tair" long_name="air_temperature_at_10m" unit="K" operation="instant" grid_ref="jules_forcing_grid" />
