@@ -113,7 +113,7 @@ module iau_time_control_mod
     iau_ts_num = 0.0_i_def
     iau_weight = 0.0_r_def
 #ifdef UM_PHYSICS
-    if (iau_mode == iau_mode_instantaneous) then
+    if ( (iau_mode == iau_mode_instantaneous) .and. (.not. iau_tendency) ) then
       iau_weight = 1.0_r_def
     else if ( iau_tendency ) then
       iau_weight = real( model_clock%get_seconds_per_step(), r_def )

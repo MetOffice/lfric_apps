@@ -35,7 +35,7 @@ function calc_exner_pointwise(rho, theta) result(exner)
   real(kind=r_def)              :: exner
   real(kind=r_def), intent(in)  :: rho, theta
 
-   exner = ( Rd/p_zero * rho * theta ) ** (  kappa / ( 1.0_r_def - kappa ) )
+   exner = ( Rd * rho * theta/p_zero ) ** (  kappa / ( 1.0_r_def - kappa ) )
 
 end function calc_exner_pointwise
 

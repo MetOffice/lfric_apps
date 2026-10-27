@@ -57,7 +57,7 @@ implicit none
 integer, parameter :: field_kind = real_64
 
 
-#include "wtrac_calc_ratio_fn.h"
+#include "include/wtrac_calc_ratio_fn.h"
 
 
 wtrac_calc_ratio_fn_real64 = q_ratio
@@ -75,7 +75,7 @@ implicit none
 integer, parameter :: field_kind = real_32
 
 
-#include "wtrac_calc_ratio_fn.h"
+#include "include/wtrac_calc_ratio_fn.h"
 
 
 wtrac_calc_ratio_fn_real32 = q_ratio
