@@ -138,24 +138,59 @@ grid_type_code = get_stashmaster_item(stashcode, grid)
 
 ! Set horiz grid
 select case(grid_type_code)
-case(p_points, ozone_points, land_compressed, p_points_values_over_sea)
+case(land_compressed, p_points_values_over_sea) ! masked fields
+  if (level_index == 1) then
+    write(log_scratch_space, '(A,I0,A)') "Grid type code ", grid_type_code, &
+       " or land_compressed (21)/p_points_values_over_sea (3)"
+    call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+  end if
+
+  ! For masked fields these should be 0, but that breaks the regridding. Change later?
   lookup_int(lbrow) = um_grid%num_p_points_y
   lookup_int(lbnpt) = um_grid%num_p_points_x
   ! "Zeroth" start lat/lon so subtract one grid spacing
   lookup_real_tmp(bzy) = um_grid%p_origin_y - um_grid%spacing_y
   lookup_real_tmp(bzx) = um_grid%p_origin_x - um_grid%spacing_x
+
+case(p_points, ozone_points)
+  if (level_index == 1) then
+    write(log_scratch_space, '(A,I0,A)') &
+       "Grid type code ", grid_type_code, " or p_points (1)/ozone_points (22)"
+    call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+  end if
+
+  lookup_int(lbrow) = um_grid%num_p_points_y
+  lookup_int(lbnpt) = um_grid%num_p_points_x
+  ! "Zeroth" start lat/lon so subtract one grid spacing
+  lookup_real_tmp(bzy) = um_grid%p_origin_y - um_grid%spacing_y
+  lookup_real_tmp(bzx) = um_grid%p_origin_x - um_grid%spacing_x
+
 case(u_points)
+  if (level_index == 1) then
+    write(log_scratch_space, '(A,I0,A)') &
+       "Grid type code ", grid_type_code, " or u_points"
+    call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+  end if
+
   lookup_int(lbrow) = um_grid%num_u_points_y
   lookup_int(lbnpt) = um_grid%num_u_points_x
   ! "Zeroth" start lat/lon so subtract one grid spacing
   lookup_real_tmp(bzy) = um_grid%u_origin_y - um_grid%spacing_y
   lookup_real_tmp(bzx) = um_grid%u_origin_x - um_grid%spacing_x
+
 case(v_points)
+  if (level_index == 1) then
+    write(log_scratch_space, '(A,I0,A)') &
+       "Grid type code ", grid_type_code, " or v_points"
+    call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+  end if
+
   lookup_int(lbrow) = um_grid%num_v_points_y
   lookup_int(lbnpt) = um_grid%num_v_points_x
   ! "Zeroth" start lat/lon so subtract one grid spacing
   lookup_real_tmp(bzy) = um_grid%v_origin_y - um_grid%spacing_y
   lookup_real_tmp(bzx) = um_grid%v_origin_x - um_grid%spacing_x
+
 case DEFAULT
   write(log_scratch_space, '(A,I0,A)') &
        "Grid type code ", grid_type_code, " not supported"
@@ -232,9 +267,11 @@ if (lookup_int(lbvc) >= 126 .and. lookup_int(lbvc) <= 139 &
      .or. lookup_int(lbvc) == 5 .or. lookup_int(lbvc) == 0 .or. &
      lookup_int(lbvc) == 275 ) then
   ! Special codes inc single level
-  write(log_scratch_space, '(A,I0,A)') &
-     "Vertical coord type ", lookup_int(lbvc), " treated as single layer"
-  call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+  if (level_index == 1) then
+    write(log_scratch_space, '(A,I0,A)') &
+      "Vertical coord type ", lookup_int(lbvc), " treated as single layer"
+    call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+  end if
 
   ! set level heights to 0.0  - TODO bulev & bhulev um_rmdi?
   lookup_real_tmp(blev)=0.0_real64
