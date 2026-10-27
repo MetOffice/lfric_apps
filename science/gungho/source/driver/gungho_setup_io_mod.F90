@@ -349,19 +349,19 @@ module gungho_setup_io_mod
                                                          io_mode=FILE_MODE_READ ) )
         end if
 
-        if (snow_source == snow_source_surf) then
-          if (snow_analysis_ancil_path(1:1) == '/') then
-            write(ancil_fname,'(A)') trim(snow_analysis_ancil_path)
-          else
-            write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
-                                     trim(snow_analysis_ancil_path)
-          end if
-          call files_list%insert_item( lfric_xios_file_type( ancil_fname, &
-                                          xios_id="snow_analysis_ancil",  &
-                                          io_mode=FILE_MODE_READ ) )
-        end if
-
       end if ! static ancils on cold start
+
+      if (snow_source == snow_source_surf) then
+        if (snow_analysis_ancil_path(1:1) == '/') then
+          write(ancil_fname,'(A)') trim(snow_analysis_ancil_path)
+        else
+          write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
+                                   trim(snow_analysis_ancil_path)
+        end if
+        call files_list%insert_item( lfric_xios_file_type( ancil_fname, &
+                                        xios_id="snow_analysis_ancil",  &
+                                        io_mode=FILE_MODE_READ ) )
+      end if
 
       ! Only read updating ancils on new run, if updating or using surf
       if (ancil_option == ancil_option_updating .or. &
