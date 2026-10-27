@@ -128,7 +128,7 @@ lookup_int(lbhrd) = fixed_length_header(t1_hour)
 lookup_int(lbmind) = fixed_length_header(t1_minute)
 lookup_int(lbsecd) = fixed_length_header(t1_second)
 lookup_int(lbtim) = lbtim_from_conf
-lookup_int(lbft) = 0 ! Forecast time, difference between datatime and
+lookup_int(lbft) = um_imdi ! Forecast time, difference between datatime and
                      ! validity time
 
 lookup_int(lbcode) = 1 ! harcode to lat/long non-rotated
@@ -138,24 +138,59 @@ grid_type_code = get_stashmaster_item(stashcode, grid)
 
 ! Set horiz grid
 select case(grid_type_code)
-case(p_points, ozone_points, land_compressed, p_points_values_over_sea)
+case(land_compressed, p_points_values_over_sea) ! masked fields
+  if (level_index == 1) then
+    write(log_scratch_space, '(A,I0,A)') "Grid type code ", grid_type_code, &
+       " or land_compressed (21)/p_points_values_over_sea (3)"
+    call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+  end if
+
+  ! For masked fields these should be 0, but that breaks the regridding. Change later?
   lookup_int(lbrow) = um_grid%num_p_points_y
   lookup_int(lbnpt) = um_grid%num_p_points_x
   ! "Zeroth" start lat/lon so subtract one grid spacing
   lookup_real_tmp(bzy) = um_grid%p_origin_y - um_grid%spacing_y
   lookup_real_tmp(bzx) = um_grid%p_origin_x - um_grid%spacing_x
+
+case(p_points, ozone_points)
+  if (level_index == 1) then
+    write(log_scratch_space, '(A,I0,A)') &
+       "Grid type code ", grid_type_code, " or p_points (1)/ozone_points (22)"
+    call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+  end if
+
+  lookup_int(lbrow) = um_grid%num_p_points_y
+  lookup_int(lbnpt) = um_grid%num_p_points_x
+  ! "Zeroth" start lat/lon so subtract one grid spacing
+  lookup_real_tmp(bzy) = um_grid%p_origin_y - um_grid%spacing_y
+  lookup_real_tmp(bzx) = um_grid%p_origin_x - um_grid%spacing_x
+
 case(u_points)
+  if (level_index == 1) then
+    write(log_scratch_space, '(A,I0,A)') &
+       "Grid type code ", grid_type_code, " or u_points"
+    call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+  end if
+
   lookup_int(lbrow) = um_grid%num_u_points_y
   lookup_int(lbnpt) = um_grid%num_u_points_x
   ! "Zeroth" start lat/lon so subtract one grid spacing
   lookup_real_tmp(bzy) = um_grid%u_origin_y - um_grid%spacing_y
   lookup_real_tmp(bzx) = um_grid%u_origin_x - um_grid%spacing_x
+
 case(v_points)
+  if (level_index == 1) then
+    write(log_scratch_space, '(A,I0,A)') &
+       "Grid type code ", grid_type_code, " or v_points"
+    call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+  end if
+
   lookup_int(lbrow) = um_grid%num_v_points_y
   lookup_int(lbnpt) = um_grid%num_v_points_x
   ! "Zeroth" start lat/lon so subtract one grid spacing
   lookup_real_tmp(bzy) = um_grid%v_origin_y - um_grid%spacing_y
   lookup_real_tmp(bzx) = um_grid%v_origin_x - um_grid%spacing_x
+
 case DEFAULT
   write(log_scratch_space, '(A,I0,A)') &
        "Grid type code ", grid_type_code, " not supported"
@@ -165,6 +200,8 @@ lookup_real_tmp(bplat) = real_constants(rh_polelat)
 lookup_real_tmp(bplon) = real_constants(rh_polelong)
 lookup_real_tmp(bdx) = real_constants(rh_deltaEW)
 lookup_real_tmp(bdy) = real_constants(rh_deltaNS)
+lookup_real_tmp(bgor) = 0.0_real64 ! Not used - set to zero
+lookup_real_tmp(bacc) = -99.0_real64 ! WGDOS packing - set to -99.0 denoting unpacked data
 
 
 lookup_int(lbpack) = 2 ! Currently only support 32 bit packing
@@ -200,9 +237,9 @@ else
 end if
 
 ! Reserved slots (unused)
-lookup_int(lbrsvd1) = 0
-lookup_int(lbrsvd2) = 0
-lookup_int(lbrsvd3) = 0
+lookup_int(lbrsvd1) = um_imdi
+lookup_int(lbrsvd2) = um_imdi
+lookup_int(lbrsvd3) = um_imdi
 ! Ensemble number - set to 0 for deterministic
 lookup_int(lbrsvd4) = 0
 
@@ -222,19 +259,21 @@ lookup_int(lbuser7) = 1
 lookup_real_tmp(bdatum) = 0.0_real64
 
 ! Reserved for future use
-lookup_real_tmp(brsvd3) = 0.0_real64
-lookup_real_tmp(brsvd4) = 0.0_real64
+lookup_real_tmp(brsvd3) = um_rmdi
+lookup_real_tmp(brsvd4) = um_rmdi
 
 ! Check vertical coordinate type
 if (lookup_int(lbvc) >= 126 .and. lookup_int(lbvc) <= 139 &
      .or. lookup_int(lbvc) == 5 .or. lookup_int(lbvc) == 0 .or. &
      lookup_int(lbvc) == 275 ) then
   ! Special codes inc single level
-  write(log_scratch_space, '(A,I0,A)') &
-     "Vertical coord type ", lookup_int(lbvc), " treated as single layer"
-  call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+  if (level_index == 1) then
+    write(log_scratch_space, '(A,I0,A)') &
+      "Vertical coord type ", lookup_int(lbvc), " treated as single layer"
+    call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+  end if
 
-  ! set level heights to 0.0
+  ! set level heights to 0.0  - TODO bulev & bhulev um_rmdi?
   lookup_real_tmp(blev)=0.0_real64
   lookup_real_tmp(bhlev)=0.0_real64
   lookup_real_tmp(brlev)=0.0_real64
