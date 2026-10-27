@@ -13,6 +13,10 @@ module analytic_orography_field_spherical_mod_test
   use global_mesh_mod,            only : global_mesh_type
   use analytic_orography_mod,     only : orography_profile
   use ugrid_mesh_data_mod,        only : ugrid_mesh_data_type
+  use extrusion_config_mod,       only : method_uniform, &
+                                         stretching_method_linear
+
+  use mesh_mod, only: mesh_type, geometry_spherical, topology_periodic
 
   use funit
 
@@ -40,6 +44,7 @@ module analytic_orography_field_spherical_mod_test
 
   real(r_def), parameter :: radius        = 6371229.0_r_def
   real(r_def), parameter :: domain_height = 10000.0_r_def
+  real(r_def), parameter :: stretching_height = 1.0_r_def
 
   integer(i_def), parameter :: nlayers     = 10_i_def
   integer(i_def), parameter :: total_ranks = 1_i_def
@@ -58,10 +63,6 @@ contains
   subroutine setUp(this)
 
     use agnesi_orography_spherical_mod, only : agnesi_spherical_type
-    use base_mesh_config_mod,           only : geometry_spherical, &
-                                               topology_fully_periodic
-    use extrusion_config_mod,           only : method_uniform, &
-                                               stretching_method_linear
     use finite_element_config_mod,      only : cellshape_quadrilateral, &
                                                coord_system_xyz,        &
                                                coord_space_wchi
@@ -74,12 +75,15 @@ contains
     use orography_agnesi_spherical_config_mod, only :              &
                                         lambda_centre, phi_centre, &
                                         lambda_focus, phi_focus
-    use extrusion_config_mod,    only : method_uniform, stretching_method_linear
     use sci_chi_transform_mod,   only : init_chi_transforms
 
     implicit none
 
     class(analytic_orography_field_spherical_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: geostrophic_north_pole(2) = [0.0_r_def, PI/2.0_r_def]
+    real(r_def), parameter :: null_island(2) = [0.0_r_def, 0.0_r_def]
+    real(r_def), parameter :: equator_latitude = 0.0_r_def
 
     ! Set mesh configuration
     call feign_base_mesh_config(                                    &
@@ -87,7 +91,7 @@ contains
                          prime_mesh_name = mesh_name,               &
                          geometry        = geometry_spherical,      &
                          prepartitioned  = .false.,                 &
-                         topology        = topology_fully_periodic, &
+                         topology        = topology_periodic,       &
                          fplane          = .false.,                 &
                          f_lat_deg       = 0.0_r_def )
 
@@ -95,7 +99,7 @@ contains
                                  planet_radius=radius,        &
                                  domain_height=domain_height, &
                                  number_of_layers=nlayers,    &
-                                 stretching_height=1.0_r_def, &
+                                 stretching_height=stretching_height,        &
                                  stretching_method=stretching_method_linear, &
                                  eta_values=(/0.5_r_def/) )
 
@@ -141,7 +145,14 @@ contains
                                               lambda_focus,         &
                                               phi_focus ) )
 
-    call init_chi_transforms(geometry_spherical, topology_fully_periodic)
+    ! Note: Calling 'init_chi_transforms' is only valid for meshes which have a
+    !       spherical geometry and coordinate system. While it may not be relevant
+    !       to this mesh, it is called due to an unknown interaction which changes
+    !       results. If it is not applicable to this mesh, it should be removed once
+    !       this issue is resolved.
+    call init_chi_transforms( geostrophic_north_pole, &
+                              null_island, &
+                              equator_latitude )
 
   end subroutine setUp
 
@@ -167,7 +178,6 @@ contains
 
     use, intrinsic :: iso_fortran_env,  only : real64
     use local_mesh_mod,                 only : local_mesh_type
-    use mesh_mod,                       only : mesh_type
     use panel_decomposition_mod,        only : custom_decomposition_type
     use partition_mod,                  only : partition_type,        &
                                                partitioner_interface, &
@@ -270,6 +280,8 @@ contains
                                            ndf, undf, map,                     &
                                            height_flat_surface,                &
                                            height_domain_top,                  &
+                                           stretching_height,                  &
+                                           stretching_method_linear,           &
                                            chi_1_in, chi_2_in, chi_3_in,       &
                                            chi_1_cart, chi_2_cart, chi_3_cart, &
                                            panel_id )
