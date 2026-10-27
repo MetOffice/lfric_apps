@@ -20,7 +20,7 @@
 {% elif task_ns.conf_name == "lfric2um-r2o-C224L70_N512L70" %}
 
     {% do task_dict.update({
-        "memory": [96, "GB"],
+        "mpi_parts": 126,
     }) %}
 
 {% elif task_ns.conf_name == "lfric2um-r2o-C448L70_N512L70" %}
