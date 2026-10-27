@@ -91,13 +91,13 @@
 
   <!-- Land-Sea Masked fields -->
   <field id="read_water_table" name="water_table" long_name="water_table_depth" unit="m" domain_ref="face" operation="instant" />
-  <!-- MISSING <field id="read_icefrac" name="sea_ice_fraction" long_name="sea_ice_area_fraction" unit="m" domain_ref="face" operation="instant" /> -->
-  <!-- MISSING <field id="read_icethick" name="ice_mean_thickness" long_name="sea_ice_thickness_mean_over_ice" unit="m" domain_ref="face" operation="instant" /> -->
-  <!-- MISSING <field id="read_sea_ice_temperature" name="ice_mean_temperature" long_name="sea_ice_temperature_mean_over_ice" unit="m" domain_ref="face" operation="instant" /> -->
+  <field id="read_icefrac" name="sea_ice_fraction" long_name="sea_ice_area_fraction" unit="m" domain_ref="face" operation="instant" />
+  <field id="read_icethick" name="ice_mean_thickness" long_name="sea_ice_thickness_mean_over_ice" unit="m" domain_ref="face" operation="instant" />
+  <field id="read_sea_ice_temperature" name="ice_mean_temperature" long_name="sea_ice_temperature_mean_over_ice" unit="m" domain_ref="face" operation="instant" />
   <field id="read_tstar_sea" name="sea_surface_temperature" long_name="sea_surface_temperature" unit="m" domain_ref="face" operation="instant" />
-  <!-- MISSING <field id="read_tstar_sea_ice" name="sea_ice_surface_temperature" long_name="sea_ice_surface_temperature" unit="m" domain_ref="face" operation="instant" /> -->
-  <!-- MISSING <field id="read_soil_sat_frac" name="soil_sat_frac" long_name="soil_saturated_fraction" unit="m" domain_ref="face" operation="instant" /> -->
-  <!-- MISSING <field id="read_wetness_under_soil" name="wetness_under_soil" long_name="wetness_below_soil_column" unit="m" domain_ref="face" operation="instant" /> -->
+  <field id="read_tstar_sea_ice" name="sea_ice_surface_temperature" long_name="sea_ice_surface_temperature" unit="m" domain_ref="face" operation="instant" />
+  <field id="read_soil_sat_frac" name="soil_sat_frac" long_name="soil_saturated_fraction" unit="m" domain_ref="face" operation="instant" />
+  <field id="read_wetness_under_soil" name="wetness_under_soil" long_name="wetness_below_soil_column" unit="m" domain_ref="face" operation="instant" />
 
   <!-- sea_ice_cat fields -->
   <field id="read_ice_temp_cat" name="sea_ice_temperature" long_name="sea_ice_temperature" unit="K" grid_ref="sea_ice_categories_face_grid" operation="instant" />
