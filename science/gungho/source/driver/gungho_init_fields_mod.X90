@@ -66,7 +66,8 @@ module gungho_init_fields_mod
                                                  sst_source,                  &
                                                  sst_source_start_dump,       &
                                                  snow_source,                 &
-                                                 snow_source_surf
+                                                 snow_source_surf,            &
+                                                 jules_forcing
   use io_config_mod,                      only : checkpoint_read,  &
                                                  checkpoint_write, &
                                                  checkpoint_times, &
@@ -114,6 +115,7 @@ module gungho_init_fields_mod
   use create_fd_prognostics_mod,          only : create_fd_prognostics
   use init_ancils_mod,                    only : create_fd_ancils, &
                                                  create_fd_ancils_idealised
+  use init_jules_forcing_mod,             only : create_jules_forcing_fields
   use process_inputs_alg_mod,             only : process_inputs_alg
   use process_urban_alg_mod,              only : process_urban_alg
   use update_tstar_alg_mod,               only : update_tstar_alg
@@ -570,6 +572,7 @@ subroutine create_model_data( modeldb,           &
     type(field_collection_type), pointer :: depository
     type(field_collection_type), pointer :: fd_fields
     type(field_collection_type), pointer :: ancil_fields
+    type(field_collection_type), pointer :: jules_forcing_fields
     type(gungho_time_axes_type), pointer :: model_axes
 
     model_axes => get_time_axes_from_collection(modeldb%values, "model_axes" )
@@ -601,6 +604,16 @@ subroutine create_model_data( modeldb,           &
                                            ancil_fields, &
                                            mesh, twod_mesh )
       end select
+
+      ! Create fields to be read from the JULES site forcing file
+      if ( jules_forcing ) then
+        call modeldb%fields%add_empty_field_collection("jules_forcing_fields", &
+                                                       table_len = 10)
+        jules_forcing_fields => &
+          modeldb%fields%get_field_collection("jules_forcing_fields")
+        call create_jules_forcing_fields( depository, jules_forcing_fields,  &
+                                          mesh, twod_mesh, model_axes )
+      end if
     end if
 #endif
 
@@ -678,6 +691,7 @@ subroutine create_model_data( modeldb,           &
     type(field_array_type), pointer      :: moist_dyn_array => null()
     type(field_collection_type), pointer :: lbc_fields
     type(field_collection_type), pointer :: radiation_fields
+    type(field_collection_type), pointer :: jules_forcing_fields
 
     character(str_def) :: string
     integer(i_def) :: random_seed_size
@@ -951,6 +965,14 @@ subroutine create_model_data( modeldb,           &
       end if
 
 #ifdef UM_PHYSICS
+      ! Initialise reading of the JULES site forcing fields
+      if ( jules_forcing ) then
+        jules_forcing_fields => &
+          modeldb%fields%get_field_collection("jules_forcing_fields")
+        call init_variable_fields( model_axes%jules_forcing_times_list, &
+                                   modeldb%clock, jules_forcing_fields )
+      end if
+
       ! Initialise Casim numbers if they aren't coming from an LFRic dump
       if (microphysics_casim .and. &
            ( prognostic_init_choice /= init_option_checkpoint_dump ) ) then

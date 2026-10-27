@@ -26,6 +26,7 @@ module gungho_setup_io_mod
   ! Configuration modules
   use files_config_mod,          only: ancil_directory,           &
                                        checkpoint_stem_name,      &
+                                       jules_forcing_path,        &
                                        land_area_ancil_path,      &
                                        orography_mean_ancil_path, &
                                        orography_subgrid_ancil_path,&
@@ -104,6 +105,7 @@ module gungho_setup_io_mod
                                        coarse_ancil_directory,    &
                                        internal_flux_ancil_path
   use initialization_config_mod, only: init_option,               &
+                                       jules_forcing,             &
                                        init_option_fd_start_dump, &
                                        init_option_checkpoint_dump,&
                                        ancil_option,              &
@@ -202,7 +204,8 @@ module gungho_setup_io_mod
                                        iau_surf_fname,          &
                                        lbc_fname,               &
                                        nudging_fname,           &
-                                       ls_fname
+                                       ls_fname,                &
+                                       jules_forcing_fname
     character(:), allocatable :: split_checkpoint_stem_name(:)
     real(r_second), allocatable :: all_checkpoint_times(:)
 #ifdef UM_PHYSICS
@@ -840,6 +843,14 @@ module gungho_setup_io_mod
                             trim(ls_filename)
       call files_list%insert_item( lfric_xios_file_type( ls_fname,     &
                                                          xios_id="ls", &
+                                                         io_mode=FILE_MODE_READ ) )
+    endif
+
+    ! Setup the JULES site forcing file
+    if ( jules_forcing ) then
+      write(jules_forcing_fname,'(A)') trim(jules_forcing_path)
+      call files_list%insert_item( lfric_xios_file_type( jules_forcing_fname,    &
+                                                         xios_id="jules_forcing", &
                                                          io_mode=FILE_MODE_READ ) )
     endif
 

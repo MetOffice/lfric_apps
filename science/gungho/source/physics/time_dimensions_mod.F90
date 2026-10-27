@@ -21,7 +21,8 @@ module time_dimensions_mod
 #endif
   use initialization_config_mod, only: lbc_option,                            &
                                        lbc_option_gungho_file,                &
-                                       lbc_option_um2lfric_file
+                                       lbc_option_um2lfric_file,              &
+                                       jules_forcing
 #ifdef UM_PHYSICS
   ! This import split to support fparser which gets confused by FPP directives
   ! in the middle of a syntactic unit.
@@ -44,7 +45,8 @@ module time_dimensions_mod
   use files_config_mod,          only: lbc_dir => lbc_directory,              &
                                        lbc_filename,                          &
                                        nudging_filename,                      &
-                                       nudging_directory
+                                       nudging_directory,                     &
+                                       jules_forcing_path
   use external_forcing_config_mod,  only : theta_forcing,                     &
                                            theta_forcing_nudging,             &
                                            wind_forcing,                      &
@@ -167,6 +169,10 @@ module time_dimensions_mod
     tdim = get_nudging_dim()
     if (tdim /= 0) &
       call set_axis_dimension('nudging_time_axis', tdim, tolerate_missing_axes)
+    tdim = get_jules_forcing_dim()
+    if (tdim /= 0) &
+      call set_axis_dimension('jules_forcing_time_axis', tdim, &
+        tolerate_missing_axes)
   end subroutine sync_time_dimensions
 
   !> @brief Source the dimension of the lbc_axis from the lbc file.
@@ -258,4 +264,23 @@ module time_dimensions_mod
     end if
 
   end function get_nudging_dim
+
+  !> @brief Source the dimension of the jules_forcing_time_axis from the
+  !> JULES site forcing file.
+  !>
+  !> @result The dimension of the jules_forcing_time_axis
+  !>         or zero if JULES site forcing is not enabled.
+  !>
+  function get_jules_forcing_dim() result(tdim)
+    implicit none
+    integer(i_def) :: tdim
+    tdim = 0
+
+    if (jules_forcing) then
+
+      if (.not. get_ancil_dim('.', jules_forcing_path, tdim)) return
+
+    end if
+
+  end function get_jules_forcing_dim
 end module time_dimensions_mod

@@ -40,6 +40,12 @@ module gungho_time_axes_mod
     !> Pointer to the nudging time axis object
     type(time_axis_type), pointer, public :: nudging_time_axis
 
+    !> Time varying JULES site forcing time axis.
+    type(linked_list_type), public :: jules_forcing_times_list
+
+    !> Pointer to the JULES site forcing time axis object
+    type(time_axis_type), pointer, public :: jules_forcing_time_axis
+
     !> Time varying linearisation state time axis.
     !>
     !> @todo Is this part of the linear model?
@@ -75,6 +81,7 @@ contains
     self%lbc_time_axis => null()
     self%ls_time_axis => null()
     self%nudging_time_axis => null()
+    self%jules_forcing_time_axis => null()
 
   end subroutine initialise
 

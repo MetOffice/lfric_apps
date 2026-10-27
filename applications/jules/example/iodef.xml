@@ -11,10 +11,21 @@
     <axis_definition>
       <axis id="pressure_levels" name="pressure_levels" n_glo="29" value="(0,28)[100000 95000 92500 90000 85000 70000 60000 50000 40000 30000 25000 20000 15000 10000 7000 5000 3000 2000 1000 700 500 300 200 100 70 50 30 20 10]"/>
       <axis id="pressure_levels_xi3" name="pressure_levels_xi3" n_glo="1" value="(0,0)[85000]"/>
+      <!-- Time axis of the JULES site forcing file, sized from the file at run time -->
+      <axis id="jules_forcing_time_axis" name="jules_forcing_time_axis" />
+      <!-- Single point of the JULES site forcing file (no mesh information) -->
+      <axis id="jules_forcing_point" name="land" n_glo="1" />
     </axis_definition>
 
     <domain_definition src="../../lfric_atm/metadata/domain_def_main.xml"/>
     <grid_definition src="../../lfric_atm/metadata/grid_def_main.xml"/>
+    <grid_definition>
+      <!-- JULES site forcing data: single point by time, matching (time, land) in the file -->
+      <grid id="jules_forcing_grid">
+        <axis axis_ref="jules_forcing_point"/>
+        <axis axis_ref="jules_forcing_time_axis"/>
+      </grid>
+    </grid_definition>
 
     <field_definition src="../../lfric_atm/metadata/lfric_dictionary.xml"/>
 
@@ -32,6 +43,18 @@
     <file_definition
 	type="one_file"
 	time_counter="none">
+
+      <!-- JULES site forcing data, read when initialization:jules_forcing is true -->
+      <file id="jules_forcing" name="jules_forcing" mode="read" output_freq="30mi" convention="CF" cyclic="false" enabled=".FALSE.">
+        <field id="jules_forcing_time" name="time" unit="seconds" operation="once" axis_ref="jules_forcing_time_axis" />
+        <field id="forcing_wind_data" name="Wind" long_name="wind_speed_at_10m" unit="m s-1" operation="instant" grid_ref="jules_forcing_grid" />
+        <field id="forcing_tair_data" name="Tair" long_name="air_temperature_at_10m" unit="K" operation="instant" grid_ref="jules_forcing_grid" />
+        <field id="forcing_qair_data" name="Qair" long_name="specific_humidity_at_10m" unit="kg kg-1" operation="instant" grid_ref="jules_forcing_grid" />
+        <field id="forcing_psurf_data" name="PSurf" long_name="surface_air_pressure" unit="Pa" operation="instant" grid_ref="jules_forcing_grid" />
+        <field id="forcing_lwdown_data" name="LWdown" long_name="surface_downwelling_longwave_flux" unit="W m-2" operation="instant" grid_ref="jules_forcing_grid" />
+        <field id="forcing_swdown_data" name="SWdown" long_name="surface_downwelling_shortwave_flux" unit="W m-2" operation="instant" grid_ref="jules_forcing_grid" />
+        <field id="forcing_rainf_data" name="Rainf" long_name="rainfall_flux" unit="kg m-2 s-1" operation="instant" grid_ref="jules_forcing_grid" />
+      </file>
 
       <!-- Checkpoint groups -->
 

@@ -50,7 +50,8 @@ module gungho_driver_mod
                                           ancil_option,             &
                                           ancil_option_updating,    &
                                           coarse_aerosol_ancil,     &
-                                          coarse_ozone_ancil
+                                          coarse_ozone_ancil,       &
+                                          jules_forcing
   use init_gungho_lbcs_alg_mod,    only : update_lbcs_file_alg
   use log_mod,                     only : log_event,           &
                                           log_level_always,    &
@@ -384,6 +385,7 @@ contains
 
     type( field_collection_type ), pointer :: surface_fields
     type( field_collection_type ), pointer :: ancil_fields
+    type( field_collection_type ), pointer :: jules_forcing_fields
 #endif
 
     integer(i_def) :: theta_forcing
@@ -398,7 +400,7 @@ contains
       end if
     end if
 #ifdef UM_PHYSICS
-    nullify( surface_fields, ancil_fields )
+    nullify( surface_fields, ancil_fields, jules_forcing_fields )
 
     regrid_operation => map_scalar_intermesh
     if (use_multires_coupling) then
@@ -480,6 +482,14 @@ contains
     end if
 
 #ifdef UM_PHYSICS
+    ! Update the JULES site forcing fields to the end of timestep date
+    if ( jules_forcing ) then
+      jules_forcing_fields => &
+        modeldb%fields%get_field_collection("jules_forcing_fields")
+      call update_variable_fields( model_axes%jules_forcing_times_list, &
+                                   modeldb%clock, jules_forcing_fields )
+    end if
+
     ! If IAU is active and increments need to be added over a time window, then do this
     ! at the start of every ts within the required time window
     if ( iau ) then
