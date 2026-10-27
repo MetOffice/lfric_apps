@@ -73,7 +73,7 @@
         "target_grid_res": "N512",
         "target_grid_levs": "70",
         "target_grid_type": "global",
-        "source_dump": "/data/users/elliott.warren/lfric2um/sample_data/o-aa591/C224/20240620T0600Z/glu_lfric_ukv_dump.nc",
+        "source_dump": "/home/users/elliott.warren/cylc-run/o-aa947/C224/share/cycle/20240620T0600Z/glu_lfric_ukv_dump.nc",
         "namelist_src": "um_grid.nml",
         "memory_plot_ex": true,
         "kgo_checks": "",
