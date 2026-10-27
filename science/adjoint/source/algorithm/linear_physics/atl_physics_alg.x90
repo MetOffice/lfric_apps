@@ -82,7 +82,7 @@ subroutine atl_physics_alg(modeldb,    &
 
   if (LPROF) call start_timing(id, 'atl_physics_alg')
 
-  mm_vel => get_mass_matrix_fe(W2, mesh%get_id())
+  mm_vel => get_mass_matrix_fe(modeldb%config, mesh, W2)
 
   call u%copy_field_properties( u_bl_inc )
   call u%copy_field_properties( u_bl_inc_flux )
@@ -132,7 +132,7 @@ subroutine atl_physics_alg(modeldb,    &
                inc_X_plus_Y( state(igh_u), u_star ) )
 
   ! Adj of call mass_matrix_solver_alg(du, rhsu_np1)
-  call mass_matrix_solver_alg( rhsu_np1, du )
+  call mass_matrix_solver_alg( modeldb%config, rhsu_np1, du )
 
   ! Adj of inc_X_plus_Y(rhsu_np1, rhs_adv(igh_u))
   call invoke( inc_X_plus_Y( rhs_adv(igh_u), rhsu_np1 ) )

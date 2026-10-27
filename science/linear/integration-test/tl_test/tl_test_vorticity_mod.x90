@@ -148,7 +148,7 @@ module tl_test_vorticity_mod
                                        W2) )
 
     ! Intermediate lin state
-    call compute_vorticity_alg( ls_vorticity, ls_u, .false.)
+    call compute_vorticity_alg(modeldb%config, ls_vorticity, ls_u, .false.)
 
     ! Taylor Remainder Convergence Test
 
@@ -176,7 +176,7 @@ module tl_test_vorticity_mod
                    setval_X( n_u, ls_u ),            &
                    inc_X_plus_Y( n_u, p_u ) )
 
-      call compute_vorticity_alg(n_vorticity, n_u, .false.)
+      call compute_vorticity_alg(modeldb%config, n_vorticity, n_u, .false.)
 
       if ( vorticity_in_w1 ) then
         call invoke( vorticity_advection_kernel_type(n2_rhs_u,           &
@@ -188,7 +188,7 @@ module tl_test_vorticity_mod
                                                      chi, panel_id, qr) )
       end if
 
-      call compute_vorticity_alg(p_vorticity, p_u, .false.)
+      call compute_vorticity_alg(modeldb%config, p_vorticity, p_u, .false.)
       if ( vorticity_in_w1 ) then
         call invoke( tl_vorticity_advection_kernel_type(p_rhs_u,         &
                                                  p_u, p_vorticity,       &

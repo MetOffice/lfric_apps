@@ -64,8 +64,8 @@ contains
     prognostic_fields => modeldb%fields%get_field_collection("prognostics")
 
     ! Create prognostics
-    call create_shallow_water_prognostics( mesh,                         &
-                                           depository,                   &
+    call create_shallow_water_prognostics( mesh, &
+                                           depository, &
                                            prognostic_fields )
 
   end subroutine create_model_data
@@ -79,8 +79,8 @@ contains
 
     implicit none
 
-    type(modeldb_type),    intent(inout) :: modeldb
-    type(mesh_type), pointer, intent(in) :: mesh
+    type(modeldb_type), intent(inout) :: modeldb
+    type(mesh_type),    intent(in)    :: mesh
 
     type( field_collection_type ), pointer :: depository => null()
     type( field_collection_type ), pointer :: prognostic_fields => null()
@@ -99,8 +99,9 @@ contains
       call read_checkpoint(depository, &
                        modeldb%clock%get_first_step() - 1, checkpoint_stem_name)
     else                                      ! No check point to start from
-      call swe_init_fields_alg(mesh,                &
-                               s_geopot,            &
+      call swe_init_fields_alg(modeldb%config, &
+                               mesh,           &
+                               s_geopot,       &
                                prognostic_fields)
     end if
 

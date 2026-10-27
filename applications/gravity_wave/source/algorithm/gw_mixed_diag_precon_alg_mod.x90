@@ -15,6 +15,7 @@
 
 module gw_mixed_diag_precon_alg_mod
 
+  use config_mod,                     only: config_type
   use constants_mod,                  only: i_def
   use log_mod,                        only: log_event,       &
                                             LOG_LEVEL_ERROR, &
@@ -27,6 +28,7 @@ module gw_mixed_diag_precon_alg_mod
   use timing_mod,                     only: start_timing, stop_timing, &
                                             tik, LPROF
   use vector_mod,                     only: abstract_vector_type
+
 
   implicit none
 
@@ -73,9 +75,10 @@ contains
   !>
   !> @details This constructs all required fields and builds operators.
   !>
-  !> @param[in] mesh Mesh object
+  !> @param[in] config  Application configuration object
+  !> @param[in] mesh    Mesh object
   !> @return self The constructed preconditioner object
-  function gw_mixed_diag_preconditioner_constructor(mesh) result(self)
+  function gw_mixed_diag_preconditioner_constructor(config, mesh) result(self)
 
     use gravity_wave_constants_config_mod, only: b_space,    &
                                                  b_space_w0, &
@@ -89,33 +92,33 @@ contains
 
     implicit none
 
-    type(mesh_type), intent(in) :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
+
     type(gw_mixed_diag_preconditioner_type)  :: self
-    integer(kind=i_def) :: mesh_id
     type(field_type) :: diagonal
 
     call log_event('Constructing gravity waves mixed diag preconditioner...', &
                    LOG_LEVEL_INFO )
-    mesh_id = mesh%get_id()
 
     ! u diagonal
-    diagonal = get_mass_matrix_diagonal_fe(W2, mesh_id)
+    diagonal = get_mass_matrix_diagonal_fe(config, mesh, W2)
     call self%mm_diagonal_u%initialise(diagonal%get_function_space())
     call invoke(real_to_real_x(self%mm_diagonal_u, diagonal))
 
     ! p diagonal
-    diagonal = get_mass_matrix_diagonal_fe(W3, mesh_id)
+    diagonal = get_mass_matrix_diagonal_fe(config, mesh, W3)
     call self%mm_diagonal_p%initialise(diagonal%get_function_space())
     call invoke(real_to_real_x(self%mm_diagonal_p, diagonal))
 
     ! b diagonal
     select case(b_space)
       case(b_space_w0)
-        diagonal = get_mass_matrix_diagonal_fe(W0, mesh_id)
+        diagonal = get_mass_matrix_diagonal_fe(config, mesh, W0)
       case(b_space_w3)
-        diagonal = get_mass_matrix_diagonal_fe(W3, mesh_id)
+        diagonal = get_mass_matrix_diagonal_fe(config, mesh, W3)
       case(b_space_wtheta)
-        diagonal = get_mass_matrix_diagonal_fe(Wtheta, mesh_id)
+        diagonal = get_mass_matrix_diagonal_fe(config, mesh, Wtheta)
     end select
     call self%mm_diagonal_b%initialise(diagonal%get_function_space())
     call invoke(real_to_real_x(self%mm_diagonal_b, diagonal))
@@ -151,18 +154,21 @@ contains
   !> @details Apply the preconditioner by dividing each of the fields in
   !!          the field vector by its associated mass matrix.
   !>
-  !> @param[in,out] self Instance of type gw_mixed_preconditioner_type
-  !> @param[in]     x    Field-vector containing the residuals
-  !!                     \f$(\textbf{R}_u,R_p,r_b)\f$
-  !> @param[in,out] y    Field-vector containing the solution
-  !!                     \f$(\textbf{U},P,B)\f$ to be calculated
-  subroutine apply_gw_mixed_diag_preconditioner(self, x, y)
+  !> @param[in]     config  Application configuration object
+  !> @param[in]     x       Field-vector containing the residuals
+  !!                        \f$(\textbf{R}_u,R_p,r_b)\f$
+  !> @param[in,out] y       Field-vector containing the solution
+  !!                        \f$(\textbf{U},P,B)\f$ to be calculated
+  subroutine apply_gw_mixed_diag_preconditioner(self, config, x, y)
 
     use field_indices_mod, only: igw_u, igw_p, igw_b
 
     implicit none
 
     class(gw_mixed_diag_preconditioner_type), intent(inout) :: self
+
+    type(config_type), intent(in) :: config
+
     class(abstract_vector_type),              intent(in)    :: x
     class(abstract_vector_type),              intent(inout) :: y
 
