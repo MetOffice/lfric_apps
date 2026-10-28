@@ -102,6 +102,7 @@ module gungho_model_mod
   use jules_physics_init_mod,      only : jules_physics_init
   use planet_constants_mod,        only : set_planet_constants
   use socrates_init_mod,           only : socrates_init
+  use jules_forcing_init_mod,      only : jules_forcing_init
   use illuminate_alg_mod,          only : illuminate_alg
   use um_clock_init_mod,           only : um_clock_init
   use um_control_init_mod,         only : um_control_init
@@ -469,6 +470,9 @@ contains
       if (radiation == radiation_socrates) then
         ! Initialisation for the Socrates radiation scheme
         call socrates_init()
+      else if (config%initialization%jules_forcing()) then
+        ! Initialisation for JULES driven by site forcing data
+        call jules_forcing_init()
       end if
       ! Initialisation of UM high-level variables
       call um_control_init()
@@ -1058,8 +1062,10 @@ contains
     if ( use_physics ) then
       ! Initialise time-varying trace gases
       call gas_calc_all()
-      if (radiation == radiation_socrates) then
-        ! Initialisation for the Socrates radiation scheme
+      if (radiation == radiation_socrates .or. &
+          modeldb%config%initialization%jules_forcing()) then
+        ! Initialisation of the solar position for the Socrates radiation
+        ! scheme, or for JULES driven by site forcing data
         radiation_fields => modeldb%fields%get_field_collection("radiation_fields")
         dt = real(modeldb%clock%get_seconds_per_step(), r_def)
         call illuminate_alg( modeldb%config, radiation_fields,                    &

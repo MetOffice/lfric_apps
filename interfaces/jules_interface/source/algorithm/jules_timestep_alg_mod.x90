@@ -30,7 +30,9 @@ module jules_timestep_alg_mod
 
   ! JULES Science routines
   use apply_jules_forcing_alg_mod, only: apply_jules_forcing_alg
+  use illuminate_alg_mod,        only: illuminate_alg
   use rad_tile_alg_mod,          only: rad_tile_alg
+  use jules_forcing_sw_up_kernel_mod, only: jules_forcing_sw_up_kernel_type
   use jules_exp_alg_mod,         only: jules_exp_alg
   use jules_imp_alg_mod,         only: jules_imp_alg
   use jules_extra_alg_mod,       only: jules_extra_alg
@@ -249,6 +251,8 @@ contains
     type( field_type ), pointer :: exner_in_wth => null()
 
     type( field_collection_type ), pointer :: jules_forcing_fields
+    type( field_type ), pointer :: sw_down_surf
+    type( field_type ), pointer :: sw_up_tile
 
     integer(kind=i_def), parameter  :: outer = 1
     integer(i_def) :: loop
@@ -275,8 +279,13 @@ contains
 
     ncells = twod_mesh%get_last_edge_cell()
 
+    dt = real(model_clock%get_seconds_per_step(), r_def)
+
     ! Set the fields driving JULES from the site forcing data
     if ( modeldb%config%initialization%jules_forcing() ) then
+      ! Solar position over the timestep, for the surface albedo and canopy
+      call illuminate_alg( modeldb%config, radiation_fields, &
+                           model_clock%get_step(), dt )
       jules_forcing_fields => &
         modeldb%fields%get_field_collection("jules_forcing_fields")
       call apply_jules_forcing_alg( theta, mr, jules_forcing_fields, &
@@ -294,6 +303,16 @@ contains
                       radiation_fields, orography_fields,                  &
                       surface_fields, soil_fields, snow_fields,            &
                       twod_mesh, model_clock%get_step())
+
+    ! Without a radiation scheme, set the reflected SW on tiles from the
+    ! JULES tile albedos and the site forcing downward SW
+    if ( modeldb%config%initialization%jules_forcing() ) then
+      call radiation_fields%get_field('sw_down_surf', sw_down_surf)
+      call radiation_fields%get_field('sw_up_tile', sw_up_tile)
+      call invoke( jules_forcing_sw_up_kernel_type( sw_up_tile,             &
+                                                    tile_sw_diffuse_albedo, &
+                                                    sw_down_surf ) )
+    end if
 
     call jules_exp_alg(modeldb, theta, mr,                                 &
                        derived_fields, radiation_fields,                   &

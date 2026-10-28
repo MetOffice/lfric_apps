@@ -116,6 +116,7 @@ subroutine illuminate_code(nlayers,                          &
   use radiation_config_mod, only: n_radstep, n_horiz_ang, n_horiz_layer, &
                                   topography, &
                                   topography_slope, topography_horizon
+  use section_choice_config_mod, only: radiation, radiation_socrates
   use cosp_config_mod, only: l_cosp, n_cosp_step
   use star_config_mod, only: stellar_constant
   use orbit_config_mod, only:                                                &
@@ -159,6 +160,7 @@ subroutine illuminate_code(nlayers,                          &
   ! Local variables for the kernel
   integer(i_def), parameter :: n_profile = 1
   integer(i_def) :: i_elements, i_spin
+  integer(i_def) :: radstep
   integer(i_def) :: n_horizon_angle, n_horizon_layer
   integer :: h_ang_1, h_ang_last
   integer :: h_asp_1, h_asp_last
@@ -213,7 +215,15 @@ subroutine illuminate_code(nlayers,                          &
   h_asp_last = map_h_asp(1) + max(n_horizon_angle - 1, 0)
 
 
-  if (mod(timestep-1_i_def, n_radstep) == 0) then
+  ! Without a radiation scheme there is no radiation timestep, so the
+  ! stellar position is calculated on every model timestep
+  if (radiation == radiation_socrates) then
+    radstep = n_radstep
+  else
+    radstep = 1_i_def
+  end if
+
+  if (mod(timestep-1_i_def, radstep) == 0) then
     ! Calculate parameters for external illumination of the atmosphere
     ! over the radiation timestep
     call illuminate(                                                           &
@@ -229,7 +239,7 @@ subroutine illuminate_code(nlayers,                          &
       year                    = current_year,                                  &
       day_of_year             = day_of_year,                                   &
       second_of_day           = second_of_day,                                 &
-      length_of_timestep      = dt*real(n_radstep, r_def),                     &
+      length_of_timestep      = dt*real(radstep, r_def),                       &
       epoch                   = epoch,                                         &
       eccentricity            = eccentricity,                                  &
       eccentricity_inc        = eccentricity_inc,                              &
@@ -262,7 +272,7 @@ subroutine illuminate_code(nlayers,                          &
       orographic_correction   = orographic_correction_rts(map_2d(1):map_2d(1)) )
   end if
 
-  if (n_radstep == 1) then
+  if (radstep == 1) then
     cos_zenith_angle(map_2d(1):map_2d(1)) &
       = cos_zenith_angle_rts(map_2d(1):map_2d(1))
     lit_fraction(map_2d(1):map_2d(1)) &
@@ -291,7 +301,7 @@ subroutine illuminate_code(nlayers,                          &
     if (n_cosp_step == 1) then
       lit_fraction_cosp(map_2d(1):map_2d(1)) &
         = lit_fraction(map_2d(1):map_2d(1))
-    else if (n_cosp_step == n_radstep) then
+    else if (n_cosp_step == radstep) then
       lit_fraction_cosp(map_2d(1):map_2d(1)) &
         = lit_fraction_rts(map_2d(1):map_2d(1))
     else if (mod(timestep-1_i_def, n_cosp_step) == 0) then

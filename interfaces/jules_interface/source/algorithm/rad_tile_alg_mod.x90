@@ -228,9 +228,11 @@ subroutine rad_tile_alg(config,                                              &
 
     dz_wth => get_dz_at_wtheta(config, u_in_w3%get_mesh())
 
-    ! SW albedos only required on radiation timesteps
-    if (radiation == radiation_socrates .and. &
-         mod(timestep-1_i_def, n_radstep) == 0) then
+    ! SW albedos only required on radiation timesteps, or every timestep
+    ! with JULES site forcing
+    if ( (radiation == radiation_socrates .and. &
+          mod(timestep-1_i_def, n_radstep) == 0) .or. &
+         config%initialization%jules_forcing() ) then
       ! Scalar arrays passed through module scope until kernels can handle them
       wavelength_short => sw_wavelength_short
       wavelength_long => sw_wavelength_long

@@ -1,5 +1,5 @@
 &base_mesh
-f_lat_deg=37.65,
+f_lat_deg=52.10,
 file_prefix='mesh_1x1-50000x50000',
 fplane=.false.,
 geometry='planar',
@@ -89,7 +89,7 @@ si_pressure_maximum_iterations=400,
 si_pressure_tolerance=1.0e-4,
 /
 &idealised
-f_lon_deg=263.265,
+f_lon_deg=359.58,
 perturb_init=.false.,
 test='specified_profiles',
 /
