@@ -482,6 +482,19 @@ contains
     end if
 
 #ifdef UM_PHYSICS
+    ! Update the JULES site forcing fields. The time axis reads its data for
+    ! the time window it was aligned to on the previous update, before moving
+    ! the window on to the current (end of timestep) date. Updating after the
+    ! clock has ticked therefore gives the forcing for the start of the
+    ! timestep, provided the data is re-read every timestep (the output_freq
+    ! of the jules_forcing file must equal the timestep).
+    if ( jules_forcing ) then
+      jules_forcing_fields => &
+        modeldb%fields%get_field_collection("jules_forcing_fields")
+      call update_variable_fields( model_axes%jules_forcing_times_list, &
+                                   modeldb%clock, jules_forcing_fields )
+    end if
+
     ! If IAU is active and increments need to be added over a time window, then do this
     ! at the start of every ts within the required time window
     if ( iau ) then
@@ -510,16 +523,6 @@ contains
     end if
 
 #ifdef UM_PHYSICS
-    ! Update the JULES site forcing fields for the next timestep. As for the
-    ! ancillaries below, this is done last in the timestep so that the
-    ! forcing used by a timestep is that of the start of the timestep.
-    if ( jules_forcing ) then
-      jules_forcing_fields => &
-        modeldb%fields%get_field_collection("jules_forcing_fields")
-      call update_variable_fields( model_axes%jules_forcing_times_list, &
-                                   modeldb%clock, jules_forcing_fields )
-    end if
-
     ! Update time-varying ancillaries
     ! This is done last in the timestep, because the time data of the
     ! ancillaries needs to be that of the start of timestep, but the
