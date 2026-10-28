@@ -34,6 +34,7 @@ contains
                                   glomap_mode_climatology,   &
                                   glomap_mode_dust_and_clim, &
                                   glomap_mode_ukca,          &
+                                  easyaerosol_cdnc,          &
                                   l_radaer, murk,            &
                                   murk_prognostic
 
@@ -284,14 +285,13 @@ contains
                    setval_c(surf_wetness,          0.0_r_def), &
                    setval_c(dust_mrel,           0.167_r_def), &
                    setval_c(dust_flux,             0.0_r_def), &
-                   ! CDNC and particle properties prior to their calculation
-                   ! at the first chemistry timestep.
+                   ! Particle properties prior to their calculation
+                   ! at the first chemistry timestep. (CDNC is set below.)
                    ! Note: zero partial volume values (pvol_*) here cause
                    ! RADAER to avoid calculation of non-zero optical properties
                    ! for aerosol introduced by emissions since these would
                    ! be invalid prior to the availability of consistent
                    ! particle property values from UKCA's aerosol processing.
-                   setval_c(cloud_drop_no_conc,  1.0e8_r_def), &
                    setval_c(drydp_ait_sol,         0.0_r_def), &
                    setval_c(drydp_acc_sol,         0.0_r_def), &
                    setval_c(drydp_cor_sol,         0.0_r_def), &
@@ -359,10 +359,8 @@ contains
                    setval_c(soil_sand,             0.2_r_def), &
                    setval_c(dust_mrel,           0.167_r_def), &
                    setval_c(dust_flux,             0.0_r_def), &
-                   ! Default values of CDNC for microphysics and
-                   ! particle properties for RADAER if not output by the
-                   ! GLOMAP climatology scheme.
-                   setval_c(cloud_drop_no_conc,  1.0e8_r_def), &
+                   ! Default values of particle properties for RADAER if not
+                   ! output by the GLOMAP climatology scheme. (CDNC is set below.)
                    setval_c(drydp_ait_sol,         0.0_r_def), &
                    setval_c(drydp_acc_sol,         0.0_r_def), &
                    setval_c(drydp_cor_sol,         0.0_r_def), &
@@ -434,9 +432,7 @@ contains
                    setval_c(soil_sand,             0.0_r_def), &
                    setval_c(dust_mrel,             0.0_r_def), &
                    setval_c(dust_flux,             0.0_r_def), &
-                   ! CDNC for use in microphysics and particle properties
-                   ! for use in RADAER.
-                   setval_c(cloud_drop_no_conc,  1.0e8_r_def), &
+                   ! Particle properties for use in RADAER. (CDNC is set below.)
                    setval_c(drydp_ait_sol,      1.0e-7_r_def), &
                    setval_c(drydp_acc_sol,      1.0e-7_r_def), &
                    setval_c(drydp_cor_sol,      1.0e-6_r_def), &
@@ -474,8 +470,8 @@ contains
     else
 
       ! No GLOMAP-mode aerosol scheme and no requirement for mode-specific
-      ! output. Set CDNC to fixed value for microphysics. Other aerosol
-      ! fields are not used so set to zero.
+      ! output. CDNC is set to a fixed value below for microphysics. Other
+      ! aerosol fields are not used so set to zero.
       call invoke( setval_c(n_ait_sol,             0.0_r_def), &
                    setval_c(ait_sol_su,            0.0_r_def), &
                    setval_c(ait_sol_bc,            0.0_r_def), &
@@ -500,9 +496,7 @@ contains
                    setval_c(soil_clay,             0.0_r_def), &
                    setval_c(soil_sand,             0.0_r_def), &
                    setval_c(dust_mrel,             0.0_r_def), &
-                   setval_c(dust_flux,             0.0_r_def), &
-                   ! CDNC and particle properties
-                   setval_c(cloud_drop_no_conc,  1.0e8_r_def))
+                   setval_c(dust_flux,             0.0_r_def))
       if (aerosol == aerosol_um) then
         call invoke(setval_c(drydp_ait_sol,         0.0_r_def), &
                     setval_c(drydp_acc_sol,         0.0_r_def), &
@@ -539,6 +533,12 @@ contains
                     setval_c(pvol_du_cor_ins,       0.0_r_def))
       end if
 
+    end if
+
+    ! CDNC is set to a fixed value in every case above, except where it is read
+    ! from an ancillary by the file object (updating mode), which then owns it.
+    if ( .not. ( easyaerosol_cdnc .and. ancil_option == ancil_option_updating ) ) then
+      call invoke( setval_c(cloud_drop_no_conc, 1.0e8_r_def) )
     end if
 
   end subroutine init_aerosol_fields_alg
