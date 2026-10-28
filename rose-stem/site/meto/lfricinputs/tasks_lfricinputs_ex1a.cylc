@@ -21,13 +21,15 @@
 {% elif task_ns.conf_name == "lfric2um-nwp_gal9-C896L70_N320L70" %}
 
     {% do task_dict.update({
-        "mpi_parts": 510,
+        "mpi_parts": 576,
+        "wallclock": 30,
     }) %}
 
 {% elif task_ns.conf_name == "lfric2um-nwp_gal9-C896L70_N1280L70" %}
 
     {% do task_dict.update({
-        "mpi_parts": 636,
+        "mpi_parts": 768,
+        "wallclock": 30,
     }) %}
 
 {% elif task_ns.conf_name == "um2lfric-nwp_gal9-N320L70_C224L70" %}
