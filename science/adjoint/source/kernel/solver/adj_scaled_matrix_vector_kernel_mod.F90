@@ -29,7 +29,7 @@ module adj_scaled_matrix_vector_kernel_mod
       arg_type(GH_OPERATOR, GH_REAL, GH_READ,      W2, W3), &
       arg_type(GH_FIELD,    GH_REAL, GH_READ,      W2),     &
       arg_type(GH_FIELD,    GH_REAL, GH_READ,      W2),     &
-      arg_type(GH_SCALAR,   GH_REAL, GH_READ)              &
+      arg_type(GH_SCALAR,   GH_REAL, GH_READ)               &
       /)
     integer :: operates_on = CELL_COLUMN
   contains

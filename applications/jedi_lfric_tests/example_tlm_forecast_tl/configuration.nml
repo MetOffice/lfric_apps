@@ -69,10 +69,8 @@ stochastic_physics='none',
 surface='none',
 /
 &convection
-dx_ref=50000.0,
 l_cvdiag_ctop_qmax=.false.,
 qlmin=4.0e-4,
-resdep_precipramp=.false.,
 /
 &cosp
 l_cosp=.false.,

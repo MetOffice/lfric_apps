@@ -895,7 +895,7 @@ contains
     !--------------------------------------------------------------------
     ! Compute the time-level n dynamics terms
     !--------------------------------------------------------------------
-    call rhs_alg( self%rhs_n, varbeta*cast_dt,                    &
+    call rhs_alg( self%config, self%rhs_n, varbeta*cast_dt,       &
                   self%state_after_slow, self%state_n, moist_dyn, &
                   compute_eos=.false., compute_rhs_t_d=.true.,    &
                   dlayer_rhs=.false., stepper=stepper_siqn,       &
@@ -978,7 +978,7 @@ contains
                                                       self%dtheta, mm_wt) )
 
         ! Compute the time-level n+1 dynamics terms
-        call rhs_alg( self%rhs_np1, -varalpha*cast_dt,              &
+        call rhs_alg( self%config, self%rhs_np1, -varalpha*cast_dt, &
                       self%state, self%state, moist_dyn,            &
                       compute_eos=.true., compute_rhs_t_d=.true.,   &
                       dlayer_rhs=dlayer_on, stepper=stepper_siqn,   &
@@ -1067,7 +1067,7 @@ contains
           ! Compute the time-level n+1 dynamics terms
           !--------------------------------------------------------------------
           if (inner > 1) then
-            call rhs_alg( self%rhs_np1, -varalpha*cast_dt,              &
+            call rhs_alg( self%config, self%rhs_np1, -varalpha*cast_dt, &
                           self%state, self%state, moist_dyn,            &
                           compute_eos=.true., compute_rhs_t_d=.false.,  &
                           dlayer_rhs=dlayer_on, stepper=stepper_siqn,   &
@@ -1131,6 +1131,11 @@ contains
                                               mr,                       &
                                               first_iteration=(inner==1), &
                                               stepper=stepper_siqn )
+
+          if (write_moisture_diag) then
+            call moisture_conservation_alg(self%config, self%state(igh_d), mr, &
+                                           'After solve')
+          end if
 
           ! If not already done update factors for moist dynamics
           if ( .not. guess_np1 .and. self%use_moisture ) &
@@ -1273,6 +1278,7 @@ contains
          ( glomap_mode == glomap_mode_ukca .or. &
            glomap_mode == glomap_mode_dust_and_clim ) ) then
       call aerosol_ukca_alg ( self%config,                               &
+                              modeldb%values,                            &
                               chemistry_fields, aerosol_fields,          &
                               radiation_fields, derived_fields,          &
                               microphysics_fields, turbulence_fields,    &

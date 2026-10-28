@@ -21,7 +21,7 @@ subroutine comorph_main( max_points, ij_first, ij_last,                        &
                          n_fields_tot, l_tracer,                               &
                          grid, turb, cloudfracs, fields,                       &
                          layer_mass, virt_temp_n, virt_temp_np1,               &
-                         l_init_poss, comorph_diags )
+                         virt_temp_half, l_init_poss, comorph_diags )
 
 use comorph_constants_mod, only: real_hmprec, real_cvprec,                     &
                                  nx_full, ny_full,                             &
@@ -95,6 +95,9 @@ real(kind=real_hmprec), intent(in) :: virt_temp_n                              &
 ! Latest fields
 real(kind=real_hmprec), intent(in) :: virt_temp_np1                            &
                 ( nx_full, ny_full, k_bot_conv:k_top_conv )
+! Latest virtual temperature interpolated to half-levels
+real(kind=real_hmprec), intent(in) :: virt_temp_half                           &
+                ( nx_full, ny_full, k_bot_conv:k_top_conv+1 )
 
 ! 3-D mask of points where convective initiation mass-sources
 ! for updrafts or downdrafts might be possible
@@ -254,7 +257,7 @@ if ( n_updraft_layers > 0 .or. n_dndraft_layers > 0 ) then
                          l_tracer, l_down, l_fallback,                         &
                          l_output_fallback,                                    &
                          grid, layer_mass, turb,                               &
-                         fields, virt_temp_np1,                                &
+                         fields, virt_temp_np1, virt_temp_half,                &
                          updraft_par_gen,                                      &
                          updraft_res_source,                                   &
                          updraft_fields_2d,                                    &
@@ -276,7 +279,7 @@ if ( n_updraft_layers > 0 .or. n_dndraft_layers > 0 ) then
                            l_tracer, l_down, l_fallback,                       &
                            l_output_fallback,                                  &
                            grid, layer_mass, turb,                             &
-                           fields, virt_temp_np1,                              &
+                           fields, virt_temp_np1, virt_temp_half,              &
                            updraft_fallback_par_gen,                           &
                            updraft_fallback_res_source,                        &
                            updraft_fields_2d,                                  &
@@ -331,7 +334,7 @@ if ( n_updraft_layers > 0 .or. n_dndraft_layers > 0 ) then
                          l_tracer, l_down, l_fallback,                         &
                          l_output_fallback,                                    &
                          grid, layer_mass, turb,                               &
-                         fields, virt_temp_np1,                                &
+                         fields, virt_temp_np1, virt_temp_half,                &
                          dndraft_par_gen,                                      &
                          dndraft_res_source,                                   &
                          dndraft_fields_2d,                                    &
@@ -353,7 +356,7 @@ if ( n_updraft_layers > 0 .or. n_dndraft_layers > 0 ) then
                            l_tracer, l_down, l_fallback,                       &
                            l_output_fallback,                                  &
                            grid, layer_mass, turb,                             &
-                           fields, virt_temp_np1,                              &
+                           fields, virt_temp_np1, virt_temp_half,              &
                            dndraft_fallback_par_gen,                           &
                            dndraft_fallback_res_source,                        &
                            dndraft_fields_2d,                                  &

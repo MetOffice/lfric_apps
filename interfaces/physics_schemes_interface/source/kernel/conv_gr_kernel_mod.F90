@@ -14,7 +14,7 @@ module conv_gr_kernel_mod
                                       GH_READWRITE, DOMAIN,      &
                                       ANY_DISCONTINUOUS_SPACE_1, &
                                       ANY_DISCONTINUOUS_SPACE_2
-  use constants_mod,           only : i_def, i_um, r_def, r_um
+  use constants_mod,           only : i_def, i_um, r_def, r_um, rmdi
   use tuning_segments_mod,     only : conv_gr_segment_size
   use empty_data_mod,          only : empty_real_data
   use fs_continuity_mod,       only : W3, Wtheta
@@ -1300,7 +1300,7 @@ contains
     do i = 1, ncells
       cumulus(i,1) = (cumulus_2d(map_2d(1,i)) == 1_i_def)
       ntml(i,1) = ntml_2d(map_2d(1,i))
-  
+
       zh(i,1) = zh_2d(map_2d(1,i))
       l_shallow(i,1) = (shallow_flag(map_2d(1,i)) == 1_i_def)
       uw0(i,1) = uw0_flux(map_2d(1,i))
@@ -1349,7 +1349,7 @@ contains
         q_conv(i,1,k)   = m_v(map_wth(1,i) + k)
         qcl_conv(i,1,k) = m_cl(map_wth(1,i) + k)
         qcf_conv(i,1,k) = m_cf(map_wth(1,i) + k)
-  
+
         cf_liquid_conv(i,1,k) = cf_liq(map_wth(1,i) + k)
         cf_frozen_conv(i,1,k) = cf_ice(map_wth(1,i) + k)
         bulk_cf_conv(i,1,k)   = cf_bulk(map_wth(1,i) + k)
@@ -2728,7 +2728,7 @@ contains
           if (cct(i,1) > 0) then
             pres_cv_top(map_2d(1,i)) = p_rho_levels(i,1,cct(i,1))
           else
-            pres_cv_top(map_2d(1,i)) = 0.0_r_def
+            pres_cv_top(map_2d(1,i)) = rmdi
           end if
         end do
       end if
@@ -2737,7 +2737,7 @@ contains
           if (ccb(i,1) > 0) then
             pres_cv_base(map_2d(1,i)) = p_rho_levels(i,1,ccb(i,1))
           else
-            pres_cv_base(map_2d(1,i))= 0.0_r_def
+            pres_cv_base(map_2d(1,i))= rmdi
           end if
         end do
       end if
@@ -2748,7 +2748,7 @@ contains
           if (lctop(i,1) > 0) then
             pres_lowest_cv_top(map_2d(1,i)) = p_rho_levels(i,1,lctop(i,1))
           else
-            pres_lowest_cv_top(map_2d(1,i)) = 0.0_r_def
+            pres_lowest_cv_top(map_2d(1,i)) = rmdi
           end if
         end do
       end if
@@ -2757,7 +2757,7 @@ contains
           if (lcbase(i,1) > 0) then
             pres_lowest_cv_base(map_2d(1,i)) = p_rho_levels(i,1,lcbase(i,1))
           else
-            pres_lowest_cv_base(map_2d(1,i))= 0.0_r_def
+            pres_lowest_cv_base(map_2d(1,i))= rmdi
           end if
         end do
       end if

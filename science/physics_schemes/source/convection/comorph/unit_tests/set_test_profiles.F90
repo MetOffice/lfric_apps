@@ -72,7 +72,7 @@ real(kind=real_hmprec) :: R_dry
 real(kind=real_hmprec) :: R_vap
 
 ! Top of model height
-real(kind=real_hmprec), parameter :: z_top = 20000.0_real_hmprec
+real(kind=real_hmprec), parameter :: z_top = 30000.0_real_hmprec
 ! Other heights used to set up basic state:
 !   - Top of surface statically-unstable layer:
 real(kind=real_hmprec), parameter :: z_sfc = 200.0_real_hmprec
@@ -105,8 +105,12 @@ real(kind=real_hmprec) :: virt_temp                                            &
 real(kind=real_hmprec) :: diffusivity                                          &
     ( nx_full, ny_full, 1:k_top_init+1 )
 
+! Temporary work-space used for vertical smoothing
+real(kind=real_hmprec) :: work                                                 &
+    ( nx_full, ny_full, 2:k_top_conv-1 )
+
 ! Loop counters
-integer :: i, j, k, i_field, n
+integer :: i, j, k, i_field, n, m
 
 
 ! Convert constants to host-model precision
@@ -216,6 +220,25 @@ do k = 1, k_top_conv
   end do
 end do
 
+! Vertically-smooth Tv
+do m = 1, 1
+  do k = 2, k_top_conv-1
+    do j = 1, ny_full
+      do i = 1, nx_full
+        work(i,j,k) = 0.5  * virt_temp(i,j,k)                                  &
+                    + 0.25 * virt_temp(i,j,k-1)                                &
+                    + 0.25 * virt_temp(i,j,k+1)
+      end do
+    end do
+  end do
+  do k = 2, k_top_conv-1
+    do j = 1, ny_full
+      do i = 1, nx_full
+        virt_temp(i,j,k) = work(i,j,k)
+      end do
+    end do
+  end do
+end do
 
 ! Set pressure approximately in hydrostatic balance:
 ! dp/dz = -rho g = -p/(R Tv) g
@@ -287,8 +310,33 @@ do n = 1, 10
         ! Set RH between 60% and 70%, varying in the i-direction
         fields % q_vap(i,j,k) = real(work_qs(i),real_hmprec)                   &
             * ( 0.6_real_hmprec + 0.1_real_hmprec                              &
-                          * real(i,real_hmprec)                                &
+                          * real(i-1,real_hmprec)                              &
                           / real(nx_full,real_hmprec) )
+        if ( grid % height_full(i,j,k) <= z_pbl ) then
+          ! Increase RH as we go up through the SML, closer to well-mixed qv.
+          fields % q_vap(i,j,k) = 0.2 * fields % q_vap(i,j,k)                  &
+                                + 0.8 * fields % q_vap(i,j,1)
+        end if
+      end do
+    end do
+  end do
+
+  ! Vertically-smooth qv
+  do m = 1, 1
+    do k = 2, k_top_conv-1
+      do j = 1, ny_full
+        do i = 1, nx_full
+          work(i,j,k) = 0.5  * fields % q_vap(i,j,k)                           &
+                      + 0.25 * fields % q_vap(i,j,k-1)                         &
+                      + 0.25 * fields % q_vap(i,j,k+1)
+        end do
+      end do
+    end do
+    do k = 2, k_top_conv-1
+      do j = 1, ny_full
+        do i = 1, nx_full
+          fields % q_vap(i,j,k) = work(i,j,k)
+        end do
       end do
     end do
   end do
@@ -562,6 +610,12 @@ if ( l_turb_par_gen ) then
         turb % lengthscale(i,j,k)                                              &
           = (one-interp) * diffusivity(i,j,k)   / sqrt( turb % w_var(i,j,k) )  &
           +      interp  * diffusivity(i,j,k+1) / sqrt( turb % w_var(i,j,k+1) )
+        ! Apply tuning scaling and impose a height-varying minimum allowed
+        ! lengthscale (copying what is done in the UM, in calc_turb_len).
+        turb % lengthscale(i,j,k)                                              &
+          = max( 8.0_real_hmprec * turb % lengthscale(i,j,k),                  &
+                 min( 0.55555_real_hmprec * grid % height_full(i,j,k),         &
+                      1111.1_real_hmprec ) )
       end do
     end do
   end do

@@ -969,9 +969,9 @@ contains
 
     ! rhs_n = M[X^dag - gamma*dt*F[X^n]]
     call rhs_alg(                                                              &
-            self%rhs_n, gamma*dt, self%state_dag, self%state_n, moist_dyn,     &
-            compute_eos=.false., compute_rhs_t_d=.true., dlayer_rhs=.false.,   &
-            stepper=stepper_tr, model_clock=model_clock                        &
+            self%config, self%rhs_n, gamma*dt, self%state_dag, self%state_n,   &
+            moist_dyn, compute_eos=.false., compute_rhs_t_d=.true.,            &
+            dlayer_rhs=.false., stepper=stepper_tr, model_clock=model_clock    &
     )
 
     ! ======================================================================== !
@@ -1061,8 +1061,8 @@ contains
           ! Forcings: time-level m
           ! --------------------------------------------------------------------
           call rhs_alg(                                                        &
-              self%rhs_m, -gamma*dt, self%state_m, self%state_m, moist_dyn,    &
-              compute_eos=.true., compute_rhs_t_d=(inner==1),                  &
+              self%config, self%rhs_m, -gamma*dt, self%state_m, self%state_m,  &
+              moist_dyn, compute_eos=.true., compute_rhs_t_d=(inner==1),       &
               dlayer_rhs=dlayer_on, stepper=stepper_tr,                        &
               model_clock=model_clock                                          &
           )
@@ -1259,9 +1259,10 @@ contains
         ! ----------------------------------------------------------------------
         ! Used for fast physics predictors, so calculated here
         call rhs_alg(                                                          &
-            self%rhs_np1, -gamma2*dt, self%state, self%state, moist_dyn,       &
-            compute_eos=.true., compute_rhs_t_d=.true., dlayer_rhs=dlayer_on,  &
-            stepper=stepper_bdf2, model_clock=model_clock                      &
+            self%config, self%rhs_np1, -gamma2*dt, self%state, self%state,     &
+            moist_dyn, compute_eos=.true., compute_rhs_t_d=.true.,             &
+            dlayer_rhs=dlayer_on, stepper=stepper_bdf2,                        &
+            model_clock=model_clock                                            &
         )
       else  ! No wavedynamics
         call set_bundle_scalar(0.0_r_def, self%rhs_adv, bundle_size)
@@ -1349,8 +1350,8 @@ contains
           ! --------------------------------------------------------------------
           if (inner > 1) then
             call rhs_alg(                                                      &
-                self%rhs_np1, -gamma2*dt, self%state, self%state, moist_dyn,   &
-                compute_eos=.true., compute_rhs_t_d=.false.,                   &
+                self%config, self%rhs_np1, -gamma2*dt, self%state, self%state, &
+                moist_dyn, compute_eos=.true., compute_rhs_t_d=.false.,        &
                 dlayer_rhs=dlayer_on, stepper=stepper_bdf2,                    &
                 model_clock=model_clock                                        &
             )
@@ -1563,7 +1564,7 @@ contains
         (glomap_mode == glomap_mode_ukca .or.                                  &
          glomap_mode == glomap_mode_dust_and_clim)) then
       call aerosol_ukca_alg(                                                   &
-          self%config, chemistry_fields, aerosol_fields,                       &
+          self%config, modeldb%values, chemistry_fields, aerosol_fields,       &
           radiation_fields, derived_fields, microphysics_fields,               &
           turbulence_fields, convection_fields, cloud_fields, surface_fields,  &
           soil_fields, self%state, mr, model_clock                             &

@@ -14,7 +14,7 @@ module apply_mixed_u_operator_kernel_mod
 use argument_mod,      only : arg_type,              &
                               GH_FIELD, GH_OPERATOR, &
                               GH_READ,               &
-                              GH_WRITE,              &
+                              GH_READWRITE,          &
                               GH_SCALAR,             &
                               GH_REAL, CELL_COLUMN
 use constants_mod,     only : r_solver, i_def
@@ -30,15 +30,15 @@ private
 
 type, public, extends(kernel_type) :: apply_mixed_u_operator_kernel_type
   private
-  type(arg_type) :: meta_args(8) = (/                       &
-       arg_type(GH_FIELD,    GH_REAL, GH_WRITE, W2broken),  & ! lhs_uv
-       arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2h),       & ! uv'
-       arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2v),       & ! w'
-       arg_type(GH_FIELD,    GH_REAL, GH_READ,  W3),        & ! exner'
-       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W2, W2),    & ! Mu^{c,d}
-       arg_type(GH_OPERATOR, GH_REAL, GH_READ,  W2, W3),    & ! grad
-       arg_type(GH_FIELD,    GH_REAL, GH_READ,  W2),        & ! norm_u
-       arg_type(GH_SCALAR,   GH_REAL, GH_READ)              & ! const_u
+  type(arg_type) :: meta_args(8) = (/                           &
+       arg_type(GH_FIELD,    GH_REAL, GH_READWRITE, W2broken),  & ! lhs_uv
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,      W2h),       & ! uv'
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,      W2v),       & ! w'
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,      W3),        & ! exner'
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,      W2, W2),    & ! Mu^{c,d}
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,      W2, W3),    & ! grad
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,      W2),        & ! norm_u
+       arg_type(GH_SCALAR,   GH_REAL, GH_READ)                  & ! const_u
        /)
   integer :: operates_on = CELL_COLUMN
   contains
@@ -139,7 +139,7 @@ subroutine apply_mixed_u_operator_code(cell,                          &
     iw2h = map_w2hb(df)
     iw2  = map_w2(df)
     lhs_uv(iw2h:iw2h+nm1) = - const_u*norm_u(iw2:iw2+nm1)   &
-                           *grad(ij:ij+nm1, df, 1)*exner(iw3:iw3+nm1)
+                             *grad(ij:ij+nm1, df, 1)*exner(iw3:iw3+nm1)
   end do
   do df2 = 1, ndf_w2h
     do df = 1, ndf_w2h

@@ -24,7 +24,7 @@
         {% do task_dict.update({"app_name": app_name}) %}
     {% endif %}
     {% if "kgo_checks" not in task_dict %}
-        {% do task_dict.update({"kgo_checks": ["rose_ana"]}) %}
+        {% do task_dict.update({"kgo_checks": ["full_kgo"]}) %}
     {% endif %}
 {% endif %}
 
