@@ -19,6 +19,7 @@ module adj_pressure_precon_alg_mod
   type, public, extends(abstract_hierarchical_preconditioner_type) :: adj_pressure_preconditioner_type
 
    integer(kind=i_def) :: level
+   integer(kind=i_def) :: stepper
 
    contains
      procedure, public  :: apply => apply_adj_pressure_preconditioner
@@ -42,19 +43,22 @@ module adj_pressure_precon_alg_mod
 contains
 
   !> @brief Constructs a adj_pressure_preconditioner_type object
-  !> @param[in] level Multigrid level
+  !> @param[in] level   Multigrid level
+  !> @param[in] stepper Timestepper enumerator used to select operators
   !> @return self The constructed preconditioner object
-  function adj_pressure_preconditioner_constructor(level) result(self)
+  function adj_pressure_preconditioner_constructor(level, stepper) result(self)
 
     use log_mod, only: log_event, LOG_LEVEL_INFO
 
     implicit none
 
     integer(kind=i_def), intent(in)        :: level
+    integer(kind=i_def), intent(in)        :: stepper
     type(adj_pressure_preconditioner_type) :: self
 
     call log_event( 'Constructing adjoint pressure preconditioner...', LOG_LEVEL_INFO )
     self%level = level
+    self%stepper = stepper
     call log_event( 'done', LOG_LEVEL_INFO )
 
   end function adj_pressure_preconditioner_constructor
@@ -70,6 +74,7 @@ contains
     class(adj_pressure_preconditioner_type), intent(out) :: dest
 
     dest%level = source%level
+    dest%stepper = source%stepper
 
   end subroutine adj_pressure_preconditioner_assign
 
@@ -98,7 +103,7 @@ contains
       select type(y)
       type is(r_solver_field_vector_type)
         ! Multiply by inverse of vertical operator \f$ H_z \f$ (adjoint)
-        tri => get_tri_precon(self%level)
+        tri => get_tri_precon(self%stepper, self%level)
         x_vec => x%get_field_from_position(1)
         y_vec => y%get_field_from_position(1)
         call invoke(adj_tri_solve_kernel_type( y_vec, x_vec, tri ))
@@ -121,7 +126,7 @@ contains
     class(adj_pressure_preconditioner_type),                       intent(inout) :: self
     class(abstract_hierarchical_preconditioner_type), allocatable, intent(inout) :: other
 
-    allocate( other, source=adj_pressure_preconditioner_type(self%level+1) )
+    allocate( other, source=adj_pressure_preconditioner_type(self%level+1, self%stepper) )
 
   end subroutine coarsen_adj_pressure_preconditioner
 

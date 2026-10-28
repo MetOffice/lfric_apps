@@ -2,6 +2,9 @@
 ! (C) Crown copyright 2018 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
+!
+! Some of the content of this file has been produced with the assistance of
+! Met Office GitHub Copilot Enterprise.
 !-----------------------------------------------------------------------------
 
 !> @brief Semi-Implicit solver for the gungho dynamical core.
@@ -71,21 +74,27 @@ module semi_implicit_solver_alg_mod
   ! IO
   use timing_mod,                         only: start_timing, stop_timing, &
                                                 tik, LPROF
+  use dycore_constants_mod,               only: stepper_siqn
 
   implicit none
 
   private
 
-  ! Operator, preconditioner and iterative solver for mixed problem
-  type( mixed_operator_type )                          :: mixed_operator
-  class( abstract_preconditioner_type ),   allocatable :: mixed_preconditioner
-  class( abstract_iterative_solver_type ), allocatable :: mixed_solver
+  ! Operators, preconditioners and iterative solvers for one timestepper
+  ! Stored in an object to allow multiple instances (e.g. for TR and BDF2)
+  type :: solver_set_type
+    ! Mixed problem
+    type( mixed_operator_type )                          :: mixed_operator
+    class( abstract_preconditioner_type ),   allocatable :: mixed_preconditioner
+    class( abstract_iterative_solver_type ), allocatable :: mixed_solver
+    ! Helmholtz (pressure) problem
+    type( pressure_operator_type )                       :: pressure_operator
+    class( abstract_preconditioner_type ),   allocatable :: pressure_preconditioner
+    class( abstract_iterative_solver_type ), allocatable :: pressure_solver
+  end type solver_set_type
 
-  !> Operator, preconditioner and iterative solver for
-  !> Helmholtz (pressure) problem
-  type( pressure_operator_type )                       :: pressure_operator
-  class( abstract_preconditioner_type ),   allocatable :: pressure_preconditioner
-  class( abstract_iterative_solver_type ), allocatable :: pressure_solver
+  ! Indexed by the stepper enumerator
+  type( solver_set_type ), allocatable, target :: solver_sets(:)
 
   public  :: create_pressure_preconditioner
   public  :: create_pressure_solver
@@ -103,7 +112,8 @@ contains
   !> @param[in]  state                       Prognostic state for the solver
   !> @param[out] pressure_operator_out       Output (Helmholtz) pressure operator
   !> @param[out] pressure_preconditioner_out Output (Helmholtz) pressure preconditioner
-  subroutine create_pressure_preconditioner( state, pressure_operator_out, pressure_preconditioner_out )
+  !> @param[in]  stepper                     Timestepper enumerator used to select operators
+  subroutine create_pressure_preconditioner( state, pressure_operator_out, pressure_preconditioner_out, stepper )
 
     use helmholtz_solver_config_mod,   only: helmholtz_preconditioner => preconditioner, &
                                              preconditioner_none,                        &
@@ -120,10 +130,12 @@ contains
     type(pressure_operator_type),                     intent(out) :: pressure_operator_out
     class(abstract_preconditioner_type), allocatable, intent(out) :: pressure_preconditioner_out
 
+    integer(i_def), intent(in) :: stepper
+
     ! Vertical pressure preconditioner
     type(pressure_preconditioner_type) :: Hz_preconditioner
 
-    pressure_operator_out = pressure_operator_type(level=1_i_def)
+    pressure_operator_out = pressure_operator_type(level=1_i_def, stepper=stepper)
 
     call log_event( "create_pressure_preconditioner: starting", LOG_LEVEL_INFO )
 
@@ -137,9 +149,9 @@ contains
                 source = pressure_diag_preconditioner_type() )
     case(PRECONDITIONER_TRIDIAGONAL)
       allocate( pressure_preconditioner_out, &
-                source = pressure_preconditioner_type(level=1_i_def) )
+                source = pressure_preconditioner_type(level=1_i_def, stepper=stepper) )
     case(PRECONDITIONER_MULTIGRID)
-      Hz_preconditioner = pressure_preconditioner_type(level=1_i_def)
+      Hz_preconditioner = pressure_preconditioner_type(level=1_i_def, stepper=stepper)
       allocate( pressure_preconditioner_out, &
                 source = multigrid_preconditioner_type( state(igh_p)%get_function_space(), &
                                                         pressure_operator_out,             &
@@ -271,7 +283,8 @@ contains
   !> @param[in]  state                    Prognostic state for the solver
   !> @param[in]  pressure_solver_in       Input (Helmholtz) pressure solver
   !> @param[out] mixed_preconditioner_out Output mixed preconditioner
-  subroutine create_mixed_preconditioner( state, pressure_solver_in, mixed_preconditioner_out )
+  !> @param[in]  stepper                  Timestepper enumerator used to select operators
+  subroutine create_mixed_preconditioner( state, pressure_solver_in, mixed_preconditioner_out, stepper )
 
     use mixed_solver_config_mod,       only: si_preconditioner,          &
                                              si_preconditioner_pressure, &
@@ -288,6 +301,8 @@ contains
     ! Output preconditioner for mixed problem
     class(abstract_preconditioner_type), allocatable, intent(out) :: mixed_preconditioner_out
 
+    integer(i_def), intent(in) :: stepper
+
     call log_event( "create_mixed_preconditioner: starting", LOG_LEVEL_INFO )
 
     ! Allocate mixed preconditioner of correct type
@@ -298,7 +313,8 @@ contains
                   state(igh_u)%get_mesh(),                &
                   state(igh_u)%get_element_order_h(),     &
                   state(igh_u)%get_element_order_v(),     &
-                  pressure_solver_in ) )
+                  pressure_solver_in,                     &
+                  stepper ) )
 
     case(SI_PRECONDITIONER_NONE)
       allocate( mixed_preconditioner_out, &
@@ -317,7 +333,8 @@ contains
   !> @param[in]     mixed_preconditioner_in Input mixed preconditioner
   !> @param[in,out] mixed_operator_out      Output mixed operator (not explicitly set, so must be inout)
   !> @param[out]    mixed_solver_out        Output mixed solver
-  subroutine create_mixed_solver( mixed_preconditioner_in, mixed_operator_out, mixed_solver_out )
+  !> @param[in]     stepper                 Timestepper enumerator used to select operators
+  subroutine create_mixed_solver( mixed_preconditioner_in, mixed_operator_out, mixed_solver_out, stepper )
 
     use mixed_solver_config_mod,       only: si_maximum_iterations,                 &
                                              si_tolerance,                          &
@@ -347,7 +364,12 @@ contains
     type(mixed_operator_type),                          intent(inout) :: mixed_operator_out
     class(abstract_iterative_solver_type), allocatable, intent(out)   :: mixed_solver_out
 
+    integer(i_def), intent(in) :: stepper
+
     call log_event( "create_mixed_solver: starting", LOG_LEVEL_INFO )
+
+    ! Build the mixed operator for the requested timestepper
+    mixed_operator_out = mixed_operator_type(stepper)
 
     ! Allocate mixed solver of correct type
     select case(si_method)
@@ -434,25 +456,59 @@ contains
 
 !=============================================================================!
   !> @brief Initialisation procedure for the semi-implicit solver
-  !> @param[in] state Prognostic state for the solver
-  subroutine semi_implicit_solver_alg_init(state)
+  !> @param[in] state   Prognostic state for the solver
+  !> @param[in] stepper Timestepper enumerator used to select operators
+  subroutine semi_implicit_solver_alg_init(state, stepper)
 
     implicit none
 
     ! Prognostic fields
     type( field_type ), dimension(bundle_size), intent( in ) :: state
 
+    integer(i_def), intent(in) :: stepper
+
+    integer(i_def) :: stepper_idx
+
     write(log_scratch_space,'(A)')                          &
         'SI solver built with '//trim(PRECISION_R_SOLVER)// &
         '-bit real numbers'
     call log_event( log_scratch_space, LOG_LEVEL_ALWAYS )
 
-    call create_pressure_preconditioner( state, pressure_operator, pressure_preconditioner )
-    call create_pressure_solver( pressure_operator, pressure_preconditioner, pressure_solver )
-    call create_mixed_preconditioner( state, pressure_solver, mixed_preconditioner )
-    call create_mixed_solver( mixed_preconditioner, mixed_operator, mixed_solver )
+    if (.not. allocated(solver_sets)) then
+      if (stepper == stepper_siqn) then
+        allocate(solver_sets(1))
+      else
+        call log_event("semi_implicit_solver_alg_init: unknown stepper",       &
+                       LOG_LEVEL_ERROR)
+      end if
+    end if
 
-    call log_event( "semi_implicit_solver_alg_init: Initialised semi-implicit solver", LOG_LEVEL_INFO )
+    if (stepper == stepper_siqn) then
+      stepper_idx = 1
+    else
+      call log_event("semi_implicit_solver_alg_init: unknown stepper",         &
+                     LOG_LEVEL_ERROR)
+    end if
+
+    call create_pressure_preconditioner(                                       &
+                    state,                                                     &
+                    solver_sets(stepper_idx)%pressure_operator,                &
+                    solver_sets(stepper_idx)%pressure_preconditioner, stepper)
+    call create_pressure_solver(                                               &
+                    solver_sets(stepper_idx)%pressure_operator,                &
+                    solver_sets(stepper_idx)%pressure_preconditioner,          &
+                    solver_sets(stepper_idx)%pressure_solver)
+    call create_mixed_preconditioner(                                          &
+                    state,                                                     &
+                    solver_sets(stepper_idx)%pressure_solver,                  &
+                    solver_sets(stepper_idx)%mixed_preconditioner, stepper)
+    call create_mixed_solver(                                                  &
+                    solver_sets(stepper_idx)%mixed_preconditioner,             &
+                    solver_sets(stepper_idx)%mixed_operator,                   &
+                    solver_sets(stepper_idx)%mixed_solver, stepper)
+
+    call log_event("semi_implicit_solver_alg_init: Initialised " //            &
+                   "semi-implicit solver", LOG_LEVEL_DEBUG)
 
   end subroutine semi_implicit_solver_alg_init
 
@@ -463,22 +519,7 @@ contains
   subroutine semi_implicit_solver_alg_final()
     implicit none
 
-    ! Deallocate mixed preconditioner object
-    if (allocated(mixed_preconditioner)) then
-       deallocate(mixed_preconditioner)
-    end if
-    ! Deallocate mixed solver object
-    if (allocated(mixed_solver)) then
-       deallocate(mixed_solver)
-    end if
-    ! Deallocate pressure preconditioner object
-    if (allocated(pressure_preconditioner)) then
-       deallocate(pressure_preconditioner)
-    end if
-    ! Deallocate pressure solver object
-    if (allocated(pressure_solver)) then
-       deallocate(pressure_solver)
-    end if
+    if (allocated(solver_sets)) deallocate(solver_sets)
 
   end subroutine semi_implicit_solver_alg_final
 
@@ -492,10 +533,11 @@ contains
   !> @param[in]     moist_dyn_gas_law   Gas law component of moist dynamics factors
   !> @param[in]     mr                  Mixing ratio array
   !> @param[in]     first_iteration     Flag for first inner iteration
+  !> @param[in]     stepper             Timestepper enumerator
   subroutine semi_implicit_solver_alg_step(state, rhs,              &
                                            dry_flux_solver,         &
                                            moist_dyn_gas_law, mr,   &
-                                           first_iteration)
+                                           first_iteration, stepper)
 
     use solver_constants_mod,          only: get_normalisation_r_solver, &
                                              get_im3_div_r_solver,       &
@@ -508,7 +550,10 @@ contains
                                              get_p3theta,           &
                                              get_ptheta2,           &
                                              get_eliminated_q2t,    &
-                                             get_eliminated_q3t
+                                             get_eliminated_q3t,    &
+                                             get_tau_u_dt_cp,       &
+                                             get_tau_t_dt,          &
+                                             get_tau_r_dt
     use matrix_vector_kernel_mod,      only: matrix_vector_kernel_type
     use dg_matrix_vector_kernel_mod,   only: dg_matrix_vector_kernel_type
     use dg_inc_matrix_vector_kernel_mod, &
@@ -517,7 +562,6 @@ contains
                                              r_solver_operator_type
     use field_mod,                     only: field_type
     use r_solver_field_mod,            only: r_solver_field_type
-    use timestepping_config_mod,       only: dt, tau_r
     use sci_enforce_bc_kernel_mod,     only: enforce_bc_kernel_type
     use sci_mass_matrix_solver_alg_mod, &
                                        only: mass_matrix_solver_alg
@@ -531,7 +575,9 @@ contains
     type( field_type ),                         intent( inout ) :: dry_flux_solver
     type( field_type ),                         intent( in )    :: moist_dyn_gas_law
     type( field_type ), dimension(nummr),       intent( in )    :: mr
-    logical( kind=l_def),                       intent( in )    :: first_iteration
+    logical( kind=l_def ),                      intent( in )    :: first_iteration
+
+    integer( kind=i_def ),                      intent( in )    :: stepper
 
     real( kind=r_def )                    :: si_err(bundle_size)
     type( field_type ),           pointer :: t_normalisation, &
@@ -571,7 +617,9 @@ contains
                           inc_theta_rdef, &
                           inc_rho_rdef
     real( kind=r_solver ) :: tau_r_dt
+    real( kind=r_solver ) :: const_u, const_t
     integer( kind=i_def ) :: mesh_id
+    integer( kind=i_def ) :: stepper_idx
 
     type(mesh_type), pointer :: mesh
 
@@ -584,6 +632,21 @@ contains
     ! Input fields are r_def fields so preliminary work uses field_types
     mesh_id =  state(igh_p)%get_mesh_id()
     mesh    => state(igh_p)%get_mesh()
+
+    ! Set stepper_idx
+    if (stepper == stepper_siqn) then
+      stepper_idx = 1
+    else
+      call log_event("semi_implicit_solver_alg_step: unknown stepper",         &
+                     LOG_LEVEL_ERROR)
+    end if
+
+    ! The SI operators are assembled unscaled; the tau*dt scalings are applied
+    ! at the point of use. The momentum-row projection operators (p2theta, q2t)
+    ! carry tau_u*dt*cp and the potential-temperature projection (ptheta2)
+    ! carries tau_t*dt.
+    const_u = get_tau_u_dt_cp(stepper)
+    const_t = get_tau_t_dt(stepper)
 
     ! Normalise theta & u residual
     ! @TODO #416: can these be at r_solver precision?
@@ -646,8 +709,14 @@ contains
       if ( eliminate_variables == eliminate_variables_analytic ) then
         q2t_op => get_eliminated_q2t()
         q3t_op => get_eliminated_q3t()
+        ! q2t is assembled unscaled, so re-apply the scaling tau_u*dt*cp
+        ! to its contribution to rhs_u. (q3t is the EOS operator p3theta
+        ! and is applied unscaled.)
+        call rhs_tmp%initialise( vector_space = rhs_rsol(igh_u)%get_function_space() )
         call invoke( dg_inc_matrix_vector_kernel_type( rhs_rsol(igh_p), rhs_rsol(igh_t), q3t_op ), &
-                     matrix_vector_kernel_type( rhs_rsol(igh_u), rhs_rsol(igh_t), q2t_op ), &
+                     setval_c(rhs_tmp, 0.0_r_solver),                                    &
+                     matrix_vector_kernel_type( rhs_tmp, rhs_rsol(igh_t), q2t_op ),      &
+                     inc_X_plus_bY( rhs_rsol(igh_u), const_u, rhs_tmp ),                 &
                      enforce_bc_kernel_type( rhs_rsol(igh_u) ) )
       else
         p3theta   => get_p3theta()
@@ -657,9 +726,10 @@ contains
         ! Set rhs_u = rhs_u + M_2^{diag} * P_{2,theta} * rhs_theta
         call rhs_tmp%initialise( vector_space = rhs_rsol(igh_u)%get_function_space() )
         p2theta => get_p2theta()
+        ! p2theta is assembled unscaled, so apply the scaling tau_u*dt*cp
         call invoke( setval_c(rhs_tmp, 0.0_r_solver),                                &
                      matrix_vector_kernel_type( rhs_tmp, rhs_rsol(igh_t), p2theta ), &
-                     inc_X_times_Y(rhs_tmp, m2_diag),                                &
+                     inc_aX_times_Y(const_u, rhs_tmp, m2_diag),                      &
                      inc_X_plus_Y(rhs_rsol(igh_u), rhs_tmp),                         &
                      enforce_bc_kernel_type( rhs_rsol(igh_u) ) )
       end if
@@ -672,7 +742,7 @@ contains
     call construct_solver_state(vector_inc, rhs_rsol, import_fields = .false.)
     call construct_solver_state(vector_rhs, rhs_rsol, import_fields = .true.)
     call vector_inc%set_scalar(0.0_r_def)
-    call mixed_solver%apply(vector_inc, vector_rhs)
+    call solver_sets(stepper_idx)%mixed_solver%apply(vector_inc, vector_rhs)
     if ( LPROF ) call stop_timing( id_mix, 'solver.mixed_solver' )
 
     ! Get the pressure increment
@@ -704,7 +774,7 @@ contains
     ! Compute rho increment since solver does not provide one
     div      => get_im3_div_r_solver(mesh_id)
     rho_at_u => get_rho_at_u()
-    tau_r_dt = real(-tau_r*dt, kind=r_solver)
+    tau_r_dt = -get_tau_r_dt(stepper)
     call div_u%initialise( vector_space = rhs_rsol(igh_p)%get_function_space() )
     call f_star%initialise( vector_space = rhs_rsol(igh_u)%get_function_space() )
 
@@ -714,7 +784,7 @@ contains
                )
 
     call f_star_rdef%initialise( vector_space = rhs(igh_u)%get_function_space() )
-    tau_r_dt_rdef = real(tau_r*dt, kind=r_def)
+    tau_r_dt_rdef = real(-tau_r_dt, kind=r_def)
     call invoke(                                                               &
         real_to_real_x(f_star_rdef, f_star),                                   &
         inc_X_plus_bY(dry_flux_solver, tau_r_dt_rdef, f_star_rdef)             &
@@ -724,8 +794,10 @@ contains
     ptheta2 => get_ptheta2()
     mt_lumped_inv => get_normalisation_r_solver(Wtheta, mesh_id)
     call rhs_tmp%initialise( vector_space = rhs_rsol(igh_t)%get_function_space() )
+    ! ptheta2 is assembled unscaled, so apply the scaling tau_t*dt
     call invoke( setval_c(rhs_tmp, 0.0_r_solver), &
-                 dg_inc_matrix_vector_kernel_type(rhs_tmp, inc_uvw_rsol, ptheta2))
+                 dg_inc_matrix_vector_kernel_type(rhs_tmp, inc_uvw_rsol, ptheta2), &
+                 inc_a_times_X(const_t, rhs_tmp))
 
     if (  eliminate_variables == eliminate_variables_analytic ) then
       call invoke( real_to_real_x(rhs_rdef, rhs_tmp) )
