@@ -25,6 +25,9 @@ module jules_exp_kernel_mod
   use constants_mod,          only : i_def, i_um, r_def, r_um, rmdi
   use empty_data_mod,         only : empty_real_data
   use fs_continuity_mod,      only : W3, Wtheta
+  use initialization_config_mod, only : jules_forcing,       &
+                                        jules_forcing_z1_tq, &
+                                        jules_forcing_z1_uv
   use kernel_mod,             only : kernel_type
   use radiation_config_mod,   only : topography, topography_horizon
   use jules_radiation_config_mod,  only : l_albedo_obs
@@ -1340,6 +1343,14 @@ contains
       z1_uv_top(i,1) = height_wth(map_wth(1,i) + 1) - height_wth(map_wth(1,i))
       z1_tq_top(i,1) = height_w3(map_w3(1,i) + 1) - height_wth(map_wth(1,i))
     end do
+
+    ! Use the heights of the JULES site forcing data when driven by it
+    if (jules_forcing) then
+      do i = 1, seg_len
+        ainfo%z1_tq_ij(i,1) = real(jules_forcing_z1_tq, r_um)
+        ainfo%z1_uv_ij(i,1) = real(jules_forcing_z1_uv, r_um)
+      end do
+    end if
 
     l=0
     do i = 1, seg_len

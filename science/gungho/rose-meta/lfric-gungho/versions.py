@@ -41,9 +41,15 @@ class vn32_tXXX(MacroUpgrade):
 
     def upgrade(self, config, meta_config=None):
         # Commands From: rose-meta/lfric-gungho
-        """Add switch and path for reading JULES site forcing data"""
+        """Add switch, path and heights for JULES site forcing data"""
         self.add_setting(
             config, ["namelist:initialization", "jules_forcing"], ".false."
         )
         self.add_setting(config, ["namelist:files", "jules_forcing_path"], "''")
+        self.add_setting(
+            config, ["namelist:initialization", "jules_forcing_z1_tq"], "10.0"
+        )
+        self.add_setting(
+            config, ["namelist:initialization", "jules_forcing_z1_uv"], "10.0"
+        )
         return config, self.reports

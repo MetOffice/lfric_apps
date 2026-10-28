@@ -29,6 +29,7 @@ module jules_timestep_alg_mod
   use mr_indices_mod,             only: nummr, imr_v, imr_s, imr_ci
 
   ! JULES Science routines
+  use apply_jules_forcing_alg_mod, only: apply_jules_forcing_alg
   use rad_tile_alg_mod,          only: rad_tile_alg
   use jules_exp_alg_mod,         only: jules_exp_alg
   use jules_imp_alg_mod,         only: jules_imp_alg
@@ -247,6 +248,8 @@ contains
     type( field_type ), pointer :: rhokh_bl       => null()
     type( field_type ), pointer :: exner_in_wth => null()
 
+    type( field_collection_type ), pointer :: jules_forcing_fields
+
     integer(kind=i_def), parameter  :: outer = 1
     integer(i_def) :: loop
     integer(kind=i_def)   :: ncells
@@ -271,6 +274,15 @@ contains
     call invoke(setval_X(mr_ice, mr(imr_s)) )
 
     ncells = twod_mesh%get_last_edge_cell()
+
+    ! Set the fields driving JULES from the site forcing data
+    if ( modeldb%config%initialization%jules_forcing() ) then
+      jules_forcing_fields => &
+        modeldb%fields%get_field_collection("jules_forcing_fields")
+      call apply_jules_forcing_alg( theta, mr, jules_forcing_fields, &
+                                    derived_fields, radiation_fields, &
+                                    microphysics_fields )
+    end if
 
     ! Call jules science algorithms
     call um_sizes_init(ncells)

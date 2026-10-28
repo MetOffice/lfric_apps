@@ -25,6 +25,7 @@ module jules_imp_kernel_mod
   use fs_continuity_mod,         only : W3, Wtheta
   use kernel_mod,                only : kernel_type
   use timestepping_config_mod,   only : outer_iterations
+  use initialization_config_mod, only : jules_forcing, jules_forcing_z1_tq
   use water_constants_mod,       only : tfs, lc, lf
 
   implicit none
@@ -1018,6 +1019,13 @@ contains
         ainfo%z1_tq_ij(i,1) = height_wth(map_wth(1,i) + 1) &
                             - height_wth(map_wth(1,i) + 0)
       end do
+
+      ! Use the height of the JULES site forcing data when driven by it
+      if (jules_forcing) then
+        do i = 1, seg_len
+          ainfo%z1_tq_ij(i,1) = real(jules_forcing_z1_tq, r_um)
+        end do
+      end if
 
       !-----------------------------------------------------------------------
       ! Things passed from other parametrization schemes on this timestep
