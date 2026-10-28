@@ -30,8 +30,8 @@ lfric_apps:
     ref:
 
 lfric_core:
-   source: git@github.com:thomasmelvin/lfric_core.git
-   ref: mixed_chebyshev
+   source: git@github.com:MetOffice/lfric_core.git
+   ref: c123b4425844d3fa20315b5c667ee1dad486821c
 
 moci:
     source: git@github.com:MetOffice/moci.git
