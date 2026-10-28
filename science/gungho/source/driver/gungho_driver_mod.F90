@@ -76,9 +76,7 @@ module gungho_driver_mod
   use lfric_xios_time_axis_mod,    only : regridder
   use intermesh_mappings_alg_mod,  only : map_scalar_intermesh
   use update_ancils_alg_mod,       only : update_ancils_alg
-  use field_mod,                   only : field_type
-  use init_ancils_mod,             only : aerosol_ancil_names
-  use sci_field_minmax_alg_mod,    only : log_field_minmax
+  use migrated_ancil_minmax_mod,   only : log_migrated_ancil_minmax
   use gas_calc_all_mod,            only : gas_calc_all
   use multires_coupling_config_mod, &
                                    only : lowest_order_aero_flag
@@ -278,6 +276,11 @@ contains
     ! Model configuration initialisation
     call initialise_model( mesh, modeldb )
 
+#ifdef UM_PHYSICS
+    ! Temporary: log min/max of the migrated ancillary fields after initialisation
+    call log_migrated_ancil_minmax( modeldb, at_init=.true. )
+#endif
+
 #ifdef COUPLED
     ! Placeholder for ESM coupling initialisation code.
     ! Check we have a value for related namelist control variable
@@ -387,9 +390,6 @@ contains
 
     type( field_collection_type ), pointer :: surface_fields
     type( field_collection_type ), pointer :: ancil_fields
-    type( field_type ),            pointer :: aerosol_fld => null()
-    integer(i_def)                         :: i_aer
-    character(len=str_def)                 :: aerosol_label
 #endif
 
     integer(i_def) :: theta_forcing
@@ -532,22 +532,10 @@ contains
                               modeldb%clock,               &
                               ancil_fields,                &
                               surface_fields)
-
-      ! Log min/max of the aerosol ancillary fields each timestep so that
-      ! runs using the file-owned read can be compared with the legacy path
-      depository => modeldb%fields%get_field_collection("depository")
-      do i_aer = 1, size(aerosol_ancil_names, 2)
-        if ( depository%field_exists( trim(aerosol_ancil_names(1,i_aer)) ) ) then
-          call depository%get_field( trim(aerosol_ancil_names(1,i_aer)), &
-                                     aerosol_fld )
-          write(aerosol_label, '(A,I0,A,A)') 'aerosol ancil step ',     &
-                modeldb%clock%get_step(), ' ',                          &
-                trim(aerosol_ancil_names(1,i_aer))
-          call log_field_minmax( LOG_LEVEL_INFO, trim(aerosol_label), aerosol_fld )
-        end if
-      end do
-      nullify(aerosol_fld)
     end if
+
+    ! Temporary: log min/max of the migrated ancillary fields every timestep
+    call log_migrated_ancil_minmax( modeldb, at_init=.false. )
 
     ! Update the time varying trace gases
     call gas_calc_all()
