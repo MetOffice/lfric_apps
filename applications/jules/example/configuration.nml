@@ -724,7 +724,7 @@ calendar='timestep',
 calendar_origin='2005-01-01 19:00:00',
 calendar_start='2005-01-01 19:00:00',
 calendar_type='gregorian',
-timestep_end='432',
+timestep_end='320',
 timestep_start='1',
 /
 &timestepping

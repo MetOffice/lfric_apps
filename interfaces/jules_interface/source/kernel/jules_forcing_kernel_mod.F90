@@ -174,12 +174,16 @@ contains
 
     ! Temperature and humidity on the first theta level. The JULES kernels
     ! use m_v directly as the specific humidity of the first level.
-    theta(map_wth(1) + 1) = tair / exner_in_wth(map_wth(1) + 1)
-    m_v(map_wth(1) + 1)   = qair
+    do k = 0, nlayers
+      theta(map_wth(1) + k) = tair / exner_in_wth(map_wth(1) + k)
+      m_v(map_wth(1) + k)   = qair
+    end do
 
     ! Wind on the first W3 level, with the forcing wind speed as the u component
-    u_in_w3(map_w3(1)) = forcing_wind(map_2d(1))
-    v_in_w3(map_w3(1)) = 0.0_r_def
+    do k = 0, nlayers-1
+      u_in_w3(map_w3(1) + k) = forcing_wind(map_2d(1))
+      v_in_w3(map_w3(1) + k) = 0.0_r_def
+    end do
 
     ! Density on the first W3 level consistent with the forcing state
     wetrho_in_w3(map_w3(1)) = pressure_1 / (r * tv)

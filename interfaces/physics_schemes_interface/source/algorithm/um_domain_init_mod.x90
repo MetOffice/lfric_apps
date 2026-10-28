@@ -16,7 +16,9 @@ module um_domain_init_mod
   use section_choice_config_mod,   only : microphysics,      &
                                           microphysics_um,   &
                                           radiation,         &
-                                          radiation_socrates
+                                          radiation_socrates,&
+                                          stochastic_physics,&
+                                          stochastic_physics_um
 
   ! Other modules used
   use constants_mod,               only : i_um, r_um, rmdi, i_def, r_def
@@ -113,17 +115,18 @@ contains
     ! Stochastic physics (SKEB) - identify 1st model level above 2km
     !-----------------------------------------------------------------------
 
-    k = 1
-    do while ( domain_height * eta_theta_levels(k) < 2000.0_r_def)
-      k = k+1
-      if ( k > size( eta_theta_levels ) )then
-        write( log_scratch_space, '(A)' )                                   &
-           'Top level must be above 2km for SKEB scheme.'
-        call log_event( log_scratch_space, log_level_error )
-      end if
-    end do
-    level2km = k
-
+    if (stochastic_physics == stochastic_physics_um) then
+      k = 1
+      do while ( domain_height * eta_theta_levels(k) < 2000.0_r_def)
+        k = k+1
+        if ( k > size( eta_theta_levels ) )then
+          write( log_scratch_space, '(A)' )                                   &
+               'Top level must be above 2km for SKEB scheme.'
+          call log_event( log_scratch_space, log_level_error )
+        end if
+      end do
+      level2km = k
+    end if
 
     ! Calculate the mesh size
     local_mesh => mesh%get_local_mesh()
