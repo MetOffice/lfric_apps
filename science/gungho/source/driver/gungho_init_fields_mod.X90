@@ -944,10 +944,15 @@ subroutine create_model_data( modeldb,           &
       if (.not. checkpoint_read .and. zero_w2v_wind) then
         call set_any_dof_alg(u, T, 0.0_r_def)
       end if
-      call map_physics_fields_alg(modeldb%config, u,      &
-                                  exner, rho, theta,      &
-                                  moist_dyn_array%bundle, &
-                                  derived_fields)
+      ! JULES site forcing sets the derived fields used by JULES on every
+      ! timestep, so they are not mapped from the dynamics fields (which is
+      ! not possible for a single layer column)
+      if ( .not. jules_forcing ) then
+        call map_physics_fields_alg(modeldb%config, u,      &
+                                    exner, rho, theta,      &
+                                    moist_dyn_array%bundle, &
+                                    derived_fields)
+      end if
 
 
       ! Initialise reading of nudging fields, if external forcing is specified

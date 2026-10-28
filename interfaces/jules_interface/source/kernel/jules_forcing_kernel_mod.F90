@@ -68,8 +68,9 @@ contains
 
   !> @brief Applies JULES site forcing data to the fields used to drive JULES
   !> @details The near-surface state seen by JULES is set from the forcing:
-  !>          exner is rescaled through the column to give the forcing surface
-  !>          pressure, theta and m_v on the first theta level give the forcing
+  !>          exner at the surface gives the forcing surface pressure and
+  !>          exner above it is hydrostatic at the forcing temperature and
+  !>          humidity height, theta and m_v on the first theta level give the forcing
   !>          temperature and humidity, the wind on the first W3 level is the
   !>          forcing wind speed (v = 0) and the density on the first W3 level
   !>          is consistent with these. Downward radiation and precipitation
@@ -119,7 +120,8 @@ contains
                                  ndf_w3, undf_w3, map_w3,                &
                                  ndf_2d, undf_2d, map_2d )
 
-    use planet_constants_mod, only: p_zero, kappa, r, c_virtual
+    use planet_constants_mod,      only: p_zero, kappa, r, c_virtual, g
+    use initialization_config_mod, only: jules_forcing_z1_tq
 
     implicit none
 
@@ -154,17 +156,20 @@ contains
 
     ! Local variables
     integer(kind=i_def) :: k
-    real(kind=r_def)    :: exner_scaling, tair, qair, pressure_1
+    real(kind=r_def)    :: tair, qair, tv, pressure_1
 
     tair = forcing_tair(map_2d(1))
     qair = max(forcing_qair(map_2d(1)), 0.0_r_def)
+    tv   = tair * (1.0_r_def + c_virtual * qair)
 
-    ! Rescale exner through the column so that the surface pressure is the
-    ! forcing surface pressure, keeping the shape of the initial profile
-    exner_scaling = (forcing_psurf(map_2d(1)) / p_zero)**kappa &
-                  / exner_in_wth(map_wth(1))
-    do k = 0, nlayers
-      exner_in_wth(map_wth(1) + k) = exner_in_wth(map_wth(1) + k) * exner_scaling
+    ! Exner at the surface from the forcing surface pressure, and above it
+    ! from the hydrostatic pressure at the forcing temperature and humidity
+    ! height. Only the surface and first theta levels are used by JULES.
+    pressure_1 = forcing_psurf(map_2d(1)) * &
+                 exp( -g * jules_forcing_z1_tq / (r * tv) )
+    exner_in_wth(map_wth(1)) = (forcing_psurf(map_2d(1)) / p_zero)**kappa
+    do k = 1, nlayers
+      exner_in_wth(map_wth(1) + k) = (pressure_1 / p_zero)**kappa
     end do
 
     ! Temperature and humidity on the first theta level. The JULES kernels
@@ -177,9 +182,7 @@ contains
     v_in_w3(map_w3(1)) = 0.0_r_def
 
     ! Density on the first W3 level consistent with the forcing state
-    pressure_1 = p_zero * exner_in_wth(map_wth(1) + 1)**(1.0_r_def / kappa)
-    wetrho_in_w3(map_w3(1)) = pressure_1 / &
-                              ( r * tair * (1.0_r_def + c_virtual * qair) )
+    wetrho_in_w3(map_w3(1)) = pressure_1 / (r * tv)
 
     ! Downward radiation, with all SW taken as direct
     sw_down_surf(map_2d(1))        = forcing_swdown(map_2d(1))
