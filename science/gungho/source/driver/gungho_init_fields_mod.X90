@@ -3,6 +3,8 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Met Office Github Copilot Enterprise.
 !> @brief Initialise, copy and finalise the data set.
 !>
 !> Methods to initialise (create and read), copy and finalise (write and
@@ -1052,18 +1054,26 @@ subroutine create_model_data( modeldb,           &
             call model_axes%ancil_times_list%clear()
           end if
           if ( snow_source == snow_source_surf ) then
-            call ancil_fields%remove_field("snow_grain_size_analysis_on_land_tiles")
-            call depository%remove_field("snow_grain_size_analysis_on_land_tiles")
+            call ancil_fields%remove_field( &
+              "snow_grain_size_analysis_on_land_tiles")
+            call depository%remove_field( &
+              "snow_grain_size_analysis_on_land_tiles")
             call ancil_fields%remove_field("snow_mass_analysis_on_land_tiles")
             call depository%remove_field("snow_mass_analysis_on_land_tiles")
-            call ancil_fields%remove_field("snow_under_canopy_analysis_on_land_tiles")
-            call depository%remove_field("snow_under_canopy_analysis_on_land_tiles")
+            call ancil_fields%remove_field( &
+              "snow_under_canopy_analysis_on_land_tiles")
+            call depository%remove_field( &
+              "snow_under_canopy_analysis_on_land_tiles")
             call ancil_fields%remove_field("snow_depth_analysis_on_land_tiles")
             call depository%remove_field("snow_depth_analysis_on_land_tiles")
-            call ancil_fields%remove_field("snowpack_density_analysis_on_land_tiles")
-            call depository%remove_field("snowpack_density_analysis_on_land_tiles")
-            call ancil_fields%remove_field("n_snow_layers_real_analysis_on_land_tiles")
-            call depository%remove_field("n_snow_layers_real_analysis_on_land_tiles")
+            call ancil_fields%remove_field( &
+              "snowpack_density_analysis_on_land_tiles")
+            call depository%remove_field( &
+              "snowpack_density_analysis_on_land_tiles")
+            call ancil_fields%remove_field( &
+              "n_snow_layers_real_analysis_on_land_tiles")
+            call depository%remove_field( &
+              "n_snow_layers_real_analysis_on_land_tiles")
           end if
 
         case ( ancil_option_idealised )

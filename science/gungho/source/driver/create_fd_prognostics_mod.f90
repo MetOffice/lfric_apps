@@ -3,6 +3,8 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Met Office Github Copilot Enterprise.
 
 !> @brief Creates finite difference (fd) prognostic fields
 !> @details Handles creation of finite difference fields
@@ -297,13 +299,16 @@ contains
         call setup_ancil_field("snowpack_density_on_land_tiles", depository, &
                              fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=n_land_tile)
-        call setup_ancil_field("snow_layer_thickness_on_land_tiles", depository, &
+        call setup_ancil_field( &
+                 "snow_layer_thickness_on_land_tiles", depository, &
                              fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=snow_lev_tile)
-        call setup_ancil_field("snow_layer_ice_mass_on_land_tiles", depository, &
+        call setup_ancil_field( &
+                 "snow_layer_ice_mass_on_land_tiles", depository, &
                              fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=snow_lev_tile)
-        call setup_ancil_field("snow_layer_liq_mass_on_land_tiles", depository, &
+        call setup_ancil_field( &
+                 "snow_layer_liq_mass_on_land_tiles", depository, &
                              fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=snow_lev_tile)
         call setup_ancil_field("snow_layer_temp_on_land_tiles", depository, &

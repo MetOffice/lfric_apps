@@ -3,6 +3,8 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Met Office Github Copilot Enterprise.
 !>@brief Processing of ancillary files
 module process_inputs_alg_mod
 
@@ -221,29 +223,50 @@ contains
         call soil_fields%get_field('soil_temperature', soil_temperature)
 
         if (snow_source == snow_source_surf) then
-          call ancil_fields%get_field('snow_grain_size_analysis_on_land_tiles', tile_snow_rgrain_in)
-          call ancil_fields%get_field('snow_mass_analysis_on_land_tiles', tile_snow_mass_in)
-          call ancil_fields%get_field('snow_under_canopy_analysis_on_land_tiles', snow_under_canopy_in)
-          call ancil_fields%get_field('snow_depth_analysis_on_land_tiles', snow_depth_in)
-          call ancil_fields%get_field('snowpack_density_analysis_on_land_tiles', snowpack_density_in)
-          call ancil_fields%get_field('n_snow_layers_real_analysis_on_land_tiles', n_snow_layers_real)
-          call ancil_fields%get_field('snow_layer_thickness_analysis_on_land_tiles', &
-                                      snow_layer_thickness_in)
-          call ancil_fields%get_field('snow_layer_ice_mass_analysis_on_land_tiles', &
-                                      snow_layer_ice_mass_in)
-          call ancil_fields%get_field('snow_layer_liq_mass_analysis_on_land_tiles', &
-                                      snow_layer_liq_mass_in)
-          call ancil_fields%get_field('snow_layer_temp_analysis_on_land_tiles', &
-                                      snow_layer_temp_in)
-          call ancil_fields%get_field('snow_layer_rgrain_analysis_on_land_tiles', &
-                                      snow_layer_rgrain_in)
+            call ancil_fields%get_field( &
+              'snow_grain_size_analysis_on_land_tiles', &
+              tile_snow_rgrain_in)
+            call ancil_fields%get_field( &
+              'snow_mass_analysis_on_land_tiles', tile_snow_mass_in)
+            call ancil_fields%get_field( &
+              'snow_under_canopy_analysis_on_land_tiles', &
+              snow_under_canopy_in)
+            call ancil_fields%get_field( &
+              'snow_depth_analysis_on_land_tiles', snow_depth_in)
+            call ancil_fields%get_field( &
+              'snowpack_density_analysis_on_land_tiles', &
+              snowpack_density_in)
+            call ancil_fields%get_field( &
+              'n_snow_layers_real_analysis_on_land_tiles', &
+              n_snow_layers_real)
+            call ancil_fields%get_field( &
+              'snow_layer_thickness_analysis_on_land_tiles', &
+              snow_layer_thickness_in)
+            call ancil_fields%get_field( &
+              'snow_layer_ice_mass_analysis_on_land_tiles', &
+              snow_layer_ice_mass_in)
+            call ancil_fields%get_field( &
+              'snow_layer_liq_mass_analysis_on_land_tiles', &
+              snow_layer_liq_mass_in)
+            call ancil_fields%get_field( &
+              'snow_layer_temp_analysis_on_land_tiles', &
+              snow_layer_temp_in)
+            call ancil_fields%get_field( &
+              'snow_layer_rgrain_analysis_on_land_tiles', &
+              snow_layer_rgrain_in)
         else
-          call fd_fields%get_field('snow_mass_on_land_tiles', tile_snow_mass_in)
-          call fd_fields%get_field('snow_grain_size_on_land_tiles', tile_snow_rgrain_in)
-          call fd_fields%get_field('n_snow_layers_real_on_land_tiles', n_snow_layers_real)
-          call fd_fields%get_field('snow_depth_on_land_tiles', snow_depth_in)
-          call fd_fields%get_field('snow_under_canopy_on_land_tiles', snow_under_canopy_in)
-          call fd_fields%get_field('snowpack_density_on_land_tiles', snowpack_density_in)
+            call fd_fields%get_field( &
+              'snow_mass_on_land_tiles', tile_snow_mass_in)
+            call fd_fields%get_field( &
+              'snow_grain_size_on_land_tiles', tile_snow_rgrain_in)
+            call fd_fields%get_field( &
+              'n_snow_layers_real_on_land_tiles', n_snow_layers_real)
+            call fd_fields%get_field( &
+              'snow_depth_on_land_tiles', snow_depth_in)
+            call fd_fields%get_field( &
+              'snow_under_canopy_on_land_tiles', snow_under_canopy_in)
+            call fd_fields%get_field( &
+              'snowpack_density_on_land_tiles', snowpack_density_in)
           call fd_fields%get_field('snow_layer_thickness_on_land_tiles', &
                                    snow_layer_thickness_in)
           call fd_fields%get_field('snow_layer_ice_mass_on_land_tiles', &
@@ -322,7 +345,8 @@ contains
         ! These only need processing when cold-starting from the UM
         call invoke(multi_insert_kernel_type(tile_snow_mass, tile_snow_mass_in,&
                                               1, n_land_tile),                   &
-                      int_multi_insert_kernel_type(n_snow_layers,n_snow_layers_real,&
+                        int_multi_insert_kernel_type( &
+                          n_snow_layers, n_snow_layers_real, &
                                                    1, n_land_tile),               &
                       multi_insert_kernel_type(snow_depth, snow_depth_in,         &
                                                1, n_land_tile),                   &
@@ -330,32 +354,30 @@ contains
                                              tile_snow_rgrain_in, 1, n_land_tile),&
                       multi_insert_kernel_type(snow_under_canopy,                 &
                                             snow_under_canopy_in, 1, n_land_tile),&
-                      multi_insert_kernel_type(snowpack_density,                  &
-                                             snowpack_density_in, 1, n_land_tile))
+                        multi_insert_kernel_type( &
+                          snowpack_density, snowpack_density_in, &
+                          1, n_land_tile))
 
-        call invoke(multi_insert_kernel_type(snow_layer_thickness,              &
-                                           snow_layer_thickness_in, 1,           &
-                                           snow_lev_tile),                       &
-                    multi_insert_kernel_type(snow_layer_ice_mass,               &
-                                           snow_layer_ice_mass_in, 1,            &
-                                           snow_lev_tile),                       &
-                    multi_insert_kernel_type(snow_layer_liq_mass,               &
-                                           snow_layer_liq_mass_in, 1,            &
-                                           snow_lev_tile),                       &
-                    multi_insert_kernel_type(snow_layer_temp,                   &
-                                           snow_layer_temp_in, 1,                &
-                                           snow_lev_tile),                       &
-                    multi_insert_kernel_type(snow_layer_rgrain,                 &
-                                           snow_layer_rgrain_in, 1,              &
-                                           snow_lev_tile))
+                call invoke( &
+                  multi_insert_kernel_type( &
+                    snow_layer_thickness, snow_layer_thickness_in, &
+                    1, snow_lev_tile), &
+                  multi_insert_kernel_type( &
+                    snow_layer_ice_mass, snow_layer_ice_mass_in, &
+                    1, snow_lev_tile), &
+                  multi_insert_kernel_type( &
+                    snow_layer_liq_mass, snow_layer_liq_mass_in, &
+                    1, snow_lev_tile), &
+                  multi_insert_kernel_type( &
+                    snow_layer_temp, snow_layer_temp_in, 1, snow_lev_tile), &
+                  multi_insert_kernel_type( &
+                    snow_layer_rgrain, snow_layer_rgrain_in, 1, snow_lev_tile))
 
-        call invoke(process_snow_kernel_type(tile_snow_mass, n_snow_layers,      &
-                                             snow_under_canopy, snowpack_density,&
-                                             snow_depth, snow_layer_thickness,   &
-                                             snow_layer_ice_mass,                &
-                                             snow_layer_liq_mass,                &
-                                             snow_layer_temp, snow_layer_rgrain, &
-                                             soil_temperature))
+                call invoke(process_snow_kernel_type( &
+                  tile_snow_mass, n_snow_layers, snow_under_canopy, &
+                  snowpack_density, snow_depth, snow_layer_thickness, &
+                  snow_layer_ice_mass, snow_layer_liq_mass, &
+                  snow_layer_temp, snow_layer_rgrain, soil_temperature))
       end if
 
     end if
