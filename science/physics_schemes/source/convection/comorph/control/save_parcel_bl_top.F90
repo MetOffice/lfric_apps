@@ -18,10 +18,9 @@ contains
 ! of the parcel at the first level above the boundary-layer top;
 ! for use in homogenizing the resolved-scale source terms
 ! below the BL-top
-subroutine save_parcel_bl_top( n_fields_tot, k, dk, grid, turb,                &
+subroutine save_parcel_bl_top( n_fields_tot, k, grid, turb,                    &
                                par_conv, par_bl_top )
 
-use comorph_constants_mod, only: zero
 use cmpr_type_mod, only: cmpr_alloc
 use grid_type_mod, only: grid_type
 use turb_type_mod, only: turb_type
@@ -35,8 +34,6 @@ integer, intent(in) :: n_fields_tot
 
 ! Current full model-level
 integer, intent(in) :: k
-! Model-level increment (+1 for updrafts, -1 for downdrafts)
-integer, intent(in) :: dk
 
 ! Structure containing grid fields
 type(grid_type), intent(in) :: grid
@@ -50,9 +47,9 @@ type(parcel_type), intent(in) :: par_conv
 ! Saved parcel properties at the boundary-layer top
 type(parcel_type), intent(in out) :: par_bl_top
 
-! Flags for whether current and next levels are within the boundary-layer
-logical :: l_within_bl_k    ( par_conv % cmpr % n_points )
-logical :: l_within_bl_kpdk ( par_conv % cmpr % n_points )
+! Flags for whether current and previous levels are within the boundary-layer
+logical :: l_within_bl_k   ( par_conv % cmpr % n_points )
+logical :: l_within_bl_km1 ( par_conv % cmpr % n_points )
 
 ! Points where parcel has just crossed the BL-top
 integer :: nc
@@ -65,7 +62,7 @@ integer :: lb_h(3), ub_h(3), lb_t(2), ub_t(2)
 integer :: ic, ic0, i_field
 
 
-! Check whether the current and next full levels are within the
+! Check whether the current and previous full levels are within the
 ! boundary-layer
 lb_h = lbound( grid % height_half )
 ub_h = ubound( grid % height_half )
@@ -75,19 +72,16 @@ call set_l_within_bl( par_conv % cmpr, k,                                      &
                       lb_h, ub_h, grid % height_half,                          &
                       lb_t, ub_t, turb % z_bl_top,                             &
                       l_within_bl_k )
-call set_l_within_bl( par_conv % cmpr, k+dk,                                   &
+call set_l_within_bl( par_conv % cmpr, k-1,                                    &
                       lb_h, ub_h, grid % height_half,                          &
                       lb_t, ub_t, turb % z_bl_top,                             &
-                      l_within_bl_kpdk )
+                      l_within_bl_km1 )
 
 ! Find points where the parcel just crossed the BL-top
 nc = 0
 do ic = 1, par_conv % cmpr % n_points
-  ! If current and next level are either side of the BL-top
-  if ( ( l_within_bl_kpdk(ic) .neqv. l_within_bl_k(ic) )                       &
-       ! TEMPORARY CODE TO PRESERVE KGO; TO BE REMOVED SOON
-       ! (only include points where mass-flux +ive at end of level-step)
-       .and. par_conv % par_super(ic,i_massflux_d) > zero  ) then
+  ! If level k is above the BL-top, but level k-1 isn't
+  if ( ( .not. l_within_bl_k(ic) ) .and. l_within_bl_km1(ic) ) then
     ! Increment counter and save address of this point
     nc = nc + 1
     index_ic(nc) = ic

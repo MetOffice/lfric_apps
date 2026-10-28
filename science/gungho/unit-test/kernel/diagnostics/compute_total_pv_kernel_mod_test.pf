@@ -44,8 +44,8 @@ contains
   @before
   subroutine set_up()
 
-    use base_mesh_config_mod,      only : geometry_spherical, &
-                                          topology_fully_periodic
+    use mesh_mod,                  only : geometry_spherical, &
+                                          topology_periodic
     use extrusion_config_mod,      only : method_uniform, &
                                           stretching_method_linear
     use finite_element_config_mod, only : cellshape_quadrilateral, &
@@ -58,11 +58,15 @@ contains
 
     implicit none
 
+    real(r_def), parameter :: geostrophic_north_pole(2) = [0.0_r_def, PI/2.0_r_def]
+    real(r_def), parameter :: null_island(2) = [0.0_r_def, 0.0_r_def]
+    real(r_def), parameter :: equator_latitude = 0.0_r_def
+
     call feign_base_mesh_config( file_prefix='foo',                &
                                  prime_mesh_name='unit_test',      &
                                  geometry=geometry_spherical,      &
                                  prepartitioned=.false.,           &
-                                 topology=topology_fully_periodic, &
+                                 topology=topology_periodic,       &
                                  fplane=.false., f_lat_deg=0.0_r_def )
 
     call feign_extrusion_config( planet_radius=planet_radius,                &
@@ -89,7 +93,14 @@ contains
                               p_zero=100000.0_r_def,                  &
                               scaling_factor=1.0_r_def )
 
-    call init_chi_transforms(geometry_spherical, topology_fully_periodic)
+    ! Note: Calling 'init_chi_transforms' is only valid for meshes which have a
+    !       spherical geometry and coordinate system. While it may not be relevant
+    !       to this mesh, it is called due to an unknown interaction which changes
+    !       results. If it is not applicable to this mesh, it should be removed once
+    !       this issue is resolved.
+    call init_chi_transforms( geostrophic_north_pole, &
+                              null_island, &
+                              equator_latitude )
 
   end subroutine set_up
 
@@ -97,11 +108,13 @@ contains
   @after
   subroutine tear_down()
 
-    use config_loader_mod, only: final_configuration
+    use config_loader_mod,     only: final_configuration
+    use sci_chi_transform_mod, only: final_chi_transforms
 
     implicit none
 
     call final_configuration()
+    call final_chi_transforms()
 
   end subroutine tear_down
 

@@ -267,13 +267,15 @@ subroutine apply_wind_metrics_code(nlayers,                    &
     dy_z = 0.0_r_def ! delta_y(z) on W point
     dz_z = 0.0_r_def ! delta_z(z) on W point
     do df = 1, ndf_wx
-      dx_z = dx_z + chi3(map_wx(df)+k)*diff_basis_wx(1, df, 1)
-      dy_z = dy_z + chi3(map_wx(df)+k)*diff_basis_wx(2, df, 1)
-      dz_z = dz_z + chi3(map_wx(df)+k)*diff_basis_wx(3, df, 1)
+      dx_z = dx_z + chi3(map_wx(df)+k)*diff_basis_wx(1, df, B)
+      dy_z = dy_z + chi3(map_wx(df)+k)*diff_basis_wx(2, df, B)
+      dz_z = dz_z + chi3(map_wx(df)+k)*diff_basis_wx(3, df, B)
     end do
 
-    u_av = 0.5_r_def * ( metrics_uvw(map_w2(W)+k) + metrics_uvw(map_w2(E)+k))
-    v_av = 0.5_r_def * ( metrics_uvw(map_w2(S)+k) + metrics_uvw(map_w2(N)+k) )
+    u_av = 0.25_r_def * ( metrics_uvw(map_w2(W)+k)   + metrics_uvw(map_w2(E)+k) &
+                        + metrics_uvw(map_w2(W)+k-1) + metrics_uvw(map_w2(E)+k-1) )
+    v_av = 0.25_r_def * ( metrics_uvw(map_w2(S)+k)   + metrics_uvw(map_w2(N)+k) &
+                        + metrics_uvw(map_w2(S)+k-1) + metrics_uvw(map_w2(N)+k-1) )
     metrics_uvw(map_w2(B)+k) = metrics_uvw(map_w2(B)+k) - u_av*dx_z/dz_z + v_av*dy_z/dz_z
   end do
   metrics_uvw(map_w2(T)+nlayers-1) = 0.0_r_def
