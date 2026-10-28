@@ -471,6 +471,13 @@ contains
     case(i_modiscopt_on)
       i_modiscopt = 1
     end select
+    ! Site forcing is at a fixed height rather than a layer average, so
+    ! stability functions are not averaged over the layer, as in standalone JULES
+    if (config%initialization%jules_forcing()) then
+      call log_event( 'JULES site forcing: setting i_modiscopt to 0', &
+                      LOG_LEVEL_INFO )
+      i_modiscopt = 0
+    end if
     select case (config%jules_surface%iscrntdiag())
     case(iscrntdiag_decoupled_trans)
       iscrntdiag = ip_scrndecpl2
