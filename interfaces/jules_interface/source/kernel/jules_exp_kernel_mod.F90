@@ -1340,15 +1340,22 @@ contains
                           - height_wth(map_wth(1,i))
       ainfo%z1_uv_ij(i,1) = height_w3(map_w3(1,i) + k_blend_uv(i,1)-1)  &
                           - height_wth(map_wth(1,i))
-      z1_uv_top(i,1) = height_wth(map_wth(1,i) + 1) - height_wth(map_wth(1,i))
-      z1_tq_top(i,1) = height_w3(map_w3(1,i) + 1) - height_wth(map_wth(1,i))
     end do
 
-    ! Use the heights of the JULES site forcing data when driven by it
     if (jules_forcing) then
+      ! Use the heights of the JULES site forcing data, and set the heights
+      ! of the tops of the lowest layers to zero as in standalone JULES. This
+      ! also allows a single layer column, which has no second W3 level.
       do i = 1, seg_len
         ainfo%z1_tq_ij(i,1) = real(jules_forcing_z1_tq, r_um)
         ainfo%z1_uv_ij(i,1) = real(jules_forcing_z1_uv, r_um)
+        z1_uv_top(i,1) = 0.0_r_um
+        z1_tq_top(i,1) = 0.0_r_um
+      end do
+    else
+      do i = 1, seg_len
+        z1_uv_top(i,1) = height_wth(map_wth(1,i) + 1) - height_wth(map_wth(1,i))
+        z1_tq_top(i,1) = height_w3(map_w3(1,i) + 1) - height_wth(map_wth(1,i))
       end do
     end if
 
