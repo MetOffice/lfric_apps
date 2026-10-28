@@ -44,7 +44,10 @@ module init_ancils_mod
                                              snow_source_surf,          &
                                              sea_ice_source,            &
                                              sea_ice_source_start_dump, &
-                                             sea_ice_source_surf
+                                             sea_ice_source_surf,       &
+                                             coarse_aerosol_ancil,      &
+                                             coarse_ozone_ancil
+  use formulation_config_mod,         only : use_multires_coupling
   use aerosol_config_mod,             only : glomap_mode,               &
                                              glomap_mode_climatology,   &
                                              glomap_mode_dust_and_clim, &
@@ -101,6 +104,8 @@ module init_ancils_mod
               albedo_vis_ancil_names,     &
               albedo_nir_ancil_names,     &
               chloro_sea_ancil_names,     &
+              ozone_ancil_names,          &
+              ozone_file_owned,           &
               pft_ancil_names,            &
               easy_aerosol_names,         &
               easy_aerosol_collection_name
@@ -139,6 +144,11 @@ module init_ancils_mod
   character(len=str_def), parameter :: chloro_sea_ancil_names(2,1) = reshape( &
     [ character(len=str_def) :: "chloro_sea",                                 &
       "mass_concentration_of_chlorophyll_a_in_sea_water" ], [2,1] )
+
+  ! Pair of (model field name, variable name in the ozone file)
+  character(len=str_def), parameter :: ozone_ancil_names(2,1) = reshape( &
+    [ character(len=str_def) :: "ozone", "mass_fraction_of_ozone_in_air" ], &
+    [2,1] )
 
   ! Names of the plant functional type fields. Their file variables have the
   ! same names as the fields, so no mapping is needed.
@@ -452,12 +462,18 @@ contains
     end if
 
     !=====  OZONE ANCIL  =====
-    call ozone_time_axis%initialise("ozone_time", file_id="ozone_ancil", &
-                                    interp_flag=interp_flag, pop_freq="monthly")
-    call setup_ancil_field("ozone", depository, ancil_fields, mesh, &
-                           twod_mesh, time_axis=ozone_time_axis,    &
-                           alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
-    call ancil_times_list%insert_item(ozone_time_axis)
+    if ( ozone_file_owned() ) then
+      ! Read and updated by the file object
+      call setup_ancil_field("ozone", depository, ancil_fields, mesh, &
+                             twod_mesh, read_by_file=.true.)
+    else
+      call ozone_time_axis%initialise("ozone_time", file_id="ozone_ancil", &
+                                      interp_flag=interp_flag, pop_freq="monthly")
+      call setup_ancil_field("ozone", depository, ancil_fields, mesh, &
+                             twod_mesh, time_axis=ozone_time_axis,    &
+                             alt_mesh=aerosol_mesh, alt_twod_mesh=aerosol_twod_mesh)
+      call ancil_times_list%insert_item(ozone_time_axis)
+    end if
 
     !=====  AEROSOL ANCILS =====
     if (murk_prognostic) then
@@ -1001,6 +1017,12 @@ contains
                                     collection, mesh, twod_mesh, twod=.true. )
     end if
 
+    if ( ozone_file_owned() ) then
+      collection => modeldb%fields%get_field_collection("ozone_ancil_fields")
+      call create_file_owned_field( ozone_ancil_names(1,1), depository, &
+                                    collection, mesh, twod_mesh )
+    end if
+
     if ( pft_ancil_file_owned ) then
       collection => modeldb%fields%get_field_collection("plant_func_ancil_fields")
       do i = 1, size(pft_ancil_names)
@@ -1045,6 +1067,21 @@ contains
     nullify(depository, collection)
 
   end subroutine create_file_owned_ancils
+
+  !> @details Whether the ozone ancillary is read by a file object. This is the
+  !>          case in updating mode unless the ozone is on a coarse mesh,
+  !>          which the file object cannot regrid yet.
+  function ozone_file_owned() result( file_owned )
+
+    implicit none
+
+    logical(l_def) :: file_owned
+
+    file_owned = ancil_option == ancil_option_updating .and. &
+                 .not. ( use_multires_coupling .and.         &
+                         ( coarse_aerosol_ancil .or. coarse_ozone_ancil ) )
+
+  end function ozone_file_owned
 
   !> @details Name of the collection bound to the file of an EasyAerosol field
   !> @param[in] field_name  The EasyAerosol model field name
