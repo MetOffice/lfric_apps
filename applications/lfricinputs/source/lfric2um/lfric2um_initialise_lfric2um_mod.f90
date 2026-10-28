@@ -37,7 +37,8 @@ call lfric2um_config%load_namelists()
 call lfricinp_read_stashmaster(lfric2um_config%stashmaster_file)
 
 ! Set um_grid from lfric2um namelist
-call lfricinp_set_grid_from_namelist(lfric2um_config%num_snow_layers, &
+call lfricinp_set_grid_from_namelist(lfric2um_config%num_ice_cats,    &
+                                     lfric2um_config%num_snow_layers, &
                                      lfric2um_config%num_surface_types)
 
 if (local_rank == 0) then

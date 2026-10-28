@@ -220,6 +220,9 @@ case (7,9) ! ntypes == ntiles (lfricinputs doesn't support aggregate tile)
   end if
 case (10)
   last_pseudo_level_num = um_grid%num_ice_cats
+  if (last_pseudo_level_num == -32768) then
+    call log_event("Number of ice categories is not set", LOG_LEVEL_ERROR)
+  end if
 case (11)
   last_pseudo_level_num = um_grid%num_snow_layers * um_grid%num_surface_types
   if ( um_grid%num_snow_layers == -32768 .or. um_grid%num_surface_types == -32768 ) then
