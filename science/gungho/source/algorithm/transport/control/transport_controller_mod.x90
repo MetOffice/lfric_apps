@@ -53,7 +53,8 @@ module transport_controller_mod
   use lipschitz_diag_alg_mod,         only: lipschitz_diag_alg
   use print_field_stats_alg_mod,      only: print_field_stats_alg_rtran
   use substep_transport_alg_mod,      only: substep_transport_alg,             &
-                                            adaptive_vhv_splitting_alg
+                                            adaptive_vhv_splitting_alg,        &
+                                            max_num_substeps
 
   ! Kernels
   use fv_divergence_3d_kernel_mod,    only: fv_divergence_3d_kernel_type
@@ -208,6 +209,7 @@ contains
     real(kind=r_tran)      :: min_lipschitz, max_lipschitz_3d
     real(kind=r_tran)      :: max_lipschitz, max_lipschitz_alt
     integer(kind=i_def)    :: mesh_id
+    integer(kind=i_def)    :: num_substeps
     integer(kind=i_def)    :: watkins_fail, watkins_min
     integer(kind=i_def)    :: splitting_alt
     logical(kind=l_def)    :: perform_watkins
@@ -379,6 +381,7 @@ contains
       ! Following calculations will include dt in the "wind flux" fields, so
       ! set dt = 1.0 for the Watkins kernel
       dt_one = 1.0_r_tran
+      num_substeps = 1   ! Set to 1 here since we are not yet substepping
 
       call invoke( setval_c(hori_wind_flux, 0.0_r_tran),                       &
                    setval_c(vert_wind_flux, 0.0_r_tran),                       &
@@ -397,7 +400,7 @@ contains
                                        wind_flux,                              &
                                        dt_one,                                 &
                                        detj_at_w3,                             &
-                                       1),                                     &
+                                       num_substeps),                          &
                    ! Determine the adjusted wind for the final step
                    X_minus_Y(step_3_wind_flux, vert_wind_flux, step_1_wind_flux) )
 
@@ -558,9 +561,8 @@ contains
   !> @brief Calculates the reference fields to be used in tracer transport, and
   !!        if any of these are going to be negative, may perform the Watkins
   !!        algorithm to adjust how the fluxes are distributed between steps.
-  !> @param[in] fail_on_neg  If true, the model will stop if a reference field
-  !!                         is negative. If false, the model will continue.
-  !> @return  True if the ref field is safe to use, false if not
+  !> @param[in] fail_on_neg  Trigger model abort if a ref field is negative
+  !> @return ref_field safe  Reference fields are safe to use
   function check_reference_field(self, fail_on_neg) result(ref_field_safe)
 
     use transport_config_mod,           only: ffsl_unity_3d,                   &
@@ -707,20 +709,20 @@ contains
 
           if (.not. fail_on_neg                                                &
               .and. substep_transport == substep_transport_adaptive            &
-              .and. self%num_substeps < 3) then
+              .and. self%num_substeps < max_num_substeps) then
             ! Time to attempt substepping...
             call log_event(                                                    &
-              'The Watkins algorithm failed to keep all reference fields ' //  &
-              'positive for the transport of tracers. Now try substepping...', &
-              LOG_LEVEL_WARNING                                                &
+                'The Watkins algorithm failed to keep all reference ' //       &
+                'fields positive for the transport of tracers. Now try ' //    &
+                'substepping...', LOG_LEVEL_WARNING                            &
             )
 
           else if (adjust_tracer_equation) then
             ! Use advective form for tracer transport instead of consistent form
             call log_event(                                                    &
-              'Reference field for tracer transport is negative, so ' //       &
-              'making all tracers advective for this step. This will ' //      &
-              'make tracer transport non-conservative. ', LOG_LEVEL_WARNING    &
+                'Reference field for tracer transport is negative, so ' //     &
+                'making all tracers advective for this step. This will ' //    &
+                'make tracer transport non-conservative. ', LOG_LEVEL_WARNING  &
             )
             self%make_tracers_advective = .true.
             ref_field_safe = .true.
@@ -728,29 +730,29 @@ contains
           else
             ! Fail gracefully
             call log_event(                                                    &
-              'The Watkins algorithm failed to keep all reference fields ' //  &
-              'positive for the transport of tracers. This makes it ' //       &
-              'impossible to find sensible departure distances for (Flux ' //  &
-              'Form) Semi-Lagrangian transport. Stopping now to fail ' //      &
-              'gracefully.' // NEW_LINE('A') // NEW_LINE('A') //               &
-              'This is a common way for the model to fail. Most likely ' //    &
-              'the transporting wind passed to the transport scheme has ' //   &
-              'some unphysical values, and the corresponding maximum ' //      &
-              'Lipschitz number exceeds 1 somewhere, so check these ' //       &
-              'values in the log above, which may also indicate the ' //       &
-              'geographical location of the issue.' //                         &
-              NEW_LINE('A') // NEW_LINE('A') //                                &
-              'If this failure has occurred in the first timestep, it can ' // &
-              'signify issues with the initial conditions or ancillaries.',    &
-              LOG_LEVEL_ERROR                                                  &
+                'The Watkins algorithm failed to keep all reference ' //       &
+                'fields positive for the transport of tracers. This makes ' // &
+                'it impossible to find sensible departure distances for ' //   &
+                '(Flux Form) Semi-Lagrangian transport. Stopping now to ' //   &
+                'fail gracefully.' // NEW_LINE('A') // NEW_LINE('A') //        &
+                'This is a common way for the model to fail. Most likely ' //  &
+                'the transporting wind passed to the transport scheme has ' // &
+                'some unphysical values, and the corresponding maximum ' //    &
+                'Lipschitz number exceeds 1 somewhere, so check these ' //     &
+                'values in the log above, which may also indicate the ' //     &
+                'geographical location of the issue.' //                       &
+                NEW_LINE('A') // NEW_LINE('A') //                              &
+                'If this failure has occurred in the first timestep, it ' //   &
+                'can signify issues with the initial conditions or ' //        &
+                'ancillaries.', LOG_LEVEL_ERROR                                &
             )
           end if
         end if
 
       else
         call log_event(                                                        &
-          'Reference field for tracer transport is negative, but no ' //       &
-          'scheme to handle this has yet been implemented.', LOG_LEVEL_ERROR   &
+            'Reference field for tracer transport is negative, but no ' //     &
+            'scheme to handle this has yet been implemented.', LOG_LEVEL_ERROR &
         )
       end if
     end if
@@ -1077,7 +1079,7 @@ contains
     safe_ref = .false.
     start_substeps = self%num_substeps
     if (substep_transport == substep_transport_adaptive) then
-      end_substeps = 3  ! Force max substeps of 3
+      end_substeps = max_num_substeps
     else
       end_substeps = 1  ! No substepping
     end if

@@ -158,12 +158,12 @@ subroutine watkins_code( nlayers,             &
   lip_x_kp1 = dt*(wind(map_w2(E)) - wind(map_w2(W)))/detj(map_w3(1))
   lip_y_kp1 = dt*(wind(map_w2(S)) - wind(map_w2(N)))/detj(map_w3(1))
   lip_z_half_kp1 = dt*(first_v_wind(map_w2v(2)) - first_v_wind(map_w2v(1)))/detj(map_w3(1))
-  lip_hori_kp1 = MAX(lip_x_kp1, lip_y_kp1, lip_x_kp1 + lip_y_kp1)
-  lip_lim_kp1 = MAX(lip_z_half_kp1, lip_z_half_kp1 + lip_hori_kp1)
-  lip_3d_kp1 = MAX(0.0_r_tran, lip_x_kp1 + lip_y_kp1 + 2.0_r_tran*lip_z_half_kp1)
-  max_lip_init = lip_lim_kp1 + REAL(num_substeps - 1, r_tran)*lip_3d_kp1
+  lip_hori_kp1 = max(lip_x_kp1, lip_y_kp1, lip_x_kp1 + lip_y_kp1)
+  lip_lim_kp1 = max(lip_z_half_kp1, lip_z_half_kp1 + lip_hori_kp1)
+  lip_3d_kp1 = max(0.0_r_tran, lip_x_kp1 + lip_y_kp1 + 2.0_r_tran*lip_z_half_kp1)
+  max_lip_init = lip_lim_kp1 + real(num_substeps - 1, r_tran)*lip_3d_kp1
   max_lip_new = 0.0_r_tran
-  threshold_kp1 = max_threshold - REAL(num_substeps - 1, r_tran)*lip_3d_kp1
+  threshold_kp1 = max_threshold - real(num_substeps - 1, r_tran)*lip_3d_kp1
 
   do k = 0, nlayers - 1
 
@@ -176,9 +176,9 @@ subroutine watkins_code( nlayers,             &
 
       lip_hori_km1 = lip_hori
       lip_3d_km1 = lip_3d
-      threshold = max_threshold - REAL(num_substeps - 1, r_tran)*lip_3d_km1
+      threshold = max_threshold - real(num_substeps - 1, r_tran)*lip_3d_km1
       lip_z_half_km1 = dt*(first_v_wind(map_w2v(2)+k-1) - first_v_wind(map_w2v(1)+k-1))/detj(map_w3(1)+k-1)
-      lip_lim_km1 = MAX(lip_z_half_km1, lip_z_half_km1 + lip_hori_km1)
+      lip_lim_km1 = max(lip_z_half_km1, lip_z_half_km1 + lip_hori_km1)
 
       ! Calculate amount of slack to Lipschitz conditions for cell below
       slack_km1 = (threshold - lip_lim_km1) * detj(map_w3(1)+k-1) / dt
@@ -188,26 +188,27 @@ subroutine watkins_code( nlayers,             &
     lip_hori = lip_hori_kp1
     lip_3d = lip_3d_kp1
     lip_z_half = dt*(first_v_wind(map_w2v(2)+k) - first_v_wind(map_w2v(1)+k))/detj(map_w3(1)+k)
-    lip_lim = MAX(lip_z_half, lip_z_half + lip_hori)
+    lip_lim = max(lip_z_half, lip_z_half + lip_hori)
+
     ! Anticipate subsequent substeps, so build 3D Lipschitz number into threshold
     ! Each substep will add lip_3d to the Lipschitz number
-    threshold = max_threshold - REAL(num_substeps - 1, r_tran)*lip_3d
+    threshold = max_threshold - real(num_substeps - 1, r_tran)*lip_3d
 
     ! Lipschitz numbers for cell above -----------------------------------------
     if (k < nlayers - 1) then
       lip_x_kp1 = dt*(wind(map_w2(E)+k+1) - wind(map_w2(W)+k+1))/detj(map_w3(1)+k+1)
       lip_y_kp1 = dt*(wind(map_w2(S)+k+1) - wind(map_w2(N)+k+1))/detj(map_w3(1)+k+1)
       lip_z_half_kp1 = dt*(first_v_wind(map_w2v(2)+k+1) - first_v_wind(map_w2v(1)+k+1))/detj(map_w3(1)+k+1)
-      lip_hori_kp1 = MAX(lip_x_kp1, lip_y_kp1, lip_x_kp1 + lip_y_kp1)
-      lip_lim_kp1 = MAX(lip_z_half_kp1, lip_z_half_kp1 + lip_hori_kp1)
-      lip_3d_kp1 = MAX(0.0_r_tran,                                             &
+      lip_hori_kp1 = max(lip_x_kp1, lip_y_kp1, lip_x_kp1 + lip_y_kp1)
+      lip_lim_kp1 = max(lip_z_half_kp1, lip_z_half_kp1 + lip_hori_kp1)
+      lip_3d_kp1 = max(0.0_r_tran,                                             &
           lip_x_kp1 + lip_y_kp1                                                &
           + dt*(wind(map_w2(T)+k+1) - wind(map_w2(B)+k+1))/detj(map_w3(1)+k+1) &
       )
       ! For tracking if max Lipschitz number has increased
-      max_lip_init = MAX(max_lip_init,                                         &
-                         lip_lim_kp1 + REAL(num_substeps-1, r_tran)*lip_3d_kp1)
-      threshold_kp1 = max_threshold - REAL(num_substeps - 1, r_tran)*lip_3d_kp1
+      max_lip_init = max(max_lip_init,                                         &
+                         lip_lim_kp1 + real(num_substeps-1, r_tran)*lip_3d_kp1)
+      threshold_kp1 = max_threshold - real(num_substeps - 1, r_tran)*lip_3d_kp1
     end if
 
     ! ------------------------------------------------------------------------ !
@@ -222,7 +223,7 @@ subroutine watkins_code( nlayers,             &
       if (slack_km1 > (lip_lim - threshold) * detj(map_w3(1)+k) / dt) then
 
         ! Check whether cell above might need some of this slack too
-        if (lip_lim_kp1 > threshold_kp1 .AND. k < nlayers - 1) then
+        if (lip_lim_kp1 > threshold_kp1 .and. k < nlayers - 1) then
           ! TODO: don't need to use all slack here! Arbitrarily using half
           first_v_wind(map_w2v(1)+k) = first_v_wind(map_w2v(1)+k)              &
             + (lip_lim - threshold) * detj(map_w3(1)+k) / dt                   &
@@ -249,17 +250,19 @@ subroutine watkins_code( nlayers,             &
 
       ! Calculate Lipschitz number from cell below (which now won't change)
       if (k > 0) then
-        lip_z_half_km1 = dt*(first_v_wind(map_w2v(2)+k-1) - first_v_wind(map_w2v(1)+k-1))/detj(map_w3(1)+k-1)
-        lip_lim_km1 = MAX(lip_z_half_km1, lip_z_half_km1 + lip_hori_km1)       &
-                      + REAL(num_substeps - 1, r_tran)*lip_3d_km1
-        max_lip_new = MAX(max_lip_new, lip_lim_km1)
+        lip_z_half_km1 =                                                       &
+            dt * (first_v_wind(map_w2v(2)+k-1) - first_v_wind(map_w2v(1)+k-1)) &
+            / detj(map_w3(1)+k-1)
+        lip_lim_km1 = max(lip_z_half_km1, lip_z_half_km1 + lip_hori_km1)       &
+                      + real(num_substeps - 1, r_tran)*lip_3d_km1
+        max_lip_new = max(max_lip_new, lip_lim_km1)
       end if
 
     else
       ! Update running maximum Lipschitz number
       ! As nothing was changed, existing lip_lim_km1 is correct
       if (k > 0) then
-        max_lip_new = MAX(max_lip_new, lip_lim_km1)
+        max_lip_new = max(max_lip_new, lip_lim_km1)
       end if
 
     end if  ! Lipschitz condition was breached
@@ -268,15 +271,17 @@ subroutine watkins_code( nlayers,             &
 
   ! Update running maximum Lipschitz number with top layer
   k = nlayers - 1
-  lip_z_half = dt*(first_v_wind(map_w2v(2)+k) - first_v_wind(map_w2v(1)+k))/detj(map_w3(1)+k)
-  lip_lim = MAX(lip_z_half, lip_z_half + lip_hori)
-  max_lip_new = MAX(max_lip_new, lip_lim + REAL(num_substeps - 1, r_tran)*lip_3d)
+  lip_z_half =                                                                 &
+      dt * (first_v_wind(map_w2v(2)+k) - first_v_wind(map_w2v(1)+k))           &
+      / detj(map_w3(1)+k)
+  lip_lim = max(lip_z_half, lip_z_half + lip_hori)
+  max_lip_new = max(max_lip_new, lip_lim + real(num_substeps - 1, r_tran)*lip_3d)
 
   ! -------------------------------------------------------------------------- !
   ! Check if algorithm has failed, and if so take original wind
   ! -------------------------------------------------------------------------- !
 
-  if (max_lip_new > max_lip_init + tolerance .AND. &
+  if (max_lip_new > max_lip_init + tolerance .and. &
       max_lip_new > max_threshold + tolerance) then
     watkins_failures(map_w3_2d(1)) = 1_i_def
 
@@ -296,7 +301,7 @@ subroutine watkins_code( nlayers,             &
   end if
 
   ! As we have calculated max Lipschitz numbers, store it for logging
-  lipschitz_max_field(map_w3_2d(1)) = MIN(max_lip_new, max_lip_init)
+  lipschitz_max_field(map_w3_2d(1)) = min(max_lip_new, max_lip_init)
 
 end subroutine watkins_code
 
