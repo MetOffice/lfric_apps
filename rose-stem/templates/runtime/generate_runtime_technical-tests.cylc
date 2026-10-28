@@ -72,7 +72,7 @@
             SOURCE_DIRECTORY = $SOURCE_ROOT/{{src_path}}
             APPS_ROOT_DIR = $SOURCE_ROOT/lfric_apps
             CORE_ROOT_DIR = $SOURCE_ROOT/lfric_core
-            WORKING_DIR = {{working_dir}}/{{mode}}
+            WORKING_DIR = $CYLC_TASK_WORK_DIR/{{mode}}
             BIN_DIR = {{bin_dir}}
 
         [[[directives]]]
