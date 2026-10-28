@@ -30,8 +30,10 @@ lfric_apps:
     ref:
 
 lfric_core:
-   source: git@github.com:MetOffice/lfric_core.git
-   ref: 3f3d9b1ad66c52dc17562a2221392b5773a72dff
+    source: cazldt000007:Projects/CoreMoveMesh
+    ref: 
+#    source: git@github.com:MetOffice/lfric_core.git
+#    ref: 3f3d9b1ad66c52dc17562a2221392b5773a72dff
 
 moci:
     source: git@github.com:MetOffice/moci.git

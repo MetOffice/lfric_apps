@@ -43,7 +43,7 @@
 {% else %}
             MESH_DIR              = {{mesh_dir}}/{{task_ns.conf_name}}
 {% endif %}
-            SOURCE_DIRECTORY      = $SOURCE_ROOT/mesh_tools
+            SOURCE_DIRECTORY      = $SOURCE_ROOT/applications/mesh_tools
             OUTPUT_FILE_PREFIX    = $MESH_DIR/mesh_{{task_ns.conf_name}}
             PARTITION_PARTS       = {{ partition_parts }}
             FINAL_RANK            = $((PARTITION_PARTS-1))
