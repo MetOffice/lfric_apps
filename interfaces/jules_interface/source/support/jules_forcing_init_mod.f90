@@ -12,11 +12,15 @@ module jules_forcing_init_mod
   implicit none
 
   private
-  public :: jules_forcing_init, visible_fraction
+  public :: jules_forcing_init, visible_fraction, diffuse_fraction
 
   !> Fraction of the downward SW flux that is visible (photosynthetically
   !> active), as used for both albedos and PAR in standalone JULES
   real(kind=r_def), parameter :: visible_fraction = 0.5_r_def
+
+  !> Fraction of the downward SW flux that is diffuse, consistent with the
+  !> value of jules_vars%diff_frac set in the JULES kernels
+  real(kind=r_def), parameter :: diffuse_fraction = 0.4_r_def
 
 contains
 

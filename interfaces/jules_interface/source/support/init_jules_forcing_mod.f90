@@ -33,8 +33,11 @@ module init_jules_forcing_mod
 contains
 
   !> @brief  Create the JULES forcing fields and their time axis
-  !> @details The fields are 2D W3 fields in jules_forcing_fields, linearly
-  !>          interpolated in time from the data in the jules_forcing file.
+  !> @details The fields are 2D W3 fields in jules_forcing_fields, set from
+  !>          the data in the jules_forcing file without time interpolation.
+  !>          As for the 'nf' interpolation option of standalone JULES, each
+  !>          data time is the start of the period the data applies to, and
+  !>          the data is used unchanged until the next data time.
   !> @param[in,out] depository            The depository field collection
   !> @param[in,out] jules_forcing_fields  Collection to hold the forcing fields
   !> @param[in]     mesh                  The current 3d mesh
@@ -62,7 +65,7 @@ contains
     allocate(model_axes%jules_forcing_time_axis)
     call model_axes%jules_forcing_time_axis%initialise(        &
             "jules_forcing_time", file_id="jules_forcing",     &
-            interp_flag=.true. )
+            interp_flag=.false., window_size=1 )
 
     do i = 1, size(jules_forcing_field_names)
       call setup_ancil_field( trim(jules_forcing_field_names(i)), depository, &

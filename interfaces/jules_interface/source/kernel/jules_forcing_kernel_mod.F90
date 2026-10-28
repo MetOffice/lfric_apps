@@ -71,9 +71,9 @@ contains
   !>          forcing wind speed (v = 0) and the density on the first W3 level
   !>          is consistent with these. Downward radiation and precipitation
   !>          are set from the forcing, with the precipitation falling as snow
-  !>          if the forcing temperature is at or below t_for_snow. All SW
-  !>          is treated as direct and the visible fraction of it as
-  !>          photosynthetically active.
+  !>          if the forcing temperature is at or below t_for_snow. The
+  !>          visible fraction of the SW is photosynthetically active, and is
+  !>          split into direct and diffuse using the diffuse fraction.
   !> @param[in]     nlayers             Number of layers
   !> @param[in,out] theta               Potential temperature (K)
   !> @param[in,out] m_v                 Vapour mixing ratio (kg kg-1)
@@ -118,7 +118,7 @@ contains
                                  ndf_2d, undf_2d, map_2d )
 
     use planet_constants_mod,      only: p_zero, kappa, r, c_virtual, g
-    use jules_forcing_init_mod,    only: visible_fraction
+    use jules_forcing_init_mod,    only: visible_fraction, diffuse_fraction
     use initialization_config_mod, only: jules_forcing_z1_tq
 
     implicit none
@@ -186,11 +186,12 @@ contains
     ! Density on the first W3 level consistent with the forcing state
     wetrho_in_w3(map_w3(1)) = pressure_1 / (r * tv)
 
-    ! Downward radiation, with all SW taken as direct
+    ! Downward radiation
     sw_down_surf(map_2d(1))        = forcing_swdown(map_2d(1))
     lw_down_surf(map_2d(1))        = forcing_lwdown(map_2d(1))
     sw_down_blue_surf(map_2d(1))   = visible_fraction * forcing_swdown(map_2d(1))
-    sw_direct_blue_surf(map_2d(1)) = sw_down_blue_surf(map_2d(1))
+    sw_direct_blue_surf(map_2d(1)) = (1.0_r_def - diffuse_fraction) &
+                                   * sw_down_blue_surf(map_2d(1))
 
     ! Precipitation phase from the forcing temperature
     if (tair <= t_for_snow) then

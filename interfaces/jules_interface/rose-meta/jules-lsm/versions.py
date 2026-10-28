@@ -31,3 +31,21 @@ class vnXX_txxx(MacroUpgrade):
         # Add settings
         return config, self.reports
 """
+
+
+class vn32_tXXX(MacroUpgrade):
+    """Upgrade macro for ticket #XXX by Ian Boutle."""
+
+    BEFORE_TAG = "vn3.2"
+    AFTER_TAG = "vn3.2_tXXX"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/jules-lsm
+        """Add the initial water table and wetness under the soil column"""
+        self.add_setting(
+            config, ["namelist:ideal_surface", "water_table"], "1.0"
+        )
+        self.add_setting(
+            config, ["namelist:ideal_surface", "wetness_under_soil"], "1.0"
+        )
+        return config, self.reports

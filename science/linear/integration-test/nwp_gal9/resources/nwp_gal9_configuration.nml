@@ -148,6 +148,8 @@ soil_temperature=284.508,286.537,289.512,293.066,
 surf_tile_fracs=9*0.0,1.0,0.0,
 surf_tile_temps=9*295.0,300.0,265.0,
 tile_snow_mass=11*0.0,
+water_table=1.0,
+wetness_under_soil=1.0,
 /
 &initialization
 ancil_option='none',

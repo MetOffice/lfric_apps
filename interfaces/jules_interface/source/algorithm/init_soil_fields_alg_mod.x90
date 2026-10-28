@@ -14,7 +14,10 @@ module init_soil_fields_alg_mod
 
   ! Jules information used
   use jules_surface_types_mod,   only: ice
-  use ideal_surface_config_mod,  only: surf_tile_fracs
+  use ideal_surface_config_mod,  only: surf_tile_fracs,                   &
+                                       ideal_water_table => water_table,  &
+                                       ideal_wetness_under_soil =>        &
+                                         wetness_under_soil
 
   use initialization_config_mod, only: init_option, init_option_analytic, &
                                        ancil_option, ancil_option_none
@@ -135,6 +138,10 @@ contains
       if (surf_tile_fracs(ice) > 0.0_r_def) then
         call invoke(setval_c(soil_moist_sat, 0.0_r_def))
       end if
+
+      ! Water table and wetness below the soil column from the namelist
+      call invoke(setval_c(water_table, ideal_water_table),               &
+                  setval_c(wetness_under_soil, ideal_wetness_under_soil))
 
       call mean_topog_index%copy_field_properties(stdev_topog_index)
 
