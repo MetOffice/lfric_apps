@@ -11,7 +11,6 @@
 {% do site_groups.update({
     "lfric_atm_nwp_gadi_developer": [
         "lfric_atm_nwp_gal9-C12_gadi_intel_fast-debug-64bit",
-        "lfric_atm_nwp_gal9_snow_fd_start_surf-C12_gadi_intel_fast-debug-64bit",
         "lfric_atm_nwp_gal9-C12_gadi_intel_production-64bit-rbl32-rtran32",
         "lfric_atm_nwp_gal9_mol-C12_gadi_intel_fast-debug-64bit",
         "lfric_atm_nwp_gal9_debug-C12_gadi_intel_full-debug-64bit",
