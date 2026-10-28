@@ -227,8 +227,8 @@
         "lfricinputs_lfric2um-r2o-C224L70_N512L70_ex1a_gnu_fast-debug-64bit",
     ],
     "lfric2um_ex1a_r2o_C448": [
-        "lfricinputs_lfric2um-r2o-C448L70_N512L70_ex1a_gnu_full-debug-64bit",
-        "lfricinputs_lfric2um-r2o-C448L70_N512L70_ex1a_gnu_fast-debug-64bit",
+        "lfricinputs_lfric2um-r2o-C448L70_N1280L70_ex1a_gnu_full-debug-64bit",
+        "lfricinputs_lfric2um-r2o-C448L70_N1280L70_ex1a_gnu_fast-debug-64bit",
     ],
     "lfric2um_ex1a_r2o": [
         "lfric2um_ex1a_r2o_C224",
