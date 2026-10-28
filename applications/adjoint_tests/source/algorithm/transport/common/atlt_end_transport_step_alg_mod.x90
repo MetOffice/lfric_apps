@@ -388,7 +388,7 @@ module atlt_end_transport_step_alg_mod
     fpw_fpw_input_inner_prod = 0.0_r_def
 
     ! Adjoint
-    call atl_end_conservative_step_alg(  field_np1, field_in,      &
+    call atl_end_conservative_step_alg( field_np1, field_in,              &
                                         flux_ls_wind, flux_pert_wind,     &
                                         flux_precomp_ls_wind,             &
                                         flux_precomp_pert_wind,           &
