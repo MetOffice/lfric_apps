@@ -30,5 +30,8 @@
     {% if "app_name" not in task_dict %}
         {% do task_dict.update({"app_name": "jedi_lfric_interface"}) %}
     {% endif %}
+    {% if "calliper_timings" not in task_dict %}
+        {% do task_dict.update({"calliper_timings": "false"}) %}
+    {% endif %}
 {% endif %}
 {% do LOG.debug("Finished in site/common/jedi_lfric_interface/tasks_jedi_lfric_interface.cylc") %}
