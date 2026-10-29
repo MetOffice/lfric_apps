@@ -37,4 +37,11 @@
 
 {% endif %}
 
+{% if task_dict %}
+    {% if "calliper_timings" not in task_dict %}
+        {% do task_dict.update({"calliper_timings": "false"}) %}
+    {% endif %}
+
+{% endif %}
+
 {% do LOG.debug("Finished in site/common/lfricinputs/tasks_scintelapi.cylc") %}
