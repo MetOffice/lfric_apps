@@ -1,0 +1,52 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/meto/groups/groups_solver.cylc") %}
+
+{# asp2a Groups #}
+{% do site_groups.update({
+    "solver_asp2a_developer": [
+        "solver_bicgstab-C24_asp2a_intel_fast-debug-64bit",
+        "solver_cg-C24_asp2a_intel_fast-debug-64bit",
+        "solver_fgmres-C24_asp2a_intel_fast-debug-64bit",
+        "solver_gcr-C24_asp2a_intel_fast-debug-64bit",
+        "solver_gmres-C24_asp2a_intel_fast-debug-64bit",
+        "solver_jacobi-C24_asp2a_intel_fast-debug-64bit",
+        "solver_prec_only-C24_asp2a_intel_fast-debug-64bit",
+    ],
+    "solver_asp2a": [
+        "solver_asp2a_developer",
+    ],
+    "solver_asp2a_build": [
+        "build_solver_asp2a_intel_fast-debug-64bit",
+    ],
+    }) %}
+
+{# Platform Generic Groups #}
+{% do site_groups.update({
+    "solver_developer": [
+        "scripts",
+        "solver_asp2a_developer",
+    ],
+    "solver": [
+        "solver_developer",
+        "solver_asp2a",
+    ],
+    "solver_build": [
+        "solver_asp2a_build",
+    ],
+    }) %}
+
+{# Platform Generic Extends #}
+{% do site_groups.developer.extend(site_groups.solver_developer) %}
+{% do site_groups.all.extend(site_groups.solver) %}
+{% do site_groups.build.extend(site_groups.solver_build) %}
+
+{# asp2a Extends #}
+{% do site_groups.asp2a_developer.extend(site_groups.solver_asp2a_developer) %}
+{% do site_groups.asp2a.extend(site_groups.solver_asp2a) %}
+{% do site_groups.asp2a_build.extend(site_groups.solver_asp2a_build) %}
+
+{% do LOG.debug("Finished in site/meto/groups/groups_solver.cylc") %}
