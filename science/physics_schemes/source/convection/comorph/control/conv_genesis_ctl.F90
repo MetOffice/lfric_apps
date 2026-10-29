@@ -315,7 +315,6 @@ do k = k_bot_conv, k_top_init
                k_half=k2, grid_half_super=grid_half(:,:,k2_c) )
     end do
 
-
     ! Compress grid-mean primary fields from current level
     ! and the levels above and below
     do i_field = 1, n_fields_tot

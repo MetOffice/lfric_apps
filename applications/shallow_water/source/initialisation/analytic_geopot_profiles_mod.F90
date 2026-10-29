@@ -20,9 +20,10 @@ module analytic_geopot_profiles_mod
   use coord_transform_mod,    only: xyz2ll
   use galewsky_test_case_mod, only: galewsky_profile
 
+  use mesh_mod, only: geometry_spherical
+
   ! Configurations
-  use base_mesh_config_mod,   only: geometry, &
-                                    geometry_spherical
+  use base_mesh_config_mod,   only: geometry
   use planet_config_mod,      only: scaled_radius, gravity, &
                                     scaled_omega, scaling_factor
   use shallow_water_settings_config_mod,                           &
