@@ -55,7 +55,6 @@ export PSYCLONE_PHYSICS_FILES = \
 # These files are causing build slow downs with the CCE compiler
 # due to a compiler bug, this has been reported to HPE by HPC Opt:
 #   conv_comorph_kernel_mod
-#   aerosol_ukca_kernel_mod
 # See apps issue # 657 for information regarding the investigation 
 
 

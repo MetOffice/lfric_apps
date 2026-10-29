@@ -34,12 +34,12 @@ module limited_area_constants_mod
                                                LOG_LEVEL_ERROR, &
                                                LOG_LEVEL_DEBUG
   use mesh_collection_mod,               only: mesh_collection
-  use mesh_mod,                          only: mesh_type
+  use mesh_mod,                          only: mesh_type, geometry_spherical
   use timing_mod,                        only: start_timing, stop_timing, &
                                                tik, LPROF
 
   ! Configuration
-  use base_mesh_config_mod,              only: geometry, geometry_spherical
+  use base_mesh_config_mod,              only: geometry
   use boundaries_config_mod,             only: normal_only, lbc_method, &
                                                lbc_method_coordinate_based
   use finite_element_config_mod,         only: element_order_h, &
