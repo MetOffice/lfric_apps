@@ -33,7 +33,12 @@ module init_soil_fields_alg_mod
                                          soil_thermal_cond,               &
                                        ideal_soil_suction_sat =>          &
                                          soil_suction_sat,                &
-                                       ideal_clapp_horn_b => clapp_horn_b
+                                       ideal_clapp_horn_b =>              &
+                                         clapp_horn_b,                    &
+                                       ideal_mean_topog_index =>          &
+                                         mean_topog_index,                &
+                                       ideal_stdev_topog_index =>         &
+                                         stdev_topog_index
 
   use initialization_config_mod, only: init_option, init_option_analytic, &
                                        ancil_option, ancil_option_none
@@ -149,8 +154,8 @@ contains
     if (init_option == init_option_analytic .or. &
          ancil_option == ancil_option_none) then
 
-      ! Soil properties, water table and wetness below the soil column
-      ! from the namelist
+      ! Soil properties, topographic index, water table and wetness below
+      ! the soil column from the namelist
       call invoke(setval_c(soil_albedo,        ideal_soil_albedo),        &
                   setval_c(soil_moist_wilt,    ideal_soil_moist_wilt),    &
                   setval_c(soil_moist_crit,    ideal_soil_moist_crit),    &
@@ -160,6 +165,7 @@ contains
                   setval_c(soil_thermal_cond,  ideal_soil_thermal_cond),  &
                   setval_c(soil_suction_sat,   ideal_soil_suction_sat),   &
                   setval_c(clapp_horn_b,       ideal_clapp_horn_b),       &
+                  setval_c(mean_topog_index,   ideal_mean_topog_index),   &
                   setval_c(water_table,        ideal_water_table),        &
                   setval_c(wetness_under_soil, ideal_wetness_under_soil))
 
@@ -172,7 +178,7 @@ contains
       call mean_topog_index%copy_field_properties(stdev_topog_index)
 
       ! Calculate correct versions of soil ancils and prognostics
-      call invoke(setval_c(stdev_topog_index, 1.0_r_def),                    &
+      call invoke(setval_c(stdev_topog_index, ideal_stdev_topog_index),      &
                   process_soil_kernel_type( soil_moist_sat,                  &
                                             soil_moist_wilt,                 &
                                             mean_topog_index,                &
