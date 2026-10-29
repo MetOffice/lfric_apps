@@ -28,9 +28,9 @@
 {% if task_dict %}
     {% if "mpi_parts" not in task_dict %}
         {% do task_dict.update({
-            "mpi_parts": 126,
-            "xproc": 9,
-            "yproc": 14,
+            "mpi_parts": 12,
+            "xproc": 3,
+            "yproc": 4,
         }) %}
     {% endif %}
     {% if task_dict["app_name"] == "um2lfric" and task_ns.conf_name != "um2lfric-nwp_gal9-N320L70_C224L70"%}
