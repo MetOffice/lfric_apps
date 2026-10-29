@@ -67,24 +67,56 @@
       </file>
 
       <file id="lfric_diag" name="lfric_diag" output_freq="6h" convention="UGRID" enabled=".TRUE.">
-	<field field_ref="theta" />
-	<field field_ref="m_v" />
-	<field field_ref="wetrho_in_w3" />
 	<field field_ref="u_in_w3" />
 	<field field_ref="v_in_w3" />
+	<field field_ref="processed__pstar" />
+	<field field_ref="surface__tile_fraction" />
+	<field field_ref="surface__z0m" />
+	<field field_ref="surface__z0m_tile" />
+	<field field_ref="surface__canopy_height" />
+	<field field_ref="surface__leaf_area_index" />
 	<field field_ref="surface__tile_temperature" />
 	<field field_ref="surface__grid_surface_temperature" />
-	<field field_ref="surface__z0m" />
-	<field field_ref="surface__grid_latent_heat" />
+	<field field_ref="surface__t1p5m_surft" />
+	<field field_ref="surface__t1p5m" />
+	<field field_ref="surface__q1p5m_surft" />
+	<field field_ref="surface__q1p5m" />
+	<field field_ref="surface__rh1p5m" />
 	<field field_ref="surface__tile_heat_flux" />
+	<field field_ref="surface__tile_moisture_flux" />
+	<field field_ref="surface__latent_heat" />
+	<field field_ref="surface__grid_latent_heat" />
+	<field field_ref="surface__canopy_water" />
+	<field field_ref="surface__grid_canopy_water" />
+	<field field_ref="surface__throughfall" />
+	<field field_ref="surface__grid_throughfall" />
+	<field field_ref="surface__canopy_evap" />
+	<field field_ref="surface__grid_canopy_evap" />
+	<field field_ref="surface__soil_evap" />
+	<field field_ref="surface__surf_ht_flux" />
+	<field field_ref="surface__soil_surf_ht_flux" />
+	<field field_ref="surface__surf_sw_net" />
+	<field field_ref="surface__surf_radnet" />
+	<field field_ref="surface__surf_lw_up" />
+	<field field_ref="surface__surf_lw_down" />
+	<field field_ref="surface__gross_prim_prod" />
+	<field field_ref="surface__net_prim_prod" />
+	<field field_ref="surface__gc_tile" />
+	<field field_ref="surface__soil_respiration" />
+	<field field_ref="soil__surface_runoff" />
+	<field field_ref="soil__sub_surface_runoff" />
+	<field field_ref="soil__soil_moisture_content" />
 	<field field_ref="soil__soil_moisture" />
 	<field field_ref="soil__unfrozen_soil_moisture" />
+	<field field_ref="soil__frozen_soil_moisture" />
 	<field field_ref="soil__soil_temperature" />
+	<field field_ref="soil__water_table" />
+	<field field_ref="soil__soil_moist_wilt" />
+	<field field_ref="soil__soil_moist_crit" />
+	<field field_ref="soil__soil_moist_sat" />
       </file>
 
       <file id="lfric_initial" name="lfric_initial" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
-	<field_group operation="once" freq_op="1ts">
-	</field_group>
       </file>
 
       <!-- File definition for writing an FD dump -->
@@ -108,8 +140,8 @@
 
       <variable_group id = "parameters" >
         <variable id = "using_server" type = "bool" >true</variable>
-        <variable id = "info_level" type = "int" >$XIOS_INFO_LEVEL</variable>
-        <variable id = "print_file" type="bool">$XIOS_PRINT_FILE</variable>
+        <variable id = "info_level" type = "int" >50</variable>
+        <variable id = "print_file" type="bool">true</variable>
       </variable_group>
     </variable_definition>
   </context>

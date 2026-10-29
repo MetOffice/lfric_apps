@@ -13,7 +13,7 @@
 
     {# Cardington site forcing, 2005-01-01 00:00 to 2005-01-03 23:30 #}
     {% do task_dict.update({
-        "opt_confs": [],
+        "opt_confs": ["cardington"],
         "resolution": "1x1-50000x50000",
         "DT": 1800,
         "tsteps": 143,
