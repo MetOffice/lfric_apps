@@ -23,13 +23,20 @@ AXIS_MAP = {
     "surface_tiles":         [11, "weight_file_masked.nc"],
     "land_tiles":            [8, "weight_file_masked.nc"],
     "sea_ice_categories":    [1, "weight_file_masked.nc"],
-    "snow_layers_and_tiles": [27, "weight_file_masked.nc"],
-    "soil_levels":           [4, "weight_file_masked.nc"],
+    "snow_layers_and_tiles": [27, "weight_file_nn.nc"],
+    "soil_levels":           [4, "weight_file_nn_masked.nc"],
     "plant_func_types":      [5, "weight_file_masked.nc"],
     "dust_divisions":        [6, "weight_file_masked.nc"],
     "general":               [1, "weight_file.nc"],
 }
 
+SPECIAL_FIELDS = {
+    "z0msea":               [1, "weight_file_masked.nc"],
+    "surface_conductance":  [1, "weight_file_nn_masked.nc"],
+    "soil_sat_frac":        [1, "weight_file_nn_masked.nc"],
+    "wetness_under_soil":   [1, "weight_file_nn_masked.nc"],
+    "snow_soot":            [1, "weight_file_masked.nc"],
+}
 
 def write_string(f, count, src, dst, freq, weightfile):
     """
@@ -87,12 +94,12 @@ def write_footer(f):
     f.write("########################################################## \n")
 
 
-def process_multidata_field(f, field, count):
+def process_special_field(f, field, count):
     """
-    For given multidata field, determine the field name and axis.
-    If this is a special field (a multidata field with an axis) then
-    create the src and dst name, get the weights file from AXIS_MAP, and
-    then write the entry to the namcouple file.
+    For given special field, determine the field name and axis.
+    If this is a special field (a 2D field) then
+    create the src and dst name, get the weights file from AXIS_MAP
+    or SPECIAL_FIELDS, and then write the entry to the namcouple file.
     """
     var = field.get("id")
     domain = field.get("domain_ref")
@@ -106,6 +113,11 @@ def process_multidata_field(f, field, count):
             axis_data = AXIS_MAP[axis]
         except KeyError:
             raise ValueError(axis + " is not in AXIS_MAP")
+
+        input_var = var.replace(PREFIX_OUT + '_', '')
+        if input_var in SPECIAL_FIELDS:
+            axis_data = SPECIAL_FIELDS[input_var]
+        
         # axis_data[0] gives the number of levels in the multidata axis
         # axis_data[1] gives the name of the associated weights file
         for n in range(1, axis_data[0]+1):
@@ -114,6 +126,7 @@ def process_multidata_field(f, field, count):
             count += 1
             write_string(f, count, src, dst, MAX_FREQ, axis_data[1])
     return count
+
 
 def which_fields(root, field_list):
     """
@@ -177,7 +190,7 @@ def main():
         field_list=[]
         field_list = which_fields(root, field_list)
 
-        # Count the number of multidata fields to be regridded
+        # Count the number of special (single-level/multidata) fields to be regridded
         total_count = count_special_fields(field_list)
         
         # Add 1 to the count (field for general regridding)
@@ -198,7 +211,7 @@ def main():
 
         # Write the strings for the special fields (Entries 2 to total_count)
         for field in field_list:
-            count = process_multidata_field(f, field, count)
+            count = process_special_field(f, field, count)
 
         # Write the footer of the file
         write_footer(f)

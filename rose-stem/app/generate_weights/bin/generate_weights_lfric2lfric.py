@@ -40,6 +40,20 @@ class INTER:
         self.dst_grid_type = os.environ.get('DST_GRID_TYPE')
         self.dst_grid_name = os.environ.get('DST_MESH_NAME')
 
+    def set_regrid_info_nneighbor(self):
+        """Set information from environment variables"""
+        self.method = 'neareststod'
+        self.pole = os.environ.get('INT_POLE')
+        self.unmapped = os.environ.get('INT_UNMAPPED')
+        self.degenerate = os.environ.get('INT_DEGENERATE')
+        self.area = os.environ.get('INT_AREA')
+        self.line = os.environ.get('INT_LANE')
+        self.norm = os.environ.get('INT_NORM')
+        self.src_grid_type = os.environ.get('SRC_GRID_TYPE')
+        self.src_grid_name = os.environ.get('SRC_MESH_NAME')
+        self.dst_grid_type = os.environ.get('DST_GRID_TYPE')
+        self.dst_grid_name = os.environ.get('DST_MESH_NAME')
+
     def set_arguments(self):
         """Set ESMF regrid command line options"""
         options = ' -s ' + self.src_grid_name + ".nc"
@@ -174,3 +188,29 @@ if __name__ == "__main__":
     style = os.environ.get('FORMAT')
     run_exe(MY_INTER.set_arguments(),
                 "regrid_weights.nc", style)
+    
+    print('Save SRC -> DST grid info')
+    with_mask=True
+    transform_and_write(SRC_GRID, with_mask)
+    transform_and_write(DST_GRID, with_mask)
+
+    MY_INTER = INTER()
+    MY_INTER.set_regrid_info_nneighbor()
+    MY_INTER.print_info()
+    style = os.environ.get('FORMAT')
+    run_exe(MY_INTER.set_arguments(),
+                "regrid_weights_nn_masked.nc", style)
+
+    print('Save SRC -> DST grid info')
+    with_mask=False
+    transform_and_write(SRC_GRID, with_mask)
+    transform_and_write(DST_GRID, with_mask)
+
+    MY_INTER = INTER()
+    MY_INTER.set_regrid_info_nneighbor()
+    MY_INTER.print_info()
+    style = os.environ.get('FORMAT')
+    run_exe(MY_INTER.set_arguments(),
+                "regrid_weights_nn.nc", style)
+    
+    
