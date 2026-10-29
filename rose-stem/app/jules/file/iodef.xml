@@ -69,12 +69,9 @@
       <file id="lfric_diag" name="lfric_diag" output_freq="6h" convention="UGRID" enabled=".TRUE.">
 	<field field_ref="theta" />
 	<field field_ref="m_v" />
-	<field field_ref="rho" />
 	<field field_ref="wetrho_in_w3" />
-	<field field_ref="processed__pressure_in_w3" />
 	<field field_ref="u_in_w3" />
 	<field field_ref="v_in_w3" />
-	<field field_ref="w_in_wth" />
 	<field field_ref="surface__tile_temperature" />
 	<field field_ref="surface__grid_surface_temperature" />
 	<field field_ref="surface__z0m" />
@@ -85,26 +82,8 @@
 	<field field_ref="soil__soil_temperature" />
       </file>
 
-      <file id="lfric_averages" name="lfric_averages" output_freq="12h" convention="UGRID" enabled=".TRUE.">
-        <field field_ref="theta" operation="average" />
-        <field field_ref="exner" operation="average" />
-        <field field_ref="u_in_w3" operation="average" />
-        <field field_ref="v_in_w3" operation="average" />
-        <field field_ref="w_in_wth" operation="average" />
-      </file>
-
       <file id="lfric_initial" name="lfric_initial" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
 	<field_group operation="once" freq_op="1ts">
-	  <field field_ref="init_theta" />
-	  <field field_ref="init_m_v" />
-	  <field field_ref="init_m_cl" />
-	  <field field_ref="init_m_s" />
-	  <field field_ref="init_m_r" />
-	  <field field_ref="init_w_in_wth" />
-	  <field field_ref="init_rho" />
-	  <field field_ref="init_exner" />
-	  <field field_ref="init_height_w3" />
-	  <field field_ref="init_height_wth" />
 	</field_group>
       </file>
 
