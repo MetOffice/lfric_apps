@@ -357,6 +357,8 @@ l_spec_veg_z0=.true.,
 run_log_level='info',
 /
 &mixed_solver
+chebyshev_lmax=2.5
+chebyshev_lmin=1.0
 eliminate_variables='discrete',
 fail_on_non_converged=.true.,
 gcrk=4,

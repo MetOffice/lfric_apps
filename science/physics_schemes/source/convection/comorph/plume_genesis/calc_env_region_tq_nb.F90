@@ -110,8 +110,8 @@ real(kind=real_cvprec) :: dtv_dqsat_ice(n_points)
 real(kind=real_cvprec) :: qc_tot_loc(n_points,n_regions)
 ! Condensate water-loading excess of each region relative to the grid-mean
 real(kind=real_cvprec) :: qc_excess(n_points,n_regions)
-! Local total condensed water outside the liquid-cloud
-real(kind=real_cvprec) :: qc_tot_noliq
+! Local total condensed water excess outside the liquid-cloud
+real(kind=real_cvprec) :: qc_excess_noliq
 
 ! Local total ice mixing-ratio within the mph,icr regions
 real(kind=real_cvprec) :: q_ice_loc(n_points)
@@ -375,15 +375,14 @@ if ( nc > 0 ) then
   ! same virtual temperature as the grid-mean
   do ic2 = 1, nc
     ic = index_ic(ic2)
-    ! Find local total-condensed-water in the no-liquid cloud region
-    qc_tot_noliq = qc_tot(ic)                                                  &
-          - ( frac_r(ic,i_liq) * qc_excess(ic,i_liq)                           &
-            + frac_r(ic,i_mph) * qc_excess(ic,i_mph) )                         &
-          / ( one - cloudfracs(ic,i_frac_liq) )
+    ! Find local total-condensed-water excess in the no-liquid cloud region
+    qc_excess_noliq = - ( frac_r(ic,i_liq) * qc_excess(ic,i_liq)               &
+                        + frac_r(ic,i_mph) * qc_excess(ic,i_mph) )             &
+                    / ( one - cloudfracs(ic,i_frac_liq) )
     ! Set T for specified Tv
     temperature_noliq(ic) = temperature(ic)                                    &
      - ( ( q_vap_noliq(ic) - q_vap(ic) ) * dtv_dqv(ic)                         &
-       + ( qc_tot_noliq - qc_tot(ic) ) * dtv_dqc(ic) ) / dtv_dt(ic)
+       + qc_excess_noliq * dtv_dqc(ic) ) / dtv_dt(ic)
   end do
 
 end if  ! ( nc > 0 )
@@ -487,14 +486,7 @@ do ic = 1, n_points
 
     ! Apply bounds to qv_icr...
 
-    ! Upper bound is liquid saturation
-    q_lim = ( ( qsat_liq(ic) + supersat(ic) ) * dtv_dqsat_liq(ic)              &
-            + q_vap(ic) * dtv_dqv(ic)                                          &
-            - qc_excess(ic,i_icr) * dtv_dqc(ic) )                              &
-          / ( dtv_dqsat_liq(ic) + dtv_dqv(ic) )
-    q_vap_r(ic,i_icr) = min( q_vap_r(ic,i_icr), q_lim )
-
-    ! Upper bound for dry region is also liquid saturation
+    ! Upper bound for dry region is liquid saturation
     q_lim = ( ( qsat_liq(ic) + supersat(ic) ) * dtv_dqsat_liq(ic)              &
             + q_vap(ic) * dtv_dqv(ic)                                          &
             - qc_excess(ic,i_dry) * dtv_dqc(ic) )                              &
@@ -508,6 +500,13 @@ do ic = 1, n_points
           + ( frac_r(ic,i_dry) / frac_r(ic,i_icr) )                            &
           * ( q_vap_noliq(ic) - q_lim )
     q_vap_r(ic,i_icr) = max( q_vap_r(ic,i_icr), q_lim )
+
+    ! Upper bound for icr region is also liquid saturation
+    q_lim = ( ( qsat_liq(ic) + supersat(ic) ) * dtv_dqsat_liq(ic)              &
+            + q_vap(ic) * dtv_dqv(ic)                                          &
+            - qc_excess(ic,i_icr) * dtv_dqc(ic) )                              &
+          / ( dtv_dqsat_liq(ic) + dtv_dqv(ic) )
+    q_vap_r(ic,i_icr) = min( q_vap_r(ic,i_icr), q_lim )
 
     ! Finally, we must have qv_icr > 0
     q_vap_r(ic,i_icr) = max( q_vap_r(ic,i_icr), zero )

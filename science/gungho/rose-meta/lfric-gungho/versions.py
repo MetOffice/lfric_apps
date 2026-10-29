@@ -286,5 +286,229 @@ class vn32_t800(MacroUpgrade):
         self.add_setting(config, ["namelist:vapour_relax", "times"], "0.0")
         self.add_setting(config, ["namelist:vapour_relax", "timescale"], "1.0")
         self.add_setting(config, ["namelist:vapour_relax", "variable"], "'mr'")
+        return config, self.reports
+
+
+class vn32_t400(MacroUpgrade):
+    """Upgrade macro for ticket #400 by Dan Copsey."""
+
+    BEFORE_TAG = "vn3.2_t800"
+    AFTER_TAG = "vn3.2_t400"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/jules-lsm
+        # Is this a coupled model? The easiest way to get this is from the number of sea ice categories.
+        nice = int(
+            self.get_setting_value(
+                config, ["namelist:jules_sea_seaice", "nice"]
+            )
+        )
+        is_coupled = nice > 1
+        # Add the new namelist settings
+        self.add_setting(
+            config, ["namelist:jules_sea_seaice", "l_zenith_albedo"], ".true."
+        )
+        if is_coupled:
+            self.add_setting(
+                config,
+                ["namelist:jules_sea_seaice", "meltpond_alb_vn"],
+                "'malinka'",
+            )
+        else:
+            self.add_setting(
+                config,
+                ["namelist:jules_sea_seaice", "meltpond_alb_vn"],
+                "'none'",
+            )
+        self.add_setting(
+            config,
+            ["namelist:jules_sea_seaice", "snow_grain_size_max"],
+            "140.0",
+        )
+        self.add_setting(
+            config, ["namelist:jules_sea_seaice", "snow_grain_size_min"], "70.0"
+        )
+        self.add_setting(
+            config, ["namelist:jules_sea_seaice", "snowpatch"], "0.02"
+        )
+        return config, self.reports
+
+
+class vn32_t670(MacroUpgrade):
+    """Upgrade macro for ticket #670 by Thomas Bendall."""
+
+    BEFORE_TAG = "vn3.2_t400"
+    AFTER_TAG = "vn3.2_t670"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        # Add new nudging namelist options
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_method"], "'convolution'"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_relax_time_theta"], "6.0"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_relax_time_u"], "6.0"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_relax_time_v"], "6.0"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_spinup_start"], "12.0"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_spinup_end"], "24.0"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_stop_time"], "10000.0"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_level_taper_bottom"], "5"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_level_taper_top"], "52"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "nudging_min_tropopause_level"], "48"
+        )
+        self.change_setting_value(
+            config, ["namelist:nudging", "nudging_level_bottom"], "6"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "num_ref_data_levels"], "137"
+        )
+        self.add_setting(config, ["namelist:nudging", "spectral_kmax"], "20")
+        self.add_setting(config, ["namelist:nudging", "spectral_kmin"], "2")
+        self.add_setting(
+            config, ["namelist:nudging", "spectral_stencil_extent"], "12"
+        )
+        self.add_setting(
+            config, ["namelist:nudging", "spectral_envelope_width"], "0.1"
+        )
+        # Remove retired settings
+        self.remove_setting(config, ["namelist:nudging", "nudging_source"])
+        self.remove_setting(
+            config, ["namelist:nudging", "nudging_width_bottom"]
+        )
+        self.remove_setting(config, ["namelist:nudging", "nudging_width_top"])
+        self.remove_setting(config, ["namelist:nudging", "nudge_data_levels"])
+        # If nudging_mesh_name is still the default '' value, set it to
+        # match dynamics_mesh_name
+        nudging_mesh_name = self.get_setting_value(
+            config, ["namelist:multires_coupling", "nudging_mesh_name"]
+        )
+        if nudging_mesh_name == "''":
+            dynamics_mesh_name = self.get_setting_value(
+                config, ["namelist:multires_coupling", "dynamics_mesh_name"]
+            )
+            if dynamics_mesh_name is not None:
+                self.change_setting_value(
+                    config,
+                    ["namelist:multires_coupling", "nudging_mesh_name"],
+                    dynamics_mesh_name,
+                )
+        return config, self.reports
+
+
+class vn32_t752(MacroUpgrade):
+    """Upgrade macro for ticket #752 by Adrian Lock."""
+
+    BEFORE_TAG = "vn3.2_t670"
+    AFTER_TAG = "vn3.2_t752"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        self.add_setting(
+            config, ["namelist:mixing", "cap_blended_ml"], ".false."
+        )
+        self.add_setting(
+            config, ["namelist:mixing", "shallow_cu_maxtop"], "3000.0"
+        )
+        return config, self.reports
+
+
+class vn32_t763(MacroUpgrade):
+    """Upgrade macro for ticket #763 by Chris Smith."""
+
+    BEFORE_TAG = "vn3.2_t752"
+    AFTER_TAG = "vn3.2_t763"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        """Add new wind_relax namelist"""
+        source = self.get_setting_value(
+            config, ["file:configuration.nml", "source"]
+        )
+        source = source + "\n" + " (namelist:wind_relax)"
+        self.change_setting_value(
+            config, ["file:configuration.nml", "source"], source
+        )
+        """Add wind_relaxation setting to external_forcing namelist"""
+        self.add_setting(
+            config, ["namelist:external_forcing", "wind_relaxation"], ".false."
+        )
+        """Data for wind_relax namelist"""
+        self.add_setting(config, ["namelist:wind_relax"])
+        self.add_setting(
+            config, ["namelist:wind_relax", "coordinate"], "'height'"
+        )
+        self.add_setting(config, ["namelist:wind_relax", "heights"], "0.0")
+        self.add_setting(config, ["namelist:wind_relax", "number_heights"], "1")
+        self.add_setting(config, ["namelist:wind_relax", "number_times"], "1")
+        self.add_setting(config, ["namelist:wind_relax", "times"], "0.0")
+        self.add_setting(config, ["namelist:wind_relax", "timescale"], "1.0")
+        self.add_setting(
+            config, ["namelist:wind_relax", "u_profile_data"], "0.0"
+        )
+        self.add_setting(
+            config, ["namelist:wind_relax", "v_profile_data"], "0.0"
+        )
+        return config, self.reports
+
+
+class vn32_t776(MacroUpgrade):
+    """Upgrade macro for ticket None by None."""
+
+    BEFORE_TAG = "vn3.2_t763"
+    AFTER_TAG = "vn3.2_t776"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-convection
+        # CoMorph settings
+        nml = "namelist:comorph"
+        # Rearrangement of code means min_radius need to be scaled by
+        # 1 / par_radius_knob to get same behaviour as before
+        prk = float(self.get_setting_value(config, [nml, "par_radius_knob"]))
+        asm = float(self.get_setting_value(config, [nml, "ass_min_radius"]))
+        self.change_setting_value(
+            config, [nml, "ass_min_radius"], str(asm / prk)
+        )
+        self.add_setting(config, [nml, "min_radius_fac"], str(0.25 / prk))
+        # Was the hard-wired comorph_constants_mod value par_gen_radius_fac
+        self.add_setting(config, [nml, "turb_len_fac"], "8.0")
+        return config, self.reports
+
+
+class vn32_t802(MacroUpgrade):
+    """Upgrade macro for ticket #802 by thomas.melvin."""
+
+    BEFORE_TAG = "vn3.2_t776"
+    AFTER_TAG = "vn3.2_t802"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        # Add lmin and lmax settings for the mixed solver
+        self.add_setting(
+            config,
+            ["namelist:mixed_solver", "chebyshev_lmax"],
+            "2.5",
+        )
+        self.add_setting(
+            config,
+            ["namelist:mixed_solver", "chebyshev_lmin"],
+            "1.0",
+        )
 
         return config, self.reports
