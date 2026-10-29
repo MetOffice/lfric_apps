@@ -9,7 +9,7 @@
 !>
 module dust_conc_diags_kernel_mod_test
 
-  use constants_mod, only : i_def, r_def
+  use constants_mod, only : i_def, r_def, rmdi
   use funit
 
   implicit none
@@ -32,17 +32,15 @@ contains
 
     implicit none
 
-    real(kind=r_def), parameter :: tol = 1.0e-9_r_def
+    real(kind=r_def), parameter :: tol = 1.0e-10_r_def
 
-    ! Uniform column: acc_ins_du + cor_ins_du = 1e-8 kg/kg at every level
-    real(kind=r_def), parameter :: acc_val = 6.0e-9_r_def
-    real(kind=r_def), parameter :: cor_val = 4.0e-9_r_def
+    ! The surface is 100 m above sea level and the rho-level (W3) heights
+    ! are 10, 215, 415, .., 1615 m above it. Measured from the surface,
+    ! layers k=3..8 reach into the 609.6-1524.0 m band and are counted at
+    ! their full 200 m, including the two straddling its edges. Measured
+    ! from the first rho level, the layer from 415 to 615 m would miss it.
+    real(kind=r_def), parameter :: surface_height = 100.0_r_def
 
-    ! Rho-level (W3) heights 0, 200, .., 1600 m above the first rho level.
-    ! Layers k=4..8 (600-800, 800-1000, ..., 1400-1600 m) each fall wholly
-    ! or partly within the 609.6-1524.0 m band and are counted at full
-    ! (200 m) thickness, including the two layers that straddle the band
-    ! edges, matching the UM's un-clipped band sum.
     integer(i_def), parameter :: nlayers = 9_i_def
     integer(i_def), parameter :: ndf_wth = 1_i_def, undf_wth = nlayers + 1
     integer(i_def), parameter :: ndf_w3 = 1_i_def, undf_w3 = nlayers
@@ -52,7 +50,7 @@ contains
 
     real(r_def) :: acc_ins_du(undf_wth), cor_ins_du(undf_wth)
     real(r_def) :: air_density(undf_wth)
-    real(r_def) :: height_w3(undf_w3)
+    real(r_def) :: height_w3(undf_w3), height_wth(undf_wth)
 
     real(r_def), target  :: dust_conc_surface_data(undf_2d)
     real(r_def), target  :: dust_conc_2000_5000ft_data(undf_2d)
@@ -61,17 +59,27 @@ contains
 
     real(r_def) :: expected_surface, expected_band
 
+    integer(i_def) :: k
+
     map_wth = (/ 1_i_def /)
     map_w3  = (/ 1_i_def /)
     map_2d  = (/ 1_i_def /)
 
     air_density  = rho_val
-    acc_ins_du   = acc_val
-    cor_ins_du   = cor_val
 
-    height_w3 = (/ 0.0_r_def, 200.0_r_def, 400.0_r_def, 600.0_r_def,   &
-                  800.0_r_def, 1000.0_r_def, 1200.0_r_def,            &
-                  1400.0_r_def, 1600.0_r_def /)
+    ! k * 1e-9 kg/kg on theta level k, split 60:40 between the two modes,
+    ! so that which layers are counted shows in the result.
+    do k = 0, nlayers
+      acc_ins_du(k+1) = 0.6e-9_r_def * real(k, r_def)
+      cor_ins_du(k+1) = 0.4e-9_r_def * real(k, r_def)
+    end do
+
+    ! Only the bottom value, the surface, is read.
+    height_wth = surface_height
+    height_w3 = surface_height +                                       &
+                (/ 10.0_r_def, 215.0_r_def, 415.0_r_def, 615.0_r_def, &
+                   815.0_r_def, 1015.0_r_def, 1215.0_r_def,           &
+                   1415.0_r_def, 1615.0_r_def /)
 
     dust_conc_surface_data(1)     = -999.0_r_def
     dust_conc_2000_5000ft_data(1) = -999.0_r_def
@@ -83,20 +91,23 @@ contains
                               cor_ins_du,              &
                               air_density,             &
                               height_w3,                &
+                              height_wth,               &
                               dust_conc_surface,        &
                               dust_conc_2000_5000ft,    &
                               ndf_wth, undf_wth, map_wth, &
                               ndf_w3, undf_w3, map_w3,    &
                               ndf_2d, undf_2d, map_2d )
 
-    ! (a) surface: 1e-8 kg/kg * 1.0 kg/m3 * 1e3 (kg to g) = 1e-5 g/m3
-    expected_surface = 1.0e-5_r_def
+    ! (a) surface: theta level 1, 1e-9 kg/kg * 1.0 kg/m3 * 1e3 (kg to g)
+    !     = 1e-6 g/m3
+    expected_surface = 1.0e-6_r_def
     @assertEqual( expected_surface, dust_conc_surface(1), tol )
 
-    ! (b) band: 5 layers of 200 m thickness at 1e-5 g/m3, divided by the
-    !     nominal 914.4 m band depth
-    expected_band = (5.0_r_def * 200.0_r_def * 1.0e-5_r_def) / &
-                   914.4_r_def
+    ! (b) band: levels 3 to 8, 200 m each, divided by their 1200 m total:
+    !     (3+4+5+6+7+8) * 1e-6 g/m3 / 6 = 5.5e-6 g/m3. Measuring from the
+    !     first rho level would give 6.0e-6, and dividing by the nominal
+    !     914.4 m band depth about 7.2e-6.
+    expected_band = 5.5e-6_r_def
     @assertEqual( expected_band, dust_conc_2000_5000ft(1), tol )
 
   end subroutine test_dust_conc_diags
@@ -105,8 +116,8 @@ contains
   @test
   subroutine test_all_layers_above_band()
 
-    ! (d) A column whose layers all lie above the 1524 m band top gives a
-    ! band value of exactly zero, not missing data.
+    ! (d) A column whose layers all lie above the 1524 m band top has no
+    ! layer to average over, so the band value is missing data.
 
     use dust_conc_diags_kernel_mod, only : dust_conc_diags_code
 
@@ -123,7 +134,7 @@ contains
 
     real(r_def) :: acc_ins_du(undf_wth), cor_ins_du(undf_wth)
     real(r_def) :: air_density(undf_wth)
-    real(r_def) :: height_w3(undf_w3)
+    real(r_def) :: height_w3(undf_w3), height_wth(undf_wth)
 
     real(r_def), target  :: dust_conc_surface_data(undf_2d)
     real(r_def), target  :: dust_conc_2000_5000ft_data(undf_2d)
@@ -138,10 +149,11 @@ contains
     acc_ins_du   = 6.0e-9_r_def
     cor_ins_du   = 4.0e-9_r_def
 
-    ! First rho level is the reference (0 m); every level above it is
-    ! already above the 1524 m band top.
-    height_w3 = (/ 0.0_r_def, 2000.0_r_def, 2200.0_r_def, 2400.0_r_def, &
-                  2600.0_r_def, 2800.0_r_def, 3000.0_r_def,            &
+    ! Surface at sea level; every rho level above the first is already
+    ! above the 1524 m band top.
+    height_wth = 0.0_r_def
+    height_w3 = (/ 10.0_r_def, 2000.0_r_def, 2200.0_r_def, 2400.0_r_def, &
+                  2600.0_r_def, 2800.0_r_def, 3000.0_r_def,             &
                   3200.0_r_def, 3400.0_r_def /)
 
     dust_conc_surface_data(1)     = -999.0_r_def
@@ -154,13 +166,14 @@ contains
                               cor_ins_du,              &
                               air_density,             &
                               height_w3,                &
+                              height_wth,               &
                               dust_conc_surface,        &
                               dust_conc_2000_5000ft,    &
                               ndf_wth, undf_wth, map_wth, &
                               ndf_w3, undf_w3, map_w3,    &
                               ndf_2d, undf_2d, map_2d )
 
-    @assertEqual( 0.0_r_def, dust_conc_2000_5000ft(1), tol )
+    @assertEqual( rmdi, dust_conc_2000_5000ft(1), tol )
 
   end subroutine test_all_layers_above_band
 
@@ -189,7 +202,7 @@ contains
 
     real(r_def) :: acc_ins_du(undf_wth), cor_ins_du(undf_wth)
     real(r_def) :: air_density(undf_wth)
-    real(r_def) :: height_w3(undf_w3)
+    real(r_def) :: height_w3(undf_w3), height_wth(undf_wth)
 
     real(r_def), target  :: surface_data(undf_2d)
     real(r_def), target  :: band_data(undf_2d)
@@ -203,8 +216,9 @@ contains
     air_density  = rho_val
     acc_ins_du   = 6.0e-9_r_def
     cor_ins_du   = 4.0e-9_r_def
-    height_w3 = (/ 0.0_r_def, 200.0_r_def, 400.0_r_def, 600.0_r_def,   &
-                  800.0_r_def, 1000.0_r_def, 1200.0_r_def,            &
+    height_wth = 0.0_r_def
+    height_w3 = (/ 10.0_r_def, 200.0_r_def, 400.0_r_def, 600.0_r_def,   &
+                  800.0_r_def, 1000.0_r_def, 1200.0_r_def,             &
                   1400.0_r_def, 1600.0_r_def /)
 
     ! Surface skipped, band requested
@@ -218,6 +232,7 @@ contains
                               cor_ins_du,              &
                               air_density,             &
                               height_w3,                &
+                              height_wth,               &
                               dust_conc_surface,        &
                               dust_conc_2000_5000ft,    &
                               ndf_wth, undf_wth, map_wth, &
@@ -237,6 +252,7 @@ contains
                               cor_ins_du,              &
                               air_density,             &
                               height_w3,                &
+                              height_wth,               &
                               dust_conc_surface,        &
                               dust_conc_2000_5000ft,    &
                               ndf_wth, undf_wth, map_wth, &

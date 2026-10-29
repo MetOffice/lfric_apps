@@ -18,7 +18,7 @@ module dust_conc_diags_alg_mod
   use dust_conc_diags_kernel_mod,  only: dust_conc_diags_kernel_type
   use field_collection_mod,        only: field_collection_type
   use field_mod,                   only: field_type
-  use fs_continuity_mod,           only: W3
+  use fs_continuity_mod,           only: W3, Wtheta
   use initialise_diagnostics_mod,  only: init_diag => init_diagnostic_field
   use log_mod,                     only: log_event, LOG_LEVEL_WARNING
   use section_choice_config_mod,   only: aerosol, aerosol_um
@@ -54,10 +54,11 @@ contains
     type(field_type), pointer :: cor_ins_du
     type(field_type), pointer :: air_density
     type(field_type), pointer :: height_w3
+    type(field_type), pointer :: height_wth
 
     logical(l_def) :: surface_flag, band_flag
 
-    nullify(acc_ins_du, cor_ins_du, air_density, height_w3)
+    nullify(acc_ins_du, cor_ins_du, air_density, height_w3, height_wth)
 
     surface_flag = init_diag(dust_conc_surface, 'aviation__dust_conc_surface')
     band_flag = init_diag(dust_conc_2000_5000ft, &
@@ -93,11 +94,13 @@ contains
         ! become 'wetrho_in_wth'.
         call derived_fields%get_field('rho_in_wth', air_density)
 
-        height_w3 => get_height_fv(config, air_density%get_mesh(), W3)
+        height_w3  => get_height_fv(config, air_density%get_mesh(), W3)
+        height_wth => get_height_fv(config, air_density%get_mesh(), Wtheta)
 
         call invoke( dust_conc_diags_kernel_type( acc_ins_du, cor_ins_du,    &
                                                   air_density,              &
                                                   height_w3,                &
+                                                  height_wth,               &
                                                   dust_conc_surface,        &
                                                   dust_conc_2000_5000ft ) )
 
