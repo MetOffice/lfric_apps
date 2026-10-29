@@ -11,7 +11,8 @@ module check_configuration_mod
 
   use mixing_config_mod,    only: viscosity,                                   &
                                   viscosity_mu
-  use transport_config_mod, only: operators,                                   &
+  use transport_config_mod, only: transport_is_loaded,                         &
+                                  operators,                                   &
                                   operators_fv,                                &
                                   operators_fem,                               &
                                   consistent_metric,                           &
@@ -275,269 +276,271 @@ contains
         end if
       end if
 
-      ! Check the transport namelist
-      if ( geometry == geometry_spherical .and.  consistent_metric) then
-        write( log_scratch_space, '(A)' ) 'Consistent metric option only valid for planar geometries'
-        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-      end if
-      any_scheme_mol = check_any_scheme_mol()
-      if (any_scheme_mol) then
-        ! Check that flux orders are even
-        if ( mod(fv_horizontal_order,2_i_def) /= 0_i_def ) then
-          write( log_scratch_space, '(A)' ) 'fv_horizontal_order must be even'
+      ! Check the transport namelist, if transport is used
+      if ( transport_is_loaded() ) then
+        if ( geometry == geometry_spherical .and.  consistent_metric) then
+          write( log_scratch_space, '(A)' ) 'Consistent metric option only valid for planar geometries'
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end if
-        if ( mod(fv_vertical_order,2_i_def) /= 0_i_def ) then
-          write( log_scratch_space, '(A)' ) 'fv_vertical_order must be even'
+        any_scheme_mol = check_any_scheme_mol()
+        if (any_scheme_mol) then
+          ! Check that flux orders are even
+          if ( mod(fv_horizontal_order,2_i_def) /= 0_i_def ) then
+            write( log_scratch_space, '(A)' ) 'fv_horizontal_order must be even'
+            call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+          end if
+          if ( mod(fv_vertical_order,2_i_def) /= 0_i_def ) then
+            write( log_scratch_space, '(A)' ) 'fv_vertical_order must be even'
+            call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+          end if
+        end if
+        ! Check FFSL orders are in allowed range
+        if (ffsl_inner_order < 0 .or. ffsl_inner_order > 2) then
+          write( log_scratch_space, '(A)' ) 'ffsl_inner_order must be between 0 and 2'
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end if
-      end if
-      ! Check FFSL orders are in allowed range
-      if (ffsl_inner_order < 0 .or. ffsl_inner_order > 2) then
-        write( log_scratch_space, '(A)' ) 'ffsl_inner_order must be between 0 and 2'
-        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-      end if
-      if (ffsl_outer_order < 0 .or. ffsl_outer_order > 2) then
-        write( log_scratch_space, '(A)' ) 'ffsl_outer_order must be between 0 and 2'
-        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-      end if
-      if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
-        if ( coord_system /=  coord_system_native ) then
-          write( log_scratch_space, '(A)' )                                    &
-              'extended_mesh panel_edge_treatment only valid for native coordinates'
+        if (ffsl_outer_order < 0 .or. ffsl_outer_order > 2) then
+          write( log_scratch_space, '(A)' ) 'ffsl_outer_order must be between 0 and 2'
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end if
-        if ( coord_order /= 1 ) then
-          write( log_scratch_space, '(A)' )                                    &
-              'extended_mesh panel_edge_treatment only valid for linear coord_order'
-          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-        end if
-      end if
-      if ( panel_edge_treatment /= panel_edge_treatment_none ) then
-        if ( geometry /= geometry_spherical ) then
-          write( log_scratch_space, '(A)' ) 'panel_edge_treatment only valid for spherical geometry'
-          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-        end if
-        if ( topology /=  topology_fully_periodic) then
-          write( log_scratch_space, '(A)' ) 'panel_edge_treatment only valid for fully periodic topology'
-          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-        end if
-        if ( any_scheme_mol ) then
+        if ( panel_edge_treatment == panel_edge_treatment_extended_mesh ) then
           if ( coord_system /=  coord_system_native ) then
             write( log_scratch_space, '(A)' )                                    &
-                'MoL panel_edge_treatment only valid for native coordinates'
+                'extended_mesh panel_edge_treatment only valid for native coordinates'
             call log_event( log_scratch_space, LOG_LEVEL_ERROR )
           end if
           if ( coord_order /= 1 ) then
             write( log_scratch_space, '(A)' )                                    &
-                'MoL panel_edge_treatment only valid for linear coord_order'
+                'extended_mesh panel_edge_treatment only valid for linear coord_order'
             call log_event( log_scratch_space, LOG_LEVEL_ERROR )
           end if
         end if
-      end if
-      if ( si_outer_transport /= si_outer_transport_none .AND. cheap_update) then
-        write( log_scratch_space, '(A)' ) 'Cheap update cannot be used with si_outer_transport options'
-        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-      end if
-      if ( substep_transport /= substep_transport_off .AND. cheap_update) then
-        write( log_scratch_space, '(A)' ) 'Cheap update cannot be used with substep_transport'
-        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-      end if
+        if ( panel_edge_treatment /= panel_edge_treatment_none ) then
+          if ( geometry /= geometry_spherical ) then
+            write( log_scratch_space, '(A)' ) 'panel_edge_treatment only valid for spherical geometry'
+            call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+          end if
+          if ( topology /=  topology_fully_periodic) then
+            write( log_scratch_space, '(A)' ) 'panel_edge_treatment only valid for fully periodic topology'
+            call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+          end if
+          if ( any_scheme_mol ) then
+            if ( coord_system /=  coord_system_native ) then
+              write( log_scratch_space, '(A)' )                                    &
+                  'MoL panel_edge_treatment only valid for native coordinates'
+              call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+            end if
+            if ( coord_order /= 1 ) then
+              write( log_scratch_space, '(A)' )                                    &
+                  'MoL panel_edge_treatment only valid for linear coord_order'
+              call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+            end if
+          end if
+        end if
+        if ( si_outer_transport /= si_outer_transport_none .AND. cheap_update) then
+          write( log_scratch_space, '(A)' ) 'Cheap update cannot be used with si_outer_transport options'
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
+        if ( substep_transport /= substep_transport_off .AND. cheap_update) then
+          write( log_scratch_space, '(A)' ) 'Cheap update cannot be used with substep_transport'
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
 
-      ! Find splitting used by dry field
-      dry_field_splitting = -1
-      do i = 1, profile_size
-        if ( trim(field_names(i)) == trim(dry_field_name) ) then
-          dry_field_splitting = splitting(i)
-          if ( equation_form(i) /= equation_form_conservative ) then
+        ! Find splitting used by dry field
+        dry_field_splitting = -1
+        do i = 1, profile_size
+          if ( trim(field_names(i)) == trim(dry_field_name) ) then
+            dry_field_splitting = splitting(i)
+            if ( equation_form(i) /= equation_form_conservative ) then
+              write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
+                'is the specified dry field, but is not using the conservative ' // &
+                'form of the transport equation'
+              call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+            end if
+            exit
+          end if
+        end do
+
+        ! Check some combinations of options, variable-by-variable
+        do i = 1, profile_size
+          if ( splitting(i) /= splitting_none .AND. scheme(i) /= scheme_split ) then
             write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
-              'is the specified dry field, but is not using the conservative ' // &
-              'form of the transport equation'
+              'is not being transported with a split transport scheme, so it ' //    &
+              'must have its splitting option set to none'
             call log_event(log_scratch_space, LOG_LEVEL_ERROR)
           end if
-          exit
-        end if
-      end do
 
-      ! Check some combinations of options, variable-by-variable
-      do i = 1, profile_size
-        if ( splitting(i) /= splitting_none .AND. scheme(i) /= scheme_split ) then
-          write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
-            'is not being transported with a split transport scheme, so it ' //    &
-            'must have its splitting option set to none'
-          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-        end if
-
-        if ( substep_transport /= substep_transport_off .and. &
-             (scheme(i) == scheme_mol_3d .or.                 &
-              vertical_method(i) == split_method_mol .or.     &
-              horizontal_method(i) == split_method_mol) ) then
-          call log_event('Substepping the whole transport is only valid with FFSL ' // &
-                         'for all variables. Set substep_transport=off to ' //         &
-                         'run with MoL', LOG_LEVEL_ERROR)
-        end if
-
-        if ( scheme(i) == scheme_mol_3d .and. vertical_method(i) /= split_method_mol ) then
-          write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
-            'is set to be transported with 3D MoL, so its vertical method must also be MoL'
-          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-        end if
-
-        if ( scheme(i) == scheme_mol_3d .and. horizontal_method(i) /= split_method_mol ) then
-          write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
-            'is set to be transported with 3D MoL, so its horizontal method must also be MoL'
-          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-        end if
-
-        if ( scheme(i) == scheme_ffsl_3d .and. vertical_method(i) /= split_method_ffsl ) then
-          write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
-            'is set to be transported with 3D FFSL, so its vertical method must also be FFSL'
-          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-        end if
-
-        if ( scheme(i) == scheme_ffsl_3d .and. horizontal_method(i) /= split_method_ffsl ) then
-          write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
-            'is set to be transported with 3D FFSL, so its horizontal method must also be FFSL'
-          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-        end if
-
-        if ( vertical_method(i) == split_method_ffsl .AND. ffsl_vertical_order(i) == 2    &
-            .AND. .NOT. reversible(i) ) then
-          write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
-            'is being transported with a reversible form of the FFSL scheme, ' // &
-            'so it must also have the "reversible" option set to .true.'
-          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-        end if
-
-        if ( horizontal_method(i) == split_method_ffsl                         &
-             .AND. ffsl_splitting(i) == ffsl_splitting_cosmic                  &
-             .AND. panel_edge_treatment == panel_edge_treatment_remapping ) then
-          write( log_scratch_space, '(A)') 'Remapping treatment of panel ' //  &
-            'edges is not implemented for the COSMIC FFSL splitting'
-          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-        end if
-
-        if ( operators == operators_fem .and. enforce_min_value(i) ) then
-          write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
-            'is set to use the enforce_min_value option, but this cannot ' // &
-            'be used with the FEM operators'
-          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-        end if
-
-        if ( (vertical_monotone(i) == monotone_strict .or.    &
-              vertical_monotone(i) == monotone_relaxed) .and. &
-              .not. (vertical_method(i) == split_method_ffsl .or.      &
-                     vertical_method(i) == split_method_sl) ) then
-          write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
-            'is set to use strict/relaxed vertical monotonicity, but this is ' // &
-            'incompatible with the choice of vertical method'
-          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-        end if
-
-        if ( (horizontal_monotone(i) == monotone_strict .or.    &
-              horizontal_monotone(i) == monotone_relaxed) .and. &
-              .not. (horizontal_method(i) == split_method_ffsl .or.        &
-                     horizontal_method(i) == split_method_sl) ) then
-          write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
-            'is set to use strict/relaxed horizontal monotonicity, but this is ' // &
-            'incompatible with the choice of horizontal method'
-          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-        end if
-
-        if ( (vertical_monotone(i) == monotone_qm_pos) .and. &
-              .not. (vertical_method(i) == split_method_ffsl)   .and. &
-              .not. (ffsl_vertical_order(i) == 2) ) then
-          write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
-            'is set to use quasi-monotone positive vertical monotonicity, but this is ' // &
-            'incompatible with the choice of vertical method'
-          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-        end if
-
-        if ( (horizontal_monotone(i) == monotone_qm_pos) .and. &
-              .not. (horizontal_method(i) == split_method_ffsl) ) then
-          write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
-            'is set to use quasi-monotone positive horizontal monotonicity, but this is ' // &
-            'incompatible with the choice of horizontal method'
-          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-        end if
-
-        if ( (vertical_monotone(i) == monotone_koren .or.      &
-              vertical_monotone(i) == monotone_clipping) .and. &
-              .not. (vertical_method(i) == split_method_mol) ) then
-          write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
-            'is set to use Koren/clipping vertical monotonicity, but this is ' // &
-            'incompatible with the choice of vertical method'
-          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-        end if
-
-        if ( (horizontal_monotone(i) == monotone_koren .or.      &
-              horizontal_monotone(i) == monotone_clipping) .and. &
-              .not. (horizontal_method(i) == split_method_mol) ) then
-          write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
-            'is set to use Koren/clipping horizontal monotonicity, but this is ' // &
-            'incompatible with the choice of horizontal method'
-          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-        end if
-
-        if ( equation_form(i) == equation_form_consistent .and. &
-             splitting(i) /= dry_field_splitting ) then
-          write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
-            'is set to use consistent transport, but it is using a different ' // &
-            'transport splitting to the specified dry field.'
-          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-        end if
-
-        if ( equation_form(i) == equation_form_consistent .and. &
-             scheme(i) == scheme_ffsl_3d ) then
-          write( log_scratch_space, '(A)') trim(field_names(i)) //  &
-            'variable is set to use consistent transport, but this is ' // &
-            'not yet implemented with 3D FFSL.'
-          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-        end if
-
-        ! For 3D unity transport, require all transported fields to use the
-        ! same FFSL-FFSL splitting
-        if ( ffsl_unity_3d ) then
-          if ( splitting(i) /= dry_field_splitting ) then
-            call log_event(                                                    &
-              '3D unity transport can only be used when all variables '        &
-              // 'are transported with the same splitting', LOG_LEVEL_ERROR)
-          else if ( vertical_method(i) /= split_method_ffsl                    &
-                    .or. horizontal_method(i) /= split_method_ffsl ) then
-            call log_event(                                                    &
-              '3D unity transport can only be used when all variables '        &
-              // 'are using FFSL for vertical and horizontal transport', LOG_LEVEL_ERROR)
+          if ( substep_transport /= substep_transport_off .and. &
+               (scheme(i) == scheme_mol_3d .or.                 &
+                vertical_method(i) == split_method_mol .or.     &
+                horizontal_method(i) == split_method_mol) ) then
+            call log_event('Substepping the whole transport is only valid with FFSL ' // &
+                           'for all variables. Set substep_transport=off to ' //         &
+                           'run with MoL', LOG_LEVEL_ERROR)
           end if
-        end if
 
-        ! For applying monotonicity to wind at the model top, require vertical
-        ! wind transport to use FFSL
-        if ( wind_mono_top ) then
-          if ( trim(field_names(i)) == 'wind' .and. .not.                      &
-              ( vertical_method(i) == split_method_ffsl .and.                  &
-                .not. reversible(i) .and. ffsl_vertical_order(i) == 1 ) ) then
-            call log_event(                                                    &
-                  'The wind_mono_top option only be used when the wind ' //    &
-                  'components are transported vertically with FFSL',           &
-                  LOG_LEVEL_ERROR                                              &
-            )
+          if ( scheme(i) == scheme_mol_3d .and. vertical_method(i) /= split_method_mol ) then
+            write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
+              'is set to be transported with 3D MoL, so its vertical method must also be MoL'
+            call log_event(log_scratch_space, LOG_LEVEL_ERROR)
           end if
-        end if
 
-        ! Can only adjust the V-H-V wind when using FFSL with 3D unity transport
-        ! and Strang V-H-V splitting
-        if ( adjust_vhv_wind ) then
-          if ( .not. ffsl_unity_3d ) then
-            call log_event(                                                    &
-              'adjust_vhv_wind only implemented with ffsl_unity_3d set to true', LOG_LEVEL_ERROR)
+          if ( scheme(i) == scheme_mol_3d .and. horizontal_method(i) /= split_method_mol ) then
+            write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
+              'is set to be transported with 3D MoL, so its horizontal method must also be MoL'
+            call log_event(log_scratch_space, LOG_LEVEL_ERROR)
           end if
-          if ( splitting(i) /= splitting_strang_vhv ) then
-            call log_event(                                                    &
-              'adjust_vhv_wind only implemented for Strang VHV splitting', LOG_LEVEL_ERROR)
-          end if
-        end if
 
-      end do
+          if ( scheme(i) == scheme_ffsl_3d .and. vertical_method(i) /= split_method_ffsl ) then
+            write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
+              'is set to be transported with 3D FFSL, so its vertical method must also be FFSL'
+            call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+          end if
+
+          if ( scheme(i) == scheme_ffsl_3d .and. horizontal_method(i) /= split_method_ffsl ) then
+            write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
+              'is set to be transported with 3D FFSL, so its horizontal method must also be FFSL'
+            call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+          end if
+
+          if ( vertical_method(i) == split_method_ffsl .AND. ffsl_vertical_order(i) == 2    &
+              .AND. .NOT. reversible(i) ) then
+            write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
+              'is being transported with a reversible form of the FFSL scheme, ' // &
+              'so it must also have the "reversible" option set to .true.'
+            call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+          end if
+
+          if ( horizontal_method(i) == split_method_ffsl                         &
+               .AND. ffsl_splitting(i) == ffsl_splitting_cosmic                  &
+               .AND. panel_edge_treatment == panel_edge_treatment_remapping ) then
+            write( log_scratch_space, '(A)') 'Remapping treatment of panel ' //  &
+              'edges is not implemented for the COSMIC FFSL splitting'
+            call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+          end if
+
+          if ( operators == operators_fem .and. enforce_min_value(i) ) then
+            write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
+              'is set to use the enforce_min_value option, but this cannot ' // &
+              'be used with the FEM operators'
+            call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+          end if
+
+          if ( (vertical_monotone(i) == monotone_strict .or.    &
+                vertical_monotone(i) == monotone_relaxed) .and. &
+                .not. (vertical_method(i) == split_method_ffsl .or.      &
+                       vertical_method(i) == split_method_sl) ) then
+            write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
+              'is set to use strict/relaxed vertical monotonicity, but this is ' // &
+              'incompatible with the choice of vertical method'
+            call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+          end if
+
+          if ( (horizontal_monotone(i) == monotone_strict .or.    &
+                horizontal_monotone(i) == monotone_relaxed) .and. &
+                .not. (horizontal_method(i) == split_method_ffsl .or.        &
+                       horizontal_method(i) == split_method_sl) ) then
+            write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
+              'is set to use strict/relaxed horizontal monotonicity, but this is ' // &
+              'incompatible with the choice of horizontal method'
+            call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+          end if
+
+          if ( (vertical_monotone(i) == monotone_qm_pos) .and. &
+                .not. (vertical_method(i) == split_method_ffsl)   .and. &
+                .not. (ffsl_vertical_order(i) == 2) ) then
+            write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
+              'is set to use quasi-monotone positive vertical monotonicity, but this is ' // &
+              'incompatible with the choice of vertical method'
+            call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+          end if
+
+          if ( (horizontal_monotone(i) == monotone_qm_pos) .and. &
+                .not. (horizontal_method(i) == split_method_ffsl) ) then
+            write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
+              'is set to use quasi-monotone positive horizontal monotonicity, but this is ' // &
+              'incompatible with the choice of horizontal method'
+            call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+          end if
+
+          if ( (vertical_monotone(i) == monotone_koren .or.      &
+                vertical_monotone(i) == monotone_clipping) .and. &
+                .not. (vertical_method(i) == split_method_mol) ) then
+            write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
+              'is set to use Koren/clipping vertical monotonicity, but this is ' // &
+              'incompatible with the choice of vertical method'
+            call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+          end if
+
+          if ( (horizontal_monotone(i) == monotone_koren .or.      &
+                horizontal_monotone(i) == monotone_clipping) .and. &
+                .not. (horizontal_method(i) == split_method_mol) ) then
+            write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
+              'is set to use Koren/clipping horizontal monotonicity, but this is ' // &
+              'incompatible with the choice of horizontal method'
+            call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+          end if
+
+          if ( equation_form(i) == equation_form_consistent .and. &
+               splitting(i) /= dry_field_splitting ) then
+            write( log_scratch_space, '(A)') trim(field_names(i)) // ' variable ' // &
+              'is set to use consistent transport, but it is using a different ' // &
+              'transport splitting to the specified dry field.'
+            call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+          end if
+
+          if ( equation_form(i) == equation_form_consistent .and. &
+               scheme(i) == scheme_ffsl_3d ) then
+            write( log_scratch_space, '(A)') trim(field_names(i)) //  &
+              'variable is set to use consistent transport, but this is ' // &
+              'not yet implemented with 3D FFSL.'
+            call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+          end if
+
+          ! For 3D unity transport, require all transported fields to use the
+          ! same FFSL-FFSL splitting
+          if ( ffsl_unity_3d ) then
+            if ( splitting(i) /= dry_field_splitting ) then
+              call log_event(                                                    &
+                '3D unity transport can only be used when all variables '        &
+                // 'are transported with the same splitting', LOG_LEVEL_ERROR)
+            else if ( vertical_method(i) /= split_method_ffsl                    &
+                      .or. horizontal_method(i) /= split_method_ffsl ) then
+              call log_event(                                                    &
+                '3D unity transport can only be used when all variables '        &
+                // 'are using FFSL for vertical and horizontal transport', LOG_LEVEL_ERROR)
+            end if
+          end if
+
+          ! For applying monotonicity to wind at the model top, require vertical
+          ! wind transport to use FFSL
+          if ( wind_mono_top ) then
+            if ( trim(field_names(i)) == 'wind' .and. .not.                      &
+                ( vertical_method(i) == split_method_ffsl .and.                  &
+                  .not. reversible(i) .and. ffsl_vertical_order(i) == 1 ) ) then
+              call log_event(                                                    &
+                    'The wind_mono_top option only be used when the wind ' //    &
+                    'components are transported vertically with FFSL',           &
+                    LOG_LEVEL_ERROR                                              &
+              )
+            end if
+          end if
+
+          ! Can only adjust the V-H-V wind when using FFSL with 3D unity transport
+          ! and Strang V-H-V splitting
+          if ( adjust_vhv_wind ) then
+            if ( .not. ffsl_unity_3d ) then
+              call log_event(                                                    &
+                'adjust_vhv_wind only implemented with ffsl_unity_3d set to true', LOG_LEVEL_ERROR)
+            end if
+            if ( splitting(i) /= splitting_strang_vhv ) then
+              call log_event(                                                    &
+                'adjust_vhv_wind only implemented for Strang VHV splitting', LOG_LEVEL_ERROR)
+            end if
+          end if
+
+        end do
+      end if
 
       ! Check the departure points namelist
       any_horz_dep_pts = check_horz_dep_pts()
@@ -654,13 +657,19 @@ contains
     ! ------------------------------------------------------------------------ !
     prime_mesh_name = config%base_mesh%prime_mesh_name()
 
-    operators             = config%transport%operators()
-    fv_horizontal_order   = config%transport%fv_horizontal_order()
-    panel_edge_treatment  = config%transport%panel_edge_treatment()
-    panel_edge_high_order = config%transport%panel_edge_high_order()
-    dep_pt_stencil_extent = config%transport%dep_pt_stencil_extent()
-    ffsl_inner_order      = config%transport%ffsl_inner_order()
-    ffsl_outer_order      = config%transport%ffsl_outer_order()
+    if ( transport_is_loaded() ) then
+      operators             = config%transport%operators()
+      fv_horizontal_order   = config%transport%fv_horizontal_order()
+      panel_edge_treatment  = config%transport%panel_edge_treatment()
+      panel_edge_high_order = config%transport%panel_edge_high_order()
+      dep_pt_stencil_extent = config%transport%dep_pt_stencil_extent()
+      ffsl_inner_order      = config%transport%ffsl_inner_order()
+      ffsl_outer_order      = config%transport%ffsl_outer_order()
+    else
+      ! Without transport there are no departure points (check_horz_dep_pts
+      ! is false), so only the default depth is needed
+      operators = operators_fem
+    end if
 
     use_multires_coupling = config%formulation%use_multires_coupling()
     if (use_multires_coupling) then

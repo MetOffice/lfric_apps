@@ -24,7 +24,7 @@ program jules
   use driver_counter_mod,     only: init_counters, final_counters
   use driver_log_mod,         only: init_logger, final_logger
   use driver_time_mod,        only: init_time, final_time
-  use gungho_mod,             only: gungho_required_namelists
+  use jules_mod,              only: jules_required_namelists
   use driver_modeldb_mod,     only: modeldb_type
   use gungho_driver_mod,      only: initialise, step, finalise
   use lfric_mpi_mod,          only: global_mpi
@@ -68,7 +68,7 @@ program jules
 
   call init_comm( application_name, modeldb )
 
-  call init_config( filename, gungho_required_namelists, &
+  call init_config( filename, jules_required_namelists, &
                     config=modeldb%config )
 
   call init_logger( modeldb%config,         &
