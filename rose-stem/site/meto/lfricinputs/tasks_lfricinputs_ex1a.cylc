@@ -45,16 +45,16 @@
         "mpi_parts": 192,
     }) %}
 
+{% elif task_ns.conf_name == "um2lfric-nwp_gal9-N1280L70_C224L70" %}
+
+    {% do task_dict.update({
+        "mpi_parts": 384,
+    }) %}
+
 {% elif task_ns.conf_name == "um2lfric-nwp_gal9-N1280L70_C896L70" %}
 
     {% do task_dict.update({
         "mpi_parts": 768,
-    }) %}
-
-{% elif task_ns.conf_name == "um2lfric-nwp_gal9-N1280L70_C224L70" %}
-
-    {% do task_dict.update({
-        "mpi_parts": 1920,
     }) %}
 
 {% endif %}
