@@ -17,7 +17,8 @@
         "",
         task_values["gen_weights_wallclock"],
         task_values["gen_weights_tasks"],
-        task_values["gen_weights_memory"]
+        task_values["gen_weights_memory"],
+        task_values["tmpsize"],
         ) }}
 
     [[{{task}}]]

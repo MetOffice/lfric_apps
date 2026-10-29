@@ -735,7 +735,10 @@ l_iceformdrag_lupkes=.true.,
 l_sice_heatflux=.true.,
 l_stability_lupkes=.true.,
 l_use_dtstar_sea=.false.,
+l_zenith_albedo=.false.,
+meltpond_alb_vn='none',
 nice=1,
+snowpatch=0.02,
 u_cdn_hw=55.0,
 u_cdn_max=33.0,
 /
@@ -829,6 +832,8 @@ shape_rime=.true.,
 turb_gen_mixph=.true.,
 /
 &mixed_solver
+chebyshev_lmax=2.5
+chebyshev_lmin=1.0
 eliminate_variables='discrete',
 fail_on_non_converged=.true.,
 gcrk=4,

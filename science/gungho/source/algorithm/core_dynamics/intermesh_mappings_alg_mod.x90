@@ -48,7 +48,7 @@ module intermesh_mappings_alg_mod
   public  :: obtain_shifted_rho        ! Shifts rho from prime extrusion to shifted extrusion
   private :: restrict_scalar           ! Non-conservative restriction of W3/Wtheta field
   private :: restrict_multidata        ! Non-conservative restriction of W3/Wtheta multidata field
-  private :: prolong_scalar_simple     ! Injection/recovery of W3/Wtheta field
+  public  :: prolong_scalar_simple     ! Injection/recovery of W3/Wtheta field
   private :: prolong_multidata_simple  ! Injection/recovery of W3/Wtheta multidata field
   private :: prolong_scalar_reversible ! Reversible prolongation of non-conservative W3/Wtheta field
   public  :: map_scalar_intermesh      ! Public routine for non-conservative W3/Wtheta fields

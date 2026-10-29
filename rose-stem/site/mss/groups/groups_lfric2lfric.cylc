@@ -1,0 +1,62 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/mss/groups/groups_lfric2lfric.cylc") %}
+
+{# Azspice Groups #}
+{% do site_groups.update({
+    "lfric2lfric_asp2a_developer": [
+        "lfric2lfric_ral_seuk-C32_lam_MG_4cpu_asp2a_intel_fast-debug-64bit",
+        "lfric2lfric_oasis_ral_seuk-C32_lam_MG_4cpu_asp2a_intel_fast-debug-64bit",
+        "lfric2lfric_ral3-seuk_asp2a_intel_fast-debug-64bit",
+        "lfric2lfric_clim_gal9-C24_C12_6cpu_asp2a_intel_fast-debug-64bit",
+        "lfric2lfric_oasis_clim_gal9-C24_C12_6cpu_asp2a_intel_fast-debug-64bit",
+        "lfric2lfric_oasis_clim_gal9_C12-ral_seuk_C16_lam_4cpu_asp2a_intel_fast-debug-64bit",
+        "lfric2lfric_asp2a_canned",
+    ],
+    "lfric2lfric_asp2a_extra": [
+        "lfric2lfric_ral3-uk_asp2a_intel_fast-debug-64bit",
+        "lfric2lfric_ral3-ukv_asp2a_intel_fast-debug-64bit",
+    ],
+    "lfric2lfric_asp2a": [
+        "lfric2lfric_asp2a_developer",
+        "lfric2lfric_asp2a_extra",
+    ],
+    "lfric2lfric_asp2a_canned": [
+        "lfric2lfric_canned_asp2a_intel_fast-debug-64bit",
+    ],
+    "lfric2lfric_asp2a_build": [
+        "build_lfric2lfric_asp2a_intel_fast-debug-64bit",
+    ],
+    }) %}
+
+{# Platform Generic Groups #}
+{% do site_groups.update({
+    "lfric2lfric_developer": [
+        "lfric2lfric_asp2a_developer",
+    ],
+    "lfric2lfric": [
+        "lfric2lfric_developer",
+        "lfric2lfric_asp2a",
+    ],
+    "lfric2lfric_build": [
+        "lfric2lfric_asp2a_build",
+    ],
+    "lfric2lfric_canned": [
+        "lfric2lfric_asp2a_canned",
+    ],
+    }) %}
+
+{# Platform Generic Extends #}
+{% do site_groups.developer.extend(site_groups.lfric2lfric_developer) %}
+{% do site_groups.all.extend(site_groups.lfric2lfric) %}
+{% do site_groups.build.extend(site_groups.lfric2lfric_build) %}
+
+{# asp2a Extends #}
+{% do site_groups.asp2a_developer.extend(site_groups.lfric2lfric_asp2a_developer) %}
+{% do site_groups.asp2a.extend(site_groups.lfric2lfric_asp2a) %}
+{% do site_groups.asp2a_build.extend(site_groups.lfric2lfric_asp2a_build) %}
+
+{% do LOG.debug("Finished in site/mss/groups/groups_lfric2lfric.cylc") %}
