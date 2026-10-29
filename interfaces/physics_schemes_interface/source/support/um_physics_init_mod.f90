@@ -812,6 +812,12 @@ contains
       l_converge_ga       = l_converge_ga_in
       num_sweeps_bflux    = num_sweeps_bflux_in
 
+    else
+      ! With no BL this is still needed for Jules
+      if(allocated(alpha_cd))deallocate(alpha_cd)
+      allocate(alpha_cd(1))
+      alpha_cd(1)   = 2.0_r_um
+
     end if
 
     ! ----------------------------------------------------------------
