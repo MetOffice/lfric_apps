@@ -144,14 +144,14 @@ module invoke_adj_poly2d_recon_lookup_mod
     call tracer_proxy%set_dirty()
 
     !
-    !omp parallel default(shared), private(cell)
-    !omp do schedule(static)
+    !$omp parallel default(shared), private(cell)
+    !$omp do schedule(static)
     do cell = loop1_start, loop1_stop, 1
       call adj_polynd_recon_zeroing_code(nlayers_reconstruction, reconstruction_data, tracer_data, ndf_adspc1_reconstruction, &
 &undf_adspc1_reconstruction, map_adspc1_reconstruction(:,cell), ndf_adspc2_tracer, undf_adspc2_tracer, map_adspc2_tracer(:,cell))
     end do
-    !omp end do
-    !omp end parallel
+    !$omp end do
+    !$omp end parallel
     !
     ! Set halos dirty/clean for fields modified in the above loop
     !
