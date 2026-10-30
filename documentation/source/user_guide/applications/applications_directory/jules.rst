@@ -222,21 +222,32 @@ Rose stem
 The rose-stem app is ``rose-stem/app/jules``. The Cardington test runs as
 the task ``cardington-1x1-50000x50000`` in ``tasks_jules.cylc``. It is
 included in the group
-``jules_cardington-1x1-50000x50000_azspice_gnu_fast-debug-64bit``. Two
-optional configurations apply:
+``jules_cardington-1x1-50000x50000_azspice_gnu_fast-debug-64bit``. The main
+app is kept consistent with ``lfric_atm``. Three optional configurations
+apply, in this order:
 
 ``rose-app-1x1-50000x50000.conf``
    Mesh and ``base_mesh`` settings.
 
-``rose-app-cardington.conf``
-   The science settings where u-dz368 differs from the main app. The main
-   app is kept consistent with ``lfric_atm``. The differences include:
+``rose-app-ral4.conf``
+   The JULES settings from the ``lfric_atm`` RAL3 optional configuration
+   (``rose-stem/app/lfric_atm/opt/rose-app-ral3.conf``). It covers the lake,
+   plant functional type and snow parameters, plus the ``jules_surface``
+   switches. The ``lfric_atm`` settings for other schemes are left out,
+   because those schemes are not run in this app.
 
-   * plant functional type, lake and snow albedo and roughness parameters;
+``rose-app-cardington.conf``
+   The settings where u-dz368 differs from ``ral4``.
+   It is applied after ``ral4`` and overrides it. The settings are:
+
+   * plant functional type albedo parameters (``alnir``, ``alpar``,
+     ``omega``, ``omnir``);
+   * shrub roughness (``z0hm_pft_io=0.05``, ``z0v_io=0.2``), which matches
+     the RAL3 configuration of u-dz368;
+   * snow canopy parameters (``can_clump`` and ``n_lai_exposed``);
    * ``formdrag='none'``;
-   * ``l_mo_buoyancy_calc``, ``l_vary_z0m_soil``, ``srf_ex_cnv_gust``,
-     ``l_var_rainfrac`` and ``l_sea_alb_var_chl`` switched off;
-   * ``rho_snow_fresh=170``;
+   * ``l_mo_buoyancy_calc``, ``l_var_rainfrac`` and ``l_sea_alb_var_chl``
+     switched off;
    * a CO\ :sub:`2` mixing ratio of 5.941e-4.
 
 The ``[file:configuration.nml]`` source list holds every namelist, including
