@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5.5 (Claude Code).
+!-----------------------------------------------------------------------------
 !> Test the vertical Coriolis matrix
 !>
 module compute_vert_coriolis_matrix_kernel_mod_test
@@ -110,6 +113,10 @@ contains
             moisture_in_solver=.true.,                                         &
             p2theta_vert=.true.,                                               &
             theta_moist_source=.false.,                                        &
+            variable_cp=.false.,                                               &
+            cp_law_ref=1000.0_r_def,                                           &
+            cp_law_t0=460.0_r_def,                                             &
+            cp_law_exponent=0.35_r_def,                                        &
             use_physics=.false.,                                               &
             use_wavedynamics=.false.,                                          &
             use_multires_coupling=.false.,                                     &

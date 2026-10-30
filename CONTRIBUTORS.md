@@ -63,3 +63,4 @@
 | mo-joshuacolclough  | Joshua Colclough   | Met Office                       | 2026-08-11 |
 | zmaalick            | Zubair Maalick     | Met Office                       | 2026-08-31 |
 | jerry-liu-jianyu    | Liu Jianyu         | NEA/MSS/CCRS                     | 2026-09-25 |
+| maureenjcohen       | Maureen Cohen      | The Open University              | 2026-10-30 |
