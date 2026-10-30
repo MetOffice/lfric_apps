@@ -16,6 +16,7 @@
 | tinyendian          | Wolfgang Hayek     | Earth Sciences New Zealand       | 2026-02-02 |
 | mo-marqh            | mark Hedley        | Met Office                       | 2025-12-11 |
 | maggiehendry        | Maggie Hendry      | Met Office                       | 2026-01-29 |
+| hiker               | Joerg Henrichs     | Bureau of Meteorology, Australia | 2026-04-01 |
 | alanjhewitt         | Alan J Hewitt      | Met Office                       | 2026-01-28 |
 | jennyhickson        | Jenny Hickson      | Met Office                       | 2025-12-10 |
 | tom-j-h             | Tom Hill           | Met Office                       | 2026-01-27 |
