@@ -174,10 +174,14 @@ module invoke_adj_poly_adv_upd_lookup_mod
     call advective_proxy%set_dirty()
     call reconstruction_proxy%set_dirty()
     !
+    !$omp parallel default(shared), private(df)
+    !$omp do schedule(static)
     do df = loop1_start, loop1_stop, 1
       ! Built-in: setval_c (set a real-valued field to a real scalar value)
       advective_data(df) = 0.0_r_def
     end do
+    !$omp end do
+    !$omp end parallel
     !
     ! Set halos dirty/clean for fields modified in the above loop
     !
