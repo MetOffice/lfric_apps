@@ -5,7 +5,8 @@
 !-----------------------------------------------------------------------------
 module test_tiny_world_mod
 
-  use constants_mod,       only : i_def, i_timestep, r_def, r_second
+  use constants_mod,       only : i_def, i_timestep, r_def, r_second, &
+                                  str_max_filename
   use field_mod,           only : field_type
   use global_mesh_mod,     only : global_mesh_type
   use lfric_mpi_mod,       only : global_mpi
@@ -13,6 +14,9 @@ module test_tiny_world_mod
   use mesh_mod,            only : mesh_type
   use mesh_collection_mod, only : mesh_collection
   use model_clock_mod,     only : model_clock_type
+  use ugrid_2d_mod,        only : ugrid_2d_type
+  use ugrid_file_mod,      only : ugrid_file_type
+  use ncdf_quad_mod,       only : ncdf_quad_type
 
   implicit none
 
@@ -93,8 +97,17 @@ contains
     class(extrusion_type), allocatable           :: extrusion
     type(custom_decomposition_type), allocatable :: decomposition
     type(partition_type)                         :: partitioner
+    type(ugrid_2d_type)                          :: ugrid_2d
+    class(ugrid_file_type), allocatable          :: file_handler
+    character(str_max_filename)                  :: filename
 
-    call ugrid_data%read_from_file('shared-resources/tiny_world.nc', 'tiny')
+    filename = 'shared-resources/tiny_world.nc'
+    allocate( ncdf_quad_type :: file_handler )
+    call ugrid_2d%set_file_handler( file_handler )
+    call ugrid_2d%file_handler_open(trim(filename))
+
+    call ugrid_data%read_from_file(filename, 'tiny', ugrid_2d)
+
     allocate( global_mesh, source=global_mesh_type( ugrid_data ) )
     decomposition = custom_decomposition_type( num_xprocs=1_i_def, num_yprocs=1_i_def )
     partitioner_proc => partitioner_cubedsphere
