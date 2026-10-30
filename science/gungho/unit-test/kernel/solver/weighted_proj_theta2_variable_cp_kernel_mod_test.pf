@@ -1,0 +1,241 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5.5 (Claude Code).
+!-----------------------------------------------------------------------------
+!> Test the projection operator from the velocity space to the potential
+!> temperature space that includes the linearised variable heat capacity term.
+!>
+!> The kernel is compared with weighted_proj_theta2_kernel_mod on the same
+!> inputs. For uniform theta and Exner the heat capacity coefficient A is
+!> constant, so the two operators differ by -A theta <gamma, div v>,
+!> with <gamma, div v> computed here from the canned basis functions.
+!>
+module weighted_proj_theta2_variable_cp_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def, r_solver
+  use funit
+
+  implicit none
+
+  private
+  public :: test_reference_temperature, &
+            test_hot_increment,         &
+            test_cold_increment
+
+  ! Venus gas constant.
+  real(kind=r_def), parameter :: rd = 191.4_r_def
+
+  ! Constant heat capacity on which theta and exner are defined for Venus.
+  real(kind=r_def), parameter :: cp = 900.0_r_def
+
+  ! The Lebonnois et al. (2010) fit to the Venus reference atmosphere.
+  real(kind=r_def), parameter :: cp_law_ref      = 1000.0_r_def
+  real(kind=r_def), parameter :: cp_law_t0       = 460.0_r_def
+  real(kind=r_def), parameter :: cp_law_exponent = 0.35_r_def
+
+  integer(kind=i_def), parameter :: nlayers = 3
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> At the law's reference temperature, with the constant heat capacity set
+  !> to the law's reference value, A is zero and the operator equals the
+  !> constant heat capacity one.
+  @test
+  subroutine test_reference_temperature()
+
+    implicit none
+
+    real(kind=r_solver), allocatable :: new_op(:,:), old_op(:,:), div_op(:,:)
+
+    call compute_operators( real(cp_law_t0, r_solver), cp_law_ref, &
+                            new_op, old_op, div_op )
+
+    @assertEqual( old_op, new_op )
+
+  end subroutine test_reference_temperature
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> In hot air c_p(T) exceeds c_p0, so A is positive.
+  @test
+  subroutine test_hot_increment()
+
+    implicit none
+
+    call check_increment( 700.0_r_solver, .true. )
+
+  end subroutine test_hot_increment
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> In cold air c_p(T) is below c_p0, so A is negative.
+  @test
+  subroutine test_cold_increment()
+
+    implicit none
+
+    call check_increment( 240.0_r_solver, .false. )
+
+  end subroutine test_cold_increment
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Check that the operator differs from the constant heat capacity one by
+  !> -A theta <gamma, div v>, with A of the expected sign.
+  !> @param[in] theta    Uniform potential temperature, with Exner = 1
+  !> @param[in] positive Whether A is expected to be positive
+  subroutine check_increment( theta, positive )
+
+    use variable_cp_mod, only : cp_law
+
+    implicit none
+
+    real(kind=r_solver), intent(in) :: theta
+    logical,             intent(in) :: positive
+
+    ! Absolute tolerance, loose enough for a 32-bit r_solver with entries
+    ! of order theta.
+    real(kind=r_solver), parameter :: tol = 1.0E-3_r_solver
+
+    real(kind=r_solver), allocatable :: new_op(:,:), old_op(:,:), div_op(:,:)
+    real(kind=r_def)                 :: cp_of_t, a_coeff
+
+    cp_of_t = cp_law( real(theta, r_def), cp_law_ref, cp_law_t0, &
+                      cp_law_exponent )
+    a_coeff = rd * (cp_of_t - cp) / (cp * (cp_of_t - rd))
+
+    @assertTrue( (a_coeff > 0.0_r_def) .eqv. positive )
+
+    call compute_operators( theta, cp, new_op, old_op, div_op )
+
+    @assertEqual( -real(a_coeff, r_solver) * theta * div_op, new_op - old_op, tol )
+
+  end subroutine check_increment
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Compute, for the bottom cell of the canned mesh with uniform theta and
+  !> Exner = 1, the variable heat capacity operator, the constant heat capacity
+  !> operator and <gamma, div v>.
+  !> @param[in]  theta    Uniform potential temperature
+  !> @param[in]  cp_const Constant heat capacity passed to the kernel
+  !> @param[out] new_op   Operator from the kernel under test
+  !> @param[out] old_op   Operator from weighted_proj_theta2_kernel_mod
+  !> @param[out] div_op   <gamma, div v>
+  subroutine compute_operators( theta, cp_const, new_op, old_op, div_op )
+
+    use weighted_proj_theta2_kernel_mod, &
+                             only: weighted_proj_theta2_code
+    use weighted_proj_theta2_variable_cp_kernel_mod, &
+                             only: weighted_proj_theta2_variable_cp_code
+    use get_unit_test_m3x3_dofmap_mod, &
+                             only: get_wtheta_m3x3_dofmap
+    use get_unit_test_m3x3_q3x3x3_sizes_mod,                    &
+                             only: get_wtheta_m3x3_q3x3x3_size, &
+                                   get_w2_m3x3_q3x3x3_size
+    use get_unit_test_q3x3x3_basis_mod,                          &
+                             only: get_wtheta_q3x3x3_basis,      &
+                                   get_w2_q3x3x3_basis,          &
+                                   get_wtheta_q3x3x3_diff_basis, &
+                                   get_w2_q3x3x3_diff_basis
+    use get_unit_test_q3x3x3_quadrature_mod,                                  &
+                             only: get_gaussian_q3x3x3_quadrature_weights_xy, &
+                                   get_gaussian_q3x3x3_quadrature_weights_z
+
+    implicit none
+
+    real(kind=r_solver),              intent(in)  :: theta
+    real(kind=r_def),                 intent(in)  :: cp_const
+    real(kind=r_solver), allocatable, intent(out) :: new_op(:,:)
+    real(kind=r_solver), allocatable, intent(out) :: old_op(:,:)
+    real(kind=r_solver), allocatable, intent(out) :: div_op(:,:)
+
+    integer(i_def) :: cell, ncells, ncells_3d
+    integer(i_def) :: dim_space, dim_space_diff
+    integer(i_def) :: ndf_wt, undf_wt, ndf_w2, undf_w2
+    integer(i_def) :: nqp_h, nqp_v, qp1, qp2, dft, df2
+
+    integer(i_def), allocatable :: map_wt(:,:)
+
+    real(r_solver), allocatable :: theta_data(:), exner_data(:)
+    real(r_solver), allocatable :: new_stencil(:,:,:), old_stencil(:,:,:)
+
+    real(r_def), allocatable :: wh(:), wv(:)
+    real(r_def), allocatable :: basis_wt(:,:,:,:), diff_basis_wt(:,:,:,:)
+    real(r_def), allocatable :: basis_w2(:,:,:,:), diff_basis_w2(:,:,:,:)
+
+    call get_w2_m3x3_q3x3x3_size( ndf_w2, undf_w2, ncells,   &
+                                  dim_space, dim_space_diff, &
+                                  nqp_h, nqp_v, nlayers )
+    call get_wtheta_m3x3_q3x3x3_size( ndf_wt, undf_wt, ncells,   &
+                                      dim_space, dim_space_diff, &
+                                      nqp_h, nqp_v, nlayers )
+    call get_wtheta_m3x3_dofmap( map_wt )
+    call get_wtheta_q3x3x3_basis( basis_wt )
+    call get_w2_q3x3x3_basis( basis_w2 )
+    call get_wtheta_q3x3x3_diff_basis( diff_basis_wt )
+    call get_w2_q3x3x3_diff_basis( diff_basis_w2 )
+    call get_gaussian_q3x3x3_quadrature_weights_xy( wh )
+    call get_gaussian_q3x3x3_quadrature_weights_z( wv )
+
+    ncells_3d = nlayers * ncells
+
+    allocate( theta_data(undf_wt), exner_data(undf_wt) )
+    theta_data = theta
+    exner_data = 1.0_r_solver
+
+    allocate( new_stencil(ncells_3d, ndf_wt, ndf_w2) )
+    allocate( old_stencil(ncells_3d, ndf_wt, ndf_w2) )
+    new_stencil = 0.0_r_solver
+    old_stencil = 0.0_r_solver
+
+    cell = 1
+    call weighted_proj_theta2_variable_cp_code( cell, nlayers, ncells_3d, &
+                                                new_stencil,              &
+                                                theta_data, exner_data,   &
+                                                cp_const, rd,             &
+                                                cp_law_ref, cp_law_t0,    &
+                                                cp_law_exponent,          &
+                                                ndf_wt, undf_wt,          &
+                                                map_wt(:,cell),           &
+                                                basis_wt, diff_basis_wt,  &
+                                                ndf_w2, basis_w2,         &
+                                                diff_basis_w2,            &
+                                                nqp_h, nqp_v, wh, wv )
+    call weighted_proj_theta2_code( cell, nlayers, ncells_3d, &
+                                    old_stencil,              &
+                                    theta_data,               &
+                                    ndf_wt, undf_wt,          &
+                                    map_wt(:,cell),           &
+                                    basis_wt, diff_basis_wt,  &
+                                    ndf_w2, basis_w2,         &
+                                    diff_basis_w2,            &
+                                    nqp_h, nqp_v, wh, wv )
+
+    allocate( div_op(ndf_wt, ndf_w2) )
+    div_op = 0.0_r_solver
+    do qp2 = 1, nqp_v
+      do qp1 = 1, nqp_h
+        do df2 = 1, ndf_w2
+          do dft = 1, ndf_wt
+            div_op(dft,df2) = div_op(dft,df2)                       &
+                            + real( wh(qp1) * wv(qp2)               &
+                                    * basis_wt(1,dft,qp1,qp2)       &
+                                    * diff_basis_w2(1,df2,qp1,qp2), &
+                                    r_solver )
+          end do
+        end do
+      end do
+    end do
+
+    new_op = new_stencil(1,:,:)
+    old_op = old_stencil(1,:,:)
+
+    deallocate( theta_data, exner_data, new_stencil, old_stencil )
+    deallocate( map_wt, wh, wv )
+    deallocate( basis_wt, diff_basis_wt, basis_w2, diff_basis_w2 )
+
+  end subroutine compute_operators
+
+end module weighted_proj_theta2_variable_cp_kernel_mod_test

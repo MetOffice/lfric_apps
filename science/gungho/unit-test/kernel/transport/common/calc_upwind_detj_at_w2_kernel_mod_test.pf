@@ -3,12 +3,14 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
-
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5.5 (Claude Code).
+!-----------------------------------------------------------------------------
 !> Test the Det(J) at W2 computation
 !>
 module calc_upwind_detj_at_w2_kernel_mod_test
 
-    use constants_mod,                 only : i_def, r_tran
+    use constants_mod,                 only : i_def, r_def, r_tran
     use funit
 
     use get_unit_test_m3x3_q3x3x3_sizes_mod, only : get_w2_m3x3_q3x3x3_size
@@ -70,6 +72,10 @@ contains
                                    moisture_in_solver=.true.,              &
                                    p2theta_vert=.true.,                    &
                                    theta_moist_source=.false.,             &
+                                   variable_cp=.false.,                    &
+                                   cp_law_ref=1000.0_r_def,                &
+                                   cp_law_t0=460.0_r_def,                  &
+                                   cp_law_exponent=0.35_r_def,             &
                                    use_physics=.false.,                    &
                                    use_wavedynamics=.false.,               &
                                    use_multires_coupling=.false.,          &

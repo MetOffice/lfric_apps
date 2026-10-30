@@ -1,0 +1,205 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5.5 (Claude Code).
+!-----------------------------------------------------------------------------
+!> Test the temperature-dependent heat capacity law and its potential
+!> temperature
+!>
+module variable_cp_mod_test
+
+  use constants_mod, only : i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_cp_law_values,               &
+            test_cp_law_zero_exponent,        &
+            test_theta_cp_law_at_p_zero,      &
+            test_theta_cp_law_value,          &
+            test_theta_cp_law_zero_exponent,  &
+            test_theta_cp_law_along_adiabat
+
+  ! The Lebonnois et al. (2010) fit to the Venus reference atmosphere.
+  real(kind=r_def), parameter :: cp_law_ref      = 1000.0_r_def
+  real(kind=r_def), parameter :: cp_law_t0       = 460.0_r_def
+  real(kind=r_def), parameter :: cp_law_exponent = 0.35_r_def
+
+  ! Venus gas constant and surface reference pressure.
+  real(kind=r_def), parameter :: rd     = 191.4_r_def
+  real(kind=r_def), parameter :: p_zero = 9.2E6_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> The law at cloud-top and surface temperatures, against values computed
+  !> by hand from c_p = c_p,ref (T/T0)^nu.
+  @test
+  subroutine test_cp_law_values()
+
+    use variable_cp_mod, only : cp_law
+
+    implicit none
+
+    ! Absolute tolerance in J/kg/K, loose enough for a 32-bit r_def.
+    real(kind=r_def), parameter :: tol = 1.0E-2_r_def
+    real(kind=r_def)            :: answer, cp
+
+    answer = 784.5840978968_r_def
+    cp = cp_law( 230.0_r_def, cp_law_ref, cp_law_t0, cp_law_exponent )
+    @assertEqual( answer, cp, tol )
+
+    answer = 1178.2442461288_r_def
+    cp = cp_law( 735.0_r_def, cp_law_ref, cp_law_t0, cp_law_exponent )
+    @assertEqual( answer, cp, tol )
+
+  end subroutine test_cp_law_values
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> With a zero exponent the law is the constant cp_law_ref, exactly.
+  @test
+  subroutine test_cp_law_zero_exponent()
+
+    use variable_cp_mod, only : cp_law
+
+    implicit none
+
+    real(kind=r_def) :: cp
+
+    cp = cp_law( 230.0_r_def, cp_law_ref, cp_law_t0, 0.0_r_def )
+    @assertEqual( cp_law_ref, cp )
+
+    cp = cp_law( 735.0_r_def, cp_law_ref, cp_law_t0, 0.0_r_def )
+    @assertEqual( cp_law_ref, cp )
+
+  end subroutine test_cp_law_zero_exponent
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> At the reference pressure the potential temperature is the temperature.
+  @test
+  subroutine test_theta_cp_law_at_p_zero()
+
+    use variable_cp_mod, only : theta_cp_law
+
+    implicit none
+
+    ! Absolute tolerance in K, loose enough for a 32-bit r_def.
+    real(kind=r_def), parameter :: tol = 1.0E-3_r_def
+    real(kind=r_def)            :: theta
+
+    theta = theta_cp_law( 230.0_r_def, p_zero, p_zero, rd, cp_law_ref, &
+                     cp_law_t0, cp_law_exponent )
+    @assertEqual( 230.0_r_def, theta, tol )
+
+    theta = theta_cp_law( 735.0_r_def, p_zero, p_zero, rd, cp_law_ref, &
+                     cp_law_t0, cp_law_exponent )
+    @assertEqual( 735.0_r_def, theta, tol )
+
+  end subroutine test_theta_cp_law_at_p_zero
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Away from the reference pressure, against a value computed by hand with
+  !> the exponent R/cp_law_ref. Using R/cp with the namelist cp of 900 instead
+  !> would give 637.77 K.
+  @test
+  subroutine test_theta_cp_law_value()
+
+    use variable_cp_mod, only : theta_cp_law
+
+    implicit none
+
+    ! Absolute tolerance in K, loose enough for a 32-bit r_def.
+    real(kind=r_def), parameter :: tol = 1.0E-3_r_def
+    real(kind=r_def)            :: answer, theta
+
+    answer = 584.5746538844_r_def
+    theta = theta_cp_law( 230.0_r_def, 1.0E5_r_def, p_zero, rd, cp_law_ref, &
+                     cp_law_t0, cp_law_exponent )
+    @assertEqual( answer, theta, tol )
+
+  end subroutine test_theta_cp_law_value
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> With a zero exponent the potential temperature is the classical one,
+  !> T (p0/p)^(R/cp_law_ref).
+  @test
+  subroutine test_theta_cp_law_zero_exponent()
+
+    use variable_cp_mod, only : theta_cp_law
+
+    implicit none
+
+    ! Absolute tolerance in K, loose enough for a 32-bit r_def.
+    real(kind=r_def), parameter :: tol = 1.0E-3_r_def
+    real(kind=r_def)            :: answer, theta
+
+    answer = 546.5083806165_r_def
+    theta = theta_cp_law( 230.0_r_def, 1.0E5_r_def, p_zero, rd, cp_law_ref, &
+                     cp_law_t0, 0.0_r_def )
+    @assertEqual( answer, theta, tol )
+
+  end subroutine test_theta_cp_law_zero_exponent
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> theta_cp_law is conserved along a true adiabat. The adiabat
+  !> dT/d(ln p) = R T / c_p(T) is integrated with fourth-order Runge-Kutta from
+  !> 735 K at the reference pressure up to 1.0E5 Pa, where T is about 314.44 K.
+  !> theta_cp_law there must still be 735 K.
+  @test
+  subroutine test_theta_cp_law_along_adiabat()
+
+    use variable_cp_mod, only : cp_law, theta_cp_law
+
+    implicit none
+
+    integer(kind=i_def), parameter :: nsteps = 1000
+    real(kind=r_def),    parameter :: t_start = 735.0_r_def
+    real(kind=r_def),    parameter :: p_end   = 1.0E5_r_def
+    ! Absolute tolerance in K. It allows for rounding accumulated over the
+    ! integration with a 32-bit r_def; the integration error itself is far
+    ! smaller.
+    real(kind=r_def),    parameter :: tol     = 1.0E-2_r_def
+
+    integer(kind=i_def) :: step
+    real(kind=r_def)    :: temperature, h, k1, k2, k3, k4, theta
+
+    h = ( log( p_end ) - log( p_zero ) ) / real( nsteps, r_def )
+    temperature = t_start
+
+    do step = 1, nsteps
+      k1 = adiabat_slope( temperature )
+      k2 = adiabat_slope( temperature + 0.5_r_def * h * k1 )
+      k3 = adiabat_slope( temperature + 0.5_r_def * h * k2 )
+      k4 = adiabat_slope( temperature + h * k3 )
+      temperature = temperature + h * ( k1 + 2.0_r_def * k2       &
+                                        + 2.0_r_def * k3 + k4 ) / 6.0_r_def
+    end do
+
+    ! The parcel cools by over 400 K, so the law is tested over a wide range.
+    @assertEqual( 314.437196456_r_def, temperature, tol )
+
+    theta = theta_cp_law( temperature, p_end, p_zero, rd, cp_law_ref, &
+                     cp_law_t0, cp_law_exponent )
+    @assertEqual( t_start, theta, tol )
+
+  contains
+
+    !> dT/d(ln p) along a dry adiabat, R T / c_p(T).
+    function adiabat_slope( t ) result( slope )
+
+      implicit none
+
+      real(kind=r_def), intent(in) :: t
+      real(kind=r_def)             :: slope
+
+      slope = rd * t / cp_law( t, cp_law_ref, cp_law_t0, cp_law_exponent )
+
+    end function adiabat_slope
+
+  end subroutine test_theta_cp_law_along_adiabat
+
+end module variable_cp_mod_test

@@ -5,7 +5,9 @@
 ! Some of the content of this file has been produced with the assistance of
 ! Met Office GitHub Copilot Enterprise.
 !-----------------------------------------------------------------------------
-
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5.5 (Claude Code).
+!-----------------------------------------------------------------------------
 !> @brief Compute the locally assembled SI operators.
 !> @details Compute all operators, fields and other objects needed for the
 !!          semi-implicit solver.
@@ -40,7 +42,11 @@ module si_operators_alg_mod
                                        eos_method_sampled,   &
                                        eos_method_projected, &
                                        p2theta_vert,         &
-                                       moisture_in_solver
+                                       moisture_in_solver,   &
+                                       variable_cp,          &
+                                       cp_law_ref,           &
+                                       cp_law_t0,            &
+                                       cp_law_exponent
   use multigrid_mod,             only: multigrid_function_space_chain, &
                                        w2_multigrid_function_space_chain, &
                                        wtheta_multigrid_function_space_chain
@@ -508,6 +514,8 @@ contains
     use weighted_proj_2thetav_kernel_mod,     only: weighted_proj_2thetav_kernel_type
     use weighted_proj_theta2v_kernel_mod,     only: weighted_proj_theta2v_kernel_type
     use weighted_proj_theta2_vert_kernel_mod, only: weighted_proj_theta2_vert_kernel_type
+    use weighted_proj_theta2_variable_cp_kernel_mod, &
+                                              only: weighted_proj_theta2_variable_cp_kernel_type
     use weighted_div_bd_kernel_mod,           only: weighted_div_bd_kernel_type
     use weighted_proj_2theta_bd_kernel_mod,   only: weighted_proj_2theta_bd_kernel_type
     use weighted_proj_theta2_bd_kernel_mod,   only: weighted_proj_theta2_bd_kernel_type
@@ -523,7 +531,7 @@ contains
                                                     get_im3_div_r_solver,      &
                                                     get_normalisation_r_solver, &
                                                     get_inverse_mass_matrix_r_solver
-    use planet_config_mod,                    only: kappa, rd, p_zero
+    use planet_config_mod,                    only: kappa, rd, p_zero, cp
     use reference_element_mod,                only: reference_element_type
     use mesh_mod,                             only: mesh_type
     use matrix_vector_kernel_mod,             only: matrix_vector_kernel_type
@@ -570,6 +578,7 @@ contains
     type(mesh_type),               pointer :: mesh => null()
     type(r_solver_field_type),     pointer :: u_normalisation => null()
     integer(kind=i_def)                    :: level
+    logical                                :: cp_in_solver
     type(field_type), pointer              :: height_w3 => null()
     type(field_type), pointer              :: height_wt => null()
     type(r_solver_field_type)              :: multiplicity
@@ -593,6 +602,14 @@ contains
 
     if ( LPROF ) call start_timing( id, 'dynamics.compute_si_operators_common' )
     call log_event( "Gungho: computing si_operators_common", LOG_LEVEL_DEBUG )
+
+    ! The linearised variable heat capacity term is only formulated for the
+    ! full projection operator with discrete elimination. The preconditioner's
+    ! vertical operator ptheta2v omits it: the term can make a column unstable
+    ! under the true heat capacity, which the dtheta/dz clamp does not guard
+    ! against, and the preconditioner then stalls the mixed solver
+    cp_in_solver = variable_cp .and. .not. p2theta_vert .and. &
+                   eliminate_variables /= eliminate_variables_analytic
 
     mesh  => exner_ref%get_mesh()
 
@@ -725,6 +742,20 @@ contains
                       weighted_proj_theta2v_kernel_type(ptheta2(level), theta, &
                                                         element_order_h,       &
                                                         element_order_v, qr) )
+       else if ( cp_in_solver ) then
+         ! The projection operators use horizonal and vertical, and ptheta2
+         ! includes the linearised variable heat capacity term
+         call invoke( weighted_proj_2theta_kernel_type(p2theta(level), exner,  &
+                                                       moist_dyn_factor, qr),  &
+                      weighted_proj_theta2_variable_cp_kernel_type(ptheta2(level), theta, &
+                                                                   exner_in_wth, cp, rd,  &
+                                                                   cp_law_ref, cp_law_t0, &
+                                                                   cp_law_exponent, qr),  &
+                      weighted_proj_theta2_bd_kernel_type(ptheta2(level), theta,           &
+                                                          req_stencil_depth, qrf), &
+                      weighted_proj_2theta_bd_kernel_type(p2theta(level), exner,           &
+                                                          req_stencil_depth,               &
+                                                          moist_dyn_factor, qrf) )
        else
          ! The projection operators use horizonal and vertical
          call invoke( weighted_proj_2theta_kernel_type(p2theta(level), exner,  &

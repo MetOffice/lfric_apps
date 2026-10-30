@@ -1,0 +1,153 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5.5 (Claude Code).
+!-----------------------------------------------------------------------------
+!> Test the variable heat capacity source term for the potential temperature
+!>
+!> Each state is set at a chosen temperature and pressure: the density comes
+!> from p = rho Rd T and theta from T (p0/p)^(Rd/cp), so the kernel's
+!> equation of state recovers that temperature.
+!>
+module theta_variable_cp_source_kernel_mod_test
+
+  use constants_mod, only : r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_no_divergence,             &
+            test_reference_temperature,     &
+            test_crank_nicolson_surface,    &
+            test_crank_nicolson_cloud_top
+
+  ! Venus gas constant and surface reference pressure.
+  real(kind=r_def), parameter :: rd     = 191.4_r_def
+  real(kind=r_def), parameter :: p_zero = 9.2E6_r_def
+
+  ! Constant heat capacity on which theta and exner are defined for Venus.
+  real(kind=r_def), parameter :: cp = 900.0_r_def
+
+  ! The Lebonnois et al. (2010) fit to the Venus reference atmosphere.
+  real(kind=r_def), parameter :: cp_law_ref      = 1000.0_r_def
+  real(kind=r_def), parameter :: cp_law_t0       = 460.0_r_def
+  real(kind=r_def), parameter :: cp_law_exponent = 0.35_r_def
+
+  real(kind=r_def), parameter :: dt    = 600.0_r_def
+  real(kind=r_def), parameter :: div_u = 1.0E-4_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Without divergence the source term is zero, so theta is unchanged.
+  @test
+  subroutine test_no_divergence()
+
+    use theta_variable_cp_source_kernel_mod, only : &
+                                             theta_variable_cp_source_code
+
+    implicit none
+
+    real(kind=r_def) :: theta, rho
+
+    rho   = p_zero / ( rd * 735.0_r_def )
+    theta = 735.0_r_def
+
+    call theta_variable_cp_source_code( theta, 0.0_r_def, rho, dt, cp, rd, &
+                                        p_zero, cp_law_ref, cp_law_t0,     &
+                                        cp_law_exponent )
+
+    @assertEqual( 735.0_r_def, theta )
+
+  end subroutine test_no_divergence
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> At the law's reference temperature, with the constant heat capacity set
+  !> to the law's reference value, c_p(T) equals c_p0 and theta is unchanged.
+  @test
+  subroutine test_reference_temperature()
+
+    use theta_variable_cp_source_kernel_mod, only : &
+                                             theta_variable_cp_source_code
+
+    implicit none
+
+    ! Absolute tolerance in K, loose enough for a 32-bit r_def.
+    real(kind=r_def), parameter :: tol = 1.0E-3_r_def
+    real(kind=r_def)            :: theta, rho
+
+    rho   = p_zero / ( rd * cp_law_t0 )
+    theta = cp_law_t0
+
+    call theta_variable_cp_source_code( theta, div_u, rho, dt,          &
+                                        cp_law_ref, rd, p_zero,         &
+                                        cp_law_ref, cp_law_t0,          &
+                                        cp_law_exponent )
+
+    @assertEqual( cp_law_t0, theta, tol )
+
+  end subroutine test_reference_temperature
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> At 735 K, where c_p(T) > c_p0, expansion raises theta. The answer is
+  !> computed by hand from the Crank-Nicolson update.
+  @test
+  subroutine test_crank_nicolson_surface()
+
+    use theta_variable_cp_source_kernel_mod, only : &
+                                             theta_variable_cp_source_code
+
+    implicit none
+
+    ! Absolute tolerance in K, loose enough for a 32-bit r_def.
+    real(kind=r_def), parameter :: tol = 1.0E-2_r_def
+    real(kind=r_def)            :: theta, rho, answer
+
+    rho   = p_zero / ( rd * 735.0_r_def )
+    theta = 735.0_r_def
+
+    call theta_variable_cp_source_code( theta, div_u, rho, dt, cp, rd, &
+                                        p_zero, cp_law_ref, cp_law_t0, &
+                                        cp_law_exponent )
+
+    answer = 737.6490949974_r_def
+    @assertEqual( answer, theta, tol )
+    @assertTrue( theta > 735.0_r_def )
+
+  end subroutine test_crank_nicolson_surface
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> At 230 K and 1.0E4 Pa, where c_p(T) < c_p0, expansion lowers theta. The
+  !> answer is computed by hand from the Crank-Nicolson update.
+  @test
+  subroutine test_crank_nicolson_cloud_top()
+
+    use theta_variable_cp_source_kernel_mod, only : &
+                                             theta_variable_cp_source_code
+
+    implicit none
+
+    ! Absolute tolerance in K, loose enough for a 32-bit r_def.
+    real(kind=r_def), parameter :: tol = 1.0E-2_r_def
+    real(kind=r_def), parameter :: pressure = 1.0E4_r_def
+    real(kind=r_def)            :: theta, theta_before, rho, answer
+
+    rho   = pressure / ( rd * 230.0_r_def )
+    theta = 230.0_r_def * ( p_zero / pressure )**( rd / cp )
+    theta_before = theta
+
+    call theta_variable_cp_source_code( theta, div_u, rho, dt, cp, rd, &
+                                        p_zero, cp_law_ref, cp_law_t0, &
+                                        cp_law_exponent )
+
+    answer = 979.3738054383_r_def
+    @assertEqual( answer, theta, tol )
+    @assertTrue( theta < theta_before )
+
+  end subroutine test_crank_nicolson_cloud_top
+
+end module theta_variable_cp_source_kernel_mod_test
