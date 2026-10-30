@@ -173,6 +173,8 @@
         "src_name": "dynamics",
         "src_type": "global",
         "mpi_parts": 216,
+	"log_level": "debug",
+	"xios_min_buffer_size": 2097152,
         "kgo_checks": [],
     }) %}
 
