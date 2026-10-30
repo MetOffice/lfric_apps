@@ -24,6 +24,22 @@
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
+{% elif task_ns.conf_name == "nwp_gal10-chebyshev-C12" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["um_dump","chebyshev"],
+        "resolution": "C12",
+        "DT": 1800,
+        "tsteps": 144,
+        "crun": 2,
+        "crun_compare": false,
+        "metadata_test": true,
+        "mpi_parts": 6,
+        "kgo_checks": ["checksum"],
+        "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
+    }) %}
+
+
 {% elif task_ns.conf_name == "nwp_gal10_vernier-C12" %}
 
     {% do task_dict.update({
@@ -217,20 +233,17 @@
         "memory_plot_ex": true,
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal10-C224_MG_op" %}
+{% elif task_ns.conf_name == "nwp_gal10-chebyshev-C224_MG" %}
 
     {% do task_dict.update({
-        "opt_confs": ["um_dump","june_case"],
-        "resolution": "C224_MG_op",
+        "opt_confs": ["um_dump","june_case","chebyshev"],
+        "resolution": "C224_MG",
         "DT": 720,
         "tsteps": 120,
         "mpi_parts": 588,
-        "mesh_cpus": 4,
         "xios_nodes": 1,
         "mpi_parts_xios" : 64,
         "log_level": "info",
-        "xios_info_level": 1,
-        "xios_print_file": ".true.",
         "plot_str": "plot_map.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
         "memory_plot_ex": true,
     }) %}
@@ -578,6 +591,21 @@
         "mpi_parts": 216,
         "log_level": "info",
         "wallclock": 30,
+        "plot_str": "plot_map.py -encorr $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
+    }) %}
+
+{% elif task_ns.conf_name == "clim_gal10-chebyshev-C48_MG" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["climate","um_dump","chebyshev"],
+        "resolution": "C48_MG",
+        "DT": 1800,
+        "tsteps": 1440,
+        "crun": 2,
+        "crun_compare": false,
+        "mpi_parts": 216,
+        "log_level": "info",
+        "wallclock": 60,
         "plot_str": "plot_map.py -encorr $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 

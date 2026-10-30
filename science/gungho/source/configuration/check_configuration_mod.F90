@@ -1262,7 +1262,8 @@ contains
             .and. field_names(i) /= dry_field_name ) then
         wind_shifted = .true.
         return
-      else if ( equation_form(i) == equation_form_advective           &
+      end if
+      if ( equation_form(i) == equation_form_advective           &
                 .and. (vertical_method(i) == split_method_ffsl .or.   &
                        horizontal_method(i) == split_method_ffsl .or. &
                        scheme(i) == scheme_ffsl_3d) ) then

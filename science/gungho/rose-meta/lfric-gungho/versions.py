@@ -465,7 +465,6 @@ class vn32_t763(MacroUpgrade):
         self.add_setting(
             config, ["namelist:wind_relax", "v_profile_data"], "0.0"
         )
-
         return config, self.reports
 
 
@@ -489,5 +488,27 @@ class vn32_t776(MacroUpgrade):
         self.add_setting(config, [nml, "min_radius_fac"], str(0.25 / prk))
         # Was the hard-wired comorph_constants_mod value par_gen_radius_fac
         self.add_setting(config, [nml, "turb_len_fac"], "8.0")
+        return config, self.reports
+
+
+class vn32_t802(MacroUpgrade):
+    """Upgrade macro for ticket #802 by thomas.melvin."""
+
+    BEFORE_TAG = "vn3.2_t776"
+    AFTER_TAG = "vn3.2_t802"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        # Add lmin and lmax settings for the mixed solver
+        self.add_setting(
+            config,
+            ["namelist:mixed_solver", "chebyshev_lmax"],
+            "2.5",
+        )
+        self.add_setting(
+            config,
+            ["namelist:mixed_solver", "chebyshev_lmin"],
+            "1.0",
+        )
 
         return config, self.reports

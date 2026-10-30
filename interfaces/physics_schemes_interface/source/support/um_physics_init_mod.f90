@@ -1187,7 +1187,7 @@ contains
 
       if ( moisture_formulation == moisture_formulation_dry ) then
         write( log_scratch_space, '(A)' )                                   &
-            'moisture_formulation /= ''dry'' is required for UM cloud'
+            "moisture_formulation /= 'dry' is required for UM cloud"
         call log_event( log_scratch_space, LOG_LEVEL_ERROR )
       end if
 

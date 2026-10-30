@@ -305,7 +305,8 @@ contains
               'to satisfactory level within ', limit_iteration, ' iterations'
             call log_event(log_scratch_space, LOG_LEVEL_INFO)
             exit
-          else if (limit_iteration == num_limiting_steps) then
+          end if
+          if (limit_iteration == num_limiting_steps) then
             write(log_scratch_space,'(A,I8,A)') 'Did not reduce negative ' // &
               'values enough within ', num_limiting_steps, ' iterations'
             call log_event(log_scratch_space, LOG_LEVEL_INFO)
@@ -673,7 +674,8 @@ contains
               'to satisfactory level within ', limit_iteration, ' iterations'
             call log_event(log_scratch_space, LOG_LEVEL_INFO)
             exit
-          else if (limit_iteration == num_limiting_steps) then
+          end if
+          if (limit_iteration == num_limiting_steps) then
             write(log_scratch_space,'(A,I8,A)') 'Did not reduce negative ' // &
               'values enough within ', num_limiting_steps, ' iterations'
             call log_event(log_scratch_space, LOG_LEVEL_INFO)
