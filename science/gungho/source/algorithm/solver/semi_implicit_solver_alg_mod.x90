@@ -75,7 +75,9 @@ module semi_implicit_solver_alg_mod
   ! IO
   use timing_mod,                         only: start_timing, stop_timing, &
                                                 tik, LPROF
-  use dycore_constants_mod,               only: stepper_siqn
+  use dycore_constants_mod,               only: stepper_siqn,                  &
+                                                stepper_tr,                    &
+                                                stepper_bdf2
 
   implicit none
 
@@ -491,14 +493,18 @@ contains
     if (.not. allocated(solver_sets)) then
       if (stepper == stepper_siqn) then
         allocate(solver_sets(1))
+      else if (stepper == stepper_tr .or. stepper == stepper_bdf2) then
+        allocate(solver_sets(2))
       else
         call log_event("semi_implicit_solver_alg_init: unknown stepper",       &
                        LOG_LEVEL_ERROR)
       end if
     end if
 
-    if (stepper == stepper_siqn) then
+    if (stepper == stepper_siqn .or. stepper == stepper_tr) then
       stepper_idx = 1
+    else if (stepper == stepper_bdf2) then
+      stepper_idx = 2
     else
       call log_event("semi_implicit_solver_alg_init: unknown stepper",         &
                      LOG_LEVEL_ERROR)
@@ -648,8 +654,10 @@ contains
     mesh    => state(igh_p)%get_mesh()
 
     ! Set stepper_idx
-    if (stepper == stepper_siqn) then
+    if (stepper == stepper_siqn .or. stepper == stepper_tr) then
       stepper_idx = 1
+    else if (stepper == stepper_bdf2) then
+      stepper_idx = 2
     else
       call log_event("semi_implicit_solver_alg_step: unknown stepper",         &
                      LOG_LEVEL_ERROR)

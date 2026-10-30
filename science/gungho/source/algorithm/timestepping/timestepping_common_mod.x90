@@ -1,0 +1,154 @@
+!-------------------------------------------------------------------------------
+! (c) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-------------------------------------------------------------------------------
+
+module timestepping_common_mod
+
+  use constants_mod,                 only: l_def, r_def, i_def
+  use driver_modeldb_mod,            only: modeldb_type
+  use field_parent_mod,              only: field_parent_type
+  use field_mod,                     only: field_type
+  use field_collection_mod,          only: field_collection_type
+  use field_collection_iterator_mod, only: field_collection_iterator_type
+  use io_value_mod,                  only: io_value_type, get_io_value
+
+  implicit none
+  private
+
+  public :: conditional_collection_copy
+  public :: get_stph_values
+  public :: put_stph_values
+
+contains
+
+  !> @brief Make a deep copy of a subset of a field collection, based on a
+  !!        list of fields provided by another collection
+  !> @param[out] generic_fields_copied  New collection written with fields
+  !!                                    saved at some point in time
+  !> @param[in]  generic_fields_to_copy collection we want to save fields from
+  !> @param[in]  field_list             list of fields to be saved
+  subroutine conditional_collection_copy(generic_fields_copied,                &
+                                         generic_fields_to_copy,               &
+                                         field_list)
+
+
+    implicit none
+
+    type(field_collection_type), intent(out) :: generic_fields_copied
+    type(field_collection_type), intent(in)  :: generic_fields_to_copy
+    type(field_collection_type), intent(in)  :: field_list
+
+    ! Iterator for field collection
+    type(field_collection_iterator_type) :: iterator
+
+    ! One of the single fields out of the generic_fields_to_copy collection
+    class(field_parent_type), pointer :: abstract_field_ptr
+    type(field_type),         pointer :: single_generic_field
+
+    ! The saved version of single_generic_field
+    type(field_type) :: copied_generic_field
+
+    logical(kind=l_def) :: l_copy
+
+    nullify(abstract_field_ptr)
+    nullify(single_generic_field)
+
+    call generic_fields_copied%initialise(name='fields_copied')
+
+    if ( generic_fields_to_copy%get_length() > 0 ) then
+
+      call iterator%initialise(generic_fields_to_copy)
+
+      do
+        if ( .not.iterator%has_next() ) exit
+
+        abstract_field_ptr => iterator%next()
+        select type(abstract_field_ptr)
+        type is (field_type)
+          single_generic_field => abstract_field_ptr
+        end select
+
+        l_copy = field_list%field_exists(single_generic_field%get_name())
+
+        if ( l_copy ) then
+
+          ! We copy the field we want to save into a new field
+          call single_generic_field%copy_field_properties(copied_generic_field)
+          call invoke( setval_X(copied_generic_field, single_generic_field) )
+
+          ! We add it to the field collection passed in
+          call generic_fields_copied%add_field(copied_generic_field)
+
+        end if ! ( l_copy )
+
+      end do
+
+    end if
+
+  end subroutine conditional_collection_copy
+
+  !> Get some stochastic physics variables out of modeldb
+  !> @param[in]  modeldb Holds the model state
+  !> @param[in]  array_names List of names that reference values
+  !> @param[out] spectral_coeffc Spectral coefficients
+  !> @param[out] spectral_coeffs Spectral coefficients
+  !> @param[out] power_law       Power law
+  subroutine get_stph_values(modeldb, array_names, stph_spectral_dim,          &
+                             spectral_coeffc, spectral_coeffs, power_law)
+
+    type(modeldb_type),       intent(in)  :: modeldb
+    character(*),             intent(in)  :: array_names(:)
+    integer(i_def),           intent(in)  :: stph_spectral_dim
+    real(r_def), allocatable, intent(out) :: spectral_coeffc(:)
+    real(r_def), allocatable, intent(out) :: spectral_coeffs(:)
+    real(r_def), allocatable, intent(out) :: power_law(:)
+
+    type(io_value_type), pointer :: stph_io_value_type
+
+    allocate(spectral_coeffc(stph_spectral_dim))
+    allocate(spectral_coeffs(stph_spectral_dim))
+    allocate(power_law(stph_spectral_dim))
+
+    stph_io_value_type => get_io_value(modeldb%values, array_names(1))
+    spectral_coeffc = stph_io_value_type%data
+    stph_io_value_type => get_io_value(modeldb%values, array_names(2))
+    spectral_coeffs = stph_io_value_type%data
+    stph_io_value_type => get_io_value(modeldb%values, array_names(3))
+    power_law = stph_io_value_type%data
+  end subroutine get_stph_values
+
+  !> Put some stochastic physics values into modeldb and deallocate
+  !> holding variables
+  !> @param[in]  modeldb Holds the model state
+  !> @param[in]  array_names List of names that reference values
+  !> @param[in,out] spectral_coeffc Spectral coefficients
+  !> @param[in,out] spectral_coeffs Spectral coefficients
+  !> @param[in,out] power_law       Power law
+  subroutine put_stph_values(modeldb, array_names, spectral_coeffc,            &
+                             spectral_coeffs, power_law)
+
+    type(modeldb_type),       intent(in)  :: modeldb
+    character(*),             intent(in)  :: array_names(:)
+
+    real(r_def), allocatable, intent(inout) :: spectral_coeffc(:)
+    real(r_def), allocatable, intent(inout) :: spectral_coeffs(:)
+    real(r_def), allocatable, intent(inout) :: power_law(:)
+
+    type(io_value_type), pointer :: stph_io_value_type
+
+    stph_io_value_type => get_io_value(modeldb%values, array_names(1))
+    stph_io_value_type%data = spectral_coeffc
+    stph_io_value_type => get_io_value(modeldb%values, array_names(2))
+    stph_io_value_type%data = spectral_coeffs
+    stph_io_value_type => get_io_value(modeldb%values, array_names(3))
+    stph_io_value_type%data = power_law
+
+    deallocate(spectral_coeffc)
+    deallocate(spectral_coeffs)
+    deallocate(power_law)
+
+  end subroutine put_stph_values
+
+end module timestepping_common_mod

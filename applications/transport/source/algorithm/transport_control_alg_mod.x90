@@ -260,6 +260,7 @@ contains
                              wt_aerosol, aerosol_wind,  &
                              nummr_to_transport )
 
+    use dycore_constants_mod,             only: stepper_rk
     use sci_field_bundle_builtins_mod,    only: clone_bundle, copy_bundle
     use formulation_config_mod,           only: use_multires_coupling
     use init_gungho_prognostics_alg_mod,  only: init_u_field
@@ -325,10 +326,13 @@ contains
     call map_rho_intermesh(aerosol_reference_rho, rho)
 
     ! Initialise the main transport controller ---------------------------------
-    call transport_controller%initialise( config, model_clock, rho, wind )
-    call aerosol_transport_controller%initialise( config, model_clock,   &
-                                                  aerosol_reference_rho, &
-                                                  aerosol_wind )
+    call transport_controller%initialise(                                      &
+            config, model_clock, stepper_rk, rho, wind                         &
+    )
+    call aerosol_transport_controller%initialise(                              &
+            config, model_clock, stepper_rk,                                   &
+            aerosol_reference_rho, aerosol_wind                                &
+    )
 
     ! Transport dry density
     call log_event( "Transporting density...", LOG_LEVEL_INFO)

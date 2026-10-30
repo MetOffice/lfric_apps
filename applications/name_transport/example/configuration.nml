@@ -127,7 +127,7 @@ calendar_origin='2016-01-01 15:00:00'
 &timestepping
 alpha=0.5,
 dt=4050.0,
-inner_iterations=2,
+inner_iterations_si=2,2
 method='rk',
 outer_iterations=2,
 runge_kutta_method='forward_euler',

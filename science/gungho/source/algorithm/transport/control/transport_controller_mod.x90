@@ -42,6 +42,8 @@ module transport_controller_mod
   use sci_geometric_constants_mod,    only: get_face_selector_ew,              &
                                             get_face_selector_ns
   use transport_constants_mod,        only: get_detj_at_w3_r_tran
+  use dycore_constants_mod,           only: stepper_siqn, stepper_tr,          &
+                                            stepper_bdf2, stepper_rk, gamma
 
   ! Transport objects
   use flux_precomputations_alg_mod,   only: flux_precomputations_type
@@ -140,6 +142,7 @@ contains
   !!          - initialising precomputation objects
   !> @param[in] config             Application namelist configuration object
   !> @param[in] model_clock        Tracks the time within the model
+  !> @param[in] stepper            Enumerator for timestepper
   !> @param[in] ref_field_rdef     The reference density to use for conservative
   !!                               transport of tracers. This argument must be
   !!                               specified to perform conservative transport
@@ -157,7 +160,7 @@ contains
   !!                               the transporting wind is the *difference*
   !!                               in wind from the previous step, rather than
   !!                               the full transport wind.
-  subroutine initialise(self, config, model_clock, ref_field_rdef, &
+  subroutine initialise(self, config, model_clock, stepper, ref_field_rdef,    &
                         wind_n_rdef, wind_np1_rdef, outer, cheap_update_step)
 
     use split_transport_utils_mod,      only: get_dry_config,                  &
@@ -177,6 +180,7 @@ contains
 
     class(transport_controller_type), intent(inout) :: self
     class(model_clock_type),  target, intent(in)    :: model_clock
+    integer(kind=i_def),              intent(in)    :: stepper
     type(field_type),                 intent(in)    :: ref_field_rdef
     type(field_type),                 intent(in)    :: wind_n_rdef
     type(field_type),       optional, intent(in)    :: wind_np1_rdef
@@ -229,7 +233,20 @@ contains
       self%cheap_update_step = cheap_update_step
     end if
 
-    dt_rtran = real(model_clock%get_seconds_per_step(), r_tran)
+    ! Determine time increment for this step, based on the stepper
+    select case (stepper)
+    case (stepper_siqn, stepper_rk)
+      dt_rtran = real(model_clock%get_seconds_per_step(), r_tran)
+    case (stepper_tr)
+      dt_rtran = real(model_clock%get_seconds_per_step(), r_tran)
+      dt_rtran = 2.0_r_tran*real(gamma, r_tran)*dt_rtran
+    case (stepper_bdf2)
+      dt_rtran = real(model_clock%get_seconds_per_step(), r_tran)
+      dt_rtran = (1.0_r_tran - 2.0_r_tran*real(gamma, r_tran))*dt_rtran
+    case default
+      call log_event( "Unknown stepper passed to transport_controller " //     &
+                      "initialise method", LOG_LEVEL_ERROR )
+    end select
 
     self%reference_splitting = splitting(get_dry_config())
 
@@ -272,12 +289,23 @@ contains
                              self%wind_n_rtran),                               &
                    inc_a_times_X(0.5_r_tran, self%transporting_wind) )
 
-    ! standard semi-implicit transport wind: average of wind_n and wind_np1
     else if (present(wind_np1_rdef)) then
-      call invoke( X_plus_Y(self%transporting_wind, self%wind_np1_rtran,       &
-                            self%wind_n_rtran),                                &
-                   inc_a_times_X(0.5_r_tran, self%transporting_wind) )
-
+      select case (stepper)
+      case (stepper_rk)
+        ! Use wind_n as transporting wind
+        call invoke( setval_X(self%transporting_wind, self%wind_n_rtran) )
+      case (stepper_siqn, stepper_tr)
+      ! standard semi-implicit transport wind: average of wind_n and wind_np1
+        call invoke( X_plus_Y(self%transporting_wind, self%wind_np1_rtran,     &
+                              self%wind_n_rtran),                              &
+                    inc_a_times_X(0.5_r_tran, self%transporting_wind) )
+      case (stepper_bdf2)
+        ! Use wind_np1 as transporting wind
+        call invoke( setval_X(self%transporting_wind, self%wind_np1_rtran) )
+      case default
+        call log_event( "Unknown stepper passed to transport_controller " //   &
+                        "initialise method", LOG_LEVEL_ERROR )
+      end select
     else
       call invoke( setval_X(self%transporting_wind, self%wind_n_rtran) )
     end if
