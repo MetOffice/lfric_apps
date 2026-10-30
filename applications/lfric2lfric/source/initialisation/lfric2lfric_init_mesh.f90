@@ -377,58 +377,105 @@ subroutine init_mesh( config,                  &
     call ugrid_2d_dst%set_file_handler( file_handler_dst )
     call ugrid_2d_dst%file_handler_open(mesh_file(dst))
 
-    ! Read in all global meshes from input file
-    !===========================================================
-    call load_global_mesh( mesh_file(src), mesh_names(src), &
-                           ugrid_2d_src,                    &
-                           rename_to=stored_mesh_names(src) )
-
-    call load_global_mesh( mesh_file(dst), mesh_names(dst), &
-                           ugrid_2d_dst,                    &
-                           rename_to=stored_mesh_names(dst) )
-
-    ! Partition the global meshes
-    !===========================================================
-    enforce_constraints = .false.
-
-    src_global_mesh => global_mesh_collection%get_global_mesh(stored_mesh_names(src))
-    dst_global_mesh => global_mesh_collection%get_global_mesh(stored_mesh_names(dst))
-
-    mapping_factors = 1
     if (regrid_method == regrid_method_map) then
+
+      call load_global_mesh( mesh_file(src), mesh_names(src), &
+                             ugrid_2d_src,                    &
+                             rename_to=stored_mesh_names(src) )
+
+      call load_global_mesh( mesh_file(dst), mesh_names(dst), &
+                             ugrid_2d_dst,                    &
+                             rename_to=stored_mesh_names(dst) )
+
+      src_global_mesh => global_mesh_collection%get_global_mesh(stored_mesh_names(src))
+
+      dst_global_mesh => global_mesh_collection%get_global_mesh(stored_mesh_names(dst))
+
+      ! Create the mapping_factors
+      !===========================================================
+
+      mapping_factors = 1
       mapping_factors(src) = calc_mapping_factor( src_global_mesh, &
                                                   dst_global_mesh )
       mapping_factors(dst) = calc_mapping_factor( dst_global_mesh, &
                                                   src_global_mesh )
-    end if
 
-    call create_local_mesh( stored_mesh_names(dst:dst), &
-                            local_rank, total_ranks,    &
-                            decomposition_dst,          &
-                            stencil_depths,             &
-                            generate_inner_halos(dst),  &
-                            partitioner_dst,            &
-                            mapping_factors(dst:dst),   &
-                            enforce_constraints )
+      enforce_constraints = .false.
 
-    call create_local_mesh( stored_mesh_names(src:src), &
-                            local_rank, total_ranks,    &
-                            decomposition_src,          &
-                            stencil_depths,             &
-                            generate_inner_halos(src),  &
-                            partitioner_src,            &
-                            mapping_factors(src:src),   &
-                            enforce_constraints )
+      call create_local_mesh( stored_mesh_names(src:src), &
+                              local_rank, total_ranks,    &
+                              decomposition_src,          &
+                              stencil_depths,             &
+                              generate_inner_halos(src),  &
+                              partitioner_src,            &
+                              mapping_factors(src:src),   &
+                              enforce_constraints )
+      
+      call create_local_mesh( stored_mesh_names(dst:dst), &
+                              local_rank, total_ranks,    &
+                              decomposition_dst,          &
+                              stencil_depths,             &
+                              generate_inner_halos(dst),  &
+                              partitioner_dst,            &
+                              mapping_factors(dst:dst),   &
+                              enforce_constraints )
 
-    ! Read in the global intergrid mesh mappings,
-    ! then create the associated local mesh maps
-    !===========================================================
-    if (regrid_method == regrid_method_map) then
+      ! Create the associated local mesh maps
+      !===========================================================
+   
       src_local_mesh => local_mesh_collection%get_local_mesh(stored_mesh_names(src))
       dst_local_mesh => local_mesh_collection%get_local_mesh(stored_mesh_names(dst))
 
       call create_local_mesh_maps( src_local_mesh )
       call create_local_mesh_maps( dst_local_mesh )
+
+      call global_mesh_collection%clear()
+
+    else
+      
+      mapping_factors = 1
+      enforce_constraints = .false.
+
+      ! Source mesh: read global meshes from input file and partition
+      !===========================================================
+
+      call load_global_mesh( mesh_file(src), mesh_names(src), &
+                             ugrid_2d_src,                    &
+                             rename_to=stored_mesh_names(src) )
+
+      src_global_mesh => global_mesh_collection%get_global_mesh(stored_mesh_names(src))
+
+      call create_local_mesh( stored_mesh_names(src:src), &
+                              local_rank, total_ranks,    &
+                              decomposition_src,          &
+                              stencil_depths,             &
+                              generate_inner_halos(src),  &
+                              partitioner_src,            &
+                              mapping_factors(src:src),   &
+                              enforce_constraints )
+
+      call global_mesh_collection%clear()
+
+      ! Destination mesh: read global meshes from input file and partition
+      !===========================================================
+
+      call load_global_mesh( mesh_file(dst), mesh_names(dst), &
+                             ugrid_2d_dst,                    &
+                             rename_to=stored_mesh_names(dst) )
+
+      dst_global_mesh => global_mesh_collection%get_global_mesh(stored_mesh_names(dst))
+
+      call create_local_mesh( stored_mesh_names(dst:dst), &
+                              local_rank, total_ranks,    &
+                              decomposition_dst,          &
+                              stencil_depths,             &
+                              generate_inner_halos(dst),  &
+                              partitioner_dst,            &
+                              mapping_factors(dst:dst),   &
+                              enforce_constraints )
+
+      call global_mesh_collection%clear()
+      
     end if
 
   end if  ! prepartitioned
