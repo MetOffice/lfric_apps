@@ -45,7 +45,7 @@ contains
 subroutine set_dqsatdt_liq( n_points, temperature, qsat,                       &
                             dqsatdt )
 
-use comorph_constants_mod, only: R_dry, R_vap, real_cvprec, one
+use comorph_constants_mod, only: R_dry, R_vap, real_cvprec, one, sqrt_min_float
 use lat_heat_mod, only: set_l_con
 
 implicit none
@@ -74,9 +74,9 @@ call set_l_con( n_points, temperature, L_con )
 
 ! Compute dqsat/dT:
 do ic = 1, n_points
-  dqsatdt(ic) = qsat(ic) * ( one + (R_vap/R_dry) * qsat(ic) )                  &
-                         * L_con(ic)                                           &
-              / ( R_vap * temperature(ic) * temperature(ic) )
+  dqsatdt(ic) = qsat(ic) * ( one + (R_vap/R_dry) * qsat(ic) ) * L_con(ic)      &
+              / max( R_vap * temperature(ic) * temperature(ic),                &
+                     sqrt_min_float )
 end do
 
 return
@@ -89,7 +89,7 @@ end subroutine set_dqsatdt_liq
 subroutine set_dqsatdt_ice( n_points, temperature, qsat,                       &
                             dqsatdt )
 
-use comorph_constants_mod, only: R_dry, R_vap, real_cvprec, one
+use comorph_constants_mod, only: R_dry, R_vap, real_cvprec, one, sqrt_min_float
 use lat_heat_mod, only: set_l_sub
 
 implicit none
@@ -118,9 +118,9 @@ call set_l_sub( n_points, temperature, L_sub )
 
 ! Compute dqsat/dT:
 do ic = 1, n_points
-  dqsatdt(ic) = qsat(ic) * ( one + (R_vap/R_dry) * qsat(ic) )                  &
-                         * L_sub(ic)                                           &
-              / ( R_vap * temperature(ic) * temperature(ic) )
+  dqsatdt(ic) = qsat(ic) * ( one + (R_vap/R_dry) * qsat(ic) ) * L_sub(ic)      &
+              / max( R_vap * temperature(ic) * temperature(ic),                &
+                     sqrt_min_float )
 end do
 
 return

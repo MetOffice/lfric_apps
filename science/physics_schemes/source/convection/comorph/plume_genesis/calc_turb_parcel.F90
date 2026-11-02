@@ -110,6 +110,11 @@ real(kind=real_cvprec) :: turb_pert_kmh                                        &
 ! Weight for interpolating the turbulence-based perturbations
 real(kind=real_cvprec) :: interp
 
+! Magnitude of the field differences either side of level k,
+! used to form the interpolation weight
+real(kind=real_cvprec) :: diffm
+real(kind=real_cvprec) :: diffp
+
 ! String containing info to print in error messages
 character(len=name_length) :: call_string
 character(len=name_length) :: field_name
@@ -167,15 +172,15 @@ if ( l_turb_par_gen ) then
 
     ! Interpolations for Tl and qt
     do ic = 1, n_points
-      interp = abs(tl_k(ic) - tl_kmh(ic))                                      &
-        / max( abs(tl_k(ic) - tl_kmh(ic)) + abs(tl_kph(ic) - tl_k(ic)),        &
-               min_float )
+      diffm = max( abs(tl_k(ic) - tl_kmh(ic)), min_float )
+      diffp = max( abs(tl_kph(ic) - tl_k(ic)), min_float )
+      interp = diffm / ( diffm + diffp )
       turb_pert_k(ic,i_temperature)                                            &
         = (one-interp) * turb_pert_kmh(ic,i_temperature)                       &
         +      interp  * turb_pert_kph(ic,i_temperature)
-      interp = abs(qt_k(ic) - qt_kmh(ic))                                      &
-        / max( abs(qt_k(ic) - qt_kmh(ic)) + abs(qt_kph(ic) - qt_k(ic)),        &
-               min_float )
+      diffm = max( abs(qt_k(ic) - qt_kmh(ic)), min_float )
+      diffp = max( abs(qt_kph(ic) - qt_k(ic)), min_float )
+      interp = diffm / ( diffm + diffp )
       turb_pert_k(ic,i_q_vap)                                                  &
         = (one-interp) * turb_pert_kmh(ic,i_q_vap)                             &
         +      interp  * turb_pert_kph(ic,i_q_vap)
@@ -184,10 +189,9 @@ if ( l_turb_par_gen ) then
     ! Interpolations for winds
     do i_field = i_wind_u, i_wind_v
       do ic = 1, n_points
-        interp = abs(fields_k(ic,i_field) - winds_kmh(ic,i_field))             &
-          / max( abs(fields_k(ic,i_field) - winds_kmh(ic,i_field))             &
-               + abs(winds_kph(ic,i_field) - fields_k(ic,i_field)),            &
-                 min_float )
+        diffm=max(abs(fields_k(ic,i_field) - winds_kmh(ic,i_field)), min_float)
+        diffp=max(abs(winds_kph(ic,i_field) - fields_k(ic,i_field)), min_float)
+        interp = diffm / ( diffm + diffp )
         turb_pert_k(ic,i_field)                                                &
           = (one-interp) * turb_pert_kmh(ic,i_field)                           &
           +      interp  * turb_pert_kph(ic,i_field)
