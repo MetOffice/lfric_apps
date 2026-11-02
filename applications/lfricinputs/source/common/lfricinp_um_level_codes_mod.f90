@@ -16,8 +16,8 @@ use lfricinp_check_shumlib_status_mod, only: shumlib
 use lfricinp_grid_type_mod, only: lfricinp_grid_type
 
 ! lfric modules
-use log_mod,  only : log_event, log_scratch_space,         &
-                     LOG_LEVEL_DEBUG, LOG_LEVEL_ERROR, LOG_LEVEL_INFO
+use log_mod,  only : log_event, log_scratch_space, LOG_LEVEL_DEBUG,         &
+                     LOG_LEVEL_ERROR, LOG_LEVEL_INFO, LOG_LEVEL_WARNING
 
 implicit none
 
@@ -224,9 +224,13 @@ case (10)
     call log_event("Number of ice categories is not set", LOG_LEVEL_ERROR)
   end if
 case (11)
-  last_pseudo_level_num = um_grid%num_snow_layers * um_grid%num_surface_types
-  if ( um_grid%num_snow_layers == -32768 .or. um_grid%num_surface_types == -32768 ) then
-    call log_event("Either the number of surface types or the number of snow layers is not set", LOG_LEVEL_ERROR)
+  last_pseudo_level_num = um_grid%num_snow_layers_and_tiles
+  if ( um_grid%num_snow_layers_and_tiles == -32768) then
+    last_pseudo_level_num = um_grid%num_snow_layers * um_grid%num_surface_types
+    call log_event("Number of snow layers and tiles is not set", LOG_LEVEL_WARNING)
+    if ( um_grid%num_snow_layers == -32768 .or. um_grid%num_surface_types == -32768 ) then
+      call log_event("Either the number of surface types or the number of snow layers is not set", LOG_LEVEL_ERROR)
+    end if
   end if
 case DEFAULT
   write(log_scratch_space, '(A,I0,A,I0)') &
