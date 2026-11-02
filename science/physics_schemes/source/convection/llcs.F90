@@ -1004,80 +1004,81 @@ do j_lev = 1, nlevels
 
     if (stopnow) then
       exit
-    else
-      ! calculate temperature array for actual theta profile
-      temp = real_temp(theta_adj_rlx, p_full)
+    end if
 
-      ! reset all arrays and totals to 0 for new event
-      latent(:) = 0.0
-      q_level(:) = 0.0
-      event_q_total = 0.0
-      total_latent = 0.0
-      total_latent_new = 0.0
-      latent_ratio = 0.0
-      rain_out = 0.0
-      rain_out_new = 0.0
+    ! calculate temperature array for actual theta profile
+    temp = real_temp(theta_adj_rlx, p_full)
 
-      ! Rainfall / latent heating adjustment
+    ! reset all arrays and totals to 0 for new event
+    latent(:) = 0.0
+    q_level(:) = 0.0
+    event_q_total = 0.0
+    total_latent = 0.0
+    total_latent_new = 0.0
+    latent_ratio = 0.0
+    rain_out = 0.0
+    rain_out_new = 0.0
+
+    ! Rainfall / latent heating adjustment
+    do k = bottom, top
+      latent(k) = delta_p(k) / g * cp * (temp(k) - temp_noq(k))
+      is_conv(k) = .true.
+    end do
+
+    ! Calculate rainfall within this column from the amount
+    ! of latent heating that has taken place.
+    total_latent = sum(latent(bottom:top))
+    if (total_latent > 0.0) then
       do k = bottom, top
-        latent(k) = delta_p(k) / g * cp * (temp(k) - temp_noq(k))
-        is_conv(k) = .true.
+        qcl_inc(k) = latent(k) * (g / delta_p(k)) / lc
+        ! CHANGE HERE WAS LC*TIMESTEP
+        if (qcl_inc(k) > 0.0) then
+          ! Cloud fraction representing detrainment
+          ! Needs to be high to emulate the effect of anvils. At the same
+          ! time, because the current scheme implies that rain falls "below"
+          ! cloud fraction, large values of cloud_frac lead to
+          ! precipitation cores being spread out across the area of anvils,
+          ! thus making precipitation too slow and evaporating too much.
+          cloud_frac(k) = llcs_detrain_coef * timestep / llcs_timescale
+        end if
       end do
 
-      ! Calculate rainfall within this column from the amount
-      ! of latent heating that has taken place.
-      total_latent = sum(latent(bottom:top))
-      if (total_latent > 0.0) then
+      rain_out = total_latent / lc
+
+      ! find total water on levels involved in convective event.
+      do k = bottom, top
+        q_level(k) = (delta_p(k) / g) * q_conserve(k)
+      end do
+      event_q_total = sum(q_level(bottom:top))
+
+      ! The following code handles situations where the amount of rain
+      ! demanded by a convective event is greater than the amount of
+      ! rain stored in the levels participating in the convective event.
+      ! In this scenario we limit rain_out to the amount of moisture
+      ! present in the event and revise our convective potential
+      ! temperature adjustment accordingly.
+      if (rain_out > event_q_total) then
+        rain_out_new = event_q_total
+        total_latent_new = rain_out_new * lc
+        latent_ratio  = total_latent_new / total_latent
+        latent = latent * latent_ratio
         do k = bottom, top
-          qcl_inc(k) = latent(k) * (g / delta_p(k)) / lc
-          ! CHANGE HERE WAS LC*TIMESTEP
-          if (qcl_inc(k) > 0.0) then
-            ! Cloud fraction representing detrainment
-            ! Needs to be high to emulate the effect of anvils. At the same
-            ! time, because the current scheme implies that rain falls "below"
-            ! cloud fraction, large values of cloud_frac lead to
-            ! precipitation cores being spread out across the area of anvils,
-            ! thus making precipitation too slow and evaporating too much.
-            cloud_frac(k) = llcs_detrain_coef * timestep / llcs_timescale
-          end if
+          temp_new = temp_noq(k) + latent(k) / ((delta_p(k) / g) * cp)
+          theta_adj_rlx(k) = potential_temp(temp_new, p_full(k))
         end do
+        qcl_inc = qcl_inc * event_q_total / rain_out
+        event_q_total = rain_out_new
+        rain_out = rain_out_new
+      end if
 
-        rain_out = total_latent / lc
-
-        ! find total water on levels involved in convective event.
-        do k = bottom, top
-          q_level(k) = (delta_p(k) / g) * q_conserve(k)
-        end do
-        event_q_total = sum(q_level(bottom:top))
-
-        ! The following code handles situations where the amount of rain
-        ! demanded by a convective event is greater than the amount of
-        ! rain stored in the levels participating in the convective event.
-        ! In this scenario we limit rain_out to the amount of moisture
-        ! present in the event and revise our convective potential
-        ! temperature adjustment accordingly.
-        if (rain_out > event_q_total) then
-          rain_out_new = event_q_total
-          total_latent_new = rain_out_new * lc
-          latent_ratio  = total_latent_new / total_latent
-          latent = latent * latent_ratio
-          do k = bottom, top
-            temp_new = temp_noq(k) + latent(k) / ((delta_p(k) / g) * cp)
-            theta_adj_rlx(k) = potential_temp(temp_new, p_full(k))
-          end do
-          qcl_inc = qcl_inc * event_q_total / rain_out
-          event_q_total = rain_out_new
-          rain_out = rain_out_new
-        end if
-
-        ! Rescale specific humidity on levels within this event to
-        ! account for rainfall
-        do k = bottom, top
-          q_level(k) = q_level(k) * (event_q_total - rain_out) / event_q_total
-          q_final(k) = (g/delta_p(k)) * q_level(k)
-        end do
-      end if ! total_latent > 0
-    end if ! stopnow
+      ! Rescale specific humidity on levels within this event to
+      ! account for rainfall
+      do k = bottom, top
+        q_level(k) = q_level(k) * (event_q_total - rain_out) / event_q_total
+        q_final(k) = (g/delta_p(k)) * q_level(k)
+      end do
+    end if ! total_latent > 0
+     ! stopnow
   end if ! j_lev == n
 end do ! j_lev-loop
 
@@ -1322,7 +1323,8 @@ do j_lev = n, nlevels
   if (j_lev == nlevels) then
     top = j_lev - 1
     exit
-  else if ( (j_lev - 1 /= bottom) .and. (inc(j_lev) == 0) ) then
+  end if
+  if ( (j_lev - 1 /= bottom) .and. (inc(j_lev) == 0) ) then
     if (bottom /= -1) then
       top = j_lev - 1
       exit
