@@ -23,7 +23,10 @@
         "memory": [96, "GB"],
     }) %}
 
-{% elif task_ns.conf_name == "um2lfric-aquaplanet_lam" or task_ns.conf_name == "um2lfric-aquaplanet_lbc" or task_ns.conf_name == "um2lfric-falklands_lam" or task_ns.conf_name == "um2lfric-var_seuk_lam" %}
+{% elif task_ns.conf_name == "um2lfric-aquaplanet_lam"
+    or task_ns.conf_name == "um2lfric-aquaplanet_lbc"
+    or task_ns.conf_name == "um2lfric-falklands_lam"
+    or task_ns.conf_name == "um2lfric-var_seuk_lam" %}
 
     {% do task_dict.update({
             "mpi_parts": 126,
