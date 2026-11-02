@@ -81,7 +81,7 @@ use region_parcel_calcs_mod, only: region_parcel_calcs
 use cor_init_mass_liq_1_mod, only: cor_init_mass_liq_1
 use cfl_limit_init_mass_mod, only: cfl_limit_init_mass
 use add_region_parcel_mod, only: add_region_parcel
-use normalise_init_parcel_mod, only: normalise_init_parcel
+use finalise_init_parcel_mod, only: finalise_init_parcel
 
 implicit none
 
@@ -357,7 +357,7 @@ if ( l_updraft ) then
   do i_type = 1, n_updraft_types
     call set_par_fields( n_points, n_points_super, n_fields_tot,               &
                          cmpr_init, k, l_tracer, l_down, i_type,               &
-                         grid_k, fields_k, frac_r_k,                           &
+                         fields_k, frac_r_k,                                   &
                          par_radius_amp, turb_pert_k, turb_len_k,              &
                          updraft_par_gen(i_type) % par_super,                  &
                          updraft_par_gen(i_type) % mean_super,                 &
@@ -372,7 +372,7 @@ if ( l_dndraft ) then
   do i_type = 1, n_dndraft_types
     call set_par_fields( n_points, n_points_super, n_fields_tot,               &
                          cmpr_init, k, l_tracer, l_down, i_type,               &
-                         grid_k, fields_k, frac_r_k,                           &
+                         fields_k, frac_r_k,                                   &
                          par_radius_amp, turb_pert_k, turb_len_k,              &
                          dndraft_par_gen(i_type) % par_super,                  &
                          dndraft_par_gen(i_type) % mean_super,                 &
@@ -701,11 +701,10 @@ if ( l_updraft ) then
     ! normalise the mass-weighted means
     if ( nc > 0 ) then
       l_down = .false.
-      call normalise_init_parcel( n_points, nc, index_ic,                      &
-                                  fields_k(:,i_q_vap),                         &
-                                  updraft_par_gen(i_type) % par_super,         &
-                                  updraft_par_gen(i_type) % mean_super,        &
-                                  updraft_par_gen(i_type) % core_super )
+      call finalise_init_parcel( n_points, nc, index_ic,                       &
+                                 fields_k(:,i_q_vap),                          &
+                                 updraft_par_gen(i_type) % mean_super,         &
+                                 updraft_par_gen(i_type) % core_super )
     end if
   end do
 end if
@@ -724,11 +723,10 @@ if ( l_dndraft ) then
     ! normalise the mass-weighted means
     if ( nc > 0 ) then
       l_down = .true.
-      call normalise_init_parcel( n_points, nc, index_ic,                      &
-                                  fields_k(:,i_q_vap),                         &
-                                  dndraft_par_gen(i_type) % par_super,         &
-                                  dndraft_par_gen(i_type) % mean_super,        &
-                                  dndraft_par_gen(i_type) % core_super )
+      call finalise_init_parcel( n_points, nc, index_ic,                       &
+                                 fields_k(:,i_q_vap),                          &
+                                 dndraft_par_gen(i_type) % mean_super,         &
+                                 dndraft_par_gen(i_type) % core_super )
     end if
   end do
 end if

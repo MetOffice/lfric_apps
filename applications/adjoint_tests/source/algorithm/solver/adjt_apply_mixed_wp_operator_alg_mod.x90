@@ -98,6 +98,9 @@ module adjt_apply_mixed_wp_operator_alg_mod
 
     ! Test parameters and variables
     real(kind=r_solver), parameter :: overall_tolerance = 1500.0_r_solver
+    real(kind=r_solver), parameter :: const_u = 1.7_r_solver
+    real(kind=r_solver), parameter :: const_t = 0.8_r_solver
+    real(kind=r_solver), parameter :: const_r = 1.3_r_solver
     real(kind=r_solver)            :: machine_tol
     real(kind=r_solver)            :: relative_diff
 
@@ -158,7 +161,9 @@ module adjt_apply_mixed_wp_operator_alg_mod
                                                      pt2, mt_lumped_inv, &
                                                      mu_cd, p2t,         &
                                                      grad, norm_u,       &
-                                                     m3p, q32, p3t),     &
+                                                     m3p, q32, p3t,      &
+                                                     const_u, const_t,   &
+                                                     const_r),           &
                  x_innerproduct_x(lhs_w_inner_prod, lhs_w),              &
                  x_innerproduct_x(lhs_p_inner_prod, lhs_p),              &
                  x_innerproduct_x(wind_uv_inner_prod, wind_uv),          &
@@ -208,7 +213,8 @@ module adjt_apply_mixed_wp_operator_alg_mod
                                                          pt2, mt_lumped_inv,                 &
                                                          mu_cd, p2t,                         &
                                                          grad, norm_u,                       &
-                                                         m3p, q32, p3t),                     &
+                                                         m3p, q32, p3t,                      &
+                                                         const_u, const_t, const_r),         &
                  x_innerproduct_y(lhs_w_lhs_w_input_inner_prod, lhs_w, lhs_w_input),         &
                  x_innerproduct_y(lhs_p_lhs_p_input_inner_prod, lhs_p, lhs_p_input),         &
                  x_innerproduct_y(wind_uv_wind_uv_input_inner_prod, wind_uv, wind_uv_input), &
