@@ -82,16 +82,6 @@ else
 endif
 build: ALWAYS
 	$(call MESSAGE,========================================)
-	$(call MESSAGE,Importing internal dependencies...)
-	$(call MESSAGE,========================================)
-	$(Q)for SUBPROJECT in $(INTERNAL_DEPENDENCIES) ; do \
-	    $(MAKE) $(QUIET_ARG) -f $$SUBPROJECT/build/import.mk ; done
-	$(call MESSAGE,========================================)
-	$(call MESSAGE,Extracting $(PROJECT_NAME))
-	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
-	          SOURCE_DIR=source
-	$(call MESSAGE,========================================)
 	$(call MESSAGE,Extracting External Rose Metadata)
 	$(call MESSAGE,========================================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(APPS_ROOT_DIR)/build/extract/extract_meta.mk
@@ -102,6 +92,16 @@ build: ALWAYS
 	          PROJECT=gungho \
 	          SOURCE_DIR=source \
 	          META_FILE_DIR=$(META_FILE_DIR)
+	$(call MESSAGE,========================================)
+	$(call MESSAGE,Importing internal dependencies...)
+	$(call MESSAGE,========================================)
+	$(Q)for SUBPROJECT in $(INTERNAL_DEPENDENCIES) ; do \
+	    $(MAKE) $(QUIET_ARG) -f $$SUBPROJECT/build/import.mk ; done
+	$(call MESSAGE,========================================)
+	$(call MESSAGE,Extracting $(PROJECT_NAME))
+	$(call MESSAGE,========================================)
+	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
+	          SOURCE_DIR=source
 	$(call MESSAGE,========================================)
 	$(call MESSAGE,PSycloning $(PROJECT_NAME))
 	$(call MESSAGE,========================================)
