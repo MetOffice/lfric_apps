@@ -48,8 +48,8 @@ subroutine lfricinp_init_stash_to_lfric_map()
 
 use lfricinp_stashmaster_mod, only: &
     stashcode_u, stashcode_v, stashcode_theta, stashcode_soil_moist,          &
-    stashcode_soil_temp, stashcode_mean_canopyw, stashcode_tstar,             &
-    stashcode_bl_depth, stashcode_orog, stashcode_ozone, stashcode_w,         &
+    stashcode_soil_temp, stashcode_tstar, stashcode_bl_depth, stashcode_orog, &
+    stashcode_ozone, stashcode_w,                                             &
     stashcode_cpl_sw_rad_sea,stashcode_cpl_sw_surf_sea,                       &
     stashcode_cpl_lw_rad_sea,stashcode_cpl_lw_surf_sea,                       &
     stashcode_cpl_xcomp_windstr,stashcode_cpl_ycomp_windstr,                  &
@@ -127,7 +127,6 @@ call map_field_name(stashcode_soil_moist, 'soil_moisture')           ! stash 9
 call map_field_name(stashcode_q, 'q')                                ! stash 10 DEPRECATED
 call map_field_name(stashcode_qcf, 'qcf')                            ! stash 12 DEPRECATED?
 call map_field_name(stashcode_soil_temp, 'soil_temperature')         ! stash 20
-call map_field_name(stashcode_mean_canopyw, 'canopy_water_content')  ! stash 22
 call map_field_name(stashcode_tstar, 'tstar')                        ! stash 24 DEPRECATED
 call map_field_name(stashcode_bl_depth, 'zh')                        ! stash 25
 call map_field_name(stashcode_z0, 'z0msea')                          ! stash 26 DEPRECATED
