@@ -65,7 +65,8 @@ module semi_implicit_solver_alg_mod
                                                 block_gcr_type,                 &
                                                 conjugate_gradient_type,        &
                                                 precondition_only_type,         &
-                                                jacobi_type
+                                                jacobi_type,                    &
+                                                chebyshev_type
 
   ! Kernels
   use split_w2_field_kernel_mod,          only: split_w2_field_kernel_type
@@ -348,13 +349,15 @@ contains
                                              si_method_block_gcr,                   &
                                              si_method_prec_only,                   &
                                              si_method_jacobi,                      &
+                                             si_method_chebyshev,                   &
                                              si_monitor_convergence =>              &
                                                              monitor_convergence,   &
                                              si_fail_on_non_converged =>            &
                                                              fail_on_non_converged, &
                                              mixed_jacobi_relaxation =>             &
-                                                             jacobi_relaxation
-
+                                                             jacobi_relaxation,     &
+                                             chebyshev_lmin,                        &
+                                             chebyshev_lmax
     implicit none
 
     ! Input preconditioner for mixed problem
@@ -446,6 +449,17 @@ contains
                                       si_monitor_convergence,   &
                                       si_fail_on_non_converged, &
                                       mixed_jacobi_relaxation ) )
+    case(SI_METHOD_CHEBYSHEV)
+      allocate( mixed_solver_out,                            &
+                source = chebyshev_type( mixed_operator_out, &
+                                   mixed_preconditioner_in,  &
+                                   si_tolerance,             &
+                                   mixed_solver_a_tol,       &
+                                   si_maximum_iterations,    &
+                                   si_monitor_convergence,   &
+                                   si_fail_on_non_converged, &
+                                   chebyshev_lmin,           &
+                                   chebyshev_lmax ) )
     case default
       call log_event( "Unknown mixed solver specified", LOG_LEVEL_ERROR )
     end select

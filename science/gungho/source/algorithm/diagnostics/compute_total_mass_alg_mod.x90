@@ -127,8 +127,8 @@ contains
 
       nullify( mm_w3, w3_fs )
     case default
-      write( log_scratch_space, '(''Unknown integral_method = '', i0, &
-                                 ''in compute_total_mass.'')' ) integral_method
+      write( log_scratch_space, "('Unknown integral_method = ', i0, &
+                                 'in compute_total_mass.')" ) integral_method
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end select
 
