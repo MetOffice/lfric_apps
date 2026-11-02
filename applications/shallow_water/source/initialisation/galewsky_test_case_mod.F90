@@ -90,7 +90,7 @@ contains
       ! Set denominator in eq(2) of Galewsky et al.
       den = (l1 - lat0)*(l1 - lat1)
       ! Set u(lat) as per eq(2) of Galewsky et al.
-      if (den .lt. 0.0_r_def) then
+      if (den < 0.0_r_def) then
         uu1 = umen*exp(1.0_r_def/den)
       else
         uu1 = 0.0_r_def
@@ -99,7 +99,7 @@ contains
       ! Set denominator in eq(2) of Galewsky et al.
       den = (l2 - lat0)*(l2 - lat1)
       ! Set u(lat) as per eq(2) of Galewsky et al.
-      if (den .lt. 0.0_r_def) then
+      if (den < 0.0_r_def) then
         uu2 = umen*exp(1.0_r_def/den)
       else
         uu2 = 0.0_r_def

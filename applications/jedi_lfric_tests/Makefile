@@ -24,12 +24,17 @@ export EXTRA_ROSE_META = jules
 export META_DIR = $(WORKING_DIR)/../rose-meta
 export ROSE_META_DIRS = $(APPS_ROOT_DIR)/rose-meta $(META_DIR)
 
+# Note - socrates_interface must come before jules_interface as there are dependencies on each other.
 export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
                                $(CORE_ROOT_DIR)/components/driver \
                                $(CORE_ROOT_DIR)/components/science \
                                $(CORE_ROOT_DIR)/components/inventory \
                                $(APPS_ROOT_DIR)/interfaces/jedi_lfric_interface \
                                $(CORE_ROOT_DIR)/components/lfric-xios \
+							   $(APPS_ROOT_DIR)/science/shared \
+							   $(APPS_ROOT_DIR)/interfaces/socrates_interface \
+							   $(APPS_ROOT_DIR)/interfaces/jules_interface \
+							   $(APPS_ROOT_DIR)/interfaces/physics_schemes_interface \
                                $(APPS_ROOT_DIR)/science/gungho \
                                $(APPS_ROOT_DIR)/science/linear \
                                $(APPS_ROOT_DIR)/science/adjoint
@@ -46,7 +51,7 @@ ifneq ("$(PSYCLONE_TRANSFORMATION)","none")
 endif
 
 .PHONY: default
-default: build integration-tests
+default: build
 	$(Q)echo > /dev/null
 
 .PHONY: documentation doc docs
@@ -57,6 +62,11 @@ include $(APPS_ROOT_DIR)/build/extract/extract_meta.mk
 include $(CORE_ROOT_DIR)/infrastructure/build/lfric.mk
 include $(INTERNAL_DEPENDENCIES:=/build/import.mk)
 -include $(PROJECT_DIR)/build/project.mk
+
+# Include transmute list only if not using minimum or no transformations
+ifeq ($(filter "$(PSYCLONE_TRANSFORMATION)", "none" "minimum"),)
+  include build/psyclone_transmute_file_list.mk
+endif
 
 ##############################################################################
 # Documentation
@@ -102,7 +112,7 @@ build: export BIN_DIR     ?= $(PROJECT_DIR)/bin
 build: export LIB_DIR     ?= $(PROJECT_DIR)/lib
 build: export MOD_DIR     ?= $(PROJECT_DIR)/mod
 build: export CXX_LINK     = TRUE
-build: export PROGRAMS    := $(basename $(notdir $(shell find source -maxdepth 1 -name '*.[Ff]90' -print)))
+build: export PROGRAMS    := $(basename $(notdir $(shell find source -maxdepth 1 -name '*.[Ff]90' -exec egrep -l "^\s*program" {} \;)))
 build: export PROJECT      = $(PROJECT_NAME)
 build: export WORKING_DIR := $(WORKING_DIR)/jedi_lfric_tests
 
@@ -123,6 +133,20 @@ build: ALWAYS
 	$(Q)for SUBPROJECT in $(INTERNAL_DEPENDENCIES) ; do \
 	    $(MAKE) $(QUIET_ARG) -f $$SUBPROJECT/build/import.mk ; done
 	$(call MESSAGE,========================================)
+	$(call MESSAGE,Extracting coupled_interface component)
+	$(call MESSAGE,========================================)
+	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
+	          SOURCE_DIR=$(APPS_ROOT_DIR)/interfaces/coupled_interface/source
+	$(call MESSAGE,========================================)
+	$(call MESSAGE,Extracting Gungho dynamical core)
+	$(call MESSAGE,========================================)
+	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
+	          SOURCE_DIR=$(APPS_ROOT_DIR)/science/gungho/source
+	$(call MESSAGE,========================================)
+	$(call MESSAGE,Extracting UM physics)
+	$(call MESSAGE,========================================)
+	$Q$(MAKE) $(QUIET_ARG) -f $(APPS_ROOT_DIR)/build/extract/extract_physics.mk
+	$(call MESSAGE,========================================)
 	$(call MESSAGE,Extracting $(PROJECT_NAME))
 	$(call MESSAGE,========================================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
@@ -136,16 +160,54 @@ build: ALWAYS
 	$(call MESSAGE,Generating $(PROJECT) namelist loaders)
 	$(call MESSAGE,=========================================================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/configuration.mk \
-	          PROJECT=$(PROJECT) \
-	          SOURCE_DIR=source \
-	          WORKING_DIR=$(WORKING_DIR) \
+	          SOURCE_DIR=$(APPS_ROOT_DIR)/science/gungho/source \
 	          META_FILE_DIR=$(META_FILE_DIR)
+	$(call MESSAGE,========================================)
+	$(call MESSAGE,PSycloning interface components)
+	$(call MESSAGE,========================================)
+	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone_psykal.mk \
+	          SOURCE_DIR=$(APPS_ROOT_DIR)/interfaces/coupled_interface/source \
+	          OPTIMISATION_PATH=$(OPTIMISATION_PATH)
+	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone_psykal.mk \
+	          SOURCE_DIR=$(APPS_ROOT_DIR)/interfaces/jules_interface/source \
+	          OPTIMISATION_PATH=$(OPTIMISATION_PATH)
+	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone_psykal.mk \
+	          SOURCE_DIR=$(APPS_ROOT_DIR)/interfaces/socrates_interface/source \
+	          OPTIMISATION_PATH=$(OPTIMISATION_PATH)
+	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone_psykal.mk \
+	          SOURCE_DIR=$(APPS_ROOT_DIR)/interfaces/physics_schemes_interface/source \
+	          OPTIMISATION_PATH=$(OPTIMISATION_PATH)
+	$(call MESSAGE,========================================)
+	$(call MESSAGE,PSycloning Gungho dynamical core)
+	$(call MESSAGE,========================================)
+	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone_psykal.mk \
+	          SOURCE_DIR=$(APPS_ROOT_DIR)/science/gungho/source \
+	          OPTIMISATION_PATH=$(OPTIMISATION_PATH)
 	$(call MESSAGE,========================================)
 	$(call MESSAGE,PSycloning $(PROJECT_NAME))
 	$(call MESSAGE,========================================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone_psykal.mk \
 	          SOURCE_DIR=source \
 	          OPTIMISATION_PATH=$(OPTIMISATION_PATH)
+	$(call MESSAGE,========================================)
+	$(call MESSAGE,Preprocess and PSyclone Transmute)
+	$(call MESSAGE,========================================)
+	$Q$(MAKE) $(QUIET_ARG) -f $(APPS_ROOT_DIR)/interfaces/build/pre_process_phys.mk \
+              SOURCE_DIR=$(WORKING_DIR) \
+              PSYCLONE_PHYSICS_FILES="$(PSYCLONE_PHYSICS_FILES)" \
+	          PSYCLONE_DIRECTORIES="$(PSYCLONE_DIRECTORIES)" \
+	          PSYCLONE_PHYSICS_EXCEPTION="$(PSYCLONE_PHYSICS_EXCEPTION)"
+	$Q$(MAKE) $(QUIET_ARG) -f $(APPS_ROOT_DIR)/interfaces/build/psyclone_transmute_pass.mk \
+	          SOURCE_DIR=$(WORKING_DIR) \
+	          OPTIMISATION_PATH_PSY=$(APPS_ROOT_DIR)/applications/$(PROJECT)/$(OPTIMISATION_PATH) \
+	          PSYCLONE_PASS_NO_SCRIPT="$(PSYCLONE_PASS_NO_SCRIPT)"
+	$Q$(MAKE) $(QUIET_ARG) -f $(APPS_ROOT_DIR)/interfaces/build/psyclone_transmute.mk \
+	          SOURCE_DIR=$(WORKING_DIR) \
+	          OPTIMISATION_PATH_PSY=$(APPS_ROOT_DIR)/applications/$(PROJECT)/$(OPTIMISATION_PATH) \
+	          PSYCLONE_PHYSICS_FILES="$(PSYCLONE_PHYSICS_FILES)" \
+	          PSYCLONE_PASS_NO_SCRIPT="$(PSYCLONE_PASS_NO_SCRIPT)" \
+	          PSYCLONE_DIRECTORIES="$(PSYCLONE_DIRECTORIES)" \
+	          PSYCLONE_PHYSICS_EXCEPTION="$(PSYCLONE_PHYSICS_EXCEPTION)"
 	$(call MESSAGE,=========================================================)
 	$(call MESSAGE,Analysing $(PROJECT) build dependencies)
 	$(call MESSAGE,=========================================================)
@@ -190,24 +252,8 @@ unit-tests/build: extract_meta unit-tests/build
 ##############################################################################
 # Integration tests
 #
-integration-tests/%: export BIN_DIR      ?= $(PROJECT_DIR)/test
-integration-tests/%: export FFLAGS       += -DINT_TEST
-integration-tests/%: export IMPORT_PARTS  = $(CORE_ROOT_DIR)/infrastructure \
-                                            $(CORE_ROOT_DIR)/components/science \
-                                            $(CORE_ROOT_DIR)/components/driver \
-                                            $(CORE_ROOT_DIR)/components/inventory \
-                                            $(CORE_ROOT_DIR)/components/lfric-xios \
-                                            $(APPS_ROOT_DIR)/interfaces/jedi_lfric_interface \
-                                            $(APPS_ROOT_DIR)/science/gungho \
-                                            $(APPS_ROOT_DIR)/science/linear \
-                                            $(APPS_ROOT_DIR)/science/adjoint
-integration-tests/%: export META_FILE_DIR = rose-meta/jedi_lfric_tests/HEAD
-integration-tests/%: export PROJECT       = $(PROJECT_NAME)
-integration-tests/%: export SOURCE_DIR    = source
-integration-tests/%: export TEST_DIR      = integration-test
-integration-tests/%: export WORKING_DIR  := $(WORKING_DIR)/integration-tests
-integration-tests: extract_meta integration-tests/run
-integration-tests/build: extract_meta integration-tests/build
+integration-tests:
+	$(call MESSAGE,Testing,"There are no integration tests.")
 
 ##############################################################################
 # Clean

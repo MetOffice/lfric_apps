@@ -18,27 +18,32 @@ implicit none
 
 private
 
-public :: lfricinp_initialise
+public :: lfricinp_initialise, lfricinp_get_command_line_args
 
 contains
 
-!> Initialises generic lfricinputs infrastructure
+!> Reads the command line that contains namelist file names
 !> @param [out] program_fname Filename for program specific namelists provided
 !>                            on the command line
-subroutine lfricinp_initialise(program_fname)
+subroutine lfricinp_get_command_line_args(program_fname)
   use lfricinp_read_command_line_args_mod, only: lfricinp_read_command_line_args
-  use lfricinp_setup_io_mod,          only: io_config, io_fname
-  use lfricinp_regrid_options_mod, only: lfricinp_init_regrid_options
-  use lfricinp_datetime_mod, only: datetime
-  use lfricinp_stash_to_lfric_map_mod, only: lfricinp_init_stash_to_lfric_map
-  use lfricinp_lfric_driver_mod, only: lfric_nl_fname
-
-  implicit none
+  use lfricinp_setup_io_mod,               only: io_fname
+  use lfricinp_lfric_driver_mod,           only: lfric_nl_fname
 
   character(len=fnamelen), intent(out) :: program_fname
 
-  call log_event('Reading command line', LOG_LEVEL_INFO)
   call lfricinp_read_command_line_args(program_fname, lfric_nl_fname, io_fname)
+
+end subroutine lfricinp_get_command_line_args
+
+!> Initialises generic lfricinputs infrastructure
+subroutine lfricinp_initialise(program_fname)
+  use lfricinp_setup_io_mod,          only: io_config
+  use lfricinp_regrid_options_mod, only: lfricinp_init_regrid_options
+  use lfricinp_datetime_mod, only: datetime
+  use lfricinp_stash_to_lfric_map_mod, only: lfricinp_init_stash_to_lfric_map
+
+  character(len=fnamelen), intent(in) :: program_fname
 
   call log_event('Loading IO namelist', LOG_LEVEL_INFO)
   call io_config%load_namelist()

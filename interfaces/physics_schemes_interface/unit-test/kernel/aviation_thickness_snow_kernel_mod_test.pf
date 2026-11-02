@@ -1,0 +1,320 @@
+! -----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+! -----------------------------------------------------------------------------
+!> @brief Test aviation_thickness_snow_kernel
+!>
+
+module aviation_thickness_snow_kernel_mod_test
+
+  use funit
+  use constants_mod,                    only: i_def, r_def, l_def, rmdi
+  use aviation_thickness_snow_kernel_mod, only: aviation_thickness_snow_kernel_code
+  use science_aviation_constants_mod,   only: isa_press_bot, isa_press_mid, isa_press_top
+
+  implicit none
+
+  private
+  public :: test_geopot_thickness,                                  &
+            test_snow_low_prob, test_snow_high_prob,                &
+            test_snow_low_limit, test_snow_high_limit,              &
+            test_snow_gph_limit_inside, test_snow_gph_limit_outside
+
+  @TestCase
+  type, extends(TestCase), public  :: aviation_thickness_snow_test_type
+    private
+      real(kind=r_def), allocatable :: plev_geopot(:)
+      real(kind=r_def), allocatable :: thick_850(:)
+      real(kind=r_def), allocatable :: thick_500(:)
+      real(kind=r_def), allocatable :: snow_prob(:)
+      real(kind=r_def), allocatable :: expect_thick_850(:)
+      real(kind=r_def), allocatable :: expect_thick_500(:)
+      real(kind=r_def), allocatable :: expect_snow_prob(:)
+
+    contains
+      procedure setUp
+      procedure tearDown
+      procedure test_geopot_thickness
+      procedure test_snow_low_prob, test_snow_high_prob
+      procedure test_snow_low_limit, test_snow_high_limit
+      procedure test_snow_gph_limit_inside, test_snow_gph_limit_outside
+
+  end type aviation_thickness_snow_test_type
+
+  ! plev_geopot input has multiple layers
+  integer(kind=i_def), parameter :: nlayers              = 3_i_def
+  integer(kind=i_def), parameter :: source_ndf           = 1_i_def
+  integer(kind=i_def), parameter :: source_undf          = 2_i_def
+  integer(kind=i_def), parameter :: source_map(2)        = (/1_i_def, 4_i_def /)
+  integer(kind=i_def), parameter :: source_arr_len       = source_undf * nlayers
+
+  ! outputs are single layer
+  integer(kind=i_def), parameter :: result_ndf           = 1_i_def
+  integer(kind=i_def), parameter :: result_undf          = 2_i_def
+  integer(kind=i_def), parameter :: result_map(1)        = (/1_i_def /)
+  integer(kind=i_def), parameter :: result_arr_len       = result_undf
+
+  ! level incides.
+  integer(kind=i_def) :: i1000                           = 1
+  integer(kind=i_def) :: i850                            = 2
+  integer(kind=i_def) :: i500                            = 3
+
+  ! request flags.
+  logical(kind=l_def) :: thick_850_flag
+  logical(kind=l_def) :: thick_500_flag
+  logical(kind=l_def) :: snow_prob_flag
+
+  ! input values for snow probabilty tests, resulting in 0% probability
+  real(kind=r_def) :: gph_1000 = 0.0_r_def
+  real(kind=r_def) :: gph_850  = 5220.0_r_def / 4.0_r_def
+
+
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @before
+  subroutine setUp( this )
+    implicit none
+    class(aviation_thickness_snow_test_type), intent(inout) :: this
+
+    allocate(this%plev_geopot(source_arr_len),      &
+             this%thick_850(result_arr_len),        &
+             this%thick_500(result_arr_len),        &
+             this%snow_prob(result_arr_len),        &
+             this%expect_thick_850(result_arr_len), &
+             this%expect_thick_500(result_arr_len), &
+             this%expect_snow_prob(result_arr_len))
+
+  thick_850_flag = .false.
+  thick_500_flag = .false.
+  snow_prob_flag = .false.
+
+  end subroutine setUp
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @after
+  subroutine tearDown( this )
+    implicit none
+    class(aviation_thickness_snow_test_type), intent(inout) :: this
+
+    deallocate(this%plev_geopot,      &
+               this%thick_850,        &
+               this%thick_500,        &
+               this%snow_prob,        &
+               this%expect_thick_850, &
+               this%expect_thick_500, &
+               this%expect_snow_prob)
+
+  end subroutine tearDown
+
+  ! geopotential thickness test
+  @test
+  subroutine test_geopot_thickness ( this )
+    implicit none
+    class(aviation_thickness_snow_test_type), intent(inout) :: this
+
+    thick_850_flag = .true.
+    thick_500_flag = .true.
+
+    ! input
+    this%plev_geopot = (/ 10.0_r_def, 100.0_r_def, 1000.0_r_def, &
+                          rmdi,       rmdi,        rmdi /)
+    ! output
+    this%thick_850 = (/ rmdi, rmdi /)
+    this%thick_500 = (/ rmdi, rmdi /)
+
+    ! expected output
+    this%expect_thick_850 = (/ 90.0_r_def,  rmdi /)
+    this%expect_thick_500 = (/ 990.0_r_def, rmdi /)
+
+    call aviation_thickness_snow_kernel_code(nlayers, &
+             this%thick_850, this%thick_500, this%snow_prob, &
+             this%plev_geopot, &
+             thick_850_flag, thick_500_flag, snow_prob_flag, &
+             i1000, i850, i500, &
+             result_ndf, result_undf, result_map, &
+             source_ndf, source_undf, source_map)
+
+    @assertEqual( this%expect_thick_850, this%thick_850 )
+    @assertEqual( this%expect_thick_500, this%thick_500 )
+
+  end subroutine test_geopot_thickness
+
+  ! snow probability limit test (below 0%)
+  @test
+  subroutine test_snow_low_limit ( this )
+    implicit none
+    class(aviation_thickness_snow_test_type), intent(inout) :: this
+
+    snow_prob_flag = .true.
+
+    ! input
+    this%plev_geopot = (/ gph_1000, gph_850 + 1, rmdi, &
+                          rmdi,     rmdi,        rmdi /)
+    ! output
+    this%snow_prob = (/ rmdi, rmdi /)
+
+    ! expected output
+    this%expect_snow_prob = (/ 0.0_r_def, rmdi /)
+
+    call aviation_thickness_snow_kernel_code(nlayers, &
+             this%thick_850, this%thick_500, this%snow_prob, &
+             this%plev_geopot, &
+             thick_850_flag, thick_500_flag, snow_prob_flag, &
+             i1000, i850, i500, &
+             result_ndf, result_undf, result_map, &
+             source_ndf, source_undf, source_map)
+
+    @assertEqual( this%expect_snow_prob, this%snow_prob )
+
+  end subroutine test_snow_low_limit
+
+
+  ! snow probability normal test (low, near 0%)
+  @test
+  subroutine test_snow_low_prob ( this )
+    implicit none
+    class(aviation_thickness_snow_test_type), intent(inout) :: this
+
+    snow_prob_flag = .true.
+
+    ! input
+    this%plev_geopot = (/ gph_1000, gph_850 - 1, rmdi, &
+                          rmdi,     rmdi,        rmdi /)
+    ! output
+    this%snow_prob = (/ rmdi, rmdi /)
+
+    ! expected output
+    this%expect_snow_prob = (/ 4.0_r_def, rmdi /)
+
+    call aviation_thickness_snow_kernel_code(nlayers, &
+             this%thick_850, this%thick_500, this%snow_prob, &
+             this%plev_geopot, &
+             thick_850_flag, thick_500_flag, snow_prob_flag, &
+             i1000, i850, i500, &
+             result_ndf, result_undf, result_map, &
+             source_ndf, source_undf, source_map)
+
+    @assertEqual( this%expect_snow_prob, this%snow_prob )
+
+  end subroutine test_snow_low_prob
+
+  ! snow probability normal test (high, near 100%)
+  @test
+  subroutine test_snow_high_prob ( this )
+    implicit none
+    class(aviation_thickness_snow_test_type), intent(inout) :: this
+
+    snow_prob_flag = .true.
+
+    ! input
+    this%plev_geopot = (/ gph_1000, gph_850 - 24, rmdi, &
+                          rmdi,     rmdi,         rmdi /)
+    ! output
+    this%snow_prob = (/ rmdi, rmdi /)
+
+    ! expected output
+    this%expect_snow_prob = (/ 96.0_r_def, rmdi /)
+
+    call aviation_thickness_snow_kernel_code(nlayers, &
+             this%thick_850, this%thick_500, this%snow_prob, &
+             this%plev_geopot, &
+             thick_850_flag, thick_500_flag, snow_prob_flag, &
+             i1000, i850, i500, &
+             result_ndf, result_undf, result_map, &
+             source_ndf, source_undf, source_map)
+
+    @assertEqual( this%expect_snow_prob, this%snow_prob )
+
+  end subroutine test_snow_high_prob
+
+  ! snow probability limit test (above 100%)
+  @test
+  subroutine test_snow_high_limit ( this )
+    implicit none
+    class(aviation_thickness_snow_test_type), intent(inout) :: this
+
+    snow_prob_flag = .true.
+
+    ! input
+    this%plev_geopot = (/ gph_1000, gph_850 - 26, rmdi, &
+                          rmdi,     rmdi,         rmdi /)
+    ! output
+    this%snow_prob = (/ rmdi, rmdi /)
+
+    ! expected output
+    this%expect_snow_prob = (/ 100.0_r_def, rmdi /)
+
+    call aviation_thickness_snow_kernel_code(nlayers, &
+             this%thick_850, this%thick_500, this%snow_prob, &
+             this%plev_geopot, &
+             thick_850_flag, thick_500_flag, snow_prob_flag, &
+             i1000, i850, i500, &
+             result_ndf, result_undf, result_map, &
+             source_ndf, source_undf, source_map)
+
+    @assertEqual( this%expect_snow_prob, this%snow_prob )
+
+  end subroutine test_snow_high_limit
+
+  ! snow probability gph limit test (just inside gph cutoff)
+  @test
+  subroutine test_snow_gph_limit_inside ( this )
+    implicit none
+    class(aviation_thickness_snow_test_type), intent(inout) :: this
+
+    snow_prob_flag = .true.
+
+    ! input - high numbers just inside gph cutoff, designed to give 50% prob
+    this%plev_geopot = (/ 0.9e8_r_def, 87001142.5_r_def, rmdi, &
+                          rmdi,        rmdi,             rmdi /)
+    ! output
+    this%snow_prob = (/ rmdi, rmdi /)
+
+    ! expected output
+    this%expect_snow_prob = (/ 50.0_r_def, rmdi  /)
+
+    call aviation_thickness_snow_kernel_code(nlayers, &
+             this%thick_850, this%thick_500, this%snow_prob, &
+             this%plev_geopot, &
+             thick_850_flag, thick_500_flag, snow_prob_flag, &
+             i1000, i850, i500, &
+             result_ndf, result_undf, result_map, &
+             source_ndf, source_undf, source_map)
+
+    @assertEqual( this%expect_snow_prob, this%snow_prob )
+
+  end subroutine test_snow_gph_limit_inside
+
+  ! snow probability gph limit test (just outside gph cutoff)
+  @test
+  subroutine test_snow_gph_limit_outside ( this )
+    implicit none
+    class(aviation_thickness_snow_test_type), intent(inout) :: this
+
+    snow_prob_flag = .true.
+
+    ! input
+    this%plev_geopot = (/ 1.1e8_r_def, 106334442.5_r_def, rmdi, &
+                          rmdi,        rmdi,              rmdi /)
+    ! output
+    this%snow_prob = (/ rmdi, rmdi /)
+
+    ! expected output - would be 50% without the high gph cutoff
+    this%expect_snow_prob = (/ 0.0_r_def, rmdi /)
+
+    call aviation_thickness_snow_kernel_code(nlayers, &
+             this%thick_850, this%thick_500, this%snow_prob, &
+             this%plev_geopot, &
+             thick_850_flag, thick_500_flag, snow_prob_flag, &
+             i1000, i850, i500, &
+             result_ndf, result_undf, result_map, &
+             source_ndf, source_undf, source_map)
+
+    @assertEqual( this%expect_snow_prob, this%snow_prob )
+
+  end subroutine test_snow_gph_limit_outside
+
+end module aviation_thickness_snow_kernel_mod_test

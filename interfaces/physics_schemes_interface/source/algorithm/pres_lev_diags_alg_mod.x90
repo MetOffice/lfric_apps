@@ -10,9 +10,11 @@ module pres_lev_diags_alg_mod
   use config_mod,              only: config_type
   use field_mod,               only: field_type
   use field_collection_mod,    only: field_collection_type
+  use mesh_mod,                only: mesh_type
   use io_config_mod,           only: write_diag, use_xios_io
   use timing_mod,              only: start_timing, stop_timing, tik, LPROF
   use constants_mod,           only: r_def, i_def, l_def, str_def
+  use dycore_constants_mod,    only: get_geopotential
   use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field, &
                                         diag_samp => diagnostic_to_be_sampled
   use lfric_xios_diag_mod, only: get_axis_dimension, get_axis_values
@@ -22,6 +24,8 @@ module pres_lev_diags_alg_mod
   use mr_indices_mod,          only: nummr, imr_v
   use moist_dyn_mod,           only: num_moist_factors, total_mass
   use planet_config_mod,       only: p_zero, kappa, gravity, cp
+  use extrusion_config_mod,    only: planet_radius
+  use formulation_config_mod,  only: shallow
   use planet_constants_mod,    only: ex_power
 
   implicit none
@@ -46,9 +50,10 @@ contains
   !> @param[in]  exner_w3        Exner pressure
   !> @param[in]  mr              Mixing ratio bundle
   !> @param[in]  moist_dyn       Moist_dynamics factors (for 1+sum(m_x))
+  !> @param[out] plev_geopot     Geopotential height on pressure levels
   subroutine pres_lev_diags_alg(config,                              &
                                 derived_fields, theta_wth, exner_w3, &
-                                mr, moist_dyn)
+                                mr, moist_dyn, plev_geopot)
 
     use psykal_lite_phys_mod, only: invoke_pres_interp_kernel_type,  &
                                     invoke_heaviside_kernel_type,    &
@@ -62,21 +67,23 @@ contains
     type(config_type), intent(in) :: config
 
     type( field_collection_type ), intent(in) :: derived_fields
-    type( field_type ), intent(in) :: theta_wth, exner_w3
-    type( field_type ), intent(in) :: mr(nummr)
-    type( field_type ), intent(in) :: moist_dyn(num_moist_factors)
+    type( field_type ), intent(in)  :: theta_wth, exner_w3
+    type( field_type ), intent(in)  :: mr(nummr)
+    type( field_type ), intent(in)  :: moist_dyn(num_moist_factors)
+    type( field_type ), intent(out) :: plev_geopot
     ! Internal variables
     type( field_type ), pointer     :: exner_wth
     type( field_type ), pointer     :: u_in_w3
     type( field_type ), pointer     :: v_in_w3
     type( field_type ), pointer     :: w_in_wth
     type( field_type ), pointer     :: wetrho_in_wth
-    type( field_type ), pointer     :: height_w3
     type( field_type ), pointer     :: height_wth
+    type( field_type ), pointer     :: geopotential
+    type( mesh_type ),  pointer     :: mesh
 
     ! Define fields
     type( field_type ) :: plev_heaviside, plev_temp, plev_u, plev_v, &
-         plev_w, plev_geopot, temp, omega, plev_omega, plev_mv, plev_qv, qv, &
+         plev_w, temp, omega, plev_omega, plev_mv, plev_qv, qv, &
          plev_thetaw, plev_temp_save
     integer(i_def) :: nplev
     real(r_def) :: minus_g
@@ -88,7 +95,14 @@ contains
          plev_w_flag, plev_w_clim_flag, plev_omega_clim_flag,          &
          plev_mv_clim_flag, plev_qv_clim_flag,                         &
          plev_geopot_flag, plev_geopot_clim_flag, plev_thetaw_flag
+
+    ! Aviation diagnostics require plev_geopot.
+    logical(l_def) :: aviation_geopot_flag
+
     integer(tik) :: id
+
+    ! For code tidiness, combines all flags requiring plev_geopot.
+    logical(l_def) :: plev_gepot_required
 
     if ( LPROF ) call start_timing( id, 'diags.pressure_lev' )
 
@@ -96,7 +110,8 @@ contains
     allocate(plevs(nplev))
     plevs = get_axis_values('pressure_levels',nplev)
     call derived_fields%get_field('exner_in_wth', exner_wth)
-    height_wth => get_height_fv(config, exner_w3%get_mesh(), Wtheta)
+    mesh => exner_w3%get_mesh()
+    height_wth => get_height_fv(config, mesh, Wtheta)
 
     ! Heaviside function
     plev_heaviside_flag = init_diag(plev_heaviside, 'plev__heaviside')
@@ -263,17 +278,25 @@ contains
     end if
 
     ! Geopotential height on pressure levels
+    aviation_geopot_flag = diag_samp('aviation__geopot_thickness_850') .or. &
+                           diag_samp('aviation__geopot_thickness_500') .or. &
+                           diag_samp('aviation__snow_probability')
     plev_geopot_clim_flag = diag_samp('plev__geopot_clim')
-    plev_geopot_flag = init_diag(plev_geopot, 'plev__geopot', activate=plev_geopot_clim_flag)
-    if ((plev_geopot_flag .or. plev_geopot_clim_flag) .and. use_xios_io) then
+    plev_geopot_flag = init_diag(plev_geopot, 'plev__geopot', &
+            activate=plev_geopot_clim_flag .or. aviation_geopot_flag)
 
-      height_w3 => get_height_fv(config, exner_w3%get_mesh(), W3)
+    plev_gepot_required = plev_geopot_flag .or. &
+                          plev_geopot_clim_flag .or. &
+                          aviation_geopot_flag
+    if (plev_gepot_required .and. use_xios_io) then
 
-      call invoke_geo_on_pres_kernel_type(height_w3, exner_w3, theta_wth, &
-                                          height_wth, exner_wth,          &
-                                          nplev, plevs, plev_geopot,      &
-                                          p_zero, kappa, cp, gravity,     &
-                                          ex_power)
+      geopotential => get_geopotential( config, mesh )
+      call invoke_geo_on_pres_kernel_type(geopotential, exner_w3, theta_wth, &
+                                          height_wth, exner_wth,             &
+                                          nplev, plevs, plev_geopot,         &
+                                          p_zero, kappa, cp, gravity,        &
+                                          planet_radius, ex_power,           &
+                                          shallow)
       if (plev_geopot_flag) call plev_geopot%write_field()
 
       if (plev_geopot_clim_flag) then
