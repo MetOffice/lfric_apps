@@ -6,7 +6,9 @@
 
 """
 This transformation introduces OpenMP directives around loops inside
-UKCA chemistry full-domain mode.
+UKCA chemistry full-domain mode. The UKCA code already contains
+manual directives, so this script is optional. It is provided in
+case PSyclone fully replaces manual directives in future in UKCA.
 """
 
 from psyclone.psyir.symbols import (
