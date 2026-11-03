@@ -93,6 +93,8 @@ contains
   procedure, public :: model_stepAD
   procedure, public :: model_finalAD
 
+  procedure, public :: jedi_linear_model_final
+
   !> Finalizer
   final              :: jedi_linear_model_destructor
 
@@ -390,6 +392,21 @@ end subroutine model_finalAD
 
 !> @brief    Finalize the jedi_linear_model_type
 !>
+subroutine jedi_linear_model_final(self)
+
+  use jedi_lfric_linear_modeldb_driver_mod, only : finalise_modeldb
+
+  implicit none
+
+  class(jedi_linear_model_type), intent(inout) :: self
+
+  call finalise_modeldb( self%modeldb, self%atl_si_timestep )
+
+end subroutine jedi_linear_model_final
+
+
+!> @brief    Finalize the jedi_linear_model_type
+!>
 subroutine jedi_linear_model_destructor(self)
 
   use jedi_lfric_linear_modeldb_driver_mod, only : finalise_modeldb
@@ -397,8 +414,6 @@ subroutine jedi_linear_model_destructor(self)
   implicit none
 
   type(jedi_linear_model_type), intent(inout) :: self
-
-  call finalise_modeldb( self%modeldb, self%atl_si_timestep )
 
 end subroutine jedi_linear_model_destructor
 

@@ -125,19 +125,19 @@
   <grid id="full_level_0_face_zoom">
     <domain domain_ref="face"/>
     <axis axis_ref="vert_axis_full_levels" >
-      <zoom_axis begin="0" n="1"/>
+      <extract_axis begin="0" n="1"/>
     </axis>
   </grid>
   <grid id="full_level_1_face_zoom">
     <domain domain_ref="face"/>
     <axis axis_ref="vert_axis_full_levels" >
-      <zoom_axis begin="1" n="1"/>
+      <extract_axis begin="1" n="1"/>
     </axis>
   </grid>
   <grid id="half_level_1_face_zoom">
     <domain domain_ref="face"/>
     <axis axis_ref="vert_axis_half_levels" >
-      <zoom_axis begin="0" n="1"/>
+      <extract_axis begin="0" n="1"/>
     </axis>
   </grid>
 

@@ -109,6 +109,8 @@ contains
   !> Atlas field emulators
   procedure, public :: from_modeldb
 
+  procedure, public :: jedi_state_final
+
   !> Finalizer
   final             :: jedi_state_destructor
 
@@ -661,15 +663,15 @@ subroutine set_clock( self, new_time )
 
 end subroutine set_clock
 
-!> @brief    The jedi_state_type finalizer
+!> @brief    Finalize the jedi_state_type
 !>
-subroutine jedi_state_destructor( self )
+subroutine jedi_state_final(self)
 
   use jedi_lfric_nl_modeldb_driver_mod, only : finalise_modeldb
 
   implicit none
 
-  type( jedi_state_type ), intent(inout) :: self
+  class(jedi_state_type), intent(inout) :: self
 
   self%geometry => null()
   if ( allocated(self%fields ) ) deallocate(self%fields )
@@ -679,6 +681,16 @@ subroutine jedi_state_destructor( self )
     self%has_a_modeldb = .false.
   endif
   call self%io_collection%clear()
+
+end subroutine jedi_state_final
+
+!> @brief    The jedi_state_type destructor
+!>
+subroutine jedi_state_destructor( self )
+
+  implicit none
+
+  type( jedi_state_type ), intent(inout) :: self
 
 end subroutine jedi_state_destructor
 
