@@ -18,7 +18,7 @@
 {% set cascade_build_setup_ifx = 'export FC=mpif90 FPP="cpp -P -x f95-cpp-input" CXX=icpx LDMPI=mpif90 VERBOSE=1 PSYCLONE_TRANSFORMATION=minimum ; '~
                                  'export PSYCLONE_CONFIG=$(spack location -i py-psyclone@3.3.1 /xh3il7h)/share/psyclone/psyclone.cfg ; '~
                                  'export YAXT_ROOT=$(spack location -i yaxt@0.11.5.1 %intel@2021.10.0 /n4z2cmm) ; '~
-                                 'export XIOS_ROOT=$(spack location -i xios@2701 %intel@2021.10.0 /ueycp26) ; '~
+                                 'export XIOS_ROOT=$(spack location -i xios@2701 %intel@2021.10.0 /prrp5ie) ; '~
                                  'export OASIS_ROOT=$(spack location -i oasis@3-mct5.0 %intel@2021.10.0 /awot3pa) ; '~
                                  'export NETCDF_FORTRAN_ROOT=$(spack location -i netcdf-fortran@4.6.1 %intel@2021.10.0 /nz665uw) ; '~
                                  'export NETCDF_C_ROOT=$(spack location -i netcdf-c@4.9.2 %intel@2021.10.0 /iqzbdoi) ; '~
@@ -62,6 +62,7 @@
         inherit = CASCADE_BASE
         platform = cascade-pbs
         [[[directives]]]
+            -P = niwa00001
             -q = shortq
 
     [[CASCADE_BUILD_IFX]]
@@ -69,6 +70,7 @@
         {{ generate_script("pre-script", [cascade_modules_ifx, cascade_build_setup_ifx]) }}
         [[[environment]]]
             USE_MPI_F08 = "use_mpi_f08"
+            USE_TIMING_WRAPPER = true
 
     [[CASCADE_RUN_IFX]]
         inherit = CASCADE_PBS

@@ -264,7 +264,7 @@ subroutine vert_balance_code( nlayers, theta, mr_v, exner,      &
     end do
 
     if ( abs( delta_exner ) > tol ) then
-      write(log_scratch_space, '(''vert_balance: iteration failed at k = '', i0)') k
+      write(log_scratch_space, "('vert_balance: iteration failed at k = ', i0)") k
       call log_event(log_scratch_space, LOG_LEVEL_INFO)
       write(log_scratch_space, *) 'tol = ', tol
       call log_event(log_scratch_space, LOG_LEVEL_INFO)
