@@ -59,4 +59,9 @@ class vn32_tXXX(MacroUpgrade):
             ("wetness_under_soil", "1.0"),
         ]:
             self.add_setting(config, ["namelist:ideal_surface", name], value)
+        """Add the albedo weights used with site forcing, with the values
+        previously used"""
+        self.add_setting(
+            config, ["namelist:jules_radiation", "wght_alb"], "0.0,0.5,0.0,0.5"
+        )
         return config, self.reports

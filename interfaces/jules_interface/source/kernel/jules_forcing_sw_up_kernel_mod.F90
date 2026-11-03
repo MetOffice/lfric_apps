@@ -9,6 +9,7 @@ module jules_forcing_sw_up_kernel_mod
 
   use argument_mod,       only : arg_type,                  &
                                  GH_FIELD, GH_REAL,         &
+                                 GH_SCALAR,                 &
                                  GH_READ, GH_WRITE,         &
                                  ANY_DISCONTINUOUS_SPACE_1, &
                                  ANY_DISCONTINUOUS_SPACE_2, &
@@ -28,10 +29,15 @@ module jules_forcing_sw_up_kernel_mod
   !>
   type, public, extends(kernel_type) :: jules_forcing_sw_up_kernel_type
     private
-    type(arg_type) :: meta_args(3) = (/                                        &
+    type(arg_type) :: meta_args(8) = (/                                        &
          arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1),     & ! sw_up_tile
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_2),     & ! tile_sw_direct_albedo
          arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_2),     & ! tile_sw_diffuse_albedo
-         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3)      & ! sw_down_surf
+         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3),     & ! sw_down_surf
+         arg_type(GH_SCALAR, GH_REAL, GH_READ),                                & ! weight_vis_dir
+         arg_type(GH_SCALAR, GH_REAL, GH_READ),                                & ! weight_vis_dif
+         arg_type(GH_SCALAR, GH_REAL, GH_READ),                                & ! weight_nir_dir
+         arg_type(GH_SCALAR, GH_REAL, GH_READ)                                 & ! weight_nir_dif
         /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -43,13 +49,19 @@ module jules_forcing_sw_up_kernel_mod
 contains
 
   !> @brief Calculates the upward SW flux on tiles for JULES site forcing
-  !> @details The tile albedos are for a single band covering the whole SW
-  !>          spectrum. As in standalone JULES with its default albedo
-  !>          weights, the diffuse albedo is used for all of the downward SW.
+  !> @details The tile albedos are for two SW bands, giving the
+  !>          visible and near-infrared albedos. As in standalone JULES, the
+  !>          albedo applied to the downward SW is a weighted sum of the
+  !>          direct and diffuse albedos in the two bands.
   !> @param[in]     nlayers                Number of layers
   !> @param[in,out] sw_up_tile             Upward SW flux on tiles (W m-2)
+  !> @param[in]     tile_sw_direct_albedo  Direct SW albedo on tiles
   !> @param[in]     tile_sw_diffuse_albedo Diffuse SW albedo on tiles
   !> @param[in]     sw_down_surf           Downward SW flux at surface (W m-2)
+  !> @param[in]     weight_vis_dir         Weight of visible direct albedo
+  !> @param[in]     weight_vis_dif         Weight of visible diffuse albedo
+  !> @param[in]     weight_nir_dir         Weight of near-infrared direct albedo
+  !> @param[in]     weight_nir_dif         Weight of near-infrared diffuse albedo
   !> @param[in]     ndf_tile               Number of DOFs per cell for tiles
   !> @param[in]     undf_tile              Number of unique DOFs for tiles
   !> @param[in]     map_tile               Dofmap for the cell at the base of the column for tiles
@@ -61,8 +73,11 @@ contains
   !> @param[in]     map_2d                 Dofmap for the cell at the base of the column for 2D fields
   subroutine jules_forcing_sw_up_code( nlayers,                            &
                                        sw_up_tile,                         &
+                                       tile_sw_direct_albedo,              &
                                        tile_sw_diffuse_albedo,             &
                                        sw_down_surf,                       &
+                                       weight_vis_dir, weight_vis_dif,     &
+                                       weight_nir_dir, weight_nir_dif,     &
                                        ndf_tile, undf_tile, map_tile,      &
                                        ndf_sw_tile, undf_sw_tile,          &
                                        map_sw_tile,                        &
@@ -82,15 +97,24 @@ contains
     integer(kind=i_def), dimension(ndf_2d),      intent(in) :: map_2d
 
     real(kind=r_def), intent(inout) :: sw_up_tile(undf_tile)
+    real(kind=r_def), intent(in)    :: tile_sw_direct_albedo(undf_sw_tile)
     real(kind=r_def), intent(in)    :: tile_sw_diffuse_albedo(undf_sw_tile)
     real(kind=r_def), intent(in)    :: sw_down_surf(undf_2d)
+    real(kind=r_def), intent(in)    :: weight_vis_dir, weight_vis_dif
+    real(kind=r_def), intent(in)    :: weight_nir_dir, weight_nir_dif
 
     ! Local variables
-    integer(kind=i_def) :: n
+    integer(kind=i_def) :: n, vis, nir
 
     do n = 1, n_surf_tile
-      sw_up_tile(map_tile(1)+n-1) = tile_sw_diffuse_albedo(map_sw_tile(1)+n-1) &
-                                  * sw_down_surf(map_2d(1))
+      ! Visible albedos are in the first band, near-infrared in the second
+      vis = map_sw_tile(1) + n - 1
+      nir = map_sw_tile(1) + n_surf_tile + n - 1
+      sw_up_tile(map_tile(1)+n-1) = sw_down_surf(map_2d(1))                  &
+          * ( weight_vis_dir * tile_sw_direct_albedo(vis)                    &
+            + weight_vis_dif * tile_sw_diffuse_albedo(vis)                   &
+            + weight_nir_dir * tile_sw_direct_albedo(nir)                    &
+            + weight_nir_dif * tile_sw_diffuse_albedo(nir) )
     end do
 
   end subroutine jules_forcing_sw_up_code

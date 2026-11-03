@@ -40,21 +40,12 @@
       </field_group>
     </field_definition>
 
+    <!-- JULES site forcing file definition, which depends on the format of the forcing file -->
+    <file_definition src="./file_def_jules_forcing_cardington.xml"/>
+
     <file_definition
 	type="one_file"
 	time_counter="none">
-
-      <!-- JULES site forcing data, read when initialization:jules_forcing is true -->
-      <file id="jules_forcing" name="jules_forcing" mode="read" output_freq="30mi" convention="CF" cyclic="true" enabled=".FALSE.">
-        <field id="jules_forcing_time" name="time" unit="seconds" operation="once" axis_ref="jules_forcing_time_axis" />
-        <field id="forcing_wind_data" name="Wind" long_name="wind_speed_at_10m" unit="m s-1" operation="instant" grid_ref="jules_forcing_grid" />
-        <field id="forcing_tair_data" name="Tair" long_name="air_temperature_at_10m" unit="K" operation="instant" grid_ref="jules_forcing_grid" />
-        <field id="forcing_qair_data" name="Qair" long_name="specific_humidity_at_10m" unit="kg kg-1" operation="instant" grid_ref="jules_forcing_grid" />
-        <field id="forcing_psurf_data" name="PSurf" long_name="surface_air_pressure" unit="Pa" operation="instant" grid_ref="jules_forcing_grid" />
-        <field id="forcing_lwdown_data" name="LWdown" long_name="surface_downwelling_longwave_flux" unit="W m-2" operation="instant" grid_ref="jules_forcing_grid" />
-        <field id="forcing_swdown_data" name="SWdown" long_name="surface_downwelling_shortwave_flux" unit="W m-2" operation="instant" grid_ref="jules_forcing_grid" />
-        <field id="forcing_rainf_data" name="Rainf" long_name="rainfall_flux" unit="kg m-2 s-1" operation="instant" grid_ref="jules_forcing_grid" />
-      </file>
 
       <!-- Checkpoint groups -->
 

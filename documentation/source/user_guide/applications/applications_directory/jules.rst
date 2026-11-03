@@ -47,8 +47,8 @@ Two namelists switch the forcing on:
 The forcing file
 ~~~~~~~~~~~~~~~~
 
-The forcing file is a NetCDF file with one point, using the dimensions
-``(time, land)``. It must contain the following variables:
+The forcing file is a NetCDF file with one point. By default it uses the
+dimensions ``(time, land)`` and must contain the following variables:
 
 =========  ==================================  ==============
 Variable   Description                         Units
@@ -63,14 +63,25 @@ Variable   Description                         Units
 =========  ==================================  ==============
 
 It must also have a CF ``time`` coordinate variable with units of the form
-``seconds since <date>``. The ``time`` dimension must be fixed, not
-unlimited, because its length sets the size of the XIOS time axis. That
-length is read when the model starts
-(``get_jules_forcing_dim`` in ``time_dimensions_mod``). The file does not
-need any UGRID mesh information.
+``seconds since <date>``. The length of the ``time`` dimension sets the size
+of the XIOS time axis, and is read when the model starts
+(``get_jules_forcing_dim`` in ``time_dimensions_mod``). The ``time``
+dimension must be fixed, not unlimited: XIOS treats an unlimited dimension
+as its own record dimension rather than as the time axis of the grid, and
+fails with "incorrect dimension". A file with an unlimited time dimension
+can be converted with ``nccopy -u``. The file does not need any UGRID mesh
+information.
 
-The XIOS file definition is in ``iodef.xml``. It reads the variables onto an
-axis-only grid (``jules_forcing_grid``), which avoids needing a mesh:
+The variable names and dimensions are set by the XIOS file definition, so
+files in other formats can be read by changing it rather than converting
+them.
+
+The XIOS file definition is in ``file_def_jules_forcing.xml``, included by
+``iodef.xml``. In the rose-stem app this file is installed from
+``file_def_jules_forcing_cardington.xml``; the canned example includes
+``file_def_jules_forcing_cardington.xml`` directly. It reads the variables
+onto an axis-only grid (``jules_forcing_grid``), which avoids needing a
+mesh:
 
 .. code-block:: xml
 
@@ -115,7 +126,8 @@ calls ``jules_forcing_kernel`` to set the model state from the forcing:
   at the forcing level comes from hydrostatic balance at height
   ``jules_forcing_z1_tq``.
 * Potential temperature in the first layer is ``Tair`` divided by the Exner
-  pressure there. The vapour mixing ratio is set to ``Qair``.
+  pressure there. The vapour mixing ratio is set from the specific humidity
+  ``Qair``, as ``Qair / (1 - Qair)``, because the physics uses mixing ratios.
 * The wind ``u`` is set to ``Wind`` and ``v`` is set to zero. Density comes
   from the equation of state.
 * The downward SW and LW surface fluxes come from ``SWdown`` and ``LWdown``.
@@ -135,14 +147,22 @@ Radiation
 
 No radiation scheme is run. Instead, ``jules_forcing_init`` (called from
 ``gungho_model_mod``) sets the SW bands normally read by ``socrates_init``.
-It sets one broadband band (wavelength limits of -1, which is
-``spec_band_bb`` in standalone JULES), with ``sw_weight_blue`` set to
-``visible_fraction``. With this setup, the existing ``sw_rad_tile`` call in
-``rad_tile_alg`` calculates broadband tile albedos weighted equally between
-visible and near-infrared. These are the default ``wght_alb`` values in
-standalone JULES. After ``rad_tile_alg``, ``jules_forcing_sw_up_kernel`` sets
-the upward SW flux on each tile to the diffuse albedo multiplied by
-``SWdown``.
+It sets two bands, covering the visible (0.2 to 0.69 micron) and
+near-infrared (0.69 to 5 micron) parts of the spectrum. The first band has
+a ``sw_weight_blue`` of 1 and the second 0. With this setup, the existing
+``sw_rad_tile`` call in ``rad_tile_alg`` gives the visible direct and
+diffuse tile albedos in the first band, and the near-infrared ones in the
+second. The land albedos do not depend on the band limits, but the spectral
+sea albedo (``l_spec_sea_alb``) needs them: it cannot use more than one band
+with the broadband limits of -1 used by standalone JULES.
+
+After ``rad_tile_alg``, ``jules_forcing_sw_up_kernel`` sets the upward SW
+flux on each tile to ``SWdown`` multiplied by a weighted sum of the four
+albedos, as standalone JULES does. The weights are set by ``wght_alb`` in
+the ``jules_radiation`` namelist, in the standalone order: visible direct,
+visible diffuse, near-infrared direct, near-infrared diffuse. The standalone
+default of ``0.0,0.5,0.0,0.5`` uses only the diffuse albedos, weighted
+equally.
 
 The downward LW comes straight from the forcing. The tile emissivities come
 from the existing LW tile calculation.
@@ -170,7 +190,8 @@ previously hard-coded:
 
 The ``vn32`` upgrade macros in ``jules-lsm`` and ``lfric-gungho`` set the
 new items to the old hard-coded values. This leaves existing configurations
-unchanged.
+unchanged. The macro also adds ``wght_alb`` to the ``jules_radiation``
+namelist, with the standalone default; it is only used with site forcing.
 
 The atmospheric profile namelists only use ``profile_size=1`` placeholder
 values, because the forcing overwrites the first layer before JULES runs.
@@ -265,13 +286,10 @@ run (u-dz368) for January 2005. The two agree closely:
   are effectively identical;
 * surface energy-balance terms agree to within about 0.3 W m\ :sup:`-2`.
 
-There is one known remaining difference. Soil evaporation is about 2% higher
-in LFRic, which offsets the latent and sensible heat fluxes by
-+0.3 W m\ :sup:`-2` and -0.2 W m\ :sup:`-2`. This difference is present from
-the first timestep, and its cause has not yet been found. The 1.5 m specific
-humidity is also slightly lower, by about 0.02 g kg\ :sup:`-1`. This is
-expected, because the screen diagnostic method (``iscrntdiag``) cannot be
-chosen in LFRic.
+Soil evaporation differs by less than 1%, and the 1.5 m specific humidity
+difference is negligible. An earlier difference of 2% in soil evaporation,
+and of 0.4% in 1.5 m humidity, came from the forcing specific humidity being
+used directly as a mixing ratio, which made the air slightly too dry.
 
 Limitations
 -----------
@@ -284,7 +302,9 @@ Limitations
   274 K. Separate rain, snow, or convective and large-scale precipitation
   are not supported.
 * Some standalone JULES options cannot be set in LFRic. These include
-  ``iscrntdiag`` and the urban schemes (for example ``l_urban2t``).
+  ``iscrntdiag``, tiled soil (``l_tile_soil``), point rainfall data
+  (``l_point_data``) and the ``jules_temp_fixes`` switches, which are
+  hard-coded in ``jules_physics_init``.
 * Diffuse fraction and visible fraction are fixed at 0.4 and 0.5.
 * Some JULES inputs are deliberately left unset, because the LFRic build of
   JULES does not use them. Examples are ``ti_sig_soilt``, ``a_step``, and the

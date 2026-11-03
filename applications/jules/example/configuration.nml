@@ -519,6 +519,7 @@ l_spec_alb_bs=.false.,
 l_spec_albedo=.true.,
 ratio_albsoil=2.0,
 swdn_frac_albsoil=0.5,
+wght_alb=0.0,0.5,0.0,0.5,
 /
 &jules_sea_seaice
 alpham=0.72,

@@ -170,11 +170,12 @@ contains
       exner_in_wth(map_wth(1) + k) = (pressure_1 / p_zero)**kappa
     end do
 
-    ! Temperature and humidity on the first theta level. The JULES kernels
-    ! use m_v directly as the specific humidity of the first level.
+    ! Temperature and humidity on the first theta level. The physics uses
+    ! mixing ratios (l_mr_physics), so the forcing specific humidity is
+    ! converted to a vapour mixing ratio.
     do k = 0, nlayers
       theta(map_wth(1) + k) = tair / exner_in_wth(map_wth(1) + k)
-      m_v(map_wth(1) + k)   = qair
+      m_v(map_wth(1) + k)   = qair / (1.0_r_def - qair)
     end do
 
     ! Wind on the first W3 level, with the forcing wind speed as the u component

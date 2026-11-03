@@ -115,7 +115,7 @@ contains
          l_spec_alb_bs, l_spec_albedo, l_spec_sea_alb, fixed_sea_albedo,    &
          check_jules_radiation, print_nlist_jules_radiation,                &
          l_niso_direct, l_sea_alb_var_chl, l_albedo_obs, l_hapke_soil,      &
-         l_partition_albsoil, ratio_albsoil, swdn_frac_albsoil
+         l_partition_albsoil, ratio_albsoil, swdn_frac_albsoil, wght_alb
     use jules_science_fixes_mod, only: l_dtcanfix, l_fix_alb_ice_thick, &
          l_fix_albsnow_ts, ctile_orog_fix, l_fix_wind_snow,             &
          l_accurate_rho, l_fix_osa_chloro, l_fix_ustar_dust,            &
@@ -233,6 +233,8 @@ contains
     l_spec_sea_alb      = .true.
     ratio_albsoil       = real(config%jules_radiation%ratio_albsoil(), r_um)
     swdn_frac_albsoil   = real(config%jules_radiation%swdn_frac_albsoil(), r_um)
+    ! Only used with site forcing, by jules_forcing_sw_up_kernel
+    wght_alb            = real(config%jules_radiation%wght_alb(), r_um)
 
     ! Check the contents of the radiation parameters module
     call print_nlist_jules_radiation()

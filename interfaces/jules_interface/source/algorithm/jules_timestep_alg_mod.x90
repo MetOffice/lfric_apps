@@ -253,6 +253,9 @@ contains
     type( field_collection_type ), pointer :: jules_forcing_fields
     type( field_type ), pointer :: sw_down_surf
     type( field_type ), pointer :: sw_up_tile
+    real(r_def) :: albedo_weights(4)
+    real(r_def) :: weight_vis_dir, weight_vis_dif
+    real(r_def) :: weight_nir_dir, weight_nir_dif
 
     integer(kind=i_def), parameter  :: outer = 1
     integer(i_def) :: loop
@@ -309,9 +312,19 @@ contains
     if ( modeldb%config%initialization%jules_forcing() ) then
       call radiation_fields%get_field('sw_down_surf', sw_down_surf)
       call radiation_fields%get_field('sw_up_tile', sw_up_tile)
+      albedo_weights = modeldb%config%jules_radiation%wght_alb()
+      weight_vis_dir = albedo_weights(1)
+      weight_vis_dif = albedo_weights(2)
+      weight_nir_dir = albedo_weights(3)
+      weight_nir_dif = albedo_weights(4)
       call invoke( jules_forcing_sw_up_kernel_type( sw_up_tile,             &
+                                                    tile_sw_direct_albedo,  &
                                                     tile_sw_diffuse_albedo, &
-                                                    sw_down_surf ) )
+                                                    sw_down_surf,           &
+                                                    weight_vis_dir,         &
+                                                    weight_vis_dif,         &
+                                                    weight_nir_dir,         &
+                                                    weight_nir_dif ) )
     end if
 
     call jules_exp_alg(modeldb, theta, mr,                                 &
