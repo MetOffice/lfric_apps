@@ -81,6 +81,9 @@ else
   $(error Unrecognised profile "$(PROFILE)". Must be one of full-debug, fast-debug or production)
 endif
 build: ALWAYS
+	# Configuration is generated first so it is available when PSyclone is
+	# run, during the component import stage.
+	#
 	$(call MESSAGE,========================================)
 	$(call MESSAGE,Extracting External Rose Metadata)
 	$(call MESSAGE,========================================)
@@ -92,6 +95,9 @@ build: ALWAYS
 	          PROJECT=gungho \
 	          SOURCE_DIR=source \
 	          META_FILE_DIR=$(META_FILE_DIR)
+	#
+	# Component import stage.
+	#
 	$(call MESSAGE,========================================)
 	$(call MESSAGE,Importing internal dependencies...)
 	$(call MESSAGE,========================================)
