@@ -27,7 +27,8 @@ module gungho_transport_control_alg_mod
   use multires_coupling_config_mod,      only: coarse_aerosol_transport, &
                                                aerosol_mesh_name
   use r_tran_field_mod,                  only: r_tran_field_type
-  use transport_config_mod,              only: transport_ageofair
+  use transport_config_mod,              only: transport_ageofair, &
+                                               consistent_metric
   use transport_controller_mod,          only: transport_controller_type
   use transport_metadata_mod,            only: transport_metadata_type
   use transport_metadata_collection_mod, only: transport_metadata_collection_type, &
@@ -213,6 +214,7 @@ contains
                                                coarse_collection_transport_alg
     use transport_field_mod,             only: transport_field
     use wind_transport_alg_mod,          only: wind_transport_alg
+    use consistent_wind_alg_mod,         only: consistent_wind_alg
 
     implicit none
 
@@ -322,6 +324,16 @@ contains
     ! ======================================================================== !
     ! TRANSPORT OF PROGNOSTICS: EVERY OUTER LOOP
     ! ======================================================================== !
+
+    ! Modify winds to use consistent metrics if required
+    if (consistent_metric) call consistent_wind_alg(config,               &
+                                                    transport_controller, &
+                                                    rho_d_latest_ptr,     &
+                                                    wind_for_adv,         &
+                                                    wind_np1,             &
+                                                    model_clock,          &
+                                                    outer,                &
+                                                    cheap_update_step)
 
     ! ------------------------------------------------------------------------ !
     ! Transport dry density
@@ -443,13 +455,26 @@ contains
       ! ---------------------------------------------------------------------- !
       if (cheap_update) then
         ! Transport is now with transporting wind for the whole time step, not
-        ! the difference in winds from the cheap update
-        call transport_controller%finalise()
-        call transport_controller%initialise(                                  &
-                config,                                                        &
-                model_clock, rho_d_n_ptr, wind_n, wind_np1,                    &
-                outer=outer, cheap_update_step=.false.                         &
-        )
+        ! the difference in winds from the cheap update so the controller needs
+        ! to be updated. If consistent metric is used if will be done in
+        ! consistent_wind_alg, otherwise it is recomputed here
+        if (consistent_metric) then
+          call consistent_wind_alg(config,                                     &
+                                   transport_controller,                       &
+                                   rho_d_n_ptr,                                &
+                                   wind_n,                                     &
+                                   wind_np1,                                   &
+                                   model_clock,                                &
+                                   outer,                                      &
+                                   cheap_update_step)
+        else
+          call transport_controller%finalise()
+          call transport_controller%initialise(                                &
+                  config,                                                      &
+                  model_clock, rho_d_n_ptr, wind_n, wind_np1,                  &
+                  outer=outer, cheap_update_step=.false.                       &
+          )
+        end if
         ! Copy dry density flux for the whole timestep into flux precomputations
         call transport_controller%initialise_flux_precomputations(total_dry_flux)
 

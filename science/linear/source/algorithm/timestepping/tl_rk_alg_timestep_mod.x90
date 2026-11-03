@@ -283,7 +283,7 @@ contains
     mesh_id = u%get_mesh_id()
 
     ! Get geopotential field from runtime_constants
-    geopotential => get_geopotential(mesh_id)
+    geopotential => get_geopotential(config, mesh)
 
     ! Get coordinates
     chi      => get_coordinates(u%get_mesh())
