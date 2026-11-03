@@ -23,11 +23,9 @@ module um_radaer_init_mod
 
   use ukca_api_mod,                  only: ukca_i_sussbcocdu_7mode,            &
                                            ukca_i_du_2mode,                    &
+                                           ukca_i_solinsol_6mode,              &
                                            ukca_i_ukca_bc_tuned,               &
                                            ukca_i_ukca_tune_bc_off
-
-  ! Not yet available via the UKCA API module
-  use ukca_config_specification_mod, only: i_solinsol_6mode
 
   use constants_mod,                 only: i_um
 
@@ -109,7 +107,7 @@ subroutine um_radaer_init()
     case ( mode_setup_DUonly_2mode )
       i_mode_setup_radaer_local = ukca_i_du_2mode
     case ( mode_setup_SolInsol )
-      i_mode_setup_radaer_local = i_solinsol_6mode
+      i_mode_setup_radaer_local = ukca_i_solinsol_6mode
     case default
       write( log_scratch_space, '(A,I0)' )                                     &
       'Developers should include additional mode settings here: ', mode_setup
