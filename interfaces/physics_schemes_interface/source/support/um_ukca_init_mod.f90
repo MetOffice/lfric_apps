@@ -23,6 +23,7 @@ module um_ukca_init_mod
                                        mode_setup,                             &
                                        mode_setup_SUBCOCSSDU_7mode,            &
                                        mode_setup_DUonly_2mode,                &
+                                       mode_setup_SolInsol,                    &
                                        l_dust_mp_ageing
   use section_choice_config_mod, only: aerosol, aerosol_um
   use chemistry_config_mod,      only: chem_scheme, chem_scheme_offline_ox,    &
@@ -103,6 +104,9 @@ module um_ukca_init_mod
                           ukca_photol_varname_len,                             &
                           ukca_i_sussbcocdu_7mode,                             &
                           ukca_i_du_2mode
+
+  ! Not yet available via the UKCA API module
+  use ukca_config_specification_mod, only: i_solinsol_6mode
 
   ! Photolysis module
   use photol_api_mod,  only: photol_jlabel_len, photol_fieldname_len,          &
@@ -943,6 +947,8 @@ contains
         i_mode_setup_local = ukca_i_sussbcocdu_7mode
       case ( mode_setup_DUonly_2mode )
         i_mode_setup_local = ukca_i_du_2mode
+      case ( mode_setup_SolInsol )
+        i_mode_setup_local = i_solinsol_6mode
       case default
         write( log_scratch_space, '(A,I0)' )                                   &
         'This Glomap option is not supported yet. Include it here ', mode_setup
