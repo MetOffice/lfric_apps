@@ -1054,26 +1054,18 @@ subroutine create_model_data( modeldb,           &
             call model_axes%ancil_times_list%clear()
           end if
           if ( snow_source == snow_source_surf ) then
-            call ancil_fields%remove_field( &
-              "snow_grain_size_land")
-            call depository%remove_field( &
-              "snow_grain_size_land")
+            call ancil_fields%remove_field("snow_grain_size_land")
+            call depository%remove_field("snow_grain_size_land")
             call ancil_fields%remove_field("snow_mass_land")
             call depository%remove_field("snow_mass_land")
-            call ancil_fields%remove_field( &
-              "snow_under_canopy_land")
-            call depository%remove_field( &
-              "snow_under_canopy_land")
+            call ancil_fields%remove_field("snow_under_canopy_land")
+            call depository%remove_field("snow_under_canopy_land")
             call ancil_fields%remove_field("snow_depth_land")
             call depository%remove_field("snow_depth_land")
-            call ancil_fields%remove_field( &
-              "snowpack_density_land")
-            call depository%remove_field( &
-              "snowpack_density_land")
-            call ancil_fields%remove_field( &
-              "n_snow_layers_real_land")
-            call depository%remove_field( &
-              "n_snow_layers_real_land")
+            call ancil_fields%remove_field("snowpack_density_land")
+            call depository%remove_field("snowpack_density_land")
+            call ancil_fields%remove_field("n_snow_layers_real_land")
+            call depository%remove_field("n_snow_layers_real_land")
           end if
 
         case ( ancil_option_idealised )
