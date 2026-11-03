@@ -40,7 +40,7 @@ stretching_method='smooth',
 ancil_directory='',
 checkpoint_stem_name='restartLfricAtm',
 diag_stem_name='diagLfricAtm',
-jules_forcing_path='/home/users/ian.boutle/git_apps/jules_app/applications/jules/example/Cardington-Forcing-10m-W-T-Q-gap-filled-2005-2022-Jan-cftime_short',
+jules_forcing_path='/home/users/ian.boutle/jules_info/Cardington/Cardington-Forcing-10m-W-T-Q-gap-filled-2005-2022-Jan-cftime_short',
 start_dump_directory='',
 start_dump_filename='',
 /
