@@ -1004,18 +1004,18 @@ subroutine create_model_data( modeldb,           &
               call fd_fields%remove_field("tstar_sea_ice")
               call depository%remove_field("tstar_sea_ice")
               if (snow_source /= snow_source_surf) then
-                call fd_fields%remove_field("snow_mass_on_land_tiles")
-                call depository%remove_field("snow_mass_on_land_tiles")
-                call fd_fields%remove_field("n_snow_layers_real_on_land_tiles")
-                call depository%remove_field("n_snow_layers_real_on_land_tiles")
-                call fd_fields%remove_field("snow_depth_on_land_tiles")
-                call depository%remove_field("snow_depth_on_land_tiles")
-                call fd_fields%remove_field("snow_grain_size_on_land_tiles")
-                call depository%remove_field("snow_grain_size_on_land_tiles")
-                call fd_fields%remove_field("snow_under_canopy_on_land_tiles")
-                call depository%remove_field("snow_under_canopy_on_land_tiles")
-                call fd_fields%remove_field("snowpack_density_on_land_tiles")
-                call depository%remove_field("snowpack_density_on_land_tiles")
+                call fd_fields%remove_field("snow_mass_land")
+                call depository%remove_field("snow_mass_land")
+                call fd_fields%remove_field("n_snow_layers_real_land")
+                call depository%remove_field("n_snow_layers_real_land")
+                call fd_fields%remove_field("snow_depth_land")
+                call depository%remove_field("snow_depth_land")
+                call fd_fields%remove_field("snow_grain_size_land")
+                call depository%remove_field("snow_grain_size_land")
+                call fd_fields%remove_field("snow_under_canopy_land")
+                call depository%remove_field("snow_under_canopy_land")
+                call fd_fields%remove_field("snowpack_density_land")
+                call depository%remove_field("snowpack_density_land")
               end if
             end if
 
@@ -1055,25 +1055,25 @@ subroutine create_model_data( modeldb,           &
           end if
           if ( snow_source == snow_source_surf ) then
             call ancil_fields%remove_field( &
-              "snow_grain_size_analysis_on_land_tiles")
+              "snow_grain_size_land")
             call depository%remove_field( &
-              "snow_grain_size_analysis_on_land_tiles")
-            call ancil_fields%remove_field("snow_mass_analysis_on_land_tiles")
-            call depository%remove_field("snow_mass_analysis_on_land_tiles")
+              "snow_grain_size_land")
+            call ancil_fields%remove_field("snow_mass_land")
+            call depository%remove_field("snow_mass_land")
             call ancil_fields%remove_field( &
-              "snow_under_canopy_analysis_on_land_tiles")
+              "snow_under_canopy_land")
             call depository%remove_field( &
-              "snow_under_canopy_analysis_on_land_tiles")
-            call ancil_fields%remove_field("snow_depth_analysis_on_land_tiles")
-            call depository%remove_field("snow_depth_analysis_on_land_tiles")
+              "snow_under_canopy_land")
+            call ancil_fields%remove_field("snow_depth_land")
+            call depository%remove_field("snow_depth_land")
             call ancil_fields%remove_field( &
-              "snowpack_density_analysis_on_land_tiles")
+              "snowpack_density_land")
             call depository%remove_field( &
-              "snowpack_density_analysis_on_land_tiles")
+              "snowpack_density_land")
             call ancil_fields%remove_field( &
-              "n_snow_layers_real_analysis_on_land_tiles")
+              "n_snow_layers_real_land")
             call depository%remove_field( &
-              "n_snow_layers_real_analysis_on_land_tiles")
+              "n_snow_layers_real_land")
           end if
 
         case ( ancil_option_idealised )
