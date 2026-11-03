@@ -73,7 +73,8 @@ else
   call log_event(log_scratch_space, LOG_LEVEL_ERROR)
 end if
 
-if (horiz_grid_code == u_points) then
+select case(horiz_grid_code)
+case( u_points )
 
   if (trim(interp_method) == 'copy' .and. .not. winds_on_w3) then
     weights => grid_u_to_w2h_map
@@ -85,7 +86,7 @@ if (horiz_grid_code == u_points) then
     call log_event(log_scratch_space, LOG_LEVEL_ERROR)
   end if
 
-else if (horiz_grid_code == v_points) then
+case( v_points )
 
   if (trim(interp_method) == 'copy' .and. .not. winds_on_w3) then
     weights => grid_v_to_w2h_map
@@ -97,10 +98,7 @@ else if (horiz_grid_code == v_points) then
     call log_event(log_scratch_space, LOG_LEVEL_ERROR)
   end if
 
-else if (horiz_grid_code == p_points .or.   &
-         horiz_grid_code == ozone_points .or. &
-         horiz_grid_code == land_compressed .or. &
-         horiz_grid_code == p_points_values_over_sea) then
+case( p_points, ozone_points, land_compressed, p_points_values_over_sea )
 
   ! Check for specified interpolation method for this stashcode
   ! and the use appropriate weights
@@ -112,7 +110,7 @@ else if (horiz_grid_code == p_points .or.   &
         unspecified = .false.
 
         write(log_scratch_space, '((A,I4))')                          &
-           "Will use nearest neigbour interpolation for stashcode: ", &
+           "Will use nearest neighbour interpolation for stashcode: ", &
            stashcode
         call log_event(log_scratch_space, LOG_LEVEL_INFO)
         exit
@@ -124,26 +122,27 @@ else if (horiz_grid_code == p_points .or.   &
   ! use the default
   if (unspecified)then
 
-   if (trim(interp_method) == 'copy') then
-     weights => grid_p_to_w3_wtheta_map
-   else if (trim(interp_method) == 'bilinear') then
-     weights => grid_p_to_mesh_face_centre_bilinear
-   else
-     write(log_scratch_space, '(A)')                                           &
-                                 'Unsupported interpolation method for P points'
-     call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-   ENDIF
+    if (trim(interp_method) == 'copy') then
+      weights => grid_p_to_w3_wtheta_map
+    else if (trim(interp_method) == 'bilinear') then
+      weights => grid_p_to_mesh_face_centre_bilinear
+    else
+      write(log_scratch_space, '(A)')                                          &
+                            'Unsupported interpolation method for P points'
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
 
- end if
+  end if
 
-else
+case DEFAULT
 
   write(log_scratch_space, '(2(A,I0))')                                        &
        "Unsupported horizontal grid type code: ",                              &
        horiz_grid_code, " encountered during regrid of stashcode", stashcode
   call log_event(log_scratch_space, LOG_LEVEL_ERROR)
 
-end if
+end select
+
 
 if (.not. allocated(weights%remap_matrix)) then
   call log_event("Attempted to select unallocated weights matrix",             &

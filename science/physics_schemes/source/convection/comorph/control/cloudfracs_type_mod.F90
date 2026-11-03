@@ -9,7 +9,7 @@
 
 module cloudfracs_type_mod
 
-use comorph_constants_mod, only: real_hmprec, name_length
+use comorph_constants_mod, only: real_cvprec, real_hmprec, name_length
 use fields_type_mod, only: fields_list_type
 
 implicit none
@@ -86,6 +86,9 @@ integer :: i_q_c_conv = 0
 ! (used for labelling diagnostics and error print-outs)
 character(len=name_length), allocatable :: convcloud_names(:)
 
+! Max allowed value for each concloud field (all must be > 0)
+real(kind=real_cvprec), allocatable :: convcloud_max(:)
+
 
 contains
 
@@ -94,8 +97,9 @@ contains
 ! depending on switches
 subroutine cloudfracs_set_addresses()
 
-use comorph_constants_mod, only: i_convcloud, i_convcloud_bulkonly,            &
-                                 i_convcloud_liqonly, i_convcloud_mph
+use comorph_constants_mod, only: real_cvprec, one, i_convcloud,                &
+                                 i_convcloud_bulkonly, i_convcloud_liqonly,    &
+                                 i_convcloud_mph
 
 implicit none
 
@@ -111,9 +115,6 @@ case ( i_convcloud_bulkonly )
   n_convcloud = 2
   i_frac_bulk_conv = 1
   i_q_c_conv = 2
-  allocate( convcloud_names(n_convcloud) )
-  convcloud_names(i_frac_bulk_conv) = "frac_bulk_conv"
-  convcloud_names(i_q_c_conv)       = "q_c_conv"
 case ( i_convcloud_liqonly )
   ! Only using liquid convective cloud
   ! (but we also still output the bulk convective cloud fraction,
@@ -123,10 +124,6 @@ case ( i_convcloud_liqonly )
   i_frac_liq_conv = 1
   i_frac_bulk_conv = 2
   i_q_cl_conv = 3
-  allocate( convcloud_names(n_convcloud) )
-  convcloud_names(i_frac_liq_conv)  = "frac_liq_conv"
-  convcloud_names(i_frac_bulk_conv) = "frac_bulk_conv"
-  convcloud_names(i_q_cl_conv)      = "q_cl_conv"
 case ( i_convcloud_mph )
   ! Using separate liquid and ice cloud, with variable overlap
   n_convcloud = 5
@@ -135,13 +132,25 @@ case ( i_convcloud_mph )
   i_frac_bulk_conv = 3
   i_q_cl_conv = 4
   i_q_cf_conv = 5
-  allocate( convcloud_names(n_convcloud) )
-  convcloud_names(i_frac_liq_conv)  = "frac_liq_conv"
-  convcloud_names(i_frac_ice_conv)  = "frac_ice_conv"
-  convcloud_names(i_frac_bulk_conv) = "frac_bulk_conv"
-  convcloud_names(i_q_cl_conv)      = "q_cl_conv"
-  convcloud_names(i_q_cf_conv)      = "q_cf_conv"
 end select
+
+! Set names of the fields
+allocate( convcloud_names(n_convcloud) )
+if (i_frac_liq_conv>0)   convcloud_names(i_frac_liq_conv)  = "frac_liq_conv"
+if (i_frac_ice_conv>0)   convcloud_names(i_frac_ice_conv)  = "frac_ice_conv"
+if (i_frac_bulk_conv>0)  convcloud_names(i_frac_bulk_conv) = "frac_bulk_conv"
+if (i_q_cl_conv>0)       convcloud_names(i_q_cl_conv)      = "q_cl_conv"
+if (i_q_cf_conv>0)       convcloud_names(i_q_cf_conv)      = "q_cf_conv"
+if (i_q_c_conv>0)        convcloud_names(i_q_c_conv)       = "q_c_conv"
+
+! Set max allowed values used in run-time checks
+allocate( convcloud_max(n_convcloud) )
+if (i_frac_liq_conv>0)   convcloud_max(i_frac_liq_conv)  = one
+if (i_frac_ice_conv>0)   convcloud_max(i_frac_ice_conv)  = one
+if (i_frac_bulk_conv>0)  convcloud_max(i_frac_bulk_conv) = one
+if (i_q_cl_conv>0)       convcloud_max(i_q_cl_conv)      = 0.1_real_cvprec
+if (i_q_cf_conv>0)       convcloud_max(i_q_cf_conv)      = 0.1_real_cvprec
+if (i_q_c_conv>0)        convcloud_max(i_q_c_conv)       = 0.1_real_cvprec
 
 return
 end subroutine cloudfracs_set_addresses
@@ -282,7 +291,7 @@ end subroutine cloudfracs_list_clear
 subroutine cloudfracs_check_bad_values( cloudfracs,                            &
                                         where_string )
 
-use comorph_constants_mod, only: name_length, l_cv_cloudfrac
+use comorph_constants_mod, only: zero, one, name_length, l_cv_cloudfrac
 use check_bad_values_mod, only: check_bad_values_3d
 
 implicit none
@@ -300,10 +309,6 @@ character(len=name_length) :: field_name
 ! Lower and upper bounds of array
 integer :: lb(3), ub(3)
 
-! Flag passed into check_bad_values;
-! all fields checked are positive-only so hardwire to true
-logical, parameter :: l_positive = .true.
-
 ! Loop counter
 integer :: i_field
 
@@ -317,21 +322,21 @@ if ( .not. l_cv_cloudfrac ) then
   ub = ubound( cloudfracs % frac_liq )
   call check_bad_values_3d( lb, ub, cloudfracs % frac_liq,                     &
                             where_string, field_name,                          &
-                            l_positive )
+                            field_min=zero, field_max=one )
 
   field_name = "frac_ice"
   lb = lbound( cloudfracs % frac_ice )
   ub = ubound( cloudfracs % frac_ice )
   call check_bad_values_3d( lb, ub, cloudfracs % frac_ice,                     &
                             where_string, field_name,                          &
-                            l_positive )
+                            field_min=zero, field_max=one )
 
   field_name = "frac_bulk"
   lb = lbound( cloudfracs % frac_bulk )
   ub = ubound( cloudfracs % frac_bulk )
   call check_bad_values_3d( lb, ub, cloudfracs % frac_bulk,                    &
                             where_string, field_name,                          &
-                            l_positive )
+                            field_min=zero, field_max=one )
 
 end if
 
@@ -341,7 +346,7 @@ lb = lbound( cloudfracs % frac_precip )
 ub = ubound( cloudfracs % frac_precip )
 call check_bad_values_3d( lb, ub, cloudfracs % frac_precip,                    &
                           where_string, field_name,                            &
-                          l_positive )
+                          field_min=zero, field_max=one )
 
 if ( n_convcloud > 0 ) then
   ! Check convective cloud fields if they are used
@@ -350,7 +355,8 @@ if ( n_convcloud > 0 ) then
     ub = ubound( cloudfracs % convcloud_list(i_field)%pt )
     call check_bad_values_3d( lb, ub, cloudfracs % convcloud_list(i_field)%pt, &
                               where_string, convcloud_names(i_field),          &
-                              l_positive )
+                              field_min=zero,                                  &
+                              field_max=convcloud_max(i_field) )
   end do
 end if
 

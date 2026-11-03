@@ -17,7 +17,10 @@ module horizontal_sl_advective_alg_mod
   use constants_mod,                    only: r_tran, i_def, l_def
   use field_mod,                        only: field_type
   use integer_field_mod,                only: integer_field_type
-  use mesh_mod,                         only: mesh_type
+  use mesh_mod,                         only: mesh_type,                 &
+                                              geometry_spherical,        &
+                                              topology_non_periodic,     &
+                                              topology_periodic
   use r_tran_field_mod,                 only: r_tran_field_type
   use timing_mod,                       only: start_timing, stop_timing, &
                                               tik, LPROF
@@ -50,10 +53,7 @@ module horizontal_sl_advective_alg_mod
   use transport_constants_mod,          only: get_panel_edge_dist
 
   ! Configs
-  use base_mesh_config_mod,             only: topology, geometry,              &
-                                              topology_fully_periodic,         &
-                                              topology_non_periodic,           &
-                                              geometry_spherical
+  use base_mesh_config_mod,             only: topology, geometry
   use boundaries_config_mod,            only: limited_area,                    &
                                               transport_boundary_depth,        &
                                               transport_overwrite_freq,        &
@@ -146,8 +146,8 @@ module horizontal_sl_advective_alg_mod
     mesh_id =  mesh%get_id()
 
 
-    is_cubed_sphere = (                                                        &
-      geometry == geometry_spherical .and. topology == topology_fully_periodic &
+    is_cubed_sphere = (                                                  &
+      geometry == geometry_spherical .and. topology == topology_periodic &
     )
 
     if (is_cubed_sphere) then
