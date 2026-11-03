@@ -20,21 +20,33 @@ PREFIX_IN = "restart"
 MAX_FREQ = 5000
 
 AXIS_MAP = {
+    # Fields on land/sea are masked
     "surface_tiles":         [11, "weight_file_masked.nc"],
     "land_tiles":            [8, "weight_file_masked.nc"],
     "sea_ice_categories":    [1, "weight_file_masked.nc"],
+    # Multilayer snow fields use nearest neighbour, but NOT masked
     "snow_layers_and_tiles": [27, "weight_file_nn.nc"],
-    "soil_levels":           [4, "weight_file_nn_masked.nc"],
+    # Fields on land/sea are masked
+    "soil_levels":           [4, "weight_file_masked.nc"],
     "plant_func_types":      [5, "weight_file_masked.nc"],
     "dust_divisions":        [6, "weight_file_masked.nc"],
+    # General regridding - e.g. for atmospheric fields
     "general":               [1, "weight_file.nc"],
 }
 
 SPECIAL_FIELDS = {
+    # Snow fields on land use nearest neighbour AND are masked
+    "tile_snow_mass":       [11, "weight_file_nn_masked.nc"],
+    "tile_snow_grain":      [11, "weight_file_nn_masked.nc"],
+    "n_snow_layers":        [11, "weight_file_nn_masked.nc"],
+    "snow_depth":           [11, "weight_file_nn_masked.nc"],
+    "snowpack_density":     [11, "weight_file_nn_masked.nc"],
+    "snow_under_canopy":    [11, "weight_file_nn_masked.nc"],
+    # Single layer fields on land are masked
     "z0msea":               [1, "weight_file_masked.nc"],
-    "surface_conductance":  [1, "weight_file_nn_masked.nc"],
-    "soil_sat_frac":        [1, "weight_file_nn_masked.nc"],
-    "wetness_under_soil":   [1, "weight_file_nn_masked.nc"],
+    "surface_conductance":  [1, "weight_file_masked.nc"],
+    "soil_sat_frac":        [1, "weight_file_masked.nc"],
+    "wetness_under_soil":   [1, "weight_file_masked.nc"],
     "snow_soot":            [1, "weight_file_masked.nc"],
 }
 
