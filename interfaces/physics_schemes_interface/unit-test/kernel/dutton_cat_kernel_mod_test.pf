@@ -17,7 +17,7 @@ module dutton_cat_kernel_mod_test
 
   private
   public :: test_knots, test_horizontal_shear, test_skewed_stencil, &
-            test_calm_centre, test_missing_neighbour
+            test_calm_centre, test_missing_neighbour, test_two_levels
 
   @TestCase
   type, extends(TestCase), public :: dutton_cat_test_type
@@ -36,6 +36,7 @@ module dutton_cat_kernel_mod_test
     procedure test_skewed_stencil
     procedure test_calm_centre
     procedure test_missing_neighbour
+    procedure test_two_levels
   end type dutton_cat_test_type
 
   ! Five cells: 1 centre, then its west, south, east and north neighbours
@@ -44,7 +45,7 @@ module dutton_cat_kernel_mod_test
   integer(i_def), parameter :: undf = ncell
   integer(i_def), parameter :: n_branch = 4_i_def
   integer(i_def), parameter :: sten_len = 2_i_def
-  integer(i_def), parameter :: kp = 1_i_def
+  integer(i_def), parameter :: nplev = 1_i_def
 
   real(r_def), parameter :: planet_radius = 6371229.0_r_def
   ! One degree grid spacing
@@ -142,7 +143,7 @@ contains
                           this%smap,                                        &
                           this%longitude, this%smap_size, sten_len,         &
                           this%smap,                                        &
-                          kp, planet_radius,                                &
+                          nplev, planet_radius,                             &
                           ndf, undf, this%map_pl,                           &
                           ndf, undf, this%map_2d )
 
@@ -304,5 +305,65 @@ contains
     @assertEqual( rmdi, this%cat(1) )
 
   end subroutine test_missing_neighbour
+
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Two pressure levels, stored contiguously per cell. Level 1 has no
+  !> vertical shear, so is missing; level 2 holds the winds of
+  !> test_horizontal_shear at 45N, so the neighbour winds are read at an
+  !> offset into each cell's levels.
+  @test
+  subroutine test_two_levels( this )
+
+    use dutton_cat_kernel_mod, only : dutton_cat_code
+
+    implicit none
+
+    class(dutton_cat_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-9_r_def
+    integer(i_def), parameter :: nlev2 = 2_i_def
+    integer(i_def), parameter :: undf2 = ncell * nlev2
+
+    real(r_def) :: cat2(undf2), u2(undf2), v2(undf2), dwdz2(undf2)
+    integer(i_def) :: map2(ndf), smap2(ndf, sten_len, n_branch)
+    integer(i_def) :: n
+
+    ! Cell c holds its levels at 2c-1 and 2c
+    map2(1) = 1_i_def
+    do n = 1, n_branch
+      smap2(1, 1, n) = 1_i_def
+      smap2(1, 2, n) = nlev2 * n + 1_i_def
+    end do
+
+    u2(:) = 0.0_r_def
+    v2(:) = 0.0_r_def
+    u2(2:undf2:nlev2) = (/ 20.0_r_def, 12.040411005820102_r_def,           &
+                           42.23865560260141_r_def, 27.765515186891815_r_def, &
+                           -2.23865560260149_r_def /)
+    v2(2:undf2:nlev2) = (/ 10.0_r_def, -13.53913781978555_r_def,           &
+                           -1.1193278013007077_r_def,                       &
+                           33.63617472342959_r_def,                         &
+                           21.119327801300745_r_def /)
+    dwdz2(:) = 0.01_r_def
+    dwdz2(1) = rmdi
+    cat2(:)  = 0.0_r_def
+
+    call dutton_cat_code( 1_i_def, cat2,                                  &
+                          u2, this%smap_size, sten_len, smap2,            &
+                          v2, this%smap_size, sten_len, smap2,            &
+                          dwdz2,                                          &
+                          this%latitude,  this%smap_size, sten_len,       &
+                          this%smap,                                      &
+                          this%longitude, this%smap_size, sten_len,       &
+                          this%smap,                                      &
+                          nlev2, planet_radius,                           &
+                          ndf, undf2, map2,                               &
+                          ndf, undf, this%map_2d )
+
+    @assertEqual( rmdi, cat2(1) )
+    @assertEqual( 6.85_r_def, cat2(2), tol )
+
+  end subroutine test_two_levels
 
 end module dutton_cat_kernel_mod_test

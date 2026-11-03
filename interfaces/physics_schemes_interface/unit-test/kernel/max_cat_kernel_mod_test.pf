@@ -67,9 +67,10 @@ contains
     end do
     this%map_2d(1) = 1_i_def
 
-    ! As the algorithm initialises them before the first level
-    this%max_cat(1)   = rmdi
-    this%max_press(1) = rmdi
+    ! Not missing data, so the tests show that the kernel initialises
+    ! both outputs itself
+    this%max_cat(1)   = 0.0_r_def
+    this%max_press(1) = 0.0_r_def
 
   end subroutine setUp
 
@@ -97,14 +98,10 @@ contains
 
     class(max_cat_test_type), intent(inout) :: this
 
-    integer(i_def) :: kp
-
-    do kp = 1, nplev
-      call max_cat_code( 1_i_def, this%max_cat, this%max_press, this%cat, &
-                         kp, plevs(kp),                                   &
-                         ndf_2d, undf_2d, this%map_2d,                    &
-                         ndf_pl, undf_pl, this%map_pl )
-    end do
+    call max_cat_code( 1_i_def, this%max_cat, this%max_press, this%cat, &
+                       nplev, plevs,                                    &
+                       ndf_2d, undf_2d, this%map_2d,                    &
+                       ndf_pl, undf_pl, this%map_pl )
 
   end subroutine run_levels
 
@@ -146,8 +143,6 @@ contains
     @assertEqual( 25000.0_r_def, this%max_press(1), tol )
 
     this%cat(:) = rmdi
-    this%max_cat(1)   = rmdi
-    this%max_press(1) = rmdi
     call this%run_levels()
     @assertEqual( rmdi, this%max_cat(1) )
     @assertEqual( rmdi, this%max_press(1) )

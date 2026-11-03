@@ -6,15 +6,15 @@
 !> Some of the content of this file has been produced with the assistance of
 !> Met Office Claude Code Enterprise.
 
-!> @brief Column inputs for the clear air turbulence predictor at one
-!>        pressure level: winds on the level and the vertical wind shear.
+!> @brief Column inputs for the clear air turbulence predictor on pressure
+!>        levels: winds on the levels and the vertical wind shear.
 
 module cat_column_kernel_mod
 
   use argument_mod,      only: arg_type,                  &
                                GH_FIELD, GH_SCALAR,       &
                                GH_REAL, GH_INTEGER,       &
-                               GH_READ, GH_READWRITE,     &
+                               GH_READ, GH_WRITE,         &
                                CELL_COLUMN,               &
                                ANY_DISCONTINUOUS_SPACE_1
   use constants_mod,     only: r_def, i_def, rmdi
@@ -32,19 +32,19 @@ module cat_column_kernel_mod
   !> field argument and the outputs are single-layer fields on the 2D mesh.
   type, public, extends(kernel_type) :: cat_column_kernel_type
     private
-    type(arg_type) :: meta_args(11) = (/                          &
+    type(arg_type) :: meta_args(10) = (/                          &
          arg_type(GH_FIELD,  GH_REAL,    GH_READ, W3),            & ! u
          arg_type(GH_FIELD,  GH_REAL,    GH_READ, W3),            & ! v
          arg_type(GH_FIELD,  GH_REAL,    GH_READ, W3),            & ! exner
          arg_type(GH_FIELD,  GH_REAL,    GH_READ, W3),            & ! height
-         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE,            &
+         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,                &
                   ANY_DISCONTINUOUS_SPACE_1),                    & ! u_plev
-         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE,            &
+         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,                &
                   ANY_DISCONTINUOUS_SPACE_1),                    & ! v_plev
-         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE,            &
+         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,                &
                   ANY_DISCONTINUOUS_SPACE_1),                    & ! dwdz
-         arg_type(GH_SCALAR, GH_REAL,    GH_READ),                & ! press
-         arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                & ! kp
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                & ! nplev
+!        arg_type(GH_SCALAR_ARRAY, GH_REAL, GH_READ, 1), PSyclone issue #1312
          arg_type(GH_SCALAR, GH_REAL,    GH_READ),                & ! p_zero
          arg_type(GH_SCALAR, GH_REAL,    GH_READ)                 & ! kappa
          /)
@@ -62,17 +62,16 @@ module cat_column_kernel_mod
 
 contains
 
-  !> @brief   Winds on a pressure level and the vertical wind shear there.
-  !> @details For one column and one pressure level: interpolates the
-  !>          cell-centre winds to press_lev, linearly in Exner pressure,
+  !> @brief   Winds on pressure levels and the vertical wind shear there.
+  !> @details For one column and each pressure level: interpolates the
+  !>          cell-centre winds to the level, linearly in Exner pressure,
   !>          and forms dwdz = sqrt((du/dp)**2 + (dv/dp)**2) / |dz/dp| from
   !>          a six-point cubic spline through the model levels. The UM's
   !>          C-to-B grid interpolation has no counterpart here, as the W3
   !>          winds are already at cell centres.
   !>
-  !>          Results go into slot kp; other slots are untouched. A column
-  !>          with fewer than six layers cannot support the spline, so its
-  !>          dwdz is missing data.
+  !>          A column with fewer than six layers cannot support the
+  !>          spline, so its dwdz is missing data.
   !> @param[in]     nlayers    Number of layers
   !> @param[in]     u_in_w3    Zonal wind at cell centres
   !> @param[in]     v_in_w3    Meridional wind at cell centres
@@ -82,8 +81,8 @@ contains
   !> @param[in,out] v_plev     Meridional wind on pressure levels
   !> @param[in,out] dwdz       Vertical derivative of wind speed with respect
   !>                           to height on pressure levels
-  !> @param[in]     press_lev  Pressure of the level to fill (Pa)
-  !> @param[in]     kp         Slot of the pressure-level fields to fill
+  !> @param[in]     nplev      Number of pressure levels
+  !> @param[in]     plevs      Pressure of each level (Pa)
   !> @param[in]     p_zero     Reference surface pressure
   !> @param[in]     kappa      Rd / cp
   !> @param[in]     ndf_w3     Number of degrees of freedom per cell for W3
@@ -100,7 +99,7 @@ contains
                              u_in_w3, v_in_w3,              &
                              exner_w3, height_w3,           &
                              u_plev, v_plev, dwdz,          &
-                             press_lev, kp,                 &
+                             nplev, plevs,                  &
                              p_zero, kappa,                 &
                              ndf_w3, undf_w3, map_w3,       &
                              ndf_2d, undf_2d, map_2d)
@@ -122,18 +121,16 @@ contains
     real(kind=r_def), intent(inout), dimension(undf_2d) :: v_plev
     real(kind=r_def), intent(inout), dimension(undf_2d) :: dwdz
 
-    real(kind=r_def),    intent(in) :: press_lev
-    integer(kind=i_def), intent(in) :: kp
+    integer(kind=i_def), intent(in) :: nplev
+    real(kind=r_def),    intent(in), dimension(nplev) :: plevs
     real(kind=r_def),    intent(in) :: p_zero, kappa
 
     ! Internal variables
-    integer(kind=i_def) :: k, slot
+    integer(kind=i_def) :: k, kp, slot
     real(kind=r_def) :: desired_ex
     real(kind=r_def), dimension(nlayers) :: p_col, u_col, v_col, z_col
     real(kind=r_def), dimension(nlayers) :: ex_col
     real(kind=r_def) :: dudp, dvdp, dzdp
-
-    slot = map_2d(1) + kp - 1_i_def
 
     ! Column profiles, level 1 at the bottom, pressure decreasing upwards
     do k = 1, nlayers
@@ -144,23 +141,31 @@ contains
       z_col(k)  = height_w3(map_w3(1) + k - 1)
     end do
 
-    ! Winds on the pressure level
-    desired_ex = ( press_lev / p_zero )**kappa
-    u_plev(slot) = interp_to_exner(nlayers, u_col, ex_col, desired_ex)
-    v_plev(slot) = interp_to_exner(nlayers, v_col, ex_col, desired_ex)
+    ! Winds on the pressure levels
+    do kp = 1, nplev
+      slot = map_2d(1) + kp - 1_i_def
+      desired_ex = ( plevs(kp) / p_zero )**kappa
+      u_plev(slot) = interp_to_exner(nlayers, u_col, ex_col, desired_ex)
+      v_plev(slot) = interp_to_exner(nlayers, v_col, ex_col, desired_ex)
+    end do
 
     if (nlayers < npts) then
-      dwdz(slot) = rmdi
+      do kp = 1, nplev
+        dwdz(map_2d(1) + kp - 1_i_def) = rmdi
+      end do
     else
+      do kp = 1, nplev
+        slot = map_2d(1) + kp - 1_i_def
 
-      ! Vertical derivatives of height and wind components with respect to
-      ! pressure
-      call diffp(nlayers, press_lev, z_col, p_col, dzdp)
-      call diffp(nlayers, press_lev, u_col, p_col, dudp)
-      call diffp(nlayers, press_lev, v_col, p_col, dvdp)
+        ! Vertical derivatives of height and wind components with respect
+        ! to pressure
+        call diffp(nlayers, plevs(kp), z_col, p_col, dzdp)
+        call diffp(nlayers, plevs(kp), u_col, p_col, dudp)
+        call diffp(nlayers, plevs(kp), v_col, p_col, dvdp)
 
-      ! Vertical derivative of wind speed with respect to height
-      dwdz(slot) = sqrt(dudp**2 + dvdp**2) / abs(dzdp)
+        ! Vertical derivative of wind speed with respect to height
+        dwdz(slot) = sqrt(dudp**2 + dvdp**2) / abs(dzdp)
+      end do
     end if
 
   end subroutine cat_column_code

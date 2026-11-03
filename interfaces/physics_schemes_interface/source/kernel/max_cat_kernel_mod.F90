@@ -6,19 +6,19 @@
 !> Some of the content of this file has been produced with the assistance of
 !> Met Office Claude Code Enterprise.
 
-!> @brief Running maximum of the clear air turbulence predictor over
-!>        pressure levels, and the pressure at which it occurs.
+!> @brief Maximum of the clear air turbulence predictor over pressure
+!>        levels, and the pressure at which it occurs.
 
 module max_cat_kernel_mod
 
   use argument_mod,      only: arg_type,                   &
                                GH_FIELD, GH_SCALAR,        &
                                GH_REAL, GH_INTEGER,        &
-                               GH_READ, GH_READWRITE,      &
+                               GH_READ, GH_WRITE,          &
                                CELL_COLUMN,                &
                                ANY_DISCONTINUOUS_SPACE_1,  &
                                ANY_DISCONTINUOUS_SPACE_2
-  use constants_mod,     only: r_def, i_def
+  use constants_mod,     only: r_def, i_def, rmdi
   use empty_data_mod,    only: empty_real_data
   use kernel_mod,        only: kernel_type
 
@@ -29,15 +29,15 @@ module max_cat_kernel_mod
   !> Kernel metadata for PSyclone
   type, public, extends(kernel_type) :: max_cat_kernel_type
     private
-    type(arg_type) :: meta_args(5) = (/                             &
-         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE,              &
+    type(arg_type) :: meta_args(4) = (/                             &
+         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,                  &
                   ANY_DISCONTINUOUS_SPACE_1),                      & ! max_cat
-         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE,              &
+         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,                  &
                   ANY_DISCONTINUOUS_SPACE_1),                      & ! max_press
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,                   &
                   ANY_DISCONTINUOUS_SPACE_2),                      & ! cat
-         arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                  & ! kp
-         arg_type(GH_SCALAR, GH_REAL,    GH_READ)                   & ! press
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ)                   & ! nplev
+!        arg_type(GH_SCALAR_ARRAY, GH_REAL, GH_READ, 1), PSyclone issue #1312
          /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -48,21 +48,19 @@ module max_cat_kernel_mod
 
 contains
 
-  !> @brief   Update the running maximum of the predictor with one level.
-  !> @details Where the predictor on the given level exceeds the running
-  !>          maximum, the maximum and its pressure are replaced. The test
-  !>          is strict, so the first level visited wins any tie, and a
-  !>          missing predictor never replaces the running value. One
-  !>          level per call; the caller initialises the outputs to missing
-  !>          data before the first level. The pressure is skipped when its
-  !>          field is empty.
+  !> @brief   Maximum of the predictor over the pressure levels and the
+  !>          pressure at which it occurs.
+  !> @details The levels are visited in order with a strict test, so the
+  !>          first level visited wins any tie, and a missing predictor
+  !>          never wins. A column missing on every level is missing in both
+  !>          outputs. The pressure is skipped when its field is empty.
   !> @param[in]     nlayers    Number of layers
-  !> @param[in,out] max_cat    Maximum predictor over the levels so far
+  !> @param[in,out] max_cat    Maximum predictor over the levels
   !> @param[in,out] max_press  Pressure of that maximum; may be empty
   !> @param[in]     cat        Clear air turbulence predictor on pressure
   !>                           levels
-  !> @param[in]     kp         Slot of the pressure-level field to visit
-  !> @param[in]     press_lev  Pressure of that slot (Pa)
+  !> @param[in]     nplev      Number of pressure levels
+  !> @param[in]     plevs      Pressure of each level (Pa)
   !> @param[in]     ndf_2d     Number of degrees of freedom per cell for the
   !>                           single-level fields
   !> @param[in]     undf_2d    Number of unique degrees of freedom for the
@@ -78,7 +76,7 @@ contains
   subroutine max_cat_code(nlayers,                       &
                           max_cat, max_press,            &
                           cat,                           &
-                          kp, press_lev,                 &
+                          nplev, plevs,                  &
                           ndf_2d, undf_2d, map_2d,       &
                           ndf_pl, undf_pl, map_pl)
 
@@ -95,18 +93,27 @@ contains
     real(kind=r_def), pointer, intent(inout)            :: max_press(:)
     real(kind=r_def), intent(in),    dimension(undf_pl) :: cat
 
-    integer(kind=i_def), intent(in) :: kp
-    real(kind=r_def),    intent(in) :: press_lev
+    integer(kind=i_def), intent(in) :: nplev
+    real(kind=r_def),    intent(in), dimension(nplev) :: plevs
 
     ! Internal variables
-    integer(kind=i_def) :: slot
+    integer(kind=i_def) :: kp, kp_max
 
-    slot = map_pl(1) + kp - 1_i_def
+    ! Level of the maximum; stays 0 if no level has a valid predictor
+    kp_max = 0_i_def
+    max_cat(map_2d(1)) = rmdi
+    do kp = 1, nplev
+      if ( cat(map_pl(1) + kp - 1_i_def) > max_cat(map_2d(1)) ) then
+        max_cat(map_2d(1)) = cat(map_pl(1) + kp - 1_i_def)
+        kp_max = kp
+      end if
+    end do
 
-    if ( cat(slot) > max_cat(map_2d(1)) ) then
-      max_cat(map_2d(1)) = cat(slot)
-      if ( .not. associated(max_press, empty_real_data) ) then
-        max_press(map_2d(1)) = press_lev
+    if ( .not. associated(max_press, empty_real_data) ) then
+      if ( kp_max == 0_i_def ) then
+        max_press(map_2d(1)) = rmdi
+      else
+        max_press(map_2d(1)) = plevs(kp_max)
       end if
     end if
 

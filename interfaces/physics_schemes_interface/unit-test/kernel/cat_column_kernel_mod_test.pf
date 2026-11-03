@@ -40,8 +40,11 @@ module cat_column_kernel_mod_test
   integer(i_def), parameter :: ndf_2d = nplev
   integer(i_def), parameter :: undf_w3 = nlayers
   integer(i_def), parameter :: undf_2d = nplev
-  ! Slot of the pressure-level fields filled by every test
-  integer(i_def), parameter :: kp = 2_i_def
+  ! Pressure levels: near the bottom of the column, inside the spline
+  ! search window, and near the top
+  real(r_def), parameter :: plevs(nplev) = (/ 98000.0_r_def, &
+                                              50000.0_r_def, &
+                                              30000.0_r_def /)
 
   real(r_def), parameter :: p_zero = 100000.0_r_def
   real(r_def), parameter :: kappa = 0.285714285714_r_def
@@ -108,7 +111,7 @@ contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Quadratic wind profile at a level inside the spline search window.
-  !> The six-point spline (levels 4 to 9 for a level between levels 6 and
+  !> The six-point spline (levels 4 to 9 for 500 hPa, between levels 6 and
   !> 7) is exact for a quadratic, so the shear is the analytic one.
   @test
   subroutine test_quadratic_profile( this )
@@ -120,7 +123,6 @@ contains
     class(cat_column_test_type), intent(inout) :: this
 
     real(r_def), parameter :: tol = 1.0e-12_r_def
-    real(r_def), parameter :: press_lev = 50000.0_r_def
     ! Analytic d(u)/dp
     real(r_def), parameter :: ans_dwdz = 2.0e-4_r_def / 0.15_r_def
     ! Linear-in-Exner interpolation of u between levels 6 and 7
@@ -128,26 +130,23 @@ contains
 
     call cat_column_code( nlayers, this%u, this%v, this%exner, this%height, &
                           this%u_plev, this%v_plev, this%dwdz,              &
-                          press_lev, kp, p_zero, kappa,                     &
+                          nplev, plevs, p_zero, kappa,                      &
                           ndf_w3, undf_w3, this%map_w3,                     &
                           ndf_2d, undf_2d, this%map_2d )
 
-    @assertEqual( ans_dwdz, this%dwdz(kp), tol )
-    @assertEqual( ans_u_plev, this%u_plev(kp), tol )
-    @assertEqual( 0.0_r_def, this%v_plev(kp), tol )
-    ! Other slots untouched
-    @assertEqual( 0.0_r_def, this%dwdz(1), tol )
-    @assertEqual( 0.0_r_def, this%dwdz(3), tol )
+    @assertEqual( ans_dwdz, this%dwdz(2), tol )
+    @assertEqual( ans_u_plev, this%u_plev(2), tol )
+    @assertEqual( 0.0_r_def, this%v_plev(2), tol )
 
     ! With both components equal the shear grows by sqrt(2)
     this%v(:) = this%u(:)
     call cat_column_code( nlayers, this%u, this%v, this%exner, this%height, &
                           this%u_plev, this%v_plev, this%dwdz,              &
-                          press_lev, kp, p_zero, kappa,                     &
+                          nplev, plevs, p_zero, kappa,                      &
                           ndf_w3, undf_w3, this%map_w3,                     &
                           ndf_2d, undf_2d, this%map_2d )
-    @assertEqual( sqrt(2.0_r_def) * ans_dwdz, this%dwdz(kp), tol )
-    @assertEqual( ans_u_plev, this%v_plev(kp), tol )
+    @assertEqual( sqrt(2.0_r_def) * ans_dwdz, this%dwdz(2), tol )
+    @assertEqual( ans_u_plev, this%v_plev(2), tol )
 
   end subroutine test_quadratic_profile
 
@@ -166,26 +165,18 @@ contains
     class(cat_column_test_type), intent(inout) :: this
 
     real(r_def), parameter :: tol = 1.0e-12_r_def
-    ! Between levels 8 and 9: window clamps to levels 5 to 10
-    real(r_def), parameter :: press_high = 30000.0_r_def
-    real(r_def), parameter :: ans_high = 1.2e-4_r_def / 0.15_r_def
-    ! Between levels 1 and 2: window clamps to levels 1 to 6
-    real(r_def), parameter :: press_low = 98000.0_r_def
+    ! 980 hPa, between levels 1 and 2: window clamps to levels 1 to 6
     real(r_def), parameter :: ans_low = 3.92e-4_r_def / 0.15_r_def
+    ! 300 hPa, between levels 8 and 9: window clamps to levels 5 to 10
+    real(r_def), parameter :: ans_high = 1.2e-4_r_def / 0.15_r_def
 
     call cat_column_code( nlayers, this%u, this%v, this%exner, this%height, &
                           this%u_plev, this%v_plev, this%dwdz,              &
-                          press_high, kp, p_zero, kappa,                    &
+                          nplev, plevs, p_zero, kappa,                      &
                           ndf_w3, undf_w3, this%map_w3,                     &
                           ndf_2d, undf_2d, this%map_2d )
-    @assertEqual( ans_high, this%dwdz(kp), tol )
-
-    call cat_column_code( nlayers, this%u, this%v, this%exner, this%height, &
-                          this%u_plev, this%v_plev, this%dwdz,              &
-                          press_low, kp, p_zero, kappa,                     &
-                          ndf_w3, undf_w3, this%map_w3,                     &
-                          ndf_2d, undf_2d, this%map_2d )
-    @assertEqual( ans_low, this%dwdz(kp), tol )
+    @assertEqual( ans_low, this%dwdz(1), tol )
+    @assertEqual( ans_high, this%dwdz(3), tol )
 
   end subroutine test_clamped_windows
 
@@ -201,11 +192,11 @@ contains
     class(cat_column_test_type), intent(inout) :: this
 
     real(r_def), parameter :: tol = 1.0e-12_r_def
-    real(r_def), parameter :: press_lev = 50000.0_r_def
     real(r_def), parameter :: dudp = -3.0e-4_r_def
 
     integer(i_def) :: k
     real(r_def) :: p
+    real(r_def) :: answer(nplev)
 
     do k = 1, nlayers
       p = p_zero - dp * real(k - 1, r_def)
@@ -214,11 +205,12 @@ contains
 
     call cat_column_code( nlayers, this%u, this%v, this%exner, this%height, &
                           this%u_plev, this%v_plev, this%dwdz,              &
-                          press_lev, kp, p_zero, kappa,                     &
+                          nplev, plevs, p_zero, kappa,                      &
                           ndf_w3, undf_w3, this%map_w3,                     &
                           ndf_2d, undf_2d, this%map_2d )
 
-    @assertEqual( abs(dudp) / abs(dzdp), this%dwdz(kp), tol )
+    answer(:) = abs(dudp) / abs(dzdp)
+    @assertEqual( answer, this%dwdz, tol )
 
   end subroutine test_linear_profile
 
@@ -234,16 +226,18 @@ contains
     class(cat_column_test_type), intent(inout) :: this
 
     integer(i_def), parameter :: few = 5_i_def
-    real(r_def), parameter :: press_lev = 90000.0_r_def
+
+    real(r_def) :: answer(nplev)
 
     call cat_column_code( few, this%u(1:few), this%v(1:few),              &
                           this%exner(1:few), this%height(1:few),          &
                           this%u_plev, this%v_plev, this%dwdz,            &
-                          press_lev, kp, p_zero, kappa,                   &
+                          nplev, plevs, p_zero, kappa,                    &
                           ndf_w3, few, this%map_w3,                       &
                           ndf_2d, undf_2d, this%map_2d )
 
-    @assertEqual( rmdi, this%dwdz(kp) )
+    answer(:) = rmdi
+    @assertEqual( answer, this%dwdz )
 
   end subroutine test_too_few_layers
 

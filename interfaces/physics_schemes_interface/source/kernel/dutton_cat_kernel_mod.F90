@@ -6,14 +6,14 @@
 !> Some of the content of this file has been produced with the assistance of
 !> Met Office Claude Code Enterprise.
 
-!> @brief Dutton clear air turbulence predictor on one pressure level.
+!> @brief Dutton clear air turbulence predictor on pressure levels.
 
 module dutton_cat_kernel_mod
 
   use argument_mod,      only: arg_type,                   &
                                GH_FIELD, GH_SCALAR,        &
                                GH_REAL, GH_INTEGER,        &
-                               GH_READ, GH_READWRITE,      &
+                               GH_READ, GH_WRITE,          &
                                CELL_COLUMN,                &
                                ANY_DISCONTINUOUS_SPACE_1,  &
                                ANY_DISCONTINUOUS_SPACE_2,  &
@@ -29,7 +29,7 @@ module dutton_cat_kernel_mod
   type, public, extends(kernel_type) :: dutton_cat_kernel_type
     private
     type(arg_type) :: meta_args(8) = (/                             &
-         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE,              &
+         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,                  &
                   ANY_DISCONTINUOUS_SPACE_1),                      & ! cat
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,                   &
                   ANY_DISCONTINUOUS_SPACE_1, STENCIL(CROSS2D)),    & ! u_plev
@@ -41,7 +41,7 @@ module dutton_cat_kernel_mod
                   ANY_DISCONTINUOUS_SPACE_2, STENCIL(CROSS2D)),    & ! latitude
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,                   &
                   ANY_DISCONTINUOUS_SPACE_2, STENCIL(CROSS2D)),    & ! longitude
-         arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                  & ! kp
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                  & ! nplev
          arg_type(GH_SCALAR, GH_REAL,    GH_READ)                   & ! radius
          /)
     integer :: operates_on = CELL_COLUMN
@@ -76,8 +76,8 @@ module dutton_cat_kernel_mod
 
 contains
 
-  !> @brief   Dutton clear air turbulence predictor on one pressure level.
-  !> @details Forms the horizontal wind derivatives on the pressure level
+  !> @brief   Dutton clear air turbulence predictor on pressure levels.
+  !> @details Forms the horizontal wind derivatives on each pressure level
   !>          from the four face-neighbouring cells, combines them with the
   !>          wind and the vertical shear into Dutton's empirical indicator,
   !>          and interpolates that onto a predictor between 0 and 7.5.
@@ -93,7 +93,6 @@ contains
   !>          A cell lacking any of the four neighbours, at the edge of a
   !>          limited-area domain, gets missing data, as the UM sets at its
   !>          domain edges; so does a cell whose vertical shear is missing.
-  !>          Only slot kp is written.
   !> @param[in]     nlayers        Number of layers
   !> @param[in,out] cat            Clear air turbulence predictor on pressure
   !>                               levels
@@ -118,7 +117,7 @@ contains
   !> @param[in]     lon_len        Maximum branch length of the longitude
   !>                               stencil
   !> @param[in]     smap_lon       Stencil dofmap for longitude
-  !> @param[in]     kp             Slot of the pressure-level fields to use
+  !> @param[in]     nplev          Number of pressure levels
   !> @param[in]     planet_radius  Planet radius (m)
   !> @param[in]     ndf_pl         Number of degrees of freedom per cell for
   !>                               the pressure-level fields
@@ -141,7 +140,7 @@ contains
                              smap_lat,                                &
                              longitude, smap_lon_size, lon_len,       &
                              smap_lon,                                &
-                             kp, planet_radius,                       &
+                             nplev, planet_radius,                    &
                              ndf_pl, undf_pl, map_pl,                 &
                              ndf_2d, undf_2d, map_2d)
 
@@ -175,12 +174,12 @@ contains
     real(kind=r_def), intent(in),    dimension(undf_2d) :: latitude
     real(kind=r_def), intent(in),    dimension(undf_2d) :: longitude
 
-    integer(kind=i_def), intent(in) :: kp
+    integer(kind=i_def), intent(in) :: nplev
     real(kind=r_def),    intent(in) :: planet_radius
 
     ! Internal variables
-    integer(kind=i_def) :: slot, n
-    real(kind=r_def) :: lat0, lon0, latn, dlon
+    integer(kind=i_def) :: kp, slot, n
+    real(kind=r_def) :: lat0, lon0, latn, dlon, hemisphere
     real(kind=r_def), dimension(n_branch) :: x_n, y_n, u_n, v_n
     real(kind=r_def) :: dx_a, dy_a, dx_b, dy_b, det
     real(kind=r_def) :: du_a, du_b, dv_a, dv_b
@@ -188,28 +187,26 @@ contains
     real(kind=r_def) :: u0, v0, vmag, shearh, shearv, empire
     real(kind=r_def) :: alpha, catprob
 
-    slot = map_pl(1) + kp - 1_i_def
-
     ! All four stencils are on the same 2D mesh, so their branch sizes
     ! agree and the u_plev stencil speaks for the others
-    if ( minval(smap_u_size) < neighbour .or. dwdz(slot) == rmdi ) then
+    if ( minval(smap_u_size) < neighbour ) then
       ! A neighbour is missing: no centred difference, as at the UM
       ! domain edges, so the predictor is missing too
-      cat(slot) = rmdi
+      do kp = 1, nplev
+        cat(map_pl(1) + kp - 1_i_def) = rmdi
+      end do
     else
       lat0 = latitude(map_2d(1))
       lon0 = longitude(map_2d(1))
 
       ! Displacement of each neighbouring cell centre from this cell in
-      ! the local east-north tangent plane, and the winds there
+      ! the local east-north tangent plane
       do n = 1, n_branch
         latn = latitude(smap_lat(1, neighbour, n))
         dlon = longitude(smap_lon(1, neighbour, n)) - lon0
         x_n(n) = planet_radius * cos(latn) * sin(dlon)
         y_n(n) = planet_radius * ( cos(lat0) * sin(latn)                      &
                                  - sin(lat0) * cos(latn) * cos(dlon) )
-        u_n(n) = u_plev(smap_u(1, neighbour, n) + kp - 1_i_def)
-        v_n(n) = v_plev(smap_v(1, neighbour, n) + kp - 1_i_def)
       end do
 
       ! Centred differences over the two opposite pairs: a = branch 3 minus
@@ -222,55 +219,72 @@ contains
       dy_b = y_n(4) - y_n(2)
       det  = dx_a * dy_b - dy_a * dx_b
 
-      du_a = u_n(3) - u_n(1)
-      du_b = u_n(4) - u_n(2)
-      dv_a = v_n(3) - v_n(1)
-      dv_b = v_n(4) - v_n(2)
-
-      ! Eastward and northward derivatives from the two directional ones
-      dudx = ( du_a * dy_b - du_b * dy_a ) / det
-      dudy = ( du_b * dx_a - du_a * dx_b ) / det
-      dvdx = ( dv_a * dy_b - dv_b * dy_a ) / det
-      dvdy = ( dv_b * dx_a - dv_a * dx_b ) / det
-
-      ! Dutton's empirical predictor
-      u0 = u_plev(slot)
-      v0 = v_plev(slot)
-
-      shearv = shearv_scale * dwdz(slot)
-      vmag = u0**2 + v0**2
-      if ( vmag > 0.0_r_def ) then
-        shearh = ( shearh_scale / vmag ) *                                    &
-                 (   u0 * v0 * dudx                                           &
-                   - u0 * u0 * dudy                                           &
-                   + v0 * v0 * dvdx                                           &
-                   - u0 * v0 * dvdy )
-      else
-        shearh = 0.0_r_def
-      end if
       ! The vector form of the horizontal shear changes sign in the
       ! southern hemisphere
       if ( lat0 < 0.0_r_def ) then
-        shearh = -shearh
-      end if
-
-      empire = empire_offset + empire_slope * ( shearh + shearv )
-
-      ! Piecewise-linear interpolation between the knots; at or above the
-      ! last knot the predictor takes its maximum value
-      if ( empire < eval(1) ) then
-        catprob = catval(1)
-      else if ( empire < eval(2) ) then
-        alpha   = ( empire - eval(1) ) / ( eval(2) - eval(1) )
-        catprob = alpha * catval(2) + ( 1.0_r_def - alpha ) * catval(1)
-      else if ( empire < eval(3) ) then
-        alpha   = ( empire - eval(2) ) / ( eval(3) - eval(2) )
-        catprob = alpha * catval(3) + ( 1.0_r_def - alpha ) * catval(2)
+        hemisphere = -1.0_r_def
       else
-        catprob = catval(knots)
+        hemisphere = 1.0_r_def
       end if
 
-      cat(slot) = catprob
+      do kp = 1, nplev
+        slot = map_pl(1) + kp - 1_i_def
+
+        if ( dwdz(slot) == rmdi ) then
+          cat(slot) = rmdi
+        else
+          ! Winds at the neighbouring cell centres
+          do n = 1, n_branch
+            u_n(n) = u_plev(smap_u(1, neighbour, n) + kp - 1_i_def)
+            v_n(n) = v_plev(smap_v(1, neighbour, n) + kp - 1_i_def)
+          end do
+
+          du_a = u_n(3) - u_n(1)
+          du_b = u_n(4) - u_n(2)
+          dv_a = v_n(3) - v_n(1)
+          dv_b = v_n(4) - v_n(2)
+
+          ! Eastward and northward derivatives from the two directional ones
+          dudx = ( du_a * dy_b - du_b * dy_a ) / det
+          dudy = ( du_b * dx_a - du_a * dx_b ) / det
+          dvdx = ( dv_a * dy_b - dv_b * dy_a ) / det
+          dvdy = ( dv_b * dx_a - dv_a * dx_b ) / det
+
+          ! Dutton's empirical predictor
+          u0 = u_plev(slot)
+          v0 = v_plev(slot)
+
+          shearv = shearv_scale * dwdz(slot)
+          vmag = u0**2 + v0**2
+          if ( vmag > 0.0_r_def ) then
+            shearh = hemisphere * ( shearh_scale / vmag ) *                   &
+                     (   u0 * v0 * dudx                                       &
+                       - u0 * u0 * dudy                                       &
+                       + v0 * v0 * dvdx                                       &
+                       - u0 * v0 * dvdy )
+          else
+            shearh = 0.0_r_def
+          end if
+
+          empire = empire_offset + empire_slope * ( shearh + shearv )
+
+          ! Piecewise-linear interpolation between the knots; at or above
+          ! the last knot the predictor takes its maximum value
+          if ( empire < eval(1) ) then
+            catprob = catval(1)
+          else if ( empire < eval(2) ) then
+            alpha   = ( empire - eval(1) ) / ( eval(2) - eval(1) )
+            catprob = alpha * catval(2) + ( 1.0_r_def - alpha ) * catval(1)
+          else if ( empire < eval(3) ) then
+            alpha   = ( empire - eval(2) ) / ( eval(3) - eval(2) )
+            catprob = alpha * catval(3) + ( 1.0_r_def - alpha ) * catval(2)
+          else
+            catprob = catval(knots)
+          end if
+
+          cat(slot) = catprob
+        end if
+      end do
     end if
 
   end subroutine dutton_cat_code
