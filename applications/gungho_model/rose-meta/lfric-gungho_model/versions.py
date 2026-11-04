@@ -486,3 +486,50 @@ class vn32_t763(MacroUpgrade):
         )
 
         return config, self.reports
+
+
+class vn32_t776(MacroUpgrade):
+    """Upgrade macro for ticket None by None."""
+
+    BEFORE_TAG = "vn3.2_t763"
+    AFTER_TAG = "vn3.2_t776"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-convection
+        # CoMorph settings
+        nml = "namelist:comorph"
+        # Rearrangement of code means min_radius need to be scaled by
+        # 1 / par_radius_knob to get same behaviour as before
+        prk = float(self.get_setting_value(config, [nml, "par_radius_knob"]))
+        asm = float(self.get_setting_value(config, [nml, "ass_min_radius"]))
+        self.change_setting_value(
+            config, [nml, "ass_min_radius"], str(asm / prk)
+        )
+        self.add_setting(config, [nml, "min_radius_fac"], str(0.25 / prk))
+        # Was the hard-wired comorph_constants_mod value par_gen_radius_fac
+        self.add_setting(config, [nml, "turb_len_fac"], "8.0")
+
+        return config, self.reports
+
+
+class vn32_t802(MacroUpgrade):
+    """Upgrade macro for ticket #802 by thomas.melvin."""
+
+    BEFORE_TAG = "vn3.2_t776"
+    AFTER_TAG = "vn3.2_t802"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        # Add lmin and lmax settings for the mixed solver
+        self.add_setting(
+            config,
+            ["namelist:mixed_solver", "chebyshev_lmax"],
+            "2.5",
+        )
+        self.add_setting(
+            config,
+            ["namelist:mixed_solver", "chebyshev_lmin"],
+            "1.0",
+        )
+
+        return config, self.reports

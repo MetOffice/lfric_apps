@@ -21,6 +21,7 @@ subroutine test_unstable( virt_temp_1, virt_temp_2,                            &
                           lb_v, ub_v, q_vap,  lb_l, ub_l, q_cl,                &
                           lb_r, ub_r, q_rain, lb_f, ub_f, q_cf,                &
                           lb_s, ub_s, q_snow, lb_g, ub_g,q_graup,              &
+                          lb_t, ub_t, temperature,                             &
                           l_init_poss )
 
 use comorph_constants_mod, only: real_hmprec, nx_full, ny_full,                &
@@ -67,6 +68,11 @@ integer, intent(in) :: lb_g(2), ub_g(2)
 real(kind=real_hmprec), intent(in) :: q_graup                                  &
                                       ( lb_g(1):ub_g(1), lb_g(2):ub_g(2) )
 
+! Temperature on current level
+integer, intent(in) :: lb_t(2), ub_t(2)
+real(kind=real_hmprec), intent(in) :: temperature                              &
+                                      ( lb_t(1):ub_t(1), lb_t(2):ub_t(2) )
+
 ! Flag for whether convective initiation might be possible from current level
 logical, intent(in out) :: l_init_poss ( nx_full, ny_full )
 
@@ -87,10 +93,10 @@ integer :: i, j
 ! Convert constants to same precision as the full 2-D fields
 gravity_p = real( gravity, real_hmprec )
 
-! Calculate virtual temperature of level k ascended from current to next level
+! Calculate temperature of level k ascended from current to next level
 do j = 1, ny_full
   do i = 1, nx_full
-    virt_temp_test(i,j) = virt_temp_1(i,j)
+    virt_temp_test(i,j) = temperature(i,j)
   end do
 end do
 call dry_adiabat_2d( lb_p, ub_p, pressure_1, pressure_2,                       &
@@ -99,9 +105,12 @@ call dry_adiabat_2d( lb_p, ub_p, pressure_1, pressure_2,                       &
                      lb_s, ub_s, q_snow, lb_g, ub_g,q_graup,                   &
                      virt_temp_test )
 
-! Compute dry static stability
+! Convert to virtual temperature and compute dry static stability.
+! We already have T and Tv at the current level, so just scale by their ratio.
 do j = 1, ny_full
   do i = 1, nx_full
+    virt_temp_test(i,j) = virt_temp_test(i,j)                                  &
+                        * virt_temp_1(i,j) / temperature(i,j)
     Nsq_dry(i,j) = ( gravity_p / virt_temp_2(i,j) )                            &
                  * ( virt_temp_2(i,j) - virt_temp_test(i,j) )                  &
                  / ( height_2(i,j) - height_1(i,j) )
