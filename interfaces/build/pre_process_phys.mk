@@ -14,16 +14,16 @@ TRANSMUTE_INCLUDE_METHOD ?= specify_include
 #
 MACRO_ARGS := $(addprefix -D,$(PRE_PROCESS_MACROS))
 
-# Find the specific files we wish to pre process and psyclone from physics source
+# Find the specific files we wish to transmute psyclone from physics source
 # Set our target dependency to the version of the file we are to generate after
 # The preprocessing step. #
-# .xu90 files are to represent preprocessed source, bound for psyclone,
+# .xu90 files are to represent preprocessed source, bound for transmute psyclone,
 # but are not psykal files, denoted by .x90
 #
 ifeq ("$(TRANSMUTE_INCLUDE_METHOD)", "specify_include")
 # For CPU OMP method, we want specific files
-	SOURCE_xu_FILES := $(foreach THE_FILE, $(PSYCLONE_PHYSICS_FILES), $(patsubst $(SOURCE_DIR)/%.F90, $(SOURCE_DIR)/%.xu90, $(shell find $(SOURCE_DIR) -name '$(THE_FILE).F90' -print)))
-	SOURCE_xu_FILES += $(foreach THE_FILE, $(PSYCLONE_PASS_NO_SCRIPT), $(patsubst $(SOURCE_DIR)/%.F90, $(SOURCE_DIR)/%.xu90, $(shell find $(SOURCE_DIR) -name '$(THE_FILE).F90' -print)))
+	SOURCE_xu_FILES := $(foreach THE_FILE, $(PSYCLONE_PHYSICS_FILES), $(patsubst $(SOURCE_DIR)/%.f90, $(SOURCE_DIR)/%.xu90, $(shell find $(SOURCE_DIR) -name '$(THE_FILE).f90' -print)))
+	SOURCE_xu_FILES += $(foreach THE_FILE, $(PSYCLONE_PASS_NO_SCRIPT), $(patsubst $(SOURCE_DIR)/%.f90, $(SOURCE_DIR)/%.xu90, $(shell find $(SOURCE_DIR) -name '$(THE_FILE).f90' -print)))
 else ifeq ("$(TRANSMUTE_INCLUDE_METHOD)", "specify_exclude")
 # For the offload method, we want to filter out specific files, and psyclone the rest
 # We don't want to wildcard the whole working directory, this will cause problems. 
@@ -32,8 +32,8 @@ else ifeq ("$(TRANSMUTE_INCLUDE_METHOD)", "specify_exclude")
 # pre-processed.
 	ifneq ($(strip $(PSYCLONE_DIRECTORIES)),)
 		EXTEND_DIR_FULL_PATH := $(foreach THE_DIRECTORY, $(PSYCLONE_DIRECTORIES), $(shell find $(SOURCE_DIR) -name $(THE_DIRECTORY) -print))
-		SOURCE_xu_FILES_FULL := $(strip $(foreach THE_PSY_DIR, $(EXTEND_DIR_FULL_PATH), $(patsubst $(SOURCE_DIR)/%.F90, $(SOURCE_DIR)/%.xu90, $(shell find $(THE_PSY_DIR) -name '*.F90' -print))))
-		SOURCE_xu_EXCEPTION := $(strip $(foreach THE_FILE, $(PSYCLONE_PHYSICS_EXCEPTION), $(patsubst $(SOURCE_DIR)/%.F90, $(SOURCE_DIR)/%.xu90, $(shell find $(SOURCE_DIR) -name '$(THE_FILE).F90' -print))))
+		SOURCE_xu_FILES_FULL := $(strip $(foreach THE_PSY_DIR, $(EXTEND_DIR_FULL_PATH), $(patsubst $(SOURCE_DIR)/%.f90, $(SOURCE_DIR)/%.xu90, $(shell find $(THE_PSY_DIR) -name '*.f90' -print))))
+		SOURCE_xu_EXCEPTION := $(strip $(foreach THE_FILE, $(PSYCLONE_PHYSICS_EXCEPTION), $(patsubst $(SOURCE_DIR)/%.f90, $(SOURCE_DIR)/%.xu90, $(shell find $(SOURCE_DIR) -name '$(THE_FILE).f90' -print))))
 		SOURCE_xu_FILES := $(filter-out $(SOURCE_xu_EXCEPTION), $(SOURCE_xu_FILES_FULL))
 	endif
 endif
@@ -49,25 +49,8 @@ include $(LFRIC_BUILD)/fortran.mk
 #
 pre_process: $(SOURCE_xu_FILES)
 
-# Make a copy of target file,
-# Preprocess target file,
-# Remove original F90, see psyclone step
+# Move the pre-processed source to an .xu90 file
 #
-# For the nvidia compiler, they only output into f90,
-# we need to move any f90 files to xu90 files for psyclone.
-# It also seems to place them at the root of the working dir.
-# See ticket Apps#624 for further context
-#
-ifeq ("$(FORTRAN_COMPILER)", "nvfortran")
-$(SOURCE_DIR)/%.xu90: $(SOURCE_DIR)/%.F90
-	echo Pre processing $<
-	$(FPP) $(FPPFLAGS) $(MACRO_ARGS) -o $@ $<
+$(SOURCE_DIR)/%.xu90: $(SOURCE_DIR)/%.f90
+	echo Moving $< to xu90 for Transmute
 	-mv $(SOURCE_DIR)/$*.f90 $@
-	-mv $(shell basename $*.f90) $@
-	rm $<
-else
-$(SOURCE_DIR)/%.xu90: $(SOURCE_DIR)/%.F90
-	echo Pre processing $<
-	$(FPP) $(FPPFLAGS) $(MACRO_ARGS) $< >$@
-	rm $<
-endif
