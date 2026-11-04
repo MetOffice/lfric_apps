@@ -12,6 +12,7 @@
 | mcdalvi             | Mohit Dalvi        | Met Office                       | 2026-01-15 |
 | mo-lucy-gordon      | Lucy Gordon        | Met Office                       | 2026-03-11 |
 | timgraham-Met       | Tim Graham         | Met Office                       | 2026-01-15 |
+| MatthewHambley      | Matthew Hambley    | Met Office                       | 2026-10-16 |
 | tinyendian          | Wolfgang Hayek     | Earth Sciences New Zealand       | 2026-02-02 |
 | mo-marqh            | mark Hedley        | Met Office                       | 2025-12-11 |
 | maggiehendry        | Maggie Hendry      | Met Office                       | 2026-01-29 |
@@ -60,3 +61,5 @@
 | mo-snishimoto       | Shusuke Nishimoto  | Met Office                       | 2026-07-21 |
 | mo-cjsmith          | Chris Smith        | Met Office                       | 2026-09-02 |
 | mo-joshuacolclough  | Joshua Colclough   | Met Office                       | 2026-08-11 |
+| zmaalick            | Zubair Maalick     | Met Office                       | 2026-08-31 |
+| jerry-liu-jianyu    | Liu Jianyu         | NEA/MSS/CCRS                     | 2026-09-25 |
