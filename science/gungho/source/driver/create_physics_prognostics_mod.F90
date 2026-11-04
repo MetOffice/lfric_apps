@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Claude Code.
+!-------------------------------------------------------------------------------
 !> @brief create physics prognostics
 !> @details Creates the physics prognostic fields
 module create_physics_prognostics_mod
@@ -979,6 +982,15 @@ contains
     call processor%apply(make_spec('z0m', main%surface, W3, twod=.true.))
     call processor%apply(make_spec('ustar', main%surface, W3, twod=.true.))
     call processor%apply(make_spec('wspd10m', main%surface, W3, twod=.true.))
+
+    ! 2D screen-level fields kept for diagnostics calculated at the end of
+    ! the timestep, only available with the UM boundary layer and JULES
+    is_empty = ( boundary_layer /= boundary_layer_um .or.                      &
+                 surface /= surface_jules )
+    call processor%apply(make_spec('t1p5m_for_diags', main%surface, W3,        &
+                                   twod=.true., empty = is_empty ))
+    call processor%apply(make_spec('q1p5m_for_diags', main%surface, W3,        &
+                                   twod=.true., empty = is_empty ))
     call processor%apply(make_spec('urbdisp', main%surface, W3, twod=.true., &
                                    empty = (.not. l_urban2t) ))
     call processor%apply(make_spec('urbztm', main%surface, W3, twod=.true., &
