@@ -241,10 +241,17 @@ contains
     end if
 
     ! Keep the screen-level temperature and humidity for the CAPE and CIN of
-    ! surface parcels, which are calculated at the end of the timestep
+    ! surface-based and most unstable parcels, which are calculated at the
+    ! end of the timestep
     if ( surface == surface_jules .and.                                        &
          ( samp_diag('convection__surface_based_cape') .or.                    &
-           samp_diag('convection__surface_based_cin') ) ) then
+           samp_diag('convection__surface_based_cin') .or.                     &
+           samp_diag('convection__most_unstable_cape') .or.                    &
+           samp_diag('convection__most_unstable_cin') .or.                     &
+           samp_diag('convection__most_unstable_start_height') .or.            &
+           samp_diag('convection__most_unstable_equilibrium_height') .or.      &
+           samp_diag('convection__effective_inflow_base_height') .or.          &
+           samp_diag('convection__effective_inflow_top_height') ) ) then
       call surface_fields%get_field('t1p5m_for_diags', t1p5m_for_diags)
       call surface_fields%get_field('q1p5m_for_diags', q1p5m_for_diags)
       call invoke( setval_X(t1p5m_for_diags, t1p5m),                           &

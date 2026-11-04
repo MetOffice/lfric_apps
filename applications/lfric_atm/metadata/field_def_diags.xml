@@ -425,6 +425,12 @@
   <field id="convection__mixed_layer_equilibrium_height" name="convection_mixed_layer_equilibrium_height" long_name="equilibrium_level_height_above_mean_sea_level_of_500m_mixed_layer_parcel" unit="m" domain_ref="face" />
   <field id="convection__surface_based_cape" name="convection_surface_based_cape" long_name="convective_available_potential_energy_of_surface_parcel" unit="J/kg" domain_ref="face" />
   <field id="convection__surface_based_cin" name="convection_surface_based_cin" long_name="convective_inhibition_of_surface_parcel" unit="J/kg" domain_ref="face" />
+  <field id="convection__most_unstable_cape" name="convection_most_unstable_cape" long_name="convective_available_potential_energy_of_most_unstable_parcel" unit="J/kg" domain_ref="face" />
+  <field id="convection__most_unstable_cin" name="convection_most_unstable_cin" long_name="convective_inhibition_of_most_unstable_parcel" unit="J/kg" domain_ref="face" />
+  <field id="convection__most_unstable_start_height" name="convection_most_unstable_start_height" long_name="starting_height_above_mean_sea_level_of_most_unstable_parcel" unit="m" domain_ref="face" />
+  <field id="convection__most_unstable_equilibrium_height" name="convection_most_unstable_equilibrium_height" long_name="equilibrium_level_height_above_mean_sea_level_of_most_unstable_parcel" unit="m" domain_ref="face" />
+  <field id="convection__effective_inflow_base_height" name="convection_effective_inflow_base_height" long_name="height_above_mean_sea_level_of_effective_inflow_layer_base" unit="m" domain_ref="face" />
+  <field id="convection__effective_inflow_top_height" name="convection_effective_inflow_top_height" long_name="height_above_mean_sea_level_of_effective_inflow_layer_top" unit="m" domain_ref="face" />
   <!-- microphysics diagnostics -->
   <field id="microphysics__dtheta_mphys" name="dtheta_mphys" long_name="potential_temperature_increment_due_to_microphysics" unit="K" grid_ref="full_level_face_grid" />
   <field id="microphysics__dt_mphys" name="dt_mphys" long_name="temperature_increment_due_to_microphysics" unit="K" grid_ref="full_level_face_grid" />

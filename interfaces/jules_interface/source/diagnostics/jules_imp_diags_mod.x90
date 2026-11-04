@@ -183,7 +183,13 @@ contains
           samp_diag('surface__vis_prob_5km') .or. &
           samp_diag('surface__dew_point') .or. &
           samp_diag('convection__surface_based_cape') .or. &
-          samp_diag('convection__surface_based_cin')) then
+          samp_diag('convection__surface_based_cin') .or. &
+          samp_diag('convection__most_unstable_cape') .or. &
+          samp_diag('convection__most_unstable_cin') .or. &
+          samp_diag('convection__most_unstable_start_height') .or. &
+          samp_diag('convection__most_unstable_equilibrium_height') .or. &
+          samp_diag('convection__effective_inflow_base_height') .or. &
+          samp_diag('convection__effective_inflow_top_height')) then
         if (.not. t1p5m_flag) ignore = init_diag(t1p5m, 'surface__t1p5m', activate=.true.)
         if (.not. q1p5m_flag) ignore = init_diag(q1p5m, 'surface__q1p5m', activate=.true.)
         if (.not. qcl1p5m_flag) ignore = init_diag(qcl1p5m, 'surface__qcl1p5m', activate=.true.)

@@ -17,12 +17,16 @@
 !>          (the surface) to nlayers, and on W3 levels from 0 to nlayers - 1.
 module parcel_ascent_cape_cin_mod
 
-  use constants_mod,                  only: r_def, i_def, l_def
+  use constants_mod,                  only: r_def, i_def, l_def, rmdi
   use driver_water_constants_mod,     only: latent_heat_h2o_condensation
   use qsat_mod,                       only: qsat_wat_mix
   use science_aviation_constants_mod, only: parcel_mixed_layer_depth,         &
+                                            parcel_surface_layer_depth,       &
                                             parcel_min_cape, parcel_min_cin,  &
                                             parcel_qsat_delta_t,              &
+                                            parcel_screen_height,             &
+                                            parcel_top_start_pressure,        &
+                                            inflow_min_cape, inflow_min_cin,  &
                                             bolton_a, bolton_b, bolton_c,     &
                                             bolton_d
   use science_conversions_mod,        only: pascals_to_hectopascals
@@ -31,7 +35,9 @@ module parcel_ascent_cape_cin_mod
 
   private
   public :: mixed_layer_parcel_start, lifting_condensation_level,             &
-            parcel_ascent_cape_cin
+            parcel_ascent_cape_cin, most_unstable_cape_cin,                   &
+            highest_start_level, initialise_most_unstable,                    &
+            update_most_unstable
 
   real(kind=r_def), parameter :: half = 0.5_r_def
 
@@ -359,6 +365,226 @@ contains
     cin = max( cin, parcel_min_cin )
 
   end subroutine parcel_ascent_cape_cin
+
+  !> @brief CAPE and CIN of the most unstable parcel, and the effective
+  !>        inflow layer, from ascents starting at screen level and at each
+  !>        model level below a pressure limit.
+  !> @details The most unstable parcel is the one with the largest CAPE. The
+  !>          effective inflow layer runs from the lowest starting level whose
+  !>          parcel has enough CAPE and little enough CIN up to the first
+  !>          level above it whose parcel does not. Heights are above sea
+  !>          level; undefined values are missing data.
+  !> @param[in]  nlayers            Number of layers
+  !> @param[in]  surface_cape       CAPE of the screen-level parcel (J/kg)
+  !> @param[in]  surface_cin        CIN of the screen-level parcel (J/kg)
+  !> @param[in]  surface_lnb_height Height of the screen-level parcel's level
+  !>                                of neutral buoyancy (m)
+  !> @param[in]  theta              Potential temperature on Wtheta levels (K)
+  !> @param[in]  m_v                Water vapour mixing ratio on Wtheta levels
+  !> @param[in]  exner_wth          Exner pressure on Wtheta levels
+  !> @param[in]  p_wth              Pressure on Wtheta levels (Pa)
+  !> @param[in]  height_wth         Height of Wtheta levels above sea level (m)
+  !> @param[in]  height_w3          Height of W3 levels above sea level (m)
+  !> @param[in]  gravity            Gravitational acceleration (m s-2)
+  !> @param[in]  rd                 Gas constant for dry air (J kg-1 K-1)
+  !> @param[in]  cp                 Specific heat of dry air (J kg-1 K-1)
+  !> @param[in]  kappa              Ratio of rd to cp
+  !> @param[in]  one_over_kappa     Ratio of cp to rd
+  !> @param[in]  epsilon            Ratio of gas constants of dry air and
+  !>                                vapour
+  !> @param[out] mu_cape            CAPE of the most unstable parcel (J/kg)
+  !> @param[out] mu_cin             CIN of the most unstable parcel (J/kg)
+  !> @param[out] mu_start_height    Starting height of the most unstable
+  !>                                parcel (m)
+  !> @param[out] mu_lnb_height      Height of the most unstable parcel's level
+  !>                                of neutral buoyancy (m)
+  !> @param[out] inflow_base        Base of the effective inflow layer (m)
+  !> @param[out] inflow_top         Top of the effective inflow layer (m)
+  subroutine most_unstable_cape_cin( nlayers, surface_cape, surface_cin,      &
+                                     surface_lnb_height, theta, m_v,          &
+                                     exner_wth, p_wth, height_wth, height_w3, &
+                                     gravity, rd, cp, kappa, one_over_kappa,  &
+                                     epsilon, mu_cape, mu_cin,                &
+                                     mu_start_height, mu_lnb_height,          &
+                                     inflow_base, inflow_top )
+
+    implicit none
+
+    integer(kind=i_def), intent(in)  :: nlayers
+    real(kind=r_def),    intent(in)  :: surface_cape, surface_cin
+    real(kind=r_def),    intent(in)  :: surface_lnb_height
+    real(kind=r_def),    intent(in)  :: theta(0:nlayers)
+    real(kind=r_def),    intent(in)  :: m_v(0:nlayers)
+    real(kind=r_def),    intent(in)  :: exner_wth(0:nlayers)
+    real(kind=r_def),    intent(in)  :: p_wth(0:nlayers)
+    real(kind=r_def),    intent(in)  :: height_wth(0:nlayers)
+    real(kind=r_def),    intent(in)  :: height_w3(0:nlayers-1)
+    real(kind=r_def),    intent(in)  :: gravity, rd, cp, kappa
+    real(kind=r_def),    intent(in)  :: one_over_kappa, epsilon
+    real(kind=r_def),    intent(out) :: mu_cape, mu_cin
+    real(kind=r_def),    intent(out) :: mu_start_height, mu_lnb_height
+    real(kind=r_def),    intent(out) :: inflow_base, inflow_top
+
+    integer(kind=i_def) :: k, k_top
+    real(kind=r_def)    :: cape, cin, lnb_height
+
+    call initialise_most_unstable( surface_cape, surface_cin,                 &
+                                   surface_lnb_height, height_wth(0),         &
+                                   mu_cape, mu_cin, mu_start_height,          &
+                                   mu_lnb_height, inflow_base, inflow_top )
+
+    k_top = highest_start_level( nlayers, p_wth )
+
+    do k = 1, k_top
+      call parcel_ascent_cape_cin( nlayers, k, .false._l_def, 0.0_r_def,      &
+                                   0.0_r_def, theta(k) * exner_wth(k),        &
+                                   theta(k), m_v(k), p_wth(k), theta, m_v,    &
+                                   exner_wth, p_wth, height_wth, height_w3,   &
+                                   gravity, rd, cp, kappa, one_over_kappa,    &
+                                   epsilon, cape, cin, lnb_height )
+      call update_most_unstable( k, k_top, cape, cin, lnb_height,             &
+                                 height_wth(k), height_wth(k+1),              &
+                                 mu_cape, mu_cin, mu_start_height,            &
+                                 mu_lnb_height, inflow_base, inflow_top )
+    end do
+
+    ! No model level lies below the pressure limit: an inflow layer found
+    ! from the screen-level parcel extends one surface-layer depth above its
+    ! base.
+    if ( k_top == 0 .and. inflow_base /= rmdi ) then
+      inflow_top = inflow_base + parcel_surface_layer_depth
+    end if
+
+  end subroutine most_unstable_cape_cin
+
+  !> @brief Highest model level that is below the pressure limit for
+  !>        starting a most unstable parcel ascent.
+  !> @param[in] nlayers Number of layers
+  !> @param[in] p_wth   Pressure on Wtheta levels (Pa)
+  !> @return    k_top   Highest starting level, or 0 if there is none
+  function highest_start_level( nlayers, p_wth ) result( k_top )
+
+    implicit none
+
+    integer(kind=i_def), intent(in) :: nlayers
+    real(kind=r_def),    intent(in) :: p_wth(0:nlayers)
+    integer(kind=i_def) :: k_top
+
+    integer(kind=i_def) :: k
+
+    k_top = 0_i_def
+    do k = 1, nlayers - 1
+      if ( p_wth(k) <= parcel_top_start_pressure ) exit
+      k_top = k
+    end do
+
+  end function highest_start_level
+
+  !> @brief Initialise the most unstable parcel and the effective inflow
+  !>        layer from the screen-level parcel.
+  !> @param[in]  surface_cape       CAPE of the screen-level parcel (J/kg)
+  !> @param[in]  surface_cin        CIN of the screen-level parcel (J/kg)
+  !> @param[in]  surface_lnb_height Height of its level of neutral buoyancy (m)
+  !> @param[in]  surface_height     Height of the surface above sea level (m)
+  !> @param[out] mu_cape            CAPE of the most unstable parcel (J/kg)
+  !> @param[out] mu_cin             CIN of the most unstable parcel (J/kg)
+  !> @param[out] mu_start_height    Starting height of the most unstable
+  !>                                parcel (m)
+  !> @param[out] mu_lnb_height      Height of the most unstable parcel's level
+  !>                                of neutral buoyancy (m)
+  !> @param[out] inflow_base        Base of the effective inflow layer (m)
+  !> @param[out] inflow_top         Top of the effective inflow layer (m)
+  subroutine initialise_most_unstable( surface_cape, surface_cin,             &
+                                       surface_lnb_height, surface_height,    &
+                                       mu_cape, mu_cin, mu_start_height,      &
+                                       mu_lnb_height, inflow_base,            &
+                                       inflow_top )
+
+    implicit none
+
+    real(kind=r_def), intent(in)  :: surface_cape, surface_cin
+    real(kind=r_def), intent(in)  :: surface_lnb_height, surface_height
+    real(kind=r_def), intent(out) :: mu_cape, mu_cin
+    real(kind=r_def), intent(out) :: mu_start_height, mu_lnb_height
+    real(kind=r_def), intent(out) :: inflow_base, inflow_top
+
+    mu_cape    = surface_cape
+    mu_cin     = surface_cin
+    inflow_top = rmdi
+
+    if ( surface_cape > parcel_min_cape ) then
+      mu_start_height = surface_height + parcel_screen_height
+      mu_lnb_height   = surface_lnb_height
+      if ( surface_cape > inflow_min_cape .and.                               &
+           surface_cin > inflow_min_cin ) then
+        inflow_base = surface_height + parcel_screen_height
+      else
+        inflow_base = rmdi
+      end if
+    else
+      mu_start_height = rmdi
+      mu_lnb_height   = rmdi
+      inflow_base     = rmdi
+    end if
+
+  end subroutine initialise_most_unstable
+
+  !> @brief Update the most unstable parcel and the effective inflow layer
+  !>        with the ascent from one model level.
+  !> @param[in]     k               Starting level of the ascent
+  !> @param[in]     k_top           Highest starting level
+  !> @param[in]     cape            CAPE of the ascent (J/kg)
+  !> @param[in]     cin             CIN of the ascent (J/kg)
+  !> @param[in]     lnb_height      Height of its level of neutral buoyancy
+  !>                                (m)
+  !> @param[in]     start_height    Height of level k above sea level (m)
+  !> @param[in]     next_height     Height of level k + 1 above sea level (m)
+  !> @param[in,out] mu_cape         CAPE of the most unstable parcel (J/kg)
+  !> @param[in,out] mu_cin          CIN of the most unstable parcel (J/kg)
+  !> @param[in,out] mu_start_height Starting height of the most unstable
+  !>                                parcel (m)
+  !> @param[in,out] mu_lnb_height   Height of the most unstable parcel's level
+  !>                                of neutral buoyancy (m)
+  !> @param[in,out] inflow_base     Base of the effective inflow layer (m)
+  !> @param[in,out] inflow_top      Top of the effective inflow layer (m)
+  subroutine update_most_unstable( k, k_top, cape, cin, lnb_height,           &
+                                   start_height, next_height,                 &
+                                   mu_cape, mu_cin, mu_start_height,          &
+                                   mu_lnb_height, inflow_base, inflow_top )
+
+    implicit none
+
+    integer(kind=i_def), intent(in)    :: k, k_top
+    real(kind=r_def),    intent(in)    :: cape, cin, lnb_height
+    real(kind=r_def),    intent(in)    :: start_height, next_height
+    real(kind=r_def),    intent(inout) :: mu_cape, mu_cin
+    real(kind=r_def),    intent(inout) :: mu_start_height, mu_lnb_height
+    real(kind=r_def),    intent(inout) :: inflow_base, inflow_top
+
+    if ( cape > parcel_min_cape ) then
+      if ( cape > mu_cape ) then
+        mu_cape         = cape
+        mu_cin          = cin
+        mu_lnb_height   = lnb_height
+        mu_start_height = start_height
+      end if
+      if ( inflow_base == rmdi .and. cape > inflow_min_cape .and.             &
+           cin > inflow_min_cin ) then
+        inflow_base = start_height
+      end if
+    end if
+
+    ! The inflow layer ends at the first level whose parcel fails the inflow
+    ! test, or above the highest starting level.
+    if ( inflow_base /= rmdi .and. inflow_top == rmdi ) then
+      if ( cape <= inflow_min_cape .or. cin <= inflow_min_cin ) then
+        inflow_top = start_height
+      else if ( k == k_top ) then
+        inflow_top = next_height
+      end if
+    end if
+
+  end subroutine update_most_unstable
 
   !> @brief Lift a parcel from one pressure to the next.
   !> @details Below the lifting condensation level the parcel conserves its

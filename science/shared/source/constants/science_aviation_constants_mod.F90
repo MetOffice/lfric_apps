@@ -21,6 +21,8 @@ module science_aviation_constants_mod
       isa_temp_bot, isa_temp_top, gpm1, gpm2,                      &
       parcel_mixed_layer_depth, parcel_surface_layer_depth,        &
       parcel_min_cape, parcel_min_cin, parcel_qsat_delta_t,        &
+      parcel_screen_height, parcel_top_start_pressure,             &
+      inflow_min_cape, inflow_min_cin,                             &
       bolton_a, bolton_b, bolton_c, bolton_d
 
   ! Meters to thousands of feet.
@@ -74,6 +76,19 @@ module science_aviation_constants_mod
   ! Temperature step (K) used to estimate the rate of change of saturation
   ! mixing ratio with temperature along a saturated ascent.
   real(r_def), parameter :: parcel_qsat_delta_t = 0.2_r_def
+
+  ! Height (m) of the screen-level parcel above the surface.
+  real(r_def), parameter :: parcel_screen_height = 1.5_r_def
+
+  ! Model levels at or below this pressure (Pa), that is at or above it in
+  ! height, are not used as starting levels for the most unstable parcel.
+  real(r_def), parameter :: parcel_top_start_pressure = 50000.0_r_def
+
+  ! Minimum CAPE (J/kg) and CIN (J/kg) of a parcel for its starting level to
+  ! lie in the effective inflow layer of a convective storm, from Thompson,
+  ! Mead and Edwards (2007), Wea. Forecasting 22, 102-115.
+  real(r_def), parameter :: inflow_min_cape = 100.0_r_def
+  real(r_def), parameter :: inflow_min_cin = -250.0_r_def
 
   ! Empirical coefficients for the temperature at the lifting condensation
   ! level, from equation 21 of Bolton (1980), Mon. Wea. Rev. 108, 1046-1053:
