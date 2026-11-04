@@ -300,7 +300,7 @@ contains
                                         l_water_industry, l_water_irrigation,  &
                                         l_water_livestock, l_water_resources,  &
                                         l_water_transfers, n_sw_source,        &
-                                        nwater_use
+                                        nwater_use, sw_river_source
     use jules_water_tracers_mod,  only: l_wtrac_jls, n_wtrac_jls, n_evap_srce
 
     use crop_vars_mod,            only: crop_vars_type, crop_vars_data_type,   &
@@ -351,7 +351,8 @@ contains
                                         fluxes_nullify, fluxes_dealloc
     use jules_rivers_mod,         only: rivers_type, rivers_data_type,         &
                                         rivers_assoc, jules_rivers_alloc,      &
-                                        rivers_nullify, rivers_dealloc
+                                        rivers_nullify, rivers_dealloc,        &
+                                        l_reservoirs
     use cable_fields_mod,         only: work_vars_cbl
     use jules_chemvars_mod,       only: chemvars_type, chemvars_data_type,     &
                                         chemvars_alloc, chemvars_assoc,        &
@@ -556,12 +557,15 @@ contains
     ! Variables for dry deposition
     type(chemvars_type) :: chemvars
     type(chemvars_data_type) :: chemvars_data
+    integer(i_um) :: ndry_dep_species  ! Dummy variable for now
+
     type(water_resources_type) :: water_resources
     type(water_resources_data_type) :: water_resources_data
+    integer(i_um) :: global_land_pts  ! Unused argument for now
+    logical :: l_is_master_task       ! Unused argument for now
     type(jls_wtrac_type)       :: wtrac_jls
     type(jls_wtrac_data_type)  :: wtrac_jls_data
     type( coastal_type ) :: coast
-    integer(i_um) :: ndry_dep_species  ! Dummy variable for now
 
     !-----------------------------------------------------------------------
     ! Initialisation of JULES data and pointer types
@@ -671,8 +675,14 @@ contains
                         l_deposition, ndry_dep_species, chemvars_data)
     call chemvars_assoc(chemvars, chemvars_data)
 
-    call water_resources_alloc(land_pts, n_sw_source, nwater_use,             &
+    ! Water resources is not currently available.
+    ! Set some sensible defaults.
+    global_land_pts  = 1
+    l_is_master_task = .FALSE.
+    call water_resources_alloc(global_land_pts, land_pts, n_sw_source,        &
+                               nwater_use, sw_river_source,                   &
                                l_have_groundwater, l_have_surface_water,      &
+                               l_is_master_task, l_reservoirs,                &
                                l_water_domestic, l_water_industry,            &
                                l_water_irrigation, l_water_livestock,         &
                                l_water_resources, l_water_transfers,          &
