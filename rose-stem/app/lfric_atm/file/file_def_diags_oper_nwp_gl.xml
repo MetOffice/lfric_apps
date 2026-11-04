@@ -53,6 +53,11 @@
       <field field_ref="convection__pres_lowest_cv_base"/>
       <field field_ref="convection__pres_lowest_cv_top"/>
       <field field_ref="convection__cca_2d"/>
+      <field field_ref="convection__mixed_layer_cape"/>
+      <field field_ref="convection__mixed_layer_cin"/>
+      <field field_ref="convection__mixed_layer_equilibrium_height"/>
+      <field field_ref="convection__surface_based_cape"/>
+      <field field_ref="convection__surface_based_cin"/>
       <field field_ref="aviation__snow_probability"/>
       <field field_ref="cloud__very_low_type_cloud_amount"/>
       <field field_ref="cloud__low_type_cloud_amount"/>

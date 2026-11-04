@@ -420,6 +420,11 @@
   <field id="convection__pres_cv_top" name="pres_cv_top" long_name="pressure_at_convective_cloud_top" unit="Pa" domain_ref="face" />
   <field id="convection__conv_cloud_base_icao_height" name="convection_conv_cloud_base_icao_height" long_name="height_of_convective_cloud_base" unit="kft" domain_ref="face" />
   <field id="convection__conv_cloud_top_icao_height" name="convection_conv_cloud_top_icao_height" long_name="height_of_convective_cloud_top" unit="kft" domain_ref="face" />
+  <field id="convection__mixed_layer_cape" name="convection_mixed_layer_cape" long_name="convective_available_potential_energy_of_500m_mixed_layer_parcel" unit="J/kg" domain_ref="face" />
+  <field id="convection__mixed_layer_cin" name="convection_mixed_layer_cin" long_name="convective_inhibition_of_500m_mixed_layer_parcel" unit="J/kg" domain_ref="face" />
+  <field id="convection__mixed_layer_equilibrium_height" name="convection_mixed_layer_equilibrium_height" long_name="equilibrium_level_height_above_mean_sea_level_of_500m_mixed_layer_parcel" unit="m" domain_ref="face" />
+  <field id="convection__surface_based_cape" name="convection_surface_based_cape" long_name="convective_available_potential_energy_of_surface_parcel" unit="J/kg" domain_ref="face" />
+  <field id="convection__surface_based_cin" name="convection_surface_based_cin" long_name="convective_inhibition_of_surface_parcel" unit="J/kg" domain_ref="face" />
   <!-- microphysics diagnostics -->
   <field id="microphysics__dtheta_mphys" name="dtheta_mphys" long_name="potential_temperature_increment_due_to_microphysics" unit="K" grid_ref="full_level_face_grid" />
   <field id="microphysics__dt_mphys" name="dt_mphys" long_name="temperature_increment_due_to_microphysics" unit="K" grid_ref="full_level_face_grid" />

@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Claude Code.
+!----------------------------------------------------------------------------
 !> @brief LFRic conversions module
 !----------------------------------------------------------------------------
 
@@ -17,7 +20,7 @@ module science_conversions_mod
   public :: seconds_per_day, seconds_per_hour, seconds_per_minute, &
             hours_per_day, seconds_to_hours, hours_to_days,        &
             zero_degrees_celsius, knots_to_metre_per_second,       &
-            feet_to_metres
+            feet_to_metres, pascals_to_hectopascals
 
   !> @name Time conversions (Conversion factors)
   !> @{
@@ -37,5 +40,8 @@ module science_conversions_mod
                                                         seconds_per_hour
   ! Feet to metres (Conversion factor)
   real(r_def), parameter :: feet_to_metres = 0.3048_r_def
+
+  ! Pascals to hectopascals (Conversion factor)
+  real(r_def), parameter :: pascals_to_hectopascals = 0.01_r_def
 
 end module science_conversions_mod
