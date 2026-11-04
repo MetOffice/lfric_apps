@@ -17,7 +17,8 @@ module update_ancils_alg_mod
   use section_choice_config_mod,   only: surface, surface_jules
   use process_ssi_kernel_mod,      only: process_ssi_kernel_type
   use log_mod,                     only: LOG_LEVEL_INFO
-  use jules_control_init_mod,      only: first_sea_tile, n_sea_tile
+  use jules_control_init_mod,      only: first_sea_tile, n_sea_tile, &
+                                         sea_ice_ancil_file_owned
   use sci_multi_insert_kernel_mod, only: multi_insert_kernel_type
   use lfric_xios_time_axis_mod,    only: time_axis_type
   use linked_list_mod,             only: linked_list_type, &
@@ -82,6 +83,18 @@ contains
 
       twod_mesh => sea_ice_thickness%get_mesh()
       latitude  => get_latitude_fv(config, twod_mesh, W3)
+
+      ! The file object updates sea_ice_fraction but cannot derive the tile
+      ! fractions from it, so do that every timestep (the legacy time axis
+      ! does it whenever it populates, which is daily). The kernel recomputes
+      ! the tile fractions from the ice fraction and the land fractions.
+      if ( sea_ice_ancil_file_owned() ) then
+        call invoke(process_ssi_kernel_type( sea_ice_fraction,        &
+                                             sea_ice_thickness,       &
+                                             tile_fraction, latitude, &
+                                             amip_ice_thick,          &
+                                             l_couple_sea_ice))
+      end if
 
       ! Start at the head of the time_axis linked list
       loop => time_axis_list%get_head()

@@ -28,7 +28,9 @@ module init_ancils_mod
   use pure_abstract_field_mod,        only : pure_abstract_field_type
   use lfric_xios_time_axis_mod,       only : time_axis_type
   use jules_control_init_mod,         only : n_land_tile, n_sea_ice_tile, &
-                                             pft_ancil_file_owned
+                                             pft_ancil_file_owned,        &
+                                             sea_ice_ancil_file_owned,    &
+                                             sea_ice_thickness_file_owned
   use jules_physics_init_mod,         only : snow_lev_tile
   use jules_surface_types_mod,        only : npft
   use dust_parameters_mod,            only : ndiv
@@ -106,6 +108,7 @@ module init_ancils_mod
               chloro_sea_ancil_names,     &
               ozone_ancil_names,          &
               ozone_file_owned,           &
+              sea_ice_ancil_names,        &
               pft_ancil_names,            &
               easy_aerosol_names,         &
               easy_aerosol_collection_name
@@ -149,6 +152,12 @@ module init_ancils_mod
   character(len=str_def), parameter :: ozone_ancil_names(2,1) = reshape( &
     [ character(len=str_def) :: "ozone", "mass_fraction_of_ozone_in_air" ], &
     [2,1] )
+
+  ! Pairs of (model field name, variable name in the sea ice file)
+  character(len=str_def), parameter :: sea_ice_ancil_names(2,2) = reshape( &
+    [ character(len=str_def) ::                                            &
+      "sea_ice_fraction",  "sea_ice_area_fraction",                        &
+      "sea_ice_thickness", "sea_ice_thickness" ], [2,2] )
 
   ! Names of the plant functional type fields. Their file variables have the
   ! same names as the fields, so no mapping is needed.
@@ -310,7 +319,18 @@ contains
     end if
 
     !=====  SEA ICE ANCILS  =====
-    if (sea_ice_source /= sea_ice_source_start_dump) then
+    if ( sea_ice_ancil_file_owned() ) then
+      ! Read and updated by the file object. The tile fractions derived from
+      ! the ice fraction are updated by update_ancils_alg.
+      if ( sea_ice_thickness_file_owned() ) then
+        call setup_ancil_field("sea_ice_thickness", depository, ancil_fields, &
+                  mesh, twod_mesh, twod=.true., ndata=n_sea_ice_tile,         &
+                  read_by_file=.true.)
+      end if
+      call setup_ancil_field("sea_ice_fraction", depository, ancil_fields, &
+                mesh, twod_mesh, twod=.true., ndata=n_sea_ice_tile,        &
+                read_by_file=.true.)
+    else if (sea_ice_source /= sea_ice_source_start_dump) then
       if (sea_ice_source == sea_ice_source_surf) then
         call sea_ice_time_axis%initialise("sea_ice_time", file_id="sea_ice_ancil", &
                                         interp_flag=.false., pop_freq="daily", &
@@ -1015,6 +1035,18 @@ contains
       collection => modeldb%fields%get_field_collection("albedo_nir_ancil_fields")
       call create_file_owned_field( albedo_nir_ancil_names(1,1), depository, &
                                     collection, mesh, twod_mesh, twod=.true. )
+    end if
+
+    if ( sea_ice_ancil_file_owned() ) then
+      collection => modeldb%fields%get_field_collection("sea_ice_ancil_fields")
+      call create_file_owned_field( "sea_ice_fraction", depository,    &
+                                    collection, mesh, twod_mesh,       &
+                                    twod=.true., ndata=n_sea_ice_tile )
+      if ( sea_ice_thickness_file_owned() ) then
+        call create_file_owned_field( "sea_ice_thickness", depository, &
+                                      collection, mesh, twod_mesh,     &
+                                      twod=.true., ndata=n_sea_ice_tile )
+      end if
     end if
 
     if ( ozone_file_owned() ) then

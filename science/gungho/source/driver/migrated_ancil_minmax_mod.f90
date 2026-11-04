@@ -60,9 +60,11 @@ module migrated_ancil_minmax_mod
     [ character(len=str_def) :: "chloro_sea" ]
 
   ! Always logged. The plant functional type fields are included whether or
-  ! not their migration is switched on.
-  character(len=str_def), parameter :: always_names(3) =                    &
-    [ character(len=str_def) :: "ozone", "canopy_height", "leaf_area_index" ]
+  ! not their migration is switched on. The sea ice fields and tile_fraction
+  ! (derived from the sea ice fraction) are only logged where they exist.
+  character(len=str_def), parameter :: always_names(6) =                    &
+    [ character(len=str_def) :: "ozone", "canopy_height", "leaf_area_index", &
+      "sea_ice_fraction", "sea_ice_thickness", "tile_fraction" ]
 
 contains
 

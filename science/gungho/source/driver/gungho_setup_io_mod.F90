@@ -26,8 +26,10 @@ module gungho_setup_io_mod
                                        chloro_sea_ancil_names, &
                                        ozone_ancil_names,      &
                                        ozone_file_owned,       &
+                                       sea_ice_ancil_names,    &
                                        easy_aerosol_collection_name
-  use jules_control_init_mod,    only: pft_ancil_file_owned
+  use jules_control_init_mod,    only: pft_ancil_file_owned, &
+                                       sea_ice_ancil_file_owned
   use lfric_xios_write_mod,      only: create_checkpoint_list
   use linked_list_mod,           only: linked_list_type
   use log_mod,                   only: log_event, log_level_error, &
@@ -231,6 +233,7 @@ module gungho_setup_io_mod
     type(field_collection_type), pointer :: plant_func_ancil_fields
     type(field_collection_type), pointer :: sea_ancil_fields
     type(field_collection_type), pointer :: ozone_ancil_fields
+    type(field_collection_type), pointer :: sea_ice_ancil_fields
 
     integer(i_def)                  :: theta_forcing
     integer(i_def)                  :: wind_forcing
@@ -240,7 +243,7 @@ module gungho_setup_io_mod
     nullify(aerosol_ancil_fields, albedo_vis_ancil_fields, &
             albedo_nir_ancil_fields, cdnc_ancil_fields,    &
             plant_func_ancil_fields, sea_ancil_fields,     &
-            ozone_ancil_fields)
+            ozone_ancil_fields, sea_ice_ancil_fields)
     if (ancil_option == ancil_option_updating) then
       if (.not. present(modeldb)) then
         call log_event("init_gungho_files requires modeldb in updating ancillary mode", &
@@ -266,6 +269,9 @@ module gungho_setup_io_mod
       end if
       if ( ozone_file_owned() ) then
         ozone_ancil_fields => get_required_collection(modeldb, "ozone_ancil_fields")
+      end if
+      if ( sea_ice_ancil_file_owned() ) then
+        sea_ice_ancil_fields => get_required_collection(modeldb, "sea_ice_ancil_fields")
       end if
     end if
 
@@ -441,9 +447,20 @@ module gungho_setup_io_mod
             write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                     trim(sea_ice_ancil_path)
           end if
-          call files_list%insert_item( lfric_xios_file_type( ancil_fname,      &
+          if ( sea_ice_ancil_file_owned() ) then
+            call files_list%insert_item( lfric_xios_file_type( ancil_fname,      &
+                                                         xios_id="sea_ice_ancil", &
+                                                         io_mode=FILE_MODE_READ, &
+                                                         operation=OPERATION_TIMESERIES, &
+                                                         cyclic=.true., &
+                                                         update_freq=1*lx_day, &
+                                                         file_variable_names=sea_ice_ancil_names, &
+                                                         fields_in_file=sea_ice_ancil_fields ) )
+          else
+            call files_list%insert_item( lfric_xios_file_type( ancil_fname,      &
                                                          xios_id="sea_ice_ancil", &
                                                          io_mode=FILE_MODE_READ ) )
+          end if
         end if
 
       end if

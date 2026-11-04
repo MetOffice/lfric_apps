@@ -18,6 +18,7 @@ module init_surface_fields_alg_mod
                                        ancil_option, ancil_option_none,   &
                                        ancil_option_updating
   use jules_radiation_config_mod, only: l_sea_alb_var_chl
+  use jules_control_init_mod,    only: sea_ice_thickness_file_owned
   use specified_surface_config_mod, only: internal_flux_method, &
                                        internal_flux_method_uniform, &
                                        internal_flux_value, &
@@ -137,9 +138,13 @@ contains
       call invoke( setval_c(chloro_sea, 5.0e-7_r_def) )
     end if
 
+    ! The sea ice thickness is set by the ancillary file object when it reads it
+    if ( .not. sea_ice_thickness_file_owned() ) then
+      call invoke( setval_c(sea_ice_thickness, 1.0_r_def) )
+    end if
+
     call invoke(                                                              &
                  ! Need initialising for aquaplanet
-                 setval_c(sea_ice_thickness,   1.0_r_def),                    &
                  setval_c(sea_ice_temperature, 260.0_r_def),                  &
                  ! Diagnostics
                  setval_c(tau_ssi_w2,          0.0_r_def),                    &
