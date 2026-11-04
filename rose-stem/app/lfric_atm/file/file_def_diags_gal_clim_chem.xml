@@ -62,6 +62,7 @@
       <field field_ref="chemistry__h2so4" />
       <field field_ref="chemistry__monoterpene" />
       <field field_ref="chemistry__secondary_organic" />
+      <field field_ref="chemistry__o3_column_du" />
       <field field_ref="aerosol__n_nuc_sol" />
       <field field_ref="aerosol__n_ait_sol" />
       <field field_ref="aerosol__n_acc_sol" />
@@ -91,6 +92,7 @@
       <field field_ref="processed__total_snow"/>
       <field field_ref="processed__total_prec"/>
       <field field_ref="processed__total_prec_acc"/>
+      <field field_ref="processed__trop_level"/>
       <field field_ref="microphysics__ls_rain"/>
       <field field_ref="microphysics__ls_snow"/>
       <field field_ref="microphysics__ls_prec"/>
@@ -174,6 +176,7 @@
     <!-- Chem fields only available on the hour -->
     <field_group operation="average" freq_op="1h" >
       <field field_ref="chemistry__o1d"/>
+      <field field_ref="chemistry__rxnflux_oh_ch4_trop" />
       <field field_ref="chemistry__photol_rate_jo1d"/>
       <field field_ref="chemistry__photol_rate_jno2"/>
     </field_group>
