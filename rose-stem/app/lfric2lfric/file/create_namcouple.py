@@ -8,17 +8,35 @@
 
 """
 Create the namcouple file that is used by the Oasis coupler in LFric2LFRic.
-The details of the entries are taken from the iodef file and the axis_map.
+The details of the entries are taken from the iodef file. The iodef file is
+defined in the global variables, along with the weights files and multidata
+axis sizes.
 """
 
 import xml.etree.ElementTree as ET
 
+# ---------------------------------------------------------------
+# Global variables - these can be edited for different configurations
+# ---------------------------------------------------------------
+
+# Name of the namcouple file (output)
 NAMCOUPLE_FILE = "namcouple"
+
+# Name of the iodef file (input)
 IODEF_FILE = "iodef_FULL_DUMP_CF.xml"
+
+# Prefix name for the output fields in the iodef file
 PREFIX_OUT = "checkpoint"
+
+# Prefix name for the input fields in the iodef file
 PREFIX_IN = "restart"
+
+# Arbitrary large number governing the frequency of the coupling
+# for the special fields
 MAX_FREQ = 5000
 
+# Dictionary for the multidata axes, with the associated number of
+# multidata levels, and the associated weights file.
 AXIS_MAP = {
     # Fields on land/sea are masked
     "surface_tiles":         [11, "weight_file_masked.nc"],
@@ -34,6 +52,9 @@ AXIS_MAP = {
     "general":               [1, "weight_file.nc"],
 }
 
+# Dictionary for special fields, with the associated number of
+# multidata levels, and the associated weights file. These values
+# overide the values in the AXIS_MAP.
 SPECIAL_FIELDS = {
     # Snow fields on land use nearest neighbour AND are masked
     "tile_snow_mass":       [11, "weight_file_nn_masked.nc"],
@@ -50,63 +71,72 @@ SPECIAL_FIELDS = {
     "snow_soot":            [1, "weight_file_masked.nc"],
 }
 
-def write_string(f, count, src, dst, freq, weightfile):
+# ---------------------------------------------------------------
+# Functions
+# ---------------------------------------------------------------
+
+def write_string(namcouple, count, src, dst, freq, weightfile):
     """
     Write the individual mapping entry information for variable being mapped
     from src to dst, with frequency freq and using the specified weightfile.
     """
-    f.write("# Mapping entry %s \n" % (count))
-    f.write("%s %s 1 %s 1 lfric2lfric_restart_oa.nc EXPORTED \n" % (src, dst, freq))
-    f.write("512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 \n")
-    f.write("R 0 R 0 \n")
-    f.write("MAPPING \n")
-    f.write("%s \n" % (weightfile))
-    f.write("########################################################## \n")
+    namcouple.write(f"# Mapping entry {count} \n")
+    namcouple.write(f"{src} {dst} 1 {freq} 1 "
+                    "lfric2lfric_restart_oa.nc EXPORTED \n")
+    namcouple.write("512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 \n")
+    namcouple.write("R 0 R 0 \n")
+    namcouple.write("MAPPING \n")
+    namcouple.write(f"{weightfile} \n")
+    namcouple.write("############################################ \n")
 
 
-def write_header(f, count):
+def write_header(namcouple, count):
     """
-    Write out the initial part of the namcouple file. This includes $NFIELDS (specified
-    by count).
+    Write out the initial part of the namcouple file. This includes
+    $NFIELDS (specified by count).
     """
-    f.write("# Control file for OASIS3-MCT \n")
-    f.write("# Oasis reads this file at run-time \n")
-    f.write("# \n")
-    f.write("# This file was generated automatically by create_namcouple.py \n")
-    f.write("# \n")
-    f.write("########################################################## \n")
-    f.write("# Total number of fields being exchanged = number MAPPING entries below \n")
-    f.write(" $NFIELDS \n")
-    f.write(" %s \n" % (count))
-    f.write(" $END \n")
-    f.write("########################################################## \n")
-    f.write(" $RUNTIME \n")
-    f.write("# This gives you the total simulated time for this run in seconds \n")
-    f.write(" 50000 \n")
-    f.write(" $END \n")
-    f.write("########################################################## \n")
-    f.write(" $NLOGPRT \n")
-    f.write("# Debugging output level: 0 -> 30 \n")
-    f.write("# Timer activation level: 0 -> 3  \n")
-    f.write(" 0 0 \n")
-    f.write(" $END \n")
-    f.write("########################################################## \n")
-    f.write(" $STRINGS \n")
-    f.write("# Definitions of the particular fields being exchanged \n")
-    f.write("# \n")
-    f.write("########################################################## \n")
+    namcouple.write("# Control file for OASIS3-MCT \n")
+    namcouple.write("# Oasis reads this file at run-time \n")
+    namcouple.write("# \n")
+    namcouple.write("# This file was generated automatically by "
+                    "create_namcouple.py \n")
+    namcouple.write("# \n")
+    namcouple.write("############################################# \n")
+    namcouple.write("# Total number of fields being exchanged = "
+                    "number MAPPING entries below \n")
+    namcouple.write(" $NFIELDS \n")
+    namcouple.write(f"{count} \n")
+    namcouple.write(" $END \n")
+    namcouple.write("############################################# \n")
+    namcouple.write(" $RUNTIME \n")
+    namcouple.write("# This gives you the total simulated time for "
+                    "this run in seconds \n")
+    namcouple.write(" 50000 \n")
+    namcouple.write(" $END \n")
+    namcouple.write("############################################# \n")
+    namcouple.write(" $NLOGPRT \n")
+    namcouple.write("# Debugging output level: 0 -> 30 \n")
+    namcouple.write("# Timer activation level: 0 -> 3  \n")
+    namcouple.write(" 0 0 \n")
+    namcouple.write(" $END \n")
+    namcouple.write("############################################# \n")
+    namcouple.write(" $STRINGS \n")
+    namcouple.write("# Definitions of the particular fields being "
+                    "exchanged \n")
+    namcouple.write("# \n")
+    namcouple.write("############################################# \n")
 
 
-def write_footer(f):
+def write_footer(namcouple):
     """
-    Write out the last part of the namcouple file. This is required to close the $STRINGS
-    that was opened in write_header.
+    Write out the last part of the namcouple file. This is required to
+    close the $STRINGS that was opened in write_header.
     """
-    f.write("$END \n")
-    f.write("########################################################## \n")
+    namcouple.write("$END \n")
+    namcouple.write("############################################# \n")
 
 
-def process_special_field(f, field, count):
+def process_twod_fields(namcouple, field, count):
     """
     For given special field, determine the field name and axis.
     If this is a special field (a 2D field) then
@@ -116,27 +146,32 @@ def process_special_field(f, field, count):
     var = field.get("id")
     domain = field.get("domain_ref")
     axis = field.get("axis_ref")
-    write_var = var.replace(PREFIX_OUT, '')
-    
+    input_var = var.replace(PREFIX_OUT + '_', '')
+
+    # 2D fields have domain = face
     if domain == "face":
+        # Get the associated multidata levels and weightfile
+        # from the axis
         if axis is None:
             axis = 'general'
         try:
             axis_data = AXIS_MAP[axis]
-        except KeyError:
-            raise ValueError(axis + " is not in AXIS_MAP")
+        except KeyError as exc:
+            raise ValueError(axis + " is not in AXIS_MAP") from exc
 
-        input_var = var.replace(PREFIX_OUT + '_', '')
-        if input_var in SPECIAL_FIELDS:
-            axis_data = SPECIAL_FIELDS[input_var]
-        
+        # Override the associated multidata levels and weightfile
+        # if a special field
+        axis_data = SPECIAL_FIELDS.get(input_var, axis_data)
+
         # axis_data[0] gives the number of levels in the multidata axis
         # axis_data[1] gives the name of the associated weights file
-        for n in range(1, axis_data[0]+1):
-            src = "src" + write_var + "_level_" + str(n)
-            dst = "dst" + write_var + "_level_" + str(n)
+        for axis_level in range(1, axis_data[0]+1):
+            src = "src_" + input_var + "_level_" + str(axis_level)
+            dst = "dst_" + input_var + "_level_" + str(axis_level)
             count += 1
-            write_string(f, count, src, dst, MAX_FREQ, axis_data[1])
+
+            # Write out the entry to the namcouple
+            write_string(namcouple, count, src, dst, MAX_FREQ, axis_data[1])
     return count
 
 
@@ -147,20 +182,19 @@ def which_fields(root, field_list):
     """
     for field in root.iter("field"):
         output_var = field.get("id")
+
         if output_var.startswith(PREFIX_OUT):
             input_var = output_var.replace(PREFIX_OUT, PREFIX_IN)
+
             if root.findall('.//field[@id="' + input_var + '"]'):
-                print(output_var + 'in output and ' + input_var + ' in input')
                 field_list.append(field)
-            else:
-                print(output_var + 'in output but ' + input_var + 'not in input')
     return field_list
 
 
-def count_special_fields(field_list):
+def count_twod_fields(field_list):
     """
-    Count the total number of multidata fields. This includes counting
-    the number of levels.
+    Count the total number of 2D fields. This includes counting
+    the number of levels for multidata fields.
     """
     count = 0
     for field in field_list:
@@ -171,62 +205,70 @@ def count_special_fields(field_list):
                 axis = 'general'
             try:
                 axis_data = AXIS_MAP[axis]
-            except KeyError:
-                raise ValueError(axis + " is not in AXIS_MAP")
+            except KeyError as exc:
+                raise ValueError(axis + " is not in AXIS_MAP") from exc
             count = count + axis_data[0]
-    print('Number of multidata fields (with an axis) is ', count)
+    print('Total number of special entries in the namcouple is ', count)
     return count
 
 
 def main():
     """
-    Use the iodef file to create a namcouple file. The namcouple file is used by Oasis
-    in LFRic2LFRic.
-    All non-multidata fields use the 'general' weights file for regridding and reuse the
-    same namcouple entry.
-    All multidata fields use the specific weights file associated with that axis, and there
-    is a separate namcouple entry for each field AND level.
-    In lfric2lfric, the multidata fields are all read at the same pseudo time, whilst the
-    non-multidata fields (on all levels) are read at successive pseduo times. This is
-    implemented here by using a frequency of 1 for the non-multidata fields, and a MAX_FREQ
-    for the multidata fields.
-    Note: If there are any non-multidata fields that require a different weights file to the
-    general file, this code will need to be modified to add an exception list.
+    Use the iodef file to create a namcouple file. The namcouple file
+    is used by Oasis in LFRic2LFRic.
+
+    All 3D fields use the 'general' weights file for regridding and
+    reuse the same namcouple entry.
+    All 2D fields use the specific weights file associated with that
+    field or multidata axis, and there is a separate namcouple entry
+    for each field AND multidata-level.
+
+    In lfric2lfric, the 2D fields are all interpolated at the same
+    pseudo time, whilst the 3D fields are interpolated at successive
+    pseudo times. This is implemented here by using a frequency of 1
+    for the 3D fields, and a MAX_FREQ for the 2D fields.
     """
     tree = ET.parse(IODEF_FILE)
     root = tree.getroot()
 
-    with open(NAMCOUPLE_FILE, "w", encoding="utf-8") as f:
+    with open(NAMCOUPLE_FILE, "w", encoding="utf-8") as namcouple:
 
-        # Determine which fields will be regridded (exist in output and input)
-        field_list=[]
+        # Determine which fields will be regridded
+        field_list = []
         field_list = which_fields(root, field_list)
 
-        # Count the number of special (single-level/multidata) fields to be regridded
-        total_count = count_special_fields(field_list)
-        
-        # Add 1 to the count (field for general regridding)
+        # The total number of entries needs to be written in the
+        # namcouple header. So first count the fields that need a
+        # separate entry in the namcouple
+
+        # Count the number of 2D fields (with separate multidata levels)
+        # to be regridded
+        total_count = count_twod_fields(field_list)
+
+        # Add 1 to the count (entry for 3D fields)
         total_count = total_count + 1
 
-        # Write the header, including the total count of fields
-        write_header(f, total_count)
+        # Write the header, including the total count of entries
+        write_header(namcouple, total_count)
 
-        # Write the string for the general regridding (Entry 1)
+        # Write the string for the 3D fields (Entry 1)
         # using frequency of 1, and weight_file defined in AXIS_MAP.
         count = 1
         frequency = 1
+        axis = 'general'
         try:
-            axis_data = AXIS_MAP['general']
-        except KeyError:
-            raise ValueError(axis + " is not in AXIS_MAP")
-        write_string(f, count, "src_face", "dst_face", frequency, axis_data[1])
+            axis_data = AXIS_MAP[axis]
+        except KeyError as exc:
+            raise ValueError(axis + " is not in AXIS_MAP") from exc
+        write_string(namcouple, count, "src_face", "dst_face",
+                     frequency, axis_data[1])
 
         # Write the strings for the special fields (Entries 2 to total_count)
         for field in field_list:
-            count = process_special_field(f, field, count)
+            count = process_twod_fields(namcouple, field, count)
 
         # Write the footer of the file
-        write_footer(f)
+        write_footer(namcouple)
 
 
 if __name__ == "__main__":

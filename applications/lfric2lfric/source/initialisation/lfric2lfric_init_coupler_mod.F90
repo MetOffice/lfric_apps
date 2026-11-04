@@ -4,7 +4,7 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 
-!> @brief Initialisation functionality for the coupled miniapp
+!> @brief Initialisation functionality for the oasis coupling
 
 !> @details Uses the coupler object to initialise the coupling
 !>          partitions and variables
@@ -30,12 +30,18 @@ module lfric2lfric_init_coupler_mod
 
   implicit none
 
+  public :: lfric2lfric_init_coupler_src, &
+            lfric2lfric_init_coupler_dst, &
+            lfric2lfric_end_coupler_init, &
+            parse_namcouple
+
   contains
 
 #ifdef MCT
   !> @details Initialises coupling partitions and variables for the
   !>          source fields
-  !> @param[in]     coupler Name of the coupling component
+  !> @param[in]     name_cpl_list   List of field names to be coupled
+  !> @param[in]     coupler         Name of the coupling component
   !> @param[in]     element_order_h The polynomial order of the set of
   !>                                compatible finite element in the
   !>                                horizontal
@@ -49,12 +55,12 @@ module lfric2lfric_init_coupler_mod
 
     implicit none
 
-    character(*),             intent(in)     :: coupler
-    integer(i_def),           intent(in)     :: element_order_h
-    integer(i_def),           intent(in)     :: element_order_v
-    type(mesh_type), pointer, intent(in)     :: mesh
-    type(modeldb_type),       intent(inout)  :: modeldb
-    character(len=str_def), allocatable, intent(inout) :: name_cpl_list(:)
+    character(len=str_def), allocatable, intent(in)    :: name_cpl_list(:)
+    character(*),                        intent(in)    :: coupler
+    integer(i_def),                      intent(in)    :: element_order_h
+    integer(i_def),                      intent(in)    :: element_order_v
+    type(mesh_type), pointer,            intent(in)    :: mesh
+    type(modeldb_type),                  intent(inout) :: modeldb
     
     ! Coupling fields
     type(field_collection_type), pointer :: cpl_snd_2d => null()
@@ -71,7 +77,6 @@ module lfric2lfric_init_coupler_mod
 
     integer :: i
 
-    print*, name_cpl_list
     ! Set up collections to hold 2d coupling fields
     if (.not. modeldb%fields%field_collection_exists( "cpl_snd_2d"))  &
       call modeldb%fields%add_empty_field_collection("cpl_snd_2d" ,  &
@@ -122,10 +127,10 @@ module lfric2lfric_init_coupler_mod
      
   end subroutine lfric2lfric_init_coupler_src
 
-
   !> @details Initialises coupling partitions and variables for the
   !>          destination fields
-  !> @param[in]     coupler Name of the coupling component
+  !> @param[in]     name_cpl_list   List of field names to be coupled
+  !> @param[in]     coupler         Name of the coupling component
   !> @param[in]     element_order_h The polynomial order of the set of
   !>                                compatible finite element in the
   !>                                horizontal
@@ -134,17 +139,18 @@ module lfric2lfric_init_coupler_mod
   !>                                vertical
   !> @param[in]     mesh Representation of the mesh the code will run on
   !> @param[in,out] modeldb The structure that holds model state 
-  subroutine lfric2lfric_init_coupler_dst(name_cpl_list, coupler, element_order_h,    &
+  subroutine lfric2lfric_init_coupler_dst(name_cpl_list, coupler, element_order_h, &
                                           element_order_v, mesh, modeldb)
 
     implicit none
- 
-    character(*),             intent(in)     :: coupler
-    integer(i_def),           intent(in)     :: element_order_h
-    integer(i_def),           intent(in)     :: element_order_v
-    type(mesh_type), pointer, intent(in)     :: mesh
-    type(modeldb_type),       intent(inout)  :: modeldb
-    character(len=str_def), allocatable, intent(inout) :: name_cpl_list(:)
+
+    character(len=str_def), allocatable, intent(in)    :: name_cpl_list(:)
+    character(*),                        intent(in)    :: coupler
+    integer(i_def),                      intent(in)    :: element_order_h
+    integer(i_def),                      intent(in)    :: element_order_v
+    type(mesh_type), pointer,            intent(in)    :: mesh
+    type(modeldb_type),                  intent(inout) :: modeldb
+
     
     ! Coupling fields
     type(field_collection_type), pointer :: cpl_snd_2d => null()
@@ -209,7 +215,6 @@ module lfric2lfric_init_coupler_mod
                                         cpl_rcv_2d, &
                                         cpl_snd_0d )
  
-
   end subroutine lfric2lfric_init_coupler_dst
 
   !> @details Ends the model coupling definition
@@ -243,11 +248,19 @@ module lfric2lfric_init_coupler_mod
 
   end subroutine lfric2lfric_end_coupler_init
 
-   subroutine parse_namcouple(src_name_cpl_list, dst_name_cpl_list)
+  !> @brief   Populate src_name_cpl_list and dst_name_cpl_list
+  !> @details Create the lists of fields to be initialised by the oasis
+  !!          coupler, by reading from the namcouple file.
+  !> @param[inout] src_name_cpl_list List of source fields to be initialised
+  !> @param[inout] dst_name_cpl_list List of destination fields to be
+  !!               initialised
+  subroutine parse_namcouple(src_name_cpl_list, dst_name_cpl_list)
 
-  implicit none
+    implicit none
 
-   type :: coupling_field
+    type :: coupling_field
+      ! Coupling field matches the format of the entry in the namcouple
+      ! e.g. {src} {dst} 1 {freq} 1 lfric2lfric_restart_oa.nc EXPORTED
       character(len=str_def) :: src_name
       character(len=str_def) :: dst_name
       integer                :: int1
@@ -255,57 +268,111 @@ module lfric2lfric_init_coupler_mod
       integer                :: int2
       character(str_def)     :: file
       character(str_def)     :: exported
-  end type coupling_field
-  type(coupling_field), allocatable :: fields(:)
-  integer :: unit, ios, nfields
-  character(len=str_def) :: line
-  character(len=str_def), allocatable, intent(inout) :: src_name_cpl_list(:)
-  character(len=str_def), allocatable, intent(inout) :: dst_name_cpl_list(:)
+    end type coupling_field
 
-  nfields = 0
+    type(coupling_field), allocatable :: fields(:)
+    integer :: unit, ios, total_fields, nfields
+    character(len=str_def) :: line
+    character(len=str_def), allocatable, intent(inout) :: src_name_cpl_list(:)
+    character(len=str_def), allocatable, intent(inout) :: dst_name_cpl_list(:)
 
-  open(newunit=unit,file='namcouple',status='old')
+    ! Open the namcouple file (that already exists)
+    open(newunit=unit, file='namcouple', status='old', iostat=ios)
 
-  do
-    read(unit,'(A)',iostat=ios) line
-    if (ios /= 0) exit
+    ! Error message if unable to open
+    if (ios /= 0) then
+      write( log_scratch_space, '(A,I3)' ) &
+        'lfric2lfric_parse_namcouple: Could not open namcouple file, iostat=', ios
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
 
-    if (index(line,'EXPORTED') > 0) then
-      nfields = nfields +1
-    endif
-  enddo
+    ! Find the number of entries from the namcouple
+    ! This is the line below $NFIELDS
+    do
+      read(unit,'(A)',iostat=ios) line
 
-  print*,nfields
-  allocate(fields(nfields))
-  allocate(src_name_cpl_list(nfields))
-  allocate(dst_name_cpl_list(nfields))
+      ! Error message if end of file found before $NFIELDS
+      if (ios /= 0) then
+        write( log_scratch_space, '(A)' ) &
+        'lfric2lfric_parse_namcouple: $NFIELDS not found in namcouple file'
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      end if
 
-  nfields = 0
-  rewind(unit)
-  do
-    read(unit,'(A)',iostat=ios) line
-    if (ios /= 0) exit
+      ! Read nfields
+      if (trim(adjust(line)) == '$NFIELDS') then
+        read(unit, *, iostat=ios) total_fields
 
-    if (index(line,'EXPORTED') > 0) then
-      nfields = nfields + 1
-      print*, nfields
-      print*, line
-      read(line,*) fields(nfields)%src_name, &
-                   fields(nfields)%dst_name, &
-                   fields(nfields)%int1,     &
-                   fields(nfields)%freq,     &
-                   fields(nfields)%int2,     &
-                   fields(nfields)%file,     &
-                   fields(nfields)%exported
+        ! Error message if unable to read
+        if (ios /= 0) then
+          write( log_scratch_space, '(A)' ) &
+          'lfric2lfric_parse_namcouple: not able to read $NFIELDS from namcouple'
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
+       
+        exit
+      endif
 
-      src_name_cpl_list(nfields) = trim(fields(nfields)%src_name)
-      dst_name_cpl_list(nfields) = trim(fields(nfields)%dst_name)
-    endif
-  enddo
+    enddo
 
-  close(unit)
+    ! Allocate the array sizes to be total_fields
+    allocate(fields(total_fields))
+    allocate(src_name_cpl_list(total_fields))
+    allocate(dst_name_cpl_list(total_fields))
+
+    ! Read the entries in the namcouple (denoted by 'EXPORTED') and
+    ! populate src_name_cpl_list and dst_name_cpl_list
+    rewind(unit)
+    nfields = 0
+    do
+      read(unit,'(A)',iostat=ios) line
+      if (ios /= 0) exit
+
+      if (index(line,'EXPORTED') > 0) then
+        nfields = nfields + 1
+
+        ! Error message if the number of entries read is greater than the total_fields
+        if (nfields > total_fields) then
+           write( log_scratch_space, '(A,I3,A,I3)' ) &
+           'lfric2lfric_parse_namcouple: actual number of entries read from namcouple', &
+           nfields, 'greater than the expected number of entries ', &
+           total_fields
+           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
+
+        ! Read the entry into the coupling_field type
+        read(line, *, iostat=ios) fields(nfields)%src_name, &
+                                  fields(nfields)%dst_name, &
+                                  fields(nfields)%int1,     &
+                                  fields(nfields)%freq,     &
+                                  fields(nfields)%int2,     &
+                                  fields(nfields)%file,     &
+                                  fields(nfields)%exported
+        ! Error message if unable to read entry
+        if (ios /= 0) then
+          write( log_scratch_space, '(A, I3)' ) &
+          'lfric2lfric_parse_namcouple: Not able to read namcouple entry number', nfield
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
+
+        ! populate the lists with the src_name and dst_name
+        src_name_cpl_list(nfields) = trim(fields(nfields)%src_name)
+        dst_name_cpl_list(nfields) = trim(fields(nfields)%dst_name)
+      endif
+    enddo
+
+    close(unit)
+
+    ! Error message if the number of entries read is different to total_fields
+    if (nfields /= total_fields) then
+      write( log_scratch_space, '(A,I3,A,I3)' ) &
+           'lfric2lfric_parse_namcouple: actual number of entries read from namcouple', &
+           nfields, 'not equal to the expected number of entries ', &
+           total_fields
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
   
   end subroutine parse_namcouple
+
 #else
   subroutine lfric2lfric_init_coupler_src(name_cpl_list, coupler, element_order_h, &
                                           element_order_v, mesh, modeldb)
@@ -359,8 +426,19 @@ module lfric2lfric_init_coupler_mod
 
   end subroutine lfric2lfric_end_coupler_init
 
-  
- 
+  subroutine parse_namcouple(src_name_cpl_list, dst_name_cpl_list)
+    
+    implicit none
+
+    character(len=str_def), allocatable, intent(inout) :: src_name_cpl_list(:)
+    character(len=str_def), allocatable, intent(inout) :: dst_name_cpl_list(:)
+
+    write(log_scratch_space, '(A)' ) &
+        "lfric2lfric_parse_namcouple: to use OASIS, " // &
+        "cpp directive MCT must be set"
+    call log_event( log_scratch_space, log_level_error )
+    
+  end subroutine parse_namcouple
 
 #endif
 

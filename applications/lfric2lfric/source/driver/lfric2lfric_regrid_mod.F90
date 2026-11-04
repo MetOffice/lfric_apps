@@ -40,8 +40,8 @@ module lfric2lfric_regrid_mod
                                             regrid_method_oasis
   use lfric2lfric_map_regrid_mod,     only: lfric2lfric_map_regrid
   use lfric2lfric_no_regrid_mod,      only: lfric2lfric_no_regrid
-  use lfric2lfric_oasis_regrid_mod,   only: lfric2lfric_oasis_regrid_general, &
-                                            lfric2lfric_oasis_regrid_multidata
+  use lfric2lfric_oasis_regrid_mod,   only: lfric2lfric_oasis_regrid_three_d, &
+                                            lfric2lfric_oasis_regrid_two_d
 
   implicit none
 
@@ -233,7 +233,7 @@ contains
                                              trim(field_name)
             call log_event(log_scratch_space, log_level_info)
 
-            call lfric2lfric_oasis_regrid_multidata(modeldb, oasis_clock, &
+            call lfric2lfric_oasis_regrid_two_d(modeldb, oasis_clock, &
                  field_dst, field_src)
             
           else
@@ -281,11 +281,11 @@ contains
               call interp_w2_to_w3wth_alg(field_src, u_in_w3_src,   &
                                           v_in_w3_src, w_in_wth_src)
 
-              call lfric2lfric_oasis_regrid_general(modeldb, oasis_clock, &
+              call lfric2lfric_oasis_regrid_three_d(modeldb, oasis_clock, &
                                         u_in_w3_dst, u_in_w3_src)
-              call lfric2lfric_oasis_regrid_general(modeldb, oasis_clock, &
+              call lfric2lfric_oasis_regrid_three_d(modeldb, oasis_clock, &
                                         v_in_w3_dst, v_in_w3_src)
-              call lfric2lfric_oasis_regrid_general(modeldb, oasis_clock, &
+              call lfric2lfric_oasis_regrid_three_d(modeldb, oasis_clock, &
                                         w_in_wth_dst, w_in_wth_src)
 
               call interp_w3wth_to_w2_alg(field_dst, u_in_w3_dst,    &
@@ -294,7 +294,7 @@ contains
           
             else
 
-              call lfric2lfric_oasis_regrid_general(modeldb, oasis_clock, &
+              call lfric2lfric_oasis_regrid_three_d(modeldb, oasis_clock, &
                    field_dst, field_src)
             end if
           else
