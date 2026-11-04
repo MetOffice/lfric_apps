@@ -64,3 +64,8 @@ Questions are encouraged in the Simulation Systems
 
 Please be aware of and follow the Simulation Systems
 [AI Policy.](https://metoffice.github.io/simulation-systems/FurtherDetails/ai.html)
+
+### Citing this Project
+Please use the **Cite this Repository** listing in the **About** 
+section of this GitHub repository to generate a citation for the latest release,
+alternatively use the DOI badge in the table above to cite LFRic Apps as a whole.
