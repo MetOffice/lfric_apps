@@ -24,7 +24,7 @@ contains
   subroutine test_all_r_single()
 
     use lfric2lfric_vert_lin_interp_lin_extrap_kernel_mod, only: &
-        lfric2lfric_vert_lin_interp_lin_extrap_code_r_single
+        lfric2lfric_vert_lin_interp_lin_extrap_code
 
     implicit none
 
@@ -115,7 +115,8 @@ contains
     /), (/ undf_dest /))
 
     cell=3
-    call lfric2lfric_vert_lin_interp_lin_extrap_code_r_single(  &
+    ! generic interface calls lfric2lfric_vert_lin_interp_lin_extrap_code_r_single
+    call lfric2lfric_vert_lin_interp_lin_extrap_code(           &
                                       nlayers,                  &
                                       destination_field,        &
                                       source_field,             &
@@ -147,7 +148,7 @@ contains
   subroutine test_all_with_extrap_r_single()
 
     use lfric2lfric_vert_lin_interp_lin_extrap_kernel_mod, only: &
-        lfric2lfric_vert_lin_interp_lin_extrap_code_r_single
+        lfric2lfric_vert_lin_interp_lin_extrap_code
 
     implicit none
 
@@ -238,7 +239,8 @@ contains
     /), (/ undf_dest /))
 
     cell=2
-    call lfric2lfric_vert_lin_interp_lin_extrap_code_r_single(  &
+    ! generic interface calls lfric2lfric_vert_lin_interp_lin_extrap_code_r_single
+    call lfric2lfric_vert_lin_interp_lin_extrap_code(           &
                                       nlayers,                  &
                                       destination_field,        &
                                       source_field,             &
