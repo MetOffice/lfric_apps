@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Claude Code.
+!-----------------------------------------------------------------------------
 
 !> @brief Outputs diagnostics from gungho/lfric_atm
 
@@ -99,6 +102,7 @@ contains
     ! For aviation diagnostics
 #ifdef UM_PHYSICS
     type( field_type ) :: plev_geopot  ! Set by pres_lev_diags_alg().
+    type(field_collection_type), pointer :: surface_fields
 #endif
 
     type(field_type), pointer :: theta
@@ -349,8 +353,10 @@ contains
       ! Wet bulb freezing level
       call freeze_lev_alg(modeldb%config,theta, mr, moist_dyn, exner_in_wth)
       ! Aviation diagnostics
-      call aviation_diags_alg(plev_geopot, &
-        u, exner, mesh, element_order_h, element_order_v)
+      surface_fields => modeldb%fields%get_field_collection("surface_fields")
+      call aviation_diags_alg(modeldb%config, plev_geopot,        &
+        u, exner, theta, mr, rho, derived_fields, surface_fields, &
+        mesh, element_order_h, element_order_v)
 #endif
 
       temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')
