@@ -258,6 +258,9 @@ module lfric2lfric_init_coupler_mod
 
     implicit none
 
+    character(len=str_def), allocatable, intent(inout) :: src_name_cpl_list(:)
+    character(len=str_def), allocatable, intent(inout) :: dst_name_cpl_list(:)
+
     type :: coupling_field
       ! Coupling field matches the format of the entry in the namcouple
       ! e.g. {src} {dst} 1 {freq} 1 lfric2lfric_restart_oa.nc EXPORTED
@@ -273,8 +276,6 @@ module lfric2lfric_init_coupler_mod
     type(coupling_field), allocatable :: fields(:)
     integer :: unit, ios, total_fields, nfields
     character(len=str_def) :: line
-    character(len=str_def), allocatable, intent(inout) :: src_name_cpl_list(:)
-    character(len=str_def), allocatable, intent(inout) :: dst_name_cpl_list(:)
 
     ! Open the namcouple file (that already exists)
     open(newunit=unit, file='namcouple', status='old', iostat=ios)
@@ -299,7 +300,7 @@ module lfric2lfric_init_coupler_mod
       end if
 
       ! Read nfields
-      if (trim(adjust(line)) == '$NFIELDS') then
+      if (trim(adjustl(line)) == '$NFIELDS') then
         read(unit, *, iostat=ios) total_fields
 
         ! Error message if unable to read
@@ -350,7 +351,7 @@ module lfric2lfric_init_coupler_mod
         ! Error message if unable to read entry
         if (ios /= 0) then
           write( log_scratch_space, '(A, I3)' ) &
-          'lfric2lfric_parse_namcouple: Not able to read namcouple entry number', nfield
+          'lfric2lfric_parse_namcouple: Not able to read namcouple entry number', nfields
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end if
 

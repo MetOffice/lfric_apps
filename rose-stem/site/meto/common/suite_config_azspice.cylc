@@ -51,12 +51,16 @@
         [[[environment]]]
             COMPILER = 'gnu'
 
+    [[AZSPICE_DATA]]
+        [[[environment]]]
+            BIG_DATA_DIR = '/data/users/lfricadmin/data'
+
     [[AZSPICE_BUILD_GNU]]
         inherit=AZSPICE_BASE,AZSPICE_BUILD,AZSPICE_GNU
         {{ generate_script("pre-script", [azspice_base, azspice_compiler_gnu]) }}
 
     [[AZSPICE_BUILD_OASIS_GNU]]
-        inherit=AZSPICE_BASE,AZSPICE_BUILD,AZSPICE_GNU
+        inherit=AZSPICE_BASE,AZSPICE_BUILD,AZSPICE_GNU,AZSPICE_DATA
         {{ generate_script("pre-script", [azspice_base,
                                           azspice_compiler_gnu,
                                           azspice_oasis_gnu]) }}
@@ -108,7 +112,7 @@
         inherit=AZSPICE_TECH
 
     [[AZSPICE_WEIGHTS]]
-        inherit = AZSPICE_BASE
+        inherit = AZSPICE_BASE, AZSPICE_DATA
         {{ generate_script("pre-script", ["module purge",
                                           azspice_scitools,
                                           "module load um_tools/2025.10.1/openmp",

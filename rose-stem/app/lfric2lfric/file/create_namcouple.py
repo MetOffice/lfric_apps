@@ -39,17 +39,17 @@ MAX_FREQ = 5000
 # multidata levels, and the associated weights file.
 AXIS_MAP = {
     # Fields on land/sea are masked
-    "surface_tiles":         [11, "weight_file_masked.nc"],
-    "land_tiles":            [8, "weight_file_masked.nc"],
-    "sea_ice_categories":    [1, "weight_file_masked.nc"],
+    "surface_tiles":         [11, "regrid_weights_masked_conserve2nd.nc"],
+    "land_tiles":            [8, "regrid_weights_masked_conserve2nd.nc"],
+    "sea_ice_categories":    [1, "regrid_weights_masked_conserve2nd.nc"],
     # Multilayer snow fields use nearest neighbour, but NOT masked
-    "snow_layers_and_tiles": [27, "weight_file_nn.nc"],
+    "snow_layers_and_tiles": [27, "regrid_weights_neareststod.nc"],
     # Fields on land/sea are masked
-    "soil_levels":           [4, "weight_file_masked.nc"],
-    "plant_func_types":      [5, "weight_file_masked.nc"],
-    "dust_divisions":        [6, "weight_file_masked.nc"],
+    "soil_levels":           [4, "regrid_weights_masked_conserve2nd.nc"],
+    "plant_func_types":      [5, "regrid_weights_masked_conserve2nd.nc"],
+    "dust_divisions":        [6, "regrid_weights_masked_conserve2nd.nc"],
     # General regridding - e.g. for atmospheric fields
-    "general":               [1, "weight_file.nc"],
+    "general":               [1, "regrid_weights_conserve2nd.nc"],
 }
 
 # Dictionary for special fields, with the associated number of
@@ -57,18 +57,18 @@ AXIS_MAP = {
 # overide the values in the AXIS_MAP.
 SPECIAL_FIELDS = {
     # Snow fields on land use nearest neighbour AND are masked
-    "tile_snow_mass":       [11, "weight_file_nn_masked.nc"],
-    "tile_snow_grain":      [11, "weight_file_nn_masked.nc"],
-    "n_snow_layers":        [11, "weight_file_nn_masked.nc"],
-    "snow_depth":           [11, "weight_file_nn_masked.nc"],
-    "snowpack_density":     [11, "weight_file_nn_masked.nc"],
-    "snow_under_canopy":    [11, "weight_file_nn_masked.nc"],
+    "tile_snow_mass":       [11, "regrid_weights_masked_neareststod.nc"],
+    "tile_snow_grain":      [11, "regrid_weights_masked_neareststod.nc"],
+    "n_snow_layers":        [11, "regrid_weights_masked_neareststod.nc"],
+    "snow_depth":           [11, "regrid_weights_masked_neareststod.nc"],
+    "snowpack_density":     [11, "regrid_weights_masked_neareststod.nc"],
+    "snow_under_canopy":    [11, "regrid_weights_masked_neareststod.nc"],
     # Single layer fields on land are masked
-    "z0msea":               [1, "weight_file_masked.nc"],
-    "surface_conductance":  [1, "weight_file_masked.nc"],
-    "soil_sat_frac":        [1, "weight_file_masked.nc"],
-    "wetness_under_soil":   [1, "weight_file_masked.nc"],
-    "snow_soot":            [1, "weight_file_masked.nc"],
+    "z0msea":               [1, "regrid_weights_masked_conserve2nd.nc"],
+    "surface_conductance":  [1, "regrid_weights_masked_conserve2nd.nc"],
+    "soil_sat_frac":        [1, "regrid_weights_masked_conserve2nd.nc"],
+    "wetness_under_soil":   [1, "regrid_weights_masked_conserve2nd.nc"],
+    "snow_soot":            [1, "regrid_weights_masked_conserve2nd.nc"],
 }
 
 # ---------------------------------------------------------------
