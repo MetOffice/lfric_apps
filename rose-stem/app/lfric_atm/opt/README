@@ -41,10 +41,14 @@ Science settings
 - coma9 - ComorphA9 configuration
 - comatb - Modifications to Coma9 for 5km trailblazer setup
 - comorph_dev - development ComorphB configuration
-- da - with IAU from data assimilation
-- eda - with IAU from ensemble data assimilation (with multi-context IO),
-        including use of SST perturbations and land surface increments
-- eda_jada - with IAU from JADA control-pert ensemble data assimilation
+- da - with IAU applying data assimilation increments instantaneously,
+     - and additive inflation elements throughout the forecast run
+- eda - with IAU applying data assimilation increments over a time window,
+      - and additive inflation elements throughout the forecast run
+        Includes use of SST perturbations and land surface increments
+- eda_jada - with IAU from JADA control-pert ensemble data assimilation, using
+           - mixed time behaviour for increments coming from the control and
+           - perturbed ensemble members
 - hh_solve - Helmholtz only sovler (no mixed solve)
 - llcs - Use Lambert-Lewis simple convection scheme
 - mol - use MoL transport scheme
@@ -52,12 +56,15 @@ Science settings
 - murk - use single-species aerosol Murk
 - no_aerosol - use no aerosol scheme (fixed cloud drop number)
 - no_dust - don't use interactive dust
-- ral3 - regional configuration
-- ral3_ens - extra config for regional ensembles (including stochastic physics)
-- ral3_scm - single column regional physics (includes convection scheme)
+- ral4 - regional configuration
+- ral4_ens - extra config for regional ensembles (including stochastic physics)
+- ral4_scm - single column regional physics (includes convection scheme)
+- ral_blendshcu - development version of the turbulence blending for shallow
+                  cumulus regimes
 - ral_mixmol_opts - extra options for regional models when using the MoL
                     transport scheme and mixed solver configuration
 - ral_opts - extra options for regional models, including LBC blending weights
+- reynolds - use Reynolds daily SST time-series
 - ukca - UKCA Glomap aerosol scheme
 - urban2t - 2-tile urban scheme
 - dry_atm - a dry atmosphere

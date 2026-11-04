@@ -26,7 +26,7 @@ module bl_exp_kernel_mod
                                      pc2_init_method, pc2_init_method_bimodal, &
                                      bm_ez_opt, bm_ez_opt_entpar
   use microphysics_config_mod, only: turb_gen_mixph, prog_tnuc
-  use mixing_config_mod,       only: smagorinsky
+  use mixing_config_mod,       only: smagorinsky, fullstress
   use jules_surface_config_mod, only : formdrag, formdrag_dist_drag
 
   implicit none
@@ -951,6 +951,15 @@ contains
         rhokm_mix(i,1,k) = rhokm_mix(i,1,k) * rdz_charney_grid(i,1,k)
         zeroes(i,1) = 0.0_r_um
       end do
+
+      ! If full stress term is used, diagonal terms are doubled.
+      if (fullstress) then
+        do k = 1, bl_levels
+          do i = 1, seg_len
+            rhokm_mix(i,1,k) = 2.0 * rhokm_mix(i,1,k)
+          end do
+        end do
+      end if
 
       do k = 1, bl_levels
         do i = 1, seg_len

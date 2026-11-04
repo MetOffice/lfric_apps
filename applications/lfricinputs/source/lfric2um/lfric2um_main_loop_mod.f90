@@ -23,15 +23,19 @@ use lfricinp_gather_lfric_field_mod,   only: lfricinp_gather_lfric_field
 use lfricinp_lfric_driver_mod,         only: lfric_fields, local_rank, comm,   &
                                              twod_mesh
 use lfricinp_regrid_weights_type_mod,  only: lfricinp_regrid_weights_type
-use lfricinp_stash_to_lfric_map_mod,   only: get_field_name
+use lfricinp_stash_to_lfric_map_mod,   only: get_field_name,                   &
+                                             get_lfric_field_kind,             &
+                                             w2h_field, w3_field, w3_field_2d, &
+                                             w3_soil_field, wtheta_field
 use lfricinp_stashmaster_mod,          only: get_stashmaster_item, levelt,     &
-                                             rho_levels, single_level,         &
+                                             pseudt, rho_levels, single_level, &
                                              stashcode_exner, stashcode_p,     &
                                              stashcode_q, stashcode_theta,     &
                                              theta_levels
 use lfricinp_um_grid_mod,              only: um_grid
 use lfricinp_um_level_codes_mod,       only: lfricinp_get_num_levels,          &
-                                             lfricinp_get_first_level_num
+                                             lfricinp_get_first_level_num,     &
+                                             lfricinp_get_num_pseudo_levels
 
 ! lfric modules
 use field_mod,  only: field_type
@@ -55,7 +59,7 @@ subroutine lfric2um_main_loop()
 implicit none
 
 integer(kind=int64) :: i_stash, level, i_field
-integer(kind=int64) :: stashcode
+integer(kind=int64) :: stashcode, lfric_field_kind
 ! Number of levels in UM field
 integer(kind=int64) :: n_um_levels
 integer(kind=int64) :: um_first_level
@@ -97,9 +101,41 @@ do i_stash = 1, lfric2um_config%num_fields
   end if
 
   !---------------------------------------------------------------------------
-  ! Select appropriate weights
+  ! Identify if field uses pseudo levels
   !---------------------------------------------------------------------------
-  weights => get_weights(stashcode)
+  lfric_field_kind = get_lfric_field_kind(stashcode)
+  select case (lfric_field_kind)
+
+    !---------------------------------------------------------------------------
+    ! Stashcodes that map to W2h (i.e. winds), W3/rho, Wtheta
+    !---------------------------------------------------------------------------
+    case(w2h_field,w3_field,wtheta_field)
+      n_um_levels = lfricinp_get_num_levels(um_output_file, stashcode)
+
+    !---------------------------------------------------------------------------
+    ! Stashcodes that need 2D mesh, inc non-soil_levels pseudo levels
+    !---------------------------------------------------------------------------
+    case(w3_field_2d)
+      if ( get_stashmaster_item(stashcode, pseudt) == 0 ) then
+        ! Field has no pseudo levels
+        n_um_levels = lfricinp_get_num_levels(um_output_file, stashcode)
+      else
+        ! Get number of pseudo levels
+        n_um_levels = lfricinp_get_num_pseudo_levels(um_grid, stashcode)
+      end if
+
+    !---------------------------------------------------------------------------
+    ! Stashcodes that are soil fields
+    !---------------------------------------------------------------------------
+    case(w3_soil_field)
+      n_um_levels = lfricinp_get_num_levels(um_output_file, stashcode)
+
+    case DEFAULT
+      write(log_scratch_space, '(A,I0,A)')                                     &
+         "LFRic field kind code ", lfric_field_kind, " not recognised"
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+
+  end select
 
   !---------------------------------------------------------------------------
   ! Get pointer to lfric field + read
@@ -108,12 +144,17 @@ do i_stash = 1, lfric2um_config%num_fields
   call lfric_field%read_field("read_"//lfric_field%get_name())
 
   !---------------------------------------------------------------------------
-  ! Allocate space for global data, only need full field on rank 0
+  ! Allocate space for global data and get weights. Only on rank 0
   !---------------------------------------------------------------------------
   if (allocated(global_field_array)) deallocate(global_field_array)
   if (local_rank == 0) then
+    !---------------------------------------------------------------------------
+    ! Select appropriate weights
+    !---------------------------------------------------------------------------
+    weights => get_weights(stashcode)
     allocate(global_field_array(weights%num_points_src))
   else
+    nullify(weights)
     allocate(global_field_array(1))
   end if
 
