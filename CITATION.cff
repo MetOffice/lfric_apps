@@ -1,0 +1,174 @@
+cff-version: 1.2.0
+title: LFRic Apps
+message: If you use this software, please cite it using the metadata from this file.
+type: software
+authors:
+- family-names: Abraham
+  given-names: Nathan Luke
+  affiliation: NCAS & University of Cambridge
+- family-names: Baker
+  given-names: Jed
+  affiliation: Met Office
+- family-names: Bateman
+  given-names: Cameron
+  affiliation: Met Office
+- family-names: Bendall
+  given-names: Thomas
+  affiliation: Met Office
+  orcid: https://orcid.org/0000-0002-6546-8400
+- family-names: Boutle
+  given-names: Ian
+  affiliation: Met Office
+- family-names: Brunt
+  given-names: Oakley
+  affiliation: Met Office
+- family-names: Bruten
+  given-names: James
+  affiliation: Met Office
+- family-names: Castillo
+  given-names: Juan M.
+  affiliation: Met Office
+- family-names: Chalk
+  given-names: Aidan
+  affiliation: UKRI-STFC
+- family-names: Clarke-Green
+  given-names: Sam
+  affiliation: Met Office
+- family-names: Copsey
+  given-names: Dan
+  affiliation: Met Office
+- family-names: Coughtrie
+  given-names: Andrew
+  affiliation: Met Office
+  orcid: https://orcid.org/0009-0001-7273-3997
+- family-names: Dalvi
+  given-names: Mohit
+  affiliation: Met Office
+- family-names: Earnshaw
+  given-names: Paul
+  affiliation: Met Office
+- family-names: Gordon
+  given-names: Lucy
+  affiliation: Met Office
+- family-names: Graham
+  given-names: Tim
+  affiliation: Met Office
+- family-names: Hayek
+  given-names: Wolfgang
+  affiliation: Earth Sciences New Zealand
+- family-names: Hedley
+  given-names: mark
+  affiliation: Met Office
+- family-names: Hendry
+  given-names: Maggie
+  affiliation: Met Office
+- family-names: Hewitt
+  given-names: Alan J
+  affiliation: Met Office
+- family-names: Hickson
+  given-names: Jenny
+  affiliation: Met Office
+- family-names: Hill
+  given-names: Tom
+  affiliation: Met Office
+- family-names: Hobson
+  given-names: Mike
+  affiliation: Met Office
+- family-names: Hone
+  given-names: Ed
+  affiliation: Met Office
+- family-names: Irudayasamy
+  given-names: Jaffery
+  affiliation: University of Edinburgh
+- family-names: Johnson
+  given-names: Christine
+  affiliation: Met Office
+- family-names: Kent
+  given-names: James
+  affiliation: Met Office
+- family-names: Lee
+  given-names: David
+  affiliation: Bureau of Meteorology, Australia
+- family-names: Lock
+  given-names: Adrian
+  affiliation: Met Office
+- family-names: Lyu
+  given-names: Junwei (Jason)
+  affiliation: Bureau of Meteorology, Australia
+- family-names: Manners
+  given-names: James
+  affiliation: Met Office
+- family-names: Melvin
+  given-names: Thomas
+  affiliation: Met Office
+- family-names: Mullerworth
+  given-names: Steve
+  affiliation: Met Office
+- family-names: Neininger
+  given-names: Erica
+  affiliation: Met Office
+- family-names: Olivier
+  given-names: Ricky
+  affiliation: University of Exeter
+- family-names: Pirrie
+  given-names: Alistair
+  affiliation: Met Office
+- family-names: Porter
+  given-names: Andrew
+  affiliation: UKRI-STFC
+- family-names: Pradhan
+  given-names: Yaswant
+  affiliation: Met Office
+  orcid: https://orcid.org/0000-0002-3680-4751
+- family-names: Pullen
+  given-names: Samantha
+  affiliation: Met Office
+- family-names: Rumbold
+  given-names: Heather
+  affiliation: Met Office
+- family-names: Sandbach
+  given-names: Steven
+  affiliation: Met Office
+- family-names: Shepherd
+  given-names: Harry
+  affiliation: Met Office
+- family-names: Siddall
+  given-names: Pierre
+  affiliation: Met Office
+- family-names: Siso
+  given-names: Sergi
+  affiliation: UKRI-STFC
+- family-names: Stone
+  given-names: Daniel
+  affiliation: Met Office
+- family-names: Stringer
+  given-names: Marc
+  affiliation: NCAS, Reading University
+- family-names: Turner
+  given-names: Lottie
+  affiliation: Met Office
+- family-names: Vockerodt
+  given-names: Terence
+  affiliation: Met Office
+- family-names: Waters
+  given-names: Rob
+  affiliation: University of Cambridge
+- family-names: Went
+  given-names: Benjamin
+  affiliation: Met Office
+- family-names: Whitall
+  given-names: Michael
+  affiliation: Met Office
+- family-names: Wong
+  given-names: Ricky
+  affiliation: Met Office
+identifiers:
+- type: doi
+  value: 10.5281/zenodo.21337238
+  description: The Zenodo DOI for the release
+repository-code: https://github.com/metoffice/lfric_apps/tree/vn3.2
+keywords:
+- Atmosphere
+license: BSD-3-Clause
+version: vn3.2
+date-released: '2026-07-13'
