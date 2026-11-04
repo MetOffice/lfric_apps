@@ -3,7 +3,9 @@
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
 !-----------------------------------------------------------------------------
-
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5.5 (Claude Code).
+!-----------------------------------------------------------------------------
 !> Test the pressure initialization computation
 !>
 module hydrostatic_exner_kernel_mod_test
@@ -281,6 +283,10 @@ contains
                                   p2theta_vert=.true.,                      &
                                   shallow=.true., use_physics=.false.,      &
                                   theta_moist_source=.false.,               &
+                                  variable_cp=.false.,                      &
+                                  cp_law_ref=1000.0_r_def,                  &
+                                  cp_law_t0=460.0_r_def,                    &
+                                  cp_law_exponent=0.35_r_def,               &
                                   use_wavedynamics=.true.,                  &
                                   use_multires_coupling=.false.,            &
                                   dry_static_adjust=.false.,                &
@@ -356,6 +362,10 @@ contains
                                   moisture_formulation_dry,                  &
                                   moisture_in_solver=.true.,                 &
                                   theta_moist_source=.false.,                &
+                                  variable_cp=.false.,                       &
+                                  cp_law_ref=1000.0_r_def,                   &
+                                  cp_law_t0=460.0_r_def,                     &
+                                  cp_law_exponent=0.35_r_def,                &
                                   p2theta_vert=.true.,                       &
                                   shallow=.true., use_physics=.false.,       &
                                   use_wavedynamics=.true.,                   &
