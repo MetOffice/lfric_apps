@@ -25,6 +25,7 @@ module clear_air_turb_diags_alg_mod
   use log_mod,                     only: log_event, LOG_LEVEL_ERROR
   use mesh_mod,                    only: mesh_type
   use planet_config_mod,           only: p_zero, kappa
+  use plev_index_mod,              only: plev_index
   use psykal_lite_phys_mod,        only: invoke_cat_column_kernel_type, &
                                          invoke_max_cat_kernel_type
   use sci_geometric_constants_mod, only: get_height_fv,   &
@@ -42,6 +43,8 @@ module clear_air_turb_diags_alg_mod
   !> order: the maximum over levels reports the first level when the
   !> predictor ties, as the UM does)
   character(len=*), parameter :: cat_axis = 'pressure_levels_cat'
+  !> XIOS axis of the standard pressure-level winds
+  character(len=*), parameter :: std_axis = 'pressure_levels'
   !> Depth of the horizontal stencil for the centred wind differences
   integer(kind=i_def), parameter :: stencil_depth = 1_i_def
 
@@ -52,17 +55,23 @@ contains
   !>          only, so it lives on its own axis (pressure_levels_cat) rather
   !>          than the standard pressure_levels axis. The maximum and its
   !>          pressure are taken over the levels of that axis in axis order.
-  !>          The column and maximum kernels need the level pressures, which
-  !>          PSyclone cannot yet pass to a kernel
+  !>          The winds on those levels are taken from the standard
+  !>          pressure-level winds, so each level must also be on the
+  !>          standard pressure_levels axis.
+  !>          The column and maximum kernels need arrays of level pressures
+  !>          and slots, which PSyclone cannot yet pass to a kernel
   !>          (https://github.com/stfc/PSyclone/issues/1312), so they are
   !>          called through psykal-lite.
   !> @param[in] config          Application namelist configuration object
   !> @param[in] derived_fields  Group of derived fields, for the cell-centre
   !>                            winds
   !> @param[in] exner_w3        Exner pressure at cell centres
+  !> @param[in] plev_u          Zonal wind on the standard pressure levels
+  !> @param[in] plev_v          Meridional wind on the standard pressure
+  !>                            levels
   !> @param[in] twod_mesh       The 2D mesh
   subroutine clear_air_turb_diags_alg(config, derived_fields, exner_w3, &
-                                      twod_mesh)
+                                      plev_u, plev_v, twod_mesh)
 
     implicit none
 
@@ -70,13 +79,14 @@ contains
     type(config_type),           intent(in)          :: config
     type(field_collection_type), intent(in)          :: derived_fields
     type(field_type),            intent(in)          :: exner_w3
+    type(field_type),            intent(in)          :: plev_u, plev_v
     type(mesh_type),             intent(in), pointer :: twod_mesh
 
     ! Output fields
     type(field_type) :: cat, max_cat, max_press
 
-    ! Work fields on pressure levels
-    type(field_type) :: u_plev, v_plev, dwdz
+    ! Work fields on the predictor's pressure levels
+    type(field_type) :: u_cat, v_cat, dwdz
 
     ! Input fields
     type(field_type), pointer :: u_in_w3, v_in_w3, height_w3
@@ -84,8 +94,9 @@ contains
 
     logical(kind=l_def) :: cat_flag, max_cat_flag, max_press_flag
 
-    integer(kind=i_def) :: nplev
-    real(kind=r_def), allocatable :: plevs(:)
+    integer(kind=i_def) :: nplev, nplev_std, kp
+    real(kind=r_def),    allocatable :: plevs(:), plevs_std(:)
+    integer(kind=i_def), allocatable :: slots(:)
 
     nullify(u_in_w3, v_in_w3, height_w3, latitude, longitude)
 
@@ -113,24 +124,35 @@ contains
     allocate(plevs(nplev))
     plevs = get_axis_values(cat_axis, nplev)
 
+    ! Slot of each of those levels in the standard pressure-level winds
+    nplev_std = get_axis_dimension(std_axis)
+    allocate(plevs_std(nplev_std))
+    plevs_std = get_axis_values(std_axis, nplev_std)
+    allocate(slots(nplev))
+    do kp = 1, nplev
+      slots(kp) = plev_index(std_axis, plevs_std, plevs(kp))
+    end do
+
     call derived_fields%get_field('u_in_w3', u_in_w3)
     call derived_fields%get_field('v_in_w3', v_in_w3)
     height_w3 => get_height_fv(config, exner_w3%get_mesh(), W3)
     latitude  => get_latitude_fv(config, twod_mesh, W3)
     longitude => get_longitude_fv(config, twod_mesh, W3)
 
-    call cat%copy_field_properties(u_plev)
-    call cat%copy_field_properties(v_plev)
+    call cat%copy_field_properties(u_cat)
+    call cat%copy_field_properties(v_cat)
     call cat%copy_field_properties(dwdz)
 
     call invoke_cat_column_kernel_type(u_in_w3, v_in_w3,                 &
                                        exner_w3, height_w3,              &
-                                       u_plev, v_plev, dwdz,             &
-                                       nplev, plevs, p_zero, kappa)
+                                       plev_u, plev_v,                   &
+                                       u_cat, v_cat, dwdz,               &
+                                       nplev, plevs, slots,              &
+                                       p_zero, kappa)
 
     call invoke( dutton_cat_kernel_type(cat,                               &
-                                        u_plev, stencil_depth,             &
-                                        v_plev, stencil_depth,             &
+                                        u_cat, stencil_depth,              &
+                                        v_cat, stencil_depth,              &
                                         dwdz,                              &
                                         latitude, stencil_depth,           &
                                         longitude, stencil_depth,          &
@@ -145,7 +167,7 @@ contains
       if ( max_press_flag ) call max_press%write_field()
     end if
 
-    deallocate(plevs)
+    deallocate(plevs, plevs_std, slots)
 
   end subroutine clear_air_turb_diags_alg
 

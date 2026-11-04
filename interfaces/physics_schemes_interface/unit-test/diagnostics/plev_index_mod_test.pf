@@ -1,0 +1,59 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code Enterprise (Claude Opus 5.5).
+
+!> Test the pressure-level slot lookup
+!>
+module plev_index_mod_test
+
+  use funit
+  use constants_mod,  only : r_def, i_def
+  use plev_index_mod, only : plev_index
+
+  implicit none
+
+  private
+  public :: test_found, test_tolerance
+
+  integer(i_def), parameter :: nplev = 5_i_def
+  real(r_def), parameter :: plevs(nplev) = (/ 85000.0_r_def, &
+                                              50000.0_r_def, &
+                                              30000.0_r_def, &
+                                              25000.0_r_def, &
+                                              20000.0_r_def /)
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Each pressure on the axis is found at its own slot.
+  @test
+  subroutine test_found()
+
+    implicit none
+
+    integer(i_def) :: k
+
+    do k = 1, nplev
+      @assertEqual( k, plev_index('test_axis', plevs, plevs(k)) )
+    end do
+
+  end subroutine test_found
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> A pressure within the tolerance either side of an axis value matches
+  !> it.
+  @test
+  subroutine test_tolerance()
+
+    implicit none
+
+    @assertEqual( 3_i_def, plev_index('test_axis', plevs, 30000.05_r_def) )
+    @assertEqual( 3_i_def, plev_index('test_axis', plevs, 29999.95_r_def) )
+
+  end subroutine test_tolerance
+
+end module plev_index_mod_test

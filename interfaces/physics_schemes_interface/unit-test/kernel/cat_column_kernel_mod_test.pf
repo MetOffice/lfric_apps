@@ -16,18 +16,19 @@ module cat_column_kernel_mod_test
   implicit none
 
   private
-  public :: test_quadratic_profile, test_clamped_windows, &
+  public :: test_wind_slots, test_quadratic_profile, test_clamped_windows, &
             test_linear_profile, test_too_few_layers
 
   @TestCase
   type, extends(TestCase), public :: cat_column_test_type
     private
     real(kind=r_def), allocatable :: u(:), v(:), exner(:), height(:), &
-         u_plev(:), v_plev(:), dwdz(:)
-    integer(i_def), allocatable :: map_w3(:), map_2d(:)
+         plev_u(:), plev_v(:), u_cat(:), v_cat(:), dwdz(:)
+    integer(i_def), allocatable :: map_w3(:), map_std(:), map_2d(:)
   contains
     procedure setUp
     procedure tearDown
+    procedure test_wind_slots
     procedure test_quadratic_profile
     procedure test_clamped_windows
     procedure test_linear_profile
@@ -40,6 +41,12 @@ module cat_column_kernel_mod_test
   integer(i_def), parameter :: ndf_2d = nplev
   integer(i_def), parameter :: undf_w3 = nlayers
   integer(i_def), parameter :: undf_2d = nplev
+  ! Standard pressure levels, of which the predictor's levels are slots
+  ! 1, 3 and 5
+  integer(i_def), parameter :: nplev_std = 5_i_def
+  integer(i_def), parameter :: ndf_std = nplev_std
+  integer(i_def), parameter :: undf_std = nplev_std
+  integer(i_def), parameter :: slots(nplev) = (/ 1_i_def, 3_i_def, 5_i_def /)
   ! Pressure levels: near the bottom of the column, inside the spline
   ! search window, and near the top
   real(r_def), parameter :: plevs(nplev) = (/ 98000.0_r_def, &
@@ -69,15 +76,27 @@ contains
     allocate( this%v(undf_w3) )
     allocate( this%exner(undf_w3) )
     allocate( this%height(undf_w3) )
-    allocate( this%u_plev(undf_2d) )
-    allocate( this%v_plev(undf_2d) )
+    allocate( this%plev_u(undf_std) )
+    allocate( this%plev_v(undf_std) )
+    allocate( this%u_cat(undf_2d) )
+    allocate( this%v_cat(undf_2d) )
     allocate( this%dwdz(undf_2d) )
     allocate( this%map_w3(ndf_w3) )
+    allocate( this%map_std(ndf_std) )
     allocate( this%map_2d(ndf_2d) )
 
     this%map_w3(1) = 1_i_def
+    do k = 1, ndf_std
+      this%map_std(k) = k
+    end do
     do k = 1, ndf_2d
       this%map_2d(k) = k
+    end do
+
+    ! Distinct winds on each standard level
+    do k = 1, nplev_std
+      this%plev_u(k) = 10.0_r_def + real(k, r_def)
+      this%plev_v(k) = 20.0_r_def + real(k, r_def)
     end do
 
     ! Pressure decreasing with level; height linear in pressure;
@@ -90,8 +109,8 @@ contains
       this%v(k)      = 0.0_r_def
     end do
 
-    this%u_plev(:) = 0.0_r_def
-    this%v_plev(:) = 0.0_r_def
+    this%u_cat(:) = 0.0_r_def
+    this%v_cat(:) = 0.0_r_def
     this%dwdz(:)   = 0.0_r_def
 
   end subroutine setUp
@@ -104,10 +123,42 @@ contains
     class(cat_column_test_type), intent(inout) :: this
 
     deallocate( this%u, this%v, this%exner, this%height, &
-                this%u_plev, this%v_plev, this%dwdz,     &
-                this%map_w3, this%map_2d )
+                this%plev_u, this%plev_v,                &
+                this%u_cat, this%v_cat, this%dwdz,       &
+                this%map_w3, this%map_std, this%map_2d )
 
   end subroutine tearDown
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> The winds on the predictor's levels are those of the given slots of
+  !> the standard pressure-level winds.
+  @test
+  subroutine test_wind_slots( this )
+
+    use cat_column_kernel_mod, only : cat_column_code
+
+    implicit none
+
+    class(cat_column_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: tol = 1.0e-12_r_def
+    real(r_def), parameter :: ans_u(nplev) = (/ 11.0_r_def, 13.0_r_def, &
+                                                15.0_r_def /)
+    real(r_def), parameter :: ans_v(nplev) = (/ 21.0_r_def, 23.0_r_def, &
+                                                25.0_r_def /)
+
+    call cat_column_code( nlayers, this%u, this%v, this%exner, this%height, &
+                          this%plev_u, this%plev_v,                         &
+                          this%u_cat, this%v_cat, this%dwdz,                &
+                          nplev, plevs, slots, p_zero, kappa,               &
+                          ndf_w3, undf_w3, this%map_w3,                     &
+                          ndf_std, undf_std, this%map_std,                  &
+                          ndf_2d, undf_2d, this%map_2d )
+
+    @assertEqual( ans_u, this%u_cat, tol )
+    @assertEqual( ans_v, this%v_cat, tol )
+
+  end subroutine test_wind_slots
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Quadratic wind profile at a level inside the spline search window.
@@ -125,28 +176,27 @@ contains
     real(r_def), parameter :: tol = 1.0e-12_r_def
     ! Analytic d(u)/dp
     real(r_def), parameter :: ans_dwdz = 2.0e-4_r_def / 0.15_r_def
-    ! Linear-in-Exner interpolation of u between levels 6 and 7
-    real(r_def), parameter :: ans_u_plev = 4.9687763868391706_r_def
 
     call cat_column_code( nlayers, this%u, this%v, this%exner, this%height, &
-                          this%u_plev, this%v_plev, this%dwdz,              &
-                          nplev, plevs, p_zero, kappa,                      &
+                          this%plev_u, this%plev_v,                         &
+                          this%u_cat, this%v_cat, this%dwdz,                &
+                          nplev, plevs, slots, p_zero, kappa,               &
                           ndf_w3, undf_w3, this%map_w3,                     &
+                          ndf_std, undf_std, this%map_std,                  &
                           ndf_2d, undf_2d, this%map_2d )
 
     @assertEqual( ans_dwdz, this%dwdz(2), tol )
-    @assertEqual( ans_u_plev, this%u_plev(2), tol )
-    @assertEqual( 0.0_r_def, this%v_plev(2), tol )
 
     ! With both components equal the shear grows by sqrt(2)
     this%v(:) = this%u(:)
     call cat_column_code( nlayers, this%u, this%v, this%exner, this%height, &
-                          this%u_plev, this%v_plev, this%dwdz,              &
-                          nplev, plevs, p_zero, kappa,                      &
+                          this%plev_u, this%plev_v,                         &
+                          this%u_cat, this%v_cat, this%dwdz,                &
+                          nplev, plevs, slots, p_zero, kappa,               &
                           ndf_w3, undf_w3, this%map_w3,                     &
+                          ndf_std, undf_std, this%map_std,                  &
                           ndf_2d, undf_2d, this%map_2d )
     @assertEqual( sqrt(2.0_r_def) * ans_dwdz, this%dwdz(2), tol )
-    @assertEqual( ans_u_plev, this%v_plev(2), tol )
 
   end subroutine test_quadratic_profile
 
@@ -171,9 +221,11 @@ contains
     real(r_def), parameter :: ans_high = 1.2e-4_r_def / 0.15_r_def
 
     call cat_column_code( nlayers, this%u, this%v, this%exner, this%height, &
-                          this%u_plev, this%v_plev, this%dwdz,              &
-                          nplev, plevs, p_zero, kappa,                      &
+                          this%plev_u, this%plev_v,                         &
+                          this%u_cat, this%v_cat, this%dwdz,                &
+                          nplev, plevs, slots, p_zero, kappa,               &
                           ndf_w3, undf_w3, this%map_w3,                     &
+                          ndf_std, undf_std, this%map_std,                  &
                           ndf_2d, undf_2d, this%map_2d )
     @assertEqual( ans_low, this%dwdz(1), tol )
     @assertEqual( ans_high, this%dwdz(3), tol )
@@ -204,9 +256,11 @@ contains
     end do
 
     call cat_column_code( nlayers, this%u, this%v, this%exner, this%height, &
-                          this%u_plev, this%v_plev, this%dwdz,              &
-                          nplev, plevs, p_zero, kappa,                      &
+                          this%plev_u, this%plev_v,                         &
+                          this%u_cat, this%v_cat, this%dwdz,                &
+                          nplev, plevs, slots, p_zero, kappa,               &
                           ndf_w3, undf_w3, this%map_w3,                     &
+                          ndf_std, undf_std, this%map_std,                  &
                           ndf_2d, undf_2d, this%map_2d )
 
     answer(:) = abs(dudp) / abs(dzdp)
@@ -231,9 +285,11 @@ contains
 
     call cat_column_code( few, this%u(1:few), this%v(1:few),              &
                           this%exner(1:few), this%height(1:few),          &
-                          this%u_plev, this%v_plev, this%dwdz,            &
-                          nplev, plevs, p_zero, kappa,                    &
+                          this%plev_u, this%plev_v,                       &
+                          this%u_cat, this%v_cat, this%dwdz,              &
+                          nplev, plevs, slots, p_zero, kappa,             &
                           ndf_w3, few, this%map_w3,                       &
+                          ndf_std, undf_std, this%map_std,                &
                           ndf_2d, undf_2d, this%map_2d )
 
     answer(:) = rmdi

@@ -1157,18 +1157,20 @@ z0h_eff_proxy%data, ocn_cpl_point_proxy%data, ndf_wtheta, &
     END SUBROUTINE invoke_thetaw_kernel_type
 
   !---------------------------------------------------------------------
-  !> PSy-layer for the clear air turbulence column inputs on pressure
-  !> levels. The kernel needs the array "plevs", which PSyclone cannot yet
-  !> pass to a kernel (https://github.com/stfc/PSyclone/issues/1312), so
-  !> this can be replaced by an invoke once that is released.
-    SUBROUTINE invoke_cat_column_kernel_type(u_in_w3, v_in_w3, exner_w3, height_w3, u_plev, v_plev, dwdz, nplev, plevs, &
-&p_zero, kappa)
+  !> PSy-layer for the clear air turbulence column inputs on its pressure
+  !> levels. The kernel needs the arrays "plevs" and "slots", which
+  !> PSyclone cannot yet pass to a kernel
+  !> (https://github.com/stfc/PSyclone/issues/1312), so this can be
+  !> replaced by an invoke once that is released.
+    SUBROUTINE invoke_cat_column_kernel_type(u_in_w3, v_in_w3, exner_w3, height_w3, plev_u, plev_v, u_cat, v_cat, dwdz, &
+&nplev, plevs, slots, p_zero, kappa)
       USE cat_column_kernel_mod, ONLY: cat_column_code
       USE mesh_mod, ONLY: mesh_type
       REAL(KIND=r_def), intent(in) :: p_zero, kappa
       INTEGER(KIND=i_def), intent(in) :: nplev
       REAL(KIND=r_def), intent(in) :: plevs(nplev)
-      TYPE(field_type), intent(in) :: u_in_w3, v_in_w3, exner_w3, height_w3, u_plev, v_plev, dwdz
+      INTEGER(KIND=i_def), intent(in) :: slots(nplev)
+      TYPE(field_type), intent(in) :: u_in_w3, v_in_w3, exner_w3, height_w3, plev_u, plev_v, u_cat, v_cat, dwdz
       INTEGER(KIND=i_def) cell
       INTEGER(KIND=i_def) loop0_start, loop0_stop
       INTEGER(KIND=i_def) nlayers
@@ -1176,13 +1178,16 @@ z0h_eff_proxy%data, ocn_cpl_point_proxy%data, ndf_wtheta, &
       REAL(KIND=r_def), pointer, dimension(:) :: v_in_w3_data => null()
       REAL(KIND=r_def), pointer, dimension(:) :: exner_w3_data => null()
       REAL(KIND=r_def), pointer, dimension(:) :: height_w3_data => null()
-      REAL(KIND=r_def), pointer, dimension(:) :: u_plev_data => null()
-      REAL(KIND=r_def), pointer, dimension(:) :: v_plev_data => null()
+      REAL(KIND=r_def), pointer, dimension(:) :: plev_u_data => null()
+      REAL(KIND=r_def), pointer, dimension(:) :: plev_v_data => null()
+      REAL(KIND=r_def), pointer, dimension(:) :: u_cat_data => null()
+      REAL(KIND=r_def), pointer, dimension(:) :: v_cat_data => null()
       REAL(KIND=r_def), pointer, dimension(:) :: dwdz_data => null()
-      TYPE(field_proxy_type) u_in_w3_proxy, v_in_w3_proxy, exner_w3_proxy, height_w3_proxy, u_plev_proxy, v_plev_proxy, &
-&dwdz_proxy
-      INTEGER(KIND=i_def), pointer :: map_w3(:,:) => null(), map_adspc1_u_plev(:,:) => null()
-      INTEGER(KIND=i_def) ndf_w3, undf_w3, ndf_adspc1_u_plev, undf_adspc1_u_plev
+      TYPE(field_proxy_type) u_in_w3_proxy, v_in_w3_proxy, exner_w3_proxy, height_w3_proxy, plev_u_proxy, plev_v_proxy, &
+&u_cat_proxy, v_cat_proxy, dwdz_proxy
+      INTEGER(KIND=i_def), pointer :: map_w3(:,:) => null(), map_adspc1_plev_u(:,:) => null(), &
+&map_adspc2_u_cat(:,:) => null()
+      INTEGER(KIND=i_def) ndf_w3, undf_w3, ndf_adspc1_plev_u, undf_adspc1_plev_u, ndf_adspc2_u_cat, undf_adspc2_u_cat
       TYPE(mesh_type), pointer :: mesh => null()
       !
       ! Initialise field and/or operator proxies
@@ -1195,10 +1200,14 @@ z0h_eff_proxy%data, ocn_cpl_point_proxy%data, ndf_wtheta, &
       exner_w3_data => exner_w3_proxy%data
       height_w3_proxy = height_w3%get_proxy()
       height_w3_data => height_w3_proxy%data
-      u_plev_proxy = u_plev%get_proxy()
-      u_plev_data => u_plev_proxy%data
-      v_plev_proxy = v_plev%get_proxy()
-      v_plev_data => v_plev_proxy%data
+      plev_u_proxy = plev_u%get_proxy()
+      plev_u_data => plev_u_proxy%data
+      plev_v_proxy = plev_v%get_proxy()
+      plev_v_data => plev_v_proxy%data
+      u_cat_proxy = u_cat%get_proxy()
+      u_cat_data => u_cat_proxy%data
+      v_cat_proxy = v_cat%get_proxy()
+      v_cat_data => v_cat_proxy%data
       dwdz_proxy = dwdz%get_proxy()
       dwdz_data => dwdz_proxy%data
       !
@@ -1213,17 +1222,23 @@ z0h_eff_proxy%data, ocn_cpl_point_proxy%data, ndf_wtheta, &
       ! Look-up dofmaps for each function space
       !
       map_w3 => u_in_w3_proxy%vspace%get_whole_dofmap()
-      map_adspc1_u_plev => u_plev_proxy%vspace%get_whole_dofmap()
+      map_adspc1_plev_u => plev_u_proxy%vspace%get_whole_dofmap()
+      map_adspc2_u_cat => u_cat_proxy%vspace%get_whole_dofmap()
       !
       ! Initialise number of DoFs for w3
       !
       ndf_w3 = u_in_w3_proxy%vspace%get_ndf()
       undf_w3 = u_in_w3_proxy%vspace%get_undf()
       !
-      ! Initialise number of DoFs for adspc1_u_plev
+      ! Initialise number of DoFs for adspc1_plev_u
       !
-      ndf_adspc1_u_plev = u_plev_proxy%vspace%get_ndf()
-      undf_adspc1_u_plev = u_plev_proxy%vspace%get_undf()
+      ndf_adspc1_plev_u = plev_u_proxy%vspace%get_ndf()
+      undf_adspc1_plev_u = plev_u_proxy%vspace%get_undf()
+      !
+      ! Initialise number of DoFs for adspc2_u_cat
+      !
+      ndf_adspc2_u_cat = u_cat_proxy%vspace%get_ndf()
+      undf_adspc2_u_cat = u_cat_proxy%vspace%get_undf()
       !
       ! Set-up all of the loop bounds
       !
@@ -1233,15 +1248,15 @@ z0h_eff_proxy%data, ocn_cpl_point_proxy%data, ndf_wtheta, &
       ! Call kernels and communication routines
       !
       DO cell = loop0_start, loop0_stop, 1
-        CALL cat_column_code(nlayers, u_in_w3_data, v_in_w3_data, exner_w3_data, height_w3_data, u_plev_data, v_plev_data, &
-&dwdz_data, nplev, plevs, p_zero, kappa, ndf_w3, undf_w3, map_w3(:,cell), ndf_adspc1_u_plev, undf_adspc1_u_plev, &
-&map_adspc1_u_plev(:,cell))
+        CALL cat_column_code(nlayers, u_in_w3_data, v_in_w3_data, exner_w3_data, height_w3_data, plev_u_data, plev_v_data, &
+&u_cat_data, v_cat_data, dwdz_data, nplev, plevs, slots, p_zero, kappa, ndf_w3, undf_w3, map_w3(:,cell), ndf_adspc1_plev_u, &
+&undf_adspc1_plev_u, map_adspc1_plev_u(:,cell), ndf_adspc2_u_cat, undf_adspc2_u_cat, map_adspc2_u_cat(:,cell))
       END DO
       !
       ! Set halos dirty/clean for fields modified in the above loop
       !
-      CALL u_plev_proxy%set_dirty()
-      CALL v_plev_proxy%set_dirty()
+      CALL u_cat_proxy%set_dirty()
+      CALL v_cat_proxy%set_dirty()
       CALL dwdz_proxy%set_dirty()
       !
       !

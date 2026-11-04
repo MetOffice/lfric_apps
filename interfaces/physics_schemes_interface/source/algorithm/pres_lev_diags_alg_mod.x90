@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code Enterprise (Claude Opus 5.5).
+
 !> @brief Calculate diagnostics on pressure levels.
 
 module pres_lev_diags_alg_mod
@@ -46,9 +49,17 @@ contains
   !> @param[in]  exner_w3        Exner pressure
   !> @param[in]  mr              Mixing ratio bundle
   !> @param[in]  moist_dyn       Moist_dynamics factors (for 1+sum(m_x))
+  !> @param[out] plev_u          Zonal wind on pressure levels. Masked in
+  !>                             place when its climate version is
+  !>                             requested; the clear air turbulence levels
+  !>                             (300 to 200 hPa) are above the ground and
+  !>                             below the model top, so the mask does not
+  !>                             reach them.
+  !> @param[out] plev_v          Meridional wind on pressure levels, masked
+  !>                             as plev_u
   subroutine pres_lev_diags_alg(config,                              &
                                 derived_fields, theta_wth, exner_w3, &
-                                mr, moist_dyn)
+                                mr, moist_dyn, plev_u, plev_v)
 
     use psykal_lite_phys_mod, only: invoke_pres_interp_kernel_type,  &
                                     invoke_heaviside_kernel_type,    &
@@ -65,6 +76,7 @@ contains
     type( field_type ), intent(in) :: theta_wth, exner_w3
     type( field_type ), intent(in) :: mr(nummr)
     type( field_type ), intent(in) :: moist_dyn(num_moist_factors)
+    type( field_type ), intent(out) :: plev_u, plev_v
     ! Internal variables
     type( field_type ), pointer     :: exner_wth
     type( field_type ), pointer     :: u_in_w3
@@ -75,7 +87,7 @@ contains
     type( field_type ), pointer     :: height_wth
 
     ! Define fields
-    type( field_type ) :: plev_heaviside, plev_temp, plev_u, plev_v, &
+    type( field_type ) :: plev_heaviside, plev_temp, &
          plev_w, plev_geopot, temp, omega, plev_omega, plev_mv, plev_qv, qv, &
          plev_thetaw, plev_temp_save
     integer(i_def) :: nplev
@@ -88,6 +100,9 @@ contains
          plev_w_flag, plev_w_clim_flag, plev_omega_clim_flag,          &
          plev_mv_clim_flag, plev_qv_clim_flag,                         &
          plev_geopot_flag, plev_geopot_clim_flag, plev_thetaw_flag
+    ! The clear air turbulence diagnostics need the winds on pressure
+    ! levels; must request them whenever clear_air_turb_diags_alg runs
+    logical(l_def) :: aviation_wind_flag
     integer(tik) :: id
 
     if ( LPROF ) call start_timing( id, 'diags.pressure_lev' )
@@ -144,10 +159,18 @@ contains
 
     end if
 
+    aviation_wind_flag =                                         &
+         diag_samp('aviation__clear_air_turb')              .or. &
+         diag_samp('aviation__max_clear_air_turb')          .or. &
+         diag_samp('aviation__max_clear_air_turb_pressure')
+
     ! Zonal wind on pressure levels
     plev_u_clim_flag = diag_samp('plev__u_clim')
-    plev_u_flag = init_diag(plev_u, 'plev__u', activate=plev_u_clim_flag)
-    if ((plev_u_flag .or. plev_u_clim_flag) .and. use_xios_io) then
+    plev_u_flag = init_diag(plev_u, 'plev__u',                  &
+                            activate=(plev_u_clim_flag .or.     &
+                                      aviation_wind_flag))
+    if ((plev_u_flag .or. plev_u_clim_flag .or. aviation_wind_flag) &
+        .and. use_xios_io) then
 
       call derived_fields%get_field('u_in_w3', u_in_w3)
       call invoke_pres_interp_kernel_type(u_in_w3, exner_w3,    &
@@ -166,8 +189,11 @@ contains
 
     ! Meridional wind on pressure levels
     plev_v_clim_flag = diag_samp('plev__v_clim')
-    plev_v_flag = init_diag(plev_v, 'plev__v', activate=plev_v_clim_flag)
-    if ((plev_v_flag .or. plev_v_clim_flag) .and. use_xios_io) then
+    plev_v_flag = init_diag(plev_v, 'plev__v',                  &
+                            activate=(plev_v_clim_flag .or.     &
+                                      aviation_wind_flag))
+    if ((plev_v_flag .or. plev_v_clim_flag .or. aviation_wind_flag) &
+        .and. use_xios_io) then
 
       call derived_fields%get_field('v_in_w3', v_in_w3)
       call invoke_pres_interp_kernel_type(v_in_w3, exner_w3,    &

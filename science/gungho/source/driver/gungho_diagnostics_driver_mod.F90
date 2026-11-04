@@ -3,6 +3,8 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code Enterprise (Claude Opus 5.5).
 
 !> @brief Outputs diagnostics from gungho/lfric_atm
 
@@ -96,6 +98,11 @@ contains
     type(field_type),            pointer :: mr(:)
     type(field_type),            pointer :: moist_dyn(:)
     type(field_collection_type), pointer :: derived_fields
+
+#ifdef UM_PHYSICS
+    ! Winds on pressure levels, set by pres_lev_diags_alg
+    type(field_type) :: plev_u, plev_v
+#endif
 
     type(field_type), pointer :: theta
     type(field_type), pointer :: u
@@ -335,12 +342,12 @@ contains
       call pmsl_alg(modeldb%config, exner, derived_fields, theta, twod_mesh)
       ! Pressure level diagnostics
       call pres_lev_diags_alg(modeldb%config, derived_fields, theta, exner, &
-                              mr, moist_dyn)
+                              mr, moist_dyn, plev_u, plev_v)
       ! Wet bulb freezing level
       call freeze_lev_alg(modeldb%config,theta, mr, moist_dyn, exner_in_wth)
       ! Clear air turbulence predictor on pressure levels and its maximum
       call clear_air_turb_diags_alg(modeldb%config, derived_fields, exner,     &
-                                    twod_mesh)
+                                    plev_u, plev_v, twod_mesh)
 #endif
 
       temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')
