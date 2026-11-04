@@ -252,7 +252,7 @@
 {% elif task_ns.conf_name == "oasis_clim_gal9_C12-ral_seuk_C16_lam_1cpu" %}
 
     {% do task_dict.update({
-        "opt_confs": ["oasis","src_C12_L70","dst_seuk"],
+        "opt_confs": ["oasis_masked","src_C12_L70","dst_seuk"],
         "resolution": ["C24_C12", "seuk_MG"],
         "int_method": "conserve2nd, neareststod, masked_conserve2nd, masked_neareststod",
         "dst_mesh": "seuk_MG",

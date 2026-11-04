@@ -249,7 +249,7 @@ def validate_input(my_grid):
     return
 
 
-def get_data(my_grid):
+def get_data(my_grid, with_mask):
     """Get data as requested in suite"""
     co_file = Dataset(my_grid.fname, 'r')
     # lon lat
@@ -264,23 +264,26 @@ def get_data(my_grid):
     my_grid.shape = numpy.asarray(my_grid.dlat.shape[::-1])
 
     # mask always from file or ignore
-    mask_file = Dataset(my_grid.fname_mask, 'r')
-    my_grid.dmask, my_grid.umask = get_var(mask_file, my_grid.vname_mask, True)
+    if (with_mask):
+        mask_file = Dataset(my_grid.fname_mask, 'r')
+        my_grid.dmask, my_grid.umask = get_var(mask_file, my_grid.vname_mask, True)
+        mask_file.close()
+    else:
+        my_grid.dmask = 1 + numpy.zeros(my_grid.dlon.shape)
 
-    mask_file.close()
-    #my_grid.dmask = 1 + numpy.zeros(my_grid.dlon.shape)
     return my_grid
 
 if __name__ == "__main__":
+    with_mask = False
     SRC_GRID = GRID()
     SRC_GRID = get_env_info(SRC_GRID, 'SRC')
-    SRC_GRID = get_data(SRC_GRID)
+    SRC_GRID = get_data(SRC_GRID, with_mask)
     validate_input(SRC_GRID)
     # end processing source grid
     print('SOURCE grid ')
     DST_GRID = GRID()
     DST_GRID = get_env_info(DST_GRID, 'DST')
-    DST_GRID = get_data(DST_GRID)
+    DST_GRID = get_data(DST_GRID, with_mask)
     # end processing destination grid
     validate_input(DST_GRID)
     print('DESTINATION grid ')

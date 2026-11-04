@@ -24,8 +24,9 @@ module lfric2lfric_regrid_mod
   use function_space_mod,       only: function_space_type
   use interpolation_alg_mod,    only: interp_w2_to_w3wth_alg, &
                                       interp_w3wth_to_w2_alg
-  use log_mod,                  only: log_event, &
-                                      log_level_info, &
+  use log_mod,                  only: log_event,       &
+                                      log_level_info,  &
+                                      log_level_error, &
                                       log_scratch_space
   use mesh_collection_mod,      only: mesh_collection
   use mesh_mod,                 only: mesh_type
@@ -103,6 +104,9 @@ contains
 
     integer(kind=i_def), parameter :: dst = 1
     integer(kind=i_def), parameter :: src = 2
+
+    integer :: unit, ios, total_fields
+    character(len=str_def) :: line
     
     ! Obtain namelist parameters
     mesh_names(dst) = 'dst_'//trim(modeldb%config%lfric2lfric%destination_mesh_name())
@@ -212,7 +216,43 @@ contains
       
     case (regrid_method_oasis)
 
-#ifdef MCT      
+#ifdef MCT
+
+      ! if $NFIELDS = 1 do 3d always
+      open(newunit=unit, file='namcouple', status='old', iostat=ios)
+      ! Error message if unable to open
+      if (ios /= 0) then
+         write( log_scratch_space, '(A,I3)' ) &
+        'lfric2lfric_parse_namcouple: Could not open namcouple file, iostat=', ios
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      end if
+      do
+        read(unit,'(A)',iostat=ios) line
+
+        ! Error message if end of file found before $NFIELDS
+        if (ios /= 0) then
+          write( log_scratch_space, '(A)' ) &
+          'lfric2lfric_parse_namcouple: $NFIELDS not found in namcouple file'
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
+
+        ! Read nfields
+        if (trim(adjustl(line)) == '$NFIELDS') then
+          read(unit, *, iostat=ios) total_fields
+
+          ! Error message if unable to read
+          if (ios /= 0) then
+            write( log_scratch_space, '(A)' ) &
+            'lfric2lfric_parse_namcouple: not able to read $NFIELDS from namcouple'
+            call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+          end if
+       
+          exit
+        endif
+      enddo
+
+      close(unit)
+ 
       ! Main loop over fields to be processed
       call iter%initialise(target_fields)
       do
@@ -229,13 +269,19 @@ contains
           if ( source_fields%field_exists(trim(field_name)) ) then
             call source_fields%get_field(field_name, field_src)
 
-             write(log_scratch_space, '(A,A)') "Processing 2D lfric field ", &
+            write(log_scratch_space, '(A,A)') "Processing 2D lfric field ", &
                                              trim(field_name)
             call log_event(log_scratch_space, log_level_info)
 
-            call lfric2lfric_oasis_regrid_two_d(modeldb, oasis_clock, &
-                 field_dst, field_src)
-            
+            if ( total_fields == 1 ) then
+              call lfric2lfric_oasis_regrid_three_d(modeldb, oasis_clock, &
+                   field_dst, field_src)
+            else if (total_fields > 1) then
+              call lfric2lfric_oasis_regrid_two_d(modeldb, oasis_clock, &
+                   field_dst, field_src)
+            else
+              call log_event( 'Error in total_fields', LOG_LEVEL_ERROR )  
+            end if
           else
             call lfric2lfric_no_regrid(field_dst)
           end if

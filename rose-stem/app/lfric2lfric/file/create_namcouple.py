@@ -20,7 +20,7 @@ import xml.etree.ElementTree as ET
 # ---------------------------------------------------------------
 
 # Name of the namcouple file (output)
-NAMCOUPLE_FILE = "namcouple"
+NAMCOUPLE_FILE = "namcouple_masked"
 
 # Name of the iodef file (input)
 IODEF_FILE = "iodef_FULL_DUMP_CF.xml"

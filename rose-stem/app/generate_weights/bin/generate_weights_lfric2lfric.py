@@ -137,22 +137,6 @@ def run_exe(arg, outfile, style):
 
 
 if __name__ == "__main__":
-
-    SRC_GRID = GRID()
-    SRC_GRID = get_env_info(SRC_GRID, 'SRC')
-    SRC_GRID = get_data(SRC_GRID)
-    validate_input(SRC_GRID)
-    # end processing source grid
-    print('SOURCE grid ')
-    DST_GRID = GRID()
-    DST_GRID = get_env_info(DST_GRID, 'DST')
-    DST_GRID = get_data(DST_GRID)
-    validate_input(DST_GRID)
-    # end processing destination grid
-    print('DESTINATION grid ')
-
-    MY_INTER = INTER()
-    MY_INTER.set_regrid_info()
     
     INT_METHODS = os.environ.get('INT_METHOD')
     SPLIT_INT_METHODS = INT_METHODS.split(",")
@@ -170,6 +154,22 @@ if __name__ == "__main__":
             my_int_method = split_masked_int_method[0].strip()
             weights_name = (f"regrid_weights_{my_int_method}.nc")
         print('weights', weights_name)
+
+        SRC_GRID = GRID()
+        SRC_GRID = get_env_info(SRC_GRID, 'SRC')
+        SRC_GRID = get_data(SRC_GRID, with_mask)
+        validate_input(SRC_GRID)
+        # end processing source grid
+        print('SOURCE grid ')
+        DST_GRID = GRID()
+        DST_GRID = get_env_info(DST_GRID, 'DST')
+        DST_GRID = get_data(DST_GRID, with_mask)
+        validate_input(DST_GRID)
+        # end processing destination grid
+        print('DESTINATION grid ')
+
+        MY_INTER = INTER()
+        MY_INTER.set_regrid_info()
 
         print('Save SRC -> DST grid info')
         transform_and_write(SRC_GRID, with_mask)

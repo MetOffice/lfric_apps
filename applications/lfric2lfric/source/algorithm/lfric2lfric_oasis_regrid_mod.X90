@@ -113,7 +113,7 @@ contains
       field_name = field_src%get_name()
 
       ! Only regrid 3D fields, not 2D
-      if ( mesh_src%get_extrusion_id() /= TWOD ) then
+!      if ( mesh_src%get_extrusion_id() /= TWOD ) then
 
         coupling_src_name = "coupling"
         coupling_dst_name = "coupling_dst"
@@ -165,7 +165,7 @@ contains
  
           end do
         end do
-      end if
+!      end if
 
     else
       write(log_scratch_space, '(A)') "Function space can not " //            &
