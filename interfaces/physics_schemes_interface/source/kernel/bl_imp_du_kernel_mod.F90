@@ -35,7 +35,7 @@ module bl_imp_du_kernel_mod
   !> Kernel metadata type.
   type, public, extends(kernel_type) :: bl_imp_du_kernel_type
     private
-    type(arg_type) :: meta_args(22) = (/                                       &
+    type(arg_type) :: meta_args(23) = (/                                       &
         arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                              &! outer
         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_2),  &! du_bl
         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_2),  &! dissip
@@ -51,6 +51,7 @@ module bl_imp_du_kernel_mod
         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_2),  &! wetrho
         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_2),  &! u_physics
         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_2),  &! u_phys_latest
+        arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_2),  &! c_tofd
         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_SPACE_2),                &! surf_interp
         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  WTheta),                     &! dw_bl
         arg_type(GH_FIELD,  GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_2),  &! dA
@@ -89,6 +90,7 @@ contains
   !> @param[in]     wetrho         Wet density
   !> @param[in]     u_physics      Wind in native space at time n
   !> @param[in]     u_phys_latest  Current estimate of the wind
+  !> @param[in]     c_tofd         Time independent part of TOFD
   !> @param[in]     surf_interp    Surface variables which need interpolating
   !> @param[in]     dw_bl          Vertical wind increment from explicit BL
   !> @param[in]     dA             Area of faces
@@ -132,6 +134,7 @@ contains
                             wetrho,           &
                             u_physics,        &
                             u_phys_latest,    &
+                            c_tofd,           &
                             surf_interp,      &
                             dw_bl,            &
                             dA,               &
@@ -186,7 +189,7 @@ contains
          wind10m_neut, tau_ssi, pseudotau
 
     real(kind=r_def), dimension(undf_w2),  intent(in) :: rhokm, dtrdz,         &
-         u_physics, u_phys_latest, dA, height_w2, wetrho
+         u_physics, u_phys_latest, dA, height_w2, wetrho, c_tofd
     real(kind=r_def), dimension(undf_w2_2d), intent(in) :: tau_land
     real(kind=r_def), dimension(undf_w2_surf), intent(in) :: surf_interp
     real(kind=r_def), dimension(undf_w1),   intent(in) :: height_w1, rdz
@@ -252,7 +255,7 @@ contains
 
       call matrix_sweep(du_bl_sp, du_1, cq_cm, cq_cm_1, df, gamma1, gamma2,    &
                         height_w1, dtr_rhodz, tau_loc, du_nt,rhokm_sp,rdz_sp,  &
-                        k_blend, ndf_w1, undf_w1, map_w1)
+                        k_blend, ndf_w1, undf_w1, map_w1, c_tofd)
 
       !================================================================
       ! In Jules this happens in im_sf_pt2 - predictor section
@@ -306,7 +309,7 @@ contains
 
       call matrix_sweep(du_bl_sp, du_1, cq_cm, cq_cm_1, df, gamma1, gamma2,    &
                         height_w1, dtr_rhodz, tau_loc, du_nt,rhokm_sp,rdz_sp,  &
-                        k_blend, ndf_w1, undf_w1, map_w1)
+                        k_blend, ndf_w1, undf_w1, map_w1, c_tofd)
 
       !================================================================
       ! In Jules this happens in im_sf_pt2 - corrector section
@@ -419,7 +422,7 @@ contains
 
   subroutine matrix_sweep(du_bl_sp, du_1, cq_cm, cq_cm_1, df, gamma1, gamma2,  &
                           height_w1, dtrdz, tau, du_nt,rhokm_sp,rdz_sp,k_blend,&
-                          ndf_w1, undf_w1, map_w1)
+                          ndf_w1, undf_w1, map_w1, c_tofd)
 
     implicit none
 
@@ -429,7 +432,7 @@ contains
 
     real(kind=r_def), dimension(undf_w1), intent(in) :: height_w1
     real(kind=r_bl), dimension(0:bl_levels-1), intent(in) :: du_nt, tau, dtrdz,&
-         rhokm_sp, rdz_sp
+         rhokm_sp, rdz_sp, c_tofd
 
     integer(kind=i_def), intent(in) :: df, k_blend
     real(kind=r_bl), intent(in) :: gamma1, gamma2
@@ -441,7 +444,7 @@ contains
 
     ! Internal variables
     integer(kind=i_def) :: k
-    real(kind=r_bl) :: r_sq, rr_sq, rbm, am, cu_prod
+    real(kind=r_bl) :: r_sq, rr_sq, rbm, am, bm, cu_prod
 
     ! Topmost level
     k = bl_levels-1
@@ -453,7 +456,10 @@ contains
     cq_cm(k) = -dtrdz(k) * gamma1 * r_sq * rhokm_sp(k)               &
                * rdz_sp(k)
 
-    rbm = 1.0_r_bl / (1.0_r_bl - cq_cm(k) )
+    bm = 1.0_r_bl - cq_cm(k)
+    ! update main diagonal for TOFD
+    bm = bm - gamma1 * dt * c_tofd
+    rbm = 1.0_r_bl / bm
     du_bl_sp(k) = rbm * du_bl_sp(k)
     cq_cm(k) = rbm * cq_cm(k)
 
@@ -472,10 +478,12 @@ contains
       cq_cm(k) = -dtrdz(k) * gamma1 * r_sq * rhokm_sp(k)             &
                  * rdz_sp(k)
 
-      rbm = 1.0_r_bl / (1.0_r_bl - cq_cm(k) - am * (1.0_r_bl + cq_cm(k+1) ) )
+      bm = 1.0_r_bl - cq_cm(k) - am * (1.0_r_bl + cq_cm(k+1))
+      ! update main diagonal for TOFD
+      bm = bm - gamma1 * dt * c_tofd
+      rbm = 1.0_r_bl / bm
 
-      du_bl_sp(k) = du_bl_sp(k) -                          &
-                              am * du_bl_sp(k+1)
+      du_bl_sp(k) = du_bl_sp(k) - am * du_bl_sp(k+1)
 
       du_bl_sp(k) = rbm * du_bl_sp(k)
       cq_cm(k) = rbm * cq_cm(k)
@@ -493,7 +501,10 @@ contains
     am = -dtrdz(k) * gamma1 * rr_sq * rhokm_sp(k+1)                  &
          * rdz_sp(k+1)
 
-    rbm = 1.0_r_bl / (1.0_r_bl - am * (1.0_r_bl + cq_cm(k+1) ) )
+    bm = 1.0_r_bl - am * (1.0_r_bl + cq_cm(k+1) )
+    ! update main diagonal for TOFD
+    bm = bm - gamma1 * dt * c_tofd
+    rbm = 1.0_r_bl / bm
 
     du_bl_sp(k) = du_bl_sp(k) - am * du_bl_sp(k+1)
 
