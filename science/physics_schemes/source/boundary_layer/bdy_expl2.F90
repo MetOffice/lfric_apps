@@ -1376,7 +1376,7 @@ if (formdrag ==  explicit_stress) then
         land_pts, land_index, bl_levels,                                       &
   ! in fields
         u_p, v_p, tl, qw, bt_gb, bq_gb, rho_wet_tq,                            &
-        z_uv, z_tq, z0m_eff_gb, zh_prev, rib_gb, sil_orog_land,                &
+        z_uv, z_tq, z0m_eff_gb, zh_prev, rib_gb, sil_orog_land, sigma_h,       &
   ! out fields
         tau_fd_x(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,          &
                  1:bl_levels),                                                 &

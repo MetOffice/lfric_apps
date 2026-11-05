@@ -26,7 +26,6 @@ export PSYCLONE_PHYSICS_FILES = \
                                 conv_gr_kernel_mod \
                                 ex_flux_tq \
                                 ex_flux_uv \
-                                fm_drag \
                                 gw_ussp_mod \
                                 imp_mix \
                                 jules_exp_kernel_mod \
