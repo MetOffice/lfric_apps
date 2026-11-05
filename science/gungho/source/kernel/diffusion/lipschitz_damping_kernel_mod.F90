@@ -122,8 +122,6 @@ subroutine lipschitz_damping_code(nlayers,                                     &
   real(kind=r_def), parameter :: threshold_1d_z = 1.5_r_def
   real(kind=r_def), parameter :: threshold_3d = 0.5_r_def
 
-  integer(kind=i_def) :: k
-
   nl = nlayers - 1
 
   w3_idx = map_w3(1)
