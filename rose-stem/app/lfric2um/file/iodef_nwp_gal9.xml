@@ -34,6 +34,18 @@
 	<domain domain_ref="edge"/>
 	<axis axis_ref="vert_axis_half_levels"/>
       </grid>
+      <grid id="soil_levels_face_grid">
+        <domain domain_ref="face"/>
+        <axis axis_ref="soil_levels"/>
+      </grid>
+      <grid id="land_tiles_face_grid">
+        <domain domain_ref="face"/>
+        <axis axis_ref="land_tiles"/>
+      </grid>
+      <grid id="snow_layers_face_grid">
+        <domain domain_ref="face"/>
+        <axis axis_ref="snow_layers_and_tiles"/>
+      </grid>
       <grid id="3D_monthly_grid">
 	<domain domain_ref="face"/>
 	<axis axis_ref="vert_axis_full_levels"/>
@@ -71,7 +83,7 @@
 	<!--<field id="read_tstar" name="tstar" long_name="surface_temperature" standard_name="surface_temperature" unit="K" domain_ref="face" operation="instant" />-->
 	<!--<field id="read_ozone" name="ozone" long_name="mass_fraction_of_ozone_in_air" standard_name="mass_fraction_of_ozone_in_air" unit="1" grid_ref="full_level_face_grid" operation="instant" />-->
 
-	<!-- Additional fields for basic_gal
+	<!-- Additional fields for basic_gal -->
 	<field id="read_dd_mf_cb" name="dd_mf_cb" long_name="Downdraft massflux at cloud base" unit="Pa s-1" domain_ref="face" operation="instant" />
 	<field id="read_snow_soot" name="snow_soot" long_name="Snow soot content" unit="kg kg-1" domain_ref="face" operation="instant" />
 	<field id="read_soil_sat_frac" name="soil_sat_frac" long_name="Soil saturated fraction" unit="1" domain_ref="face" operation="instant" />
@@ -80,9 +92,8 @@
 	<field id="read_surface_conductance" name="surface_conductance" long_name="Surface conductance" unit="m s-1" domain_ref="face" operation="instant" />
 	<field id="read_tstar_sea_ice" name="tstar_sea_ice" long_name="Sea ice surface temperature" unit="K" domain_ref="face" operation="instant" />
 	<field id="read_sea_ice_temperature" name="sea_ice_temperature" long_name="Sea-ice bulk temperature" unit="K" domain_ref="face" operation="instant" />
--->
 
-	<!-- land tiles fields for basic_gal
+	<!-- land tiles fields for basic_gal -->
 	<field id="read_tile_snow_mass" name="tile_snow_mass" long_name="Tile snow mass" unit="kg" grid_ref="land_tiles_face_grid" operation="instant" />
 	<field id="read_tile_n_snow_layers" name="tile_n_snow_layers" long_name="Number of snow layers on tiles" unit="1" grid_ref="land_tiles_face_grid" operation="instant" />
 	<field id="read_tile_snow_depth" name="tile_snow_depth" long_name="Snow depth on tiles" unit="m" grid_ref="land_tiles_face_grid" operation="instant" />
@@ -91,20 +102,17 @@
 	<field id="read_tile_snowpack_density" name="tile_snowpack_density" long_name="Snowpack density on tiles" unit="kg m-3" grid_ref="land_tiles_face_grid" operation="instant" />
 	<field id="read_tile_canopy_water" name="tile_canopy_water" long_name="Canopy water content on tiles" unit="kg m-2" grid_ref="land_tiles_face_grid" operation="instant" />
 	<field id="read_tile_temperature" name="tile_temperature" long_name="Tile temperature" unit="K" grid_ref="land_tiles_face_grid" operation="instant" />
--->
 
-	<!-- snow layers fields for basic_gal
+	<!-- snow layers fields for basic_gal -->
 	<field id="read_tile_snow_layer_thickness" name="tile_snow_layer_thickness" long_name="Snow layer thickness on tiles" unit="m" grid_ref="snow_layers_face_grid" operation="instant" />
 	<field id="read_tile_snow_layer_ice_mass" name="tile_snow_layer_ice_mass" long_name="Snow layer ice mass on tiles" unit="kg m-2" grid_ref="snow_layers_face_grid" operation="instant" />
 	<field id="read_tile_snow_layer_liq_mass" name="tile_snow_layer_liq_mass" long_name="Snow layer liquid mass on tiles" unit="kg m-2" grid_ref="snow_layers_face_grid" operation="instant" />
 	<field id="read_tile_snow_layer_temp" name="tile_snow_layer_temp" long_name="Snow layer temperature on tiles" unit="K" grid_ref="snow_layers_face_grid" operation="instant" />
 	<field id="read_tile_snow_layer_rgrain" name="tile_snow_layer_rgrain" long_name="Snow layer grain size on tiles" unit="microns" grid_ref="snow_layers_face_grid" operation="instant" />
--->
 
-	<!-- soil levels fields for basic_gal
+	<!-- soil levels fields for basic_gal -->
 	<field id="read_soil_temperature" name="soil_temperature" long_name="Soil temperature" unit="K" grid_ref="soil_levels_face_grid" operation="instant" />
 	<field id="read_soil_moisture" name="soil_moisture" long_name="Soil moisture content" unit="kg kg-1" grid_ref="soil_levels_face_grid" operation="instant" />
--->
 
        </field_group>
       </file>

@@ -21,7 +21,7 @@
 
     [[MSS_ASP2A_NORMAL_QUEUE]]
 
-    [[ROSE_ANA_ASP2A]]
+    [[FULL_KGO_ASP2A]]
         pre-script = """
                 umask 0022
                 alias mpirun=mpiexec

@@ -31,7 +31,6 @@
 
     [[AZSPICE_BUILD]]
         [[[environment]]]
-            USE_LEGACY_TIMER=true
             USE_TIMING_WRAPPER=true
             PSYCLONE_MODE=server
         [[[directives]]]
@@ -67,7 +66,15 @@
                                           azspice_compiler_gnu,
                                           azspice_oasis_gnu]) }}
 
+    [[AZSPICE_BUILD_VERNIER-GNU]]
+        inherit=AZSPICE_BASE,AZSPICE_BUILD,AZSPICE_GNU
+        {{ generate_script("pre-script", [azspice_base, azspice_compiler_gnu]) }}
+
     [[AZSPICE_RUN_GNU]]
+        inherit=AZSPICE_BASE,AZSPICE_RUN,AZSPICE_GNU
+        {{ generate_script("pre-script", [azspice_base, azspice_compiler_gnu, azspice_run]) }}
+
+    [[AZSPICE_RUN_VERNIER-GNU]]
         inherit=AZSPICE_BASE,AZSPICE_RUN,AZSPICE_GNU
         {{ generate_script("pre-script", [azspice_base, azspice_compiler_gnu, azspice_run]) }}
 
@@ -114,7 +121,7 @@
                                           "module load um_tools/2025.10.1/openmp",
                                           "module list 2>&1"]) }}
 
-    [[AZSPICE_ROSE_ANA]]
+    [[AZSPICE_FULL_KGO]]
         inherit = AZSPICE_BASE
         {{ generate_script("pre-script", ["module purge",
                                           azspice_scitools,

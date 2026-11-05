@@ -104,7 +104,7 @@ module create_nudging_fields_mod
     !  remapping from nudging to model grid. Hence this field is needed
     !  when any one of theta or wind is forced.
     call processor%apply(make_spec(                                            &
-            'surface_pressure_nudging_ext_ref', main%none, W3,                 &
+            'surface_pressure_nudging_ext_ref', main%derived, W3,              &
             coarse=coarse_nudging,                                             &
             coarse_mesh_name=nudging_mesh_name,                                &
             twod=.true., time_axis=axis%nudging                                &
@@ -112,7 +112,7 @@ module create_nudging_fields_mod
 
     if ( theta_forcing == theta_forcing_nudging ) then
       call processor%apply(make_spec(                                          &
-              'temperature_nudging_ext_ref', main%none, W3, twod=.true.,       &
+              'temperature_nudging_ext_ref', main%derived, W3, twod=.true.,    &
               coarse=coarse_nudging,                                           &
               coarse_mesh_name=nudging_mesh_name,                              &
               mult='nudging_levels', time_axis=axis%nudging                    &
@@ -121,13 +121,13 @@ module create_nudging_fields_mod
 
     if ( wind_forcing == wind_forcing_nudging ) then
       call processor%apply(make_spec(                                          &
-              'u_nudging_ext_ref', main%none, W3, twod=.true.,                 &
+              'u_nudging_ext_ref', main%derived, W3, twod=.true.,              &
               coarse=coarse_nudging,                                           &
               coarse_mesh_name=nudging_mesh_name,                              &
               mult='nudging_levels', time_axis=axis%nudging                    &
       ))
       call processor%apply(make_spec(                                          &
-              'v_nudging_ext_ref', main%none, W3, twod=.true.,                 &
+              'v_nudging_ext_ref', main%derived, W3, twod=.true.,              &
               coarse=coarse_nudging,                                           &
               coarse_mesh_name=nudging_mesh_name,                              &
               mult='nudging_levels', time_axis=axis%nudging                    &

@@ -19,39 +19,31 @@
 module wt_advective_update_alg_mod
 
   use config_mod,                         only: config_type
-  use constants_mod,                      only: r_def, i_def, l_def, str_def,  &
-                                                r_tran
+  use constants_mod,                      only: r_def, i_def, l_def
   use sci_geometric_constants_mod,        only: get_coordinates,               &
-                                                get_extended_coordinates,      &
-                                                get_height_fe, get_height_fv
+                                                get_height_fv
   use sci_fem_constants_mod,              only: get_inverse_lumped_mass_matrix_fe, &
                                                 get_inverse_lumped_mass_matrix_fv
   use field_mod,                          only: field_type
   use r_tran_field_mod,                   only: r_tran_field_type
-  use fs_continuity_mod,                  only: W3, Wtheta, W2H, W2V
+  use fs_continuity_mod,                  only: Wtheta, W2H, W2V
   use function_space_mod,                 only: function_space_type
   use function_space_collection_mod,      only: function_space_collection
-  use inventory_by_mesh_mod,              only: inventory_by_mesh_type
-  use quadrature_rule_gauss_lobatto_mod,  only: quadrature_rule_gauss_lobatto_type
   use quadrature_rule_gaussian_mod,       only: quadrature_rule_gaussian_type
   use quadrature_xyoz_mod,                only: quadrature_xyoz_type
   use quadrature_face_mod,                only: quadrature_face_type
-  use quadrature_edge_mod,                only: quadrature_edge_type
   use transport_config_mod,               only: operators,                     &
                                                 fv_horizontal_order,           &
                                                 fv_vertical_order,             &
                                                 operators_fv,                  &
                                                 operators_fem,                 &
                                                 oned_reconstruction,           &
-                                                consistent_metric,             &
                                                 panel_edge_treatment,          &
                                                 panel_edge_treatment_none
   use transport_constants_mod,            only: get_element_order_h_transport, &
                                                 get_element_order_v_transport
   use log_mod,                            only: log_event,                     &
-                                                LOG_LEVEL_ERROR,               &
-                                                LOG_LEVEL_INFO
-  use mesh_collection_mod,                only: mesh_collection
+                                                LOG_LEVEL_ERROR
   use mesh_mod,                           only: mesh_type
   use poly1d_reconstruction_kernel_mod,   only: poly1d_reconstruction_kernel_type
   use poly2d_reconstruction_kernel_mod,   only: poly2d_reconstruction_kernel_type
@@ -288,18 +280,15 @@ contains
   !> @param[in,out] rhs                 Advective increment
   !> @param[in]     adv_field           Field to advect
   !> @param[in]     wind                Advecting wind field
-  !> @param[in]     reversible          Use the reversible reconstruction
+  !> @param[in]     direction           Direction for split transport update
   !> @param[in]     transport_metadata  Contains transport configuration options
   !> @param[in]     final_rk_stage      Whether this is the last Runge-Kutta stage
   subroutine wt_advective_update_alg(config, rhs, adv_field, wind, direction, &
                                      transport_metadata, final_rk_stage)
 
-    use consistent_wind_kernel_mod,     only: consistent_wind_kernel_type
-    use poly1d_vert_adv_kernel_mod,     only: poly1d_vert_adv_kernel_type
     use rtheta_kernel_mod,              only: rtheta_kernel_type
     use rtheta_bd_kernel_mod,           only: rtheta_bd_kernel_type
     use reference_element_mod,          only: reference_element_type
-    use mesh_mod,                       only: mesh_type
     use split_w2_field_kernel_mod,      only: split_w2_field_kernel_type
     use integer_field_mod,              only: integer_field_type
     use sci_geometric_constants_mod,    only: get_face_selector_ew,            &
@@ -322,13 +311,8 @@ contains
     type(function_space_type),     pointer :: w2h_fs, w2v_fs
     type(integer_field_type),      pointer :: face_selector_ew
     type(integer_field_type),      pointer :: face_selector_ns
-    type(field_type),              pointer :: chi(:)
     type(field_type),              pointer :: mt_lumped_inv_r_def
     type(r_tran_field_type)                :: mt_lumped_inv_r_tran
-    type(r_tran_field_type)                :: consistent_wind
-    type(r_tran_field_type)                :: u_grad_z
-    type(field_type),              pointer :: height_rdef
-    type(r_tran_field_type)                :: height
     class(reference_element_type), pointer :: reference_element
     type(mesh_type),               pointer :: mesh
     type(quadrature_xyoz_type)             :: qr
@@ -389,29 +373,9 @@ contains
                                                 face_selector_ns) )
         ! Horizontal update
         call hori_wt_update_alg(config, u_grad_f, wind_h, wind_h, adv_field, transport_metadata)
-
-        ! TODO #3325: Make consistent wind be pre-computed
-        if ( consistent_metric ) then
-          ! Consistent wind will be vertical only -- initialise as wind_v
-          height_rdef => get_height_fv(config, mesh, Wtheta)
-          call height%initialise( vector_space = height_rdef%get_function_space() )
-          call invoke( real_to_real_x(height, height_rdef) )
-          chi => get_coordinates(mesh)
-          call u_grad_z%initialise( u_grad_f%get_function_space() )
-          call consistent_wind%initialise( wind_v%get_function_space() )
-          call invoke( setval_c(u_grad_z, 0.0_r_def), &
-                       setval_X(consistent_wind, wind_v) )
-          call hori_wt_update_alg(config, u_grad_z, wind_h, wind_h, height, transport_metadata)
-          call invoke( consistent_wind_kernel_type(consistent_wind, wind, &
-                                                   u_grad_z, chi(3)) )
-          ! Then vertical update uses consistent wind
-          call vert_wt_update_alg(config, u_grad_f, consistent_wind, adv_field, &
-                                  transport_metadata, final_rk_stage)
-        else
-          ! Not using consistent wind, so just do normal vertical update
-          call vert_wt_update_alg(config, u_grad_f, wind_v, adv_field, &
-                                  transport_metadata, final_rk_stage)
-        end if
+        ! Vertical update
+        call vert_wt_update_alg(config, u_grad_f, wind_v, adv_field, &
+                                transport_metadata, final_rk_stage)
 
       case ( direction_h )
         call hori_wt_update_alg(config, u_grad_f, wind, wind, adv_field, transport_metadata)
