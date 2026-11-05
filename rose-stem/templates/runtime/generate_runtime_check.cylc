@@ -79,7 +79,8 @@
         task_values["tmpsize"],
         ) }}
 
-    {% set full_kgo_run_task = "run"~task.replace("full_kgo", "") %}
+    {% set full_kgo_run_task = task.replace("kgo_compare", "") %}
+    {% set full_kgo_run_task = "run"~full_kgo_run_task %}
     {% set full_kgo_app = task_values["app_name"]~"_compare" %}
 
     [[{{task}}]]
