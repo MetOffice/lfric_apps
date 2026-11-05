@@ -512,3 +512,20 @@ class vn32_t802(MacroUpgrade):
         )
 
         return config, self.reports
+
+
+class vn32_t593(MacroUpgrade):
+    """Upgrade macro for ticket #593 by Matthew Naylor."""
+
+    BEFORE_TAG = "vn3.2_t802"
+    AFTER_TAG = "vn3.2_t593"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-chemistry
+        """Upgrade a UM runtime app configuration."""
+        nml = "namelist:chemistry"
+        var = "ukca_chem_full_chunk_size"
+        val = "-1,-1,-1"
+        self.add_setting(config, [nml, var], val)
+
+        return config, self.reports

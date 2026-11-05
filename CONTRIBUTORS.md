@@ -1,4 +1,5 @@
 # Contributors
+
 | GitHub user         | Real Name          | Affiliation                      | Date       |
 | ------------------- | ------------------ | -------------------------------- | ---------- |
 | jedbakerMO          | Jed Baker          | Met Office                       | 2025-12-29 |
@@ -62,4 +63,6 @@
 | mo-cjsmith          | Chris Smith        | Met Office                       | 2026-09-02 |
 | mo-joshuacolclough  | Joshua Colclough   | Met Office                       | 2026-08-11 |
 | zmaalick            | Zubair Maalick     | Met Office                       | 2026-08-31 |
+| doucla              | Douglas Clark      | UKCEH                            | 2026-10-13 |
 | jerry-liu-jianyu    | Liu Jianyu         | NEA/MSS/CCRS                     | 2026-09-25 |
+| mn416               | Matthew Naylor     | University of Cambridge          | 2026-07-24 |
