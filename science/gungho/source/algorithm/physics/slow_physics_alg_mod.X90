@@ -3,8 +3,8 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
-! Some content in this file was generated or refactored with assistance from
-! - Claude Code.
+! Some of the content of this file has been produced with the assistance of
+! Met Office Claude Code Enterprise.
 !> @brief Calls to the slow physics schemes
 module slow_physics_alg_mod
 
