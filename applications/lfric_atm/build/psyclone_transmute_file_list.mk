@@ -16,6 +16,10 @@
 
 export PSYCLONE_PHYSICS_FILES = \
                                 aerosol_ukca_kernel_mod \
+                                bdy_expl2 \
+                                bdy_impl3 \
+                                bdy_impl4 \
+                                bl_diags_mod \
                                 bl_lsp \
                                 bm_kernel_mod \
                                 bm_tau_kernel_mod \
@@ -24,6 +28,8 @@ export PSYCLONE_PHYSICS_FILES = \
                                 bl_imp2_kernel_mod \
                                 btq_int \
                                 conv_gr_kernel_mod \
+                                dust_calc_emiss_frac \
+                                dust_srce \
                                 ex_flux_tq \
                                 ex_flux_uv \
                                 fm_drag \

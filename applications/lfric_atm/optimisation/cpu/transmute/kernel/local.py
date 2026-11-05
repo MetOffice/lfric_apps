@@ -46,6 +46,8 @@ def trans(psyir):
     safe_pure_calls = []
 
     if fortran_file_name in SCRIPT_OPTIONS_DICT:
+        logging.warning(
+            f"{fortran_file_name}: 'SCRIPT_OPTIONS_DICT' found")
         file_overrides = SCRIPT_OPTIONS_DICT[fortran_file_name]
         if "ignore_dependencies_for" in file_overrides.keys():
             ignore_dependencies_for = file_overrides[
