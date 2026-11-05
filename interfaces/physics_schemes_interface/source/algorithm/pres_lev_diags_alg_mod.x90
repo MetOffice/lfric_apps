@@ -52,9 +52,8 @@ contains
   !> @param[out] plev_u          Zonal wind on pressure levels. Masked in
   !>                             place when its climate version is
   !>                             requested; the clear air turbulence levels
-  !>                             (300 to 200 hPa) are above the ground and
-  !>                             below the model top, so the mask does not
-  !>                             reach them.
+  !>                             must be above the ground and below the
+  !>                             model top, so the mask cannot reach them.
   !> @param[out] plev_v          Meridional wind on pressure levels, masked
   !>                             as plev_u
   subroutine pres_lev_diags_alg(config,                              &
@@ -101,7 +100,8 @@ contains
          plev_mv_clim_flag, plev_qv_clim_flag,                         &
          plev_geopot_flag, plev_geopot_clim_flag, plev_thetaw_flag
     ! The clear air turbulence diagnostics need the winds on pressure
-    ! levels; must request them whenever clear_air_turb_diags_alg runs
+    ! levels, so the winds are computed whenever those diagnostics are
+    ! requested; keep the ids in step with clear_air_turb_diags_alg
     logical(l_def) :: aviation_wind_flag
     integer(tik) :: id
 

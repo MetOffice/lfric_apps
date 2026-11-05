@@ -139,9 +139,10 @@ contains
     latitude  => get_latitude_fv(config, twod_mesh, W3)
     longitude => get_longitude_fv(config, twod_mesh, W3)
 
-    call cat%copy_field_properties(u_cat)
-    call cat%copy_field_properties(v_cat)
-    call cat%copy_field_properties(dwdz)
+    ! Named differently to cat in case of accidental writes
+    call cat%copy_field_properties(u_cat, name='cat_work_u')
+    call cat%copy_field_properties(v_cat, name='cat_work_v')
+    call cat%copy_field_properties(dwdz,  name='cat_work_dwdz')
 
     call invoke_cat_column_kernel_type(u_in_w3, v_in_w3,                 &
                                        exner_w3, height_w3,              &

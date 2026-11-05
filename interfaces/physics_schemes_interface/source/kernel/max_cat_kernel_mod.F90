@@ -103,8 +103,8 @@ contains
     kp_max = 0_i_def
     max_cat(map_2d(1)) = rmdi
     do kp = 1, nplev
-      if ( cat(map_pl(1) + kp - 1_i_def) > max_cat(map_2d(1)) ) then
-        max_cat(map_2d(1)) = cat(map_pl(1) + kp - 1_i_def)
+      if ( cat(map_pl(1) + kp - 1) > max_cat(map_2d(1)) ) then
+        max_cat(map_2d(1)) = cat(map_pl(1) + kp - 1)
         kp_max = kp
       end if
     end do

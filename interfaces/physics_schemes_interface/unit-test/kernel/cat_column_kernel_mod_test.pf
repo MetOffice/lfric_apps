@@ -40,12 +40,14 @@ module cat_column_kernel_mod_test
   integer(i_def), parameter :: ndf_w3 = 1_i_def
   integer(i_def), parameter :: ndf_2d = nplev
   integer(i_def), parameter :: undf_w3 = nlayers
-  integer(i_def), parameter :: undf_2d = nplev
+  ! The pressure-level fields hold two columns and the kernel is given the
+  ! second, so a dofmap base left out or taken from the wrong field shows
+  integer(i_def), parameter :: undf_2d = 2_i_def * nplev
   ! Standard pressure levels, of which the predictor's levels are slots
   ! 1, 3 and 5
   integer(i_def), parameter :: nplev_std = 5_i_def
   integer(i_def), parameter :: ndf_std = nplev_std
-  integer(i_def), parameter :: undf_std = nplev_std
+  integer(i_def), parameter :: undf_std = 2_i_def * nplev_std
   integer(i_def), parameter :: slots(nplev) = (/ 1_i_def, 3_i_def, 5_i_def /)
   ! Pressure levels: near the bottom of the column, inside the spline
   ! search window, and near the top
@@ -87,16 +89,19 @@ contains
 
     this%map_w3(1) = 1_i_def
     do k = 1, ndf_std
-      this%map_std(k) = k
+      this%map_std(k) = nplev_std + k
     end do
     do k = 1, ndf_2d
-      this%map_2d(k) = k
+      this%map_2d(k) = nplev + k
     end do
 
-    ! Distinct winds on each standard level
+    ! Distinct winds on each standard level of the second column; the
+    ! first column must never be read
+    this%plev_u(:) = -999.0_r_def
+    this%plev_v(:) = -999.0_r_def
     do k = 1, nplev_std
-      this%plev_u(k) = 10.0_r_def + real(k, r_def)
-      this%plev_v(k) = 20.0_r_def + real(k, r_def)
+      this%plev_u(nplev_std + k) = 10.0_r_def + real(k, r_def)
+      this%plev_v(nplev_std + k) = 20.0_r_def + real(k, r_def)
     end do
 
     ! Pressure decreasing with level; height linear in pressure;
@@ -155,8 +160,11 @@ contains
                           ndf_std, undf_std, this%map_std,                  &
                           ndf_2d, undf_2d, this%map_2d )
 
-    @assertEqual( ans_u, this%u_cat, tol )
-    @assertEqual( ans_v, this%v_cat, tol )
+    @assertEqual( ans_u, this%u_cat(nplev+1:), tol )
+    @assertEqual( ans_v, this%v_cat(nplev+1:), tol )
+    ! The first column is not written
+    @assertEqual( 0.0_r_def, maxval(abs(this%u_cat(1:nplev))), tol )
+    @assertEqual( 0.0_r_def, maxval(abs(this%v_cat(1:nplev))), tol )
 
   end subroutine test_wind_slots
 
@@ -185,7 +193,7 @@ contains
                           ndf_std, undf_std, this%map_std,                  &
                           ndf_2d, undf_2d, this%map_2d )
 
-    @assertEqual( ans_dwdz, this%dwdz(2), tol )
+    @assertEqual( ans_dwdz, this%dwdz(nplev+2), tol )
 
     ! With both components equal the shear grows by sqrt(2)
     this%v(:) = this%u(:)
@@ -196,7 +204,7 @@ contains
                           ndf_w3, undf_w3, this%map_w3,                     &
                           ndf_std, undf_std, this%map_std,                  &
                           ndf_2d, undf_2d, this%map_2d )
-    @assertEqual( sqrt(2.0_r_def) * ans_dwdz, this%dwdz(2), tol )
+    @assertEqual( sqrt(2.0_r_def) * ans_dwdz, this%dwdz(nplev+2), tol )
 
   end subroutine test_quadratic_profile
 
@@ -227,8 +235,8 @@ contains
                           ndf_w3, undf_w3, this%map_w3,                     &
                           ndf_std, undf_std, this%map_std,                  &
                           ndf_2d, undf_2d, this%map_2d )
-    @assertEqual( ans_low, this%dwdz(1), tol )
-    @assertEqual( ans_high, this%dwdz(3), tol )
+    @assertEqual( ans_low, this%dwdz(nplev+1), tol )
+    @assertEqual( ans_high, this%dwdz(nplev+3), tol )
 
   end subroutine test_clamped_windows
 
@@ -264,7 +272,7 @@ contains
                           ndf_2d, undf_2d, this%map_2d )
 
     answer(:) = abs(dudp) / abs(dzdp)
-    @assertEqual( answer, this%dwdz, tol )
+    @assertEqual( answer, this%dwdz(nplev+1:), tol )
 
   end subroutine test_linear_profile
 
@@ -293,7 +301,7 @@ contains
                           ndf_2d, undf_2d, this%map_2d )
 
     answer(:) = rmdi
-    @assertEqual( answer, this%dwdz )
+    @assertEqual( answer, this%dwdz(nplev+1:) )
 
   end subroutine test_too_few_layers
 

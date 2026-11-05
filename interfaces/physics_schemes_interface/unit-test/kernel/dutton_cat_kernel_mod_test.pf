@@ -306,7 +306,6 @@ contains
 
   end subroutine test_missing_neighbour
 
-
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> Two pressure levels, stored contiguously per cell. Level 1 has no
   !> vertical shear, so is missing; level 2 holds the winds of

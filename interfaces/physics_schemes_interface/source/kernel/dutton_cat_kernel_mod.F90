@@ -193,7 +193,7 @@ contains
       ! A neighbour is missing: no centred difference, as at the UM
       ! domain edges, so the predictor is missing too
       do kp = 1, nplev
-        cat(map_pl(1) + kp - 1_i_def) = rmdi
+        cat(map_pl(1) + kp - 1) = rmdi
       end do
     else
       lat0 = latitude(map_2d(1))
@@ -228,15 +228,15 @@ contains
       end if
 
       do kp = 1, nplev
-        slot = map_pl(1) + kp - 1_i_def
+        slot = map_pl(1) + kp - 1
 
         if ( dwdz(slot) == rmdi ) then
           cat(slot) = rmdi
         else
           ! Winds at the neighbouring cell centres
           do n = 1, n_branch
-            u_n(n) = u_plev(smap_u(1, neighbour, n) + kp - 1_i_def)
-            v_n(n) = v_plev(smap_v(1, neighbour, n) + kp - 1_i_def)
+            u_n(n) = u_plev(smap_u(1, neighbour, n) + kp - 1)
+            v_n(n) = v_plev(smap_v(1, neighbour, n) + kp - 1)
           end do
 
           du_a = u_n(3) - u_n(1)
