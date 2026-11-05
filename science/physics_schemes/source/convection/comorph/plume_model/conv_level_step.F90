@@ -56,6 +56,7 @@ use fields_diags_type_mod, only: fields_diags_copy
 use plume_model_diags_type_mod, only: plume_model_diags_type
 
 use calc_virt_temp_mod, only: calc_virt_temp
+use dry_adiabat_mod, only: dry_adiabat
 use calc_core_mean_ratio_mod, only: calc_core_mean_ratio
 use calc_env_nsq_mod, only: calc_env_nsq
 use set_ent_mod, only: set_ent
@@ -220,10 +221,6 @@ real(kind=real_cvprec) :: core_mean_ratio(n_points)
 
 ! Environment dry static stability
 real(kind=real_cvprec) :: Nsq_dry(n_points)
-
-! Exner ratio to use when adjusting entrained air temperature
-! due to pressure change
-real(kind=real_cvprec) :: exner_ratio(n_points)
 
 ! Super-arrays storing mean primary field properties of
 ! entrained and detrained air
@@ -401,7 +398,7 @@ call set_ent( n_points, n_fields_tot, max_points,                              &
               par_conv_super,                                                  &
               l_within_bl, core_mean_ratio,                                    &
               layer_mass_step, sum_massflux,                                   &
-              ent_fields, exner_ratio, ent_mass_d, core_ent_ratio,             &
+              ent_fields, ent_mass_d, core_ent_ratio,                          &
               plume_model_diags, diags_super )
 
 ! Add the entrained mass onto the mass-flux
@@ -483,10 +480,11 @@ call fields_k_conserved_vars( n_points, max_points,                            &
 
 if ( l_to_full_level ) then
   ! Set entrained temperature back to level k pressure
-  do ic = 1, n_points
-    ent_fields(ic,i_temperature) = ent_fields(ic,i_temperature)                &
-                                 / exner_ratio(ic)
-  end do
+  call dry_adiabat( n_points, n_points,                                        &
+                  grid_prev_super(:,i_pressure), grid_next_super(:,i_pressure),&
+                    ent_fields(:,i_q_vap),                                     &
+                    ent_fields(:,i_qc_first:i_qc_last),                        &
+                    ent_fields(:,i_temperature) )
 end if
 
 ! Add contribution from entrainment to the resolved-scale source terms

@@ -59,19 +59,19 @@
 {# Regional jobs #}
 {# ###################################################################### #}
 
-{% elif task_ns.conf_name == "ral3-seuk_MG" %}
+{% elif task_ns.conf_name == "ral4-seuk_MG" %}
 
     {% do task_dict.update({
         "memory": [64, "GB"]
     }) %}
 
-{% elif task_ns.conf_name == "ral3_ens-seuk_MG" %}
+{% elif task_ns.conf_name == "ral4_ens-seuk_MG" %}
 
     {% do task_dict.update({
         "memory": [64, "GB"]
     }) %}
 
-{% elif task_ns.conf_name == "ral3_mixmol-seuk_MG" %}
+{% elif task_ns.conf_name == "ral4_mixmol-seuk_MG" %}
 
     {% do task_dict.update({
         "memory": [64, "GB"]

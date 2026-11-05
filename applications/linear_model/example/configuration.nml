@@ -178,6 +178,8 @@ transport_efficiency=.false.,
 run_log_level='info',
 /
 &mixed_solver
+chebyshev_lmax=2.5
+chebyshev_lmin=1.0
 fail_on_non_converged=.true.
 gcrk=6,
 guess_np1=.false.,

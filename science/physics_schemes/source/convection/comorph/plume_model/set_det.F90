@@ -654,8 +654,8 @@ if ( l_par_core ) then
 
   ! Calculate chi-1
   do ic = 1, n_points
-    if ( one-x_edge(ic) < sqrt_min_delta ) then
-      ! If x_edge is too close to 1.0, use Taylor expansion:
+    if ( one-max(x_edge(ic),frac(ic)) < sqrt_min_delta ) then
+      ! If x_edge or frac is too close to 1.0, use Taylor expansion:
       ! Let y = 1 - x_edge
       ! => chi-1 = (1-y)^(p+1) y / ( 1 - (1-y)^(p+1) )
       !
