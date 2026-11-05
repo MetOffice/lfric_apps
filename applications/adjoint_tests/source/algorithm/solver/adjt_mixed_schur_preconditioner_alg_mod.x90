@@ -164,7 +164,7 @@ contains
 
     call compute_si_operators_common( modeldb%config, ls_theta, ls_rho, ls_exner, &
                                       ls_moist_dyn )
-    call compute_helmholtz_operators( model_clock, stepper_siqn )
+    call compute_helmholtz_operators( modeldb%config, model_clock, stepper_siqn )
 
     call create_pressure_preconditioner( modeldb%config, rhs, pressure_operator, &
                                          pressure_preconditioner, stepper_siqn )
