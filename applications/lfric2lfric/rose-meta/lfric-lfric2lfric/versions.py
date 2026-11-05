@@ -591,3 +591,43 @@ class vn32_t776(MacroUpgrade):
         self.add_setting(config, [nml, "turb_len_fac"], "8.0")
 
         return config, self.reports
+
+
+class vn32_t802(MacroUpgrade):
+    """Upgrade macro for ticket #802 by thomas.melvin."""
+
+    BEFORE_TAG = "vn3.2_t776"
+    AFTER_TAG = "vn3.2_t802"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        # Add lmin and lmax settings for the mixed solver
+        self.add_setting(
+            config,
+            ["namelist:mixed_solver", "chebyshev_lmax"],
+            "2.5",
+        )
+        self.add_setting(
+            config,
+            ["namelist:mixed_solver", "chebyshev_lmin"],
+            "1.0",
+        )
+
+        return config, self.reports
+
+
+class vn32_t593(MacroUpgrade):
+    """Upgrade macro for ticket #593 by Matthew Naylor."""
+
+    BEFORE_TAG = "vn3.2_t802"
+    AFTER_TAG = "vn3.2_t593"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-chemistry
+        """Upgrade a UM runtime app configuration."""
+        nml = "namelist:chemistry"
+        var = "ukca_chem_full_chunk_size"
+        val = "-1,-1,-1"
+        self.add_setting(config, [nml, var], val)
+
+        return config, self.reports
