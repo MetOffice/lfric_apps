@@ -117,7 +117,7 @@ real(kind=r_bl), intent(in) ::                                                 &
                  ! IN Land fraction on all tiles.
  rneutml_sq(tdims%i_start:tdims%i_end,bl_levels),                              &
                  ! IN Square of the neutral mixing length for Smagorinsky
- delta_smag(tdims%i_start:tdims%i_end),                                        &                                                  
+ delta_smag(tdims%i_start:tdims%i_end),                                        &
                  ! IN delta_x used by Smagorinsky
  cumulus_cth(pdims%i_start:pdims%i_end)
                  ! IN cloud-top height for identifying shallow cu in blending
