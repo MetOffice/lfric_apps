@@ -46,7 +46,7 @@ module jules_exp_kernel_mod
   !>
   type, public, extends(kernel_type) :: jules_exp_kernel_type
     private
-    type(arg_type) :: meta_args(108) = (/                                      &
+    type(arg_type) :: meta_args(109) = (/                                      &
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! theta_in_wth
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! exner_in_wth
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      W3, STENCIL(REGION)),      &! u_in_w3
@@ -154,6 +154,7 @@ module jules_exp_kernel_mod
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! q1_sd
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! diag__gross_prim_prod
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! diag__z0h_eff
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! diag__chr10m
          arg_type(GH_FIELD, GH_INTEGER, GH_READ,    ANY_DISCONTINUOUS_SPACE_1) &! ocn_cpl_point
          /)
     integer :: operates_on = DOMAIN
@@ -276,7 +277,8 @@ contains
   !> @param[in,out] q1_sd_2d               StDev of level 1 humidity
   !> @param[in,out] gross_prim_prod        Diagnostic: Gross Primary Productivity
   !> @param[in,out] z0h_eff                Diagnostic: Gridbox mean effective roughness length for scalars
-  !> @param[in,out] ocn_cpl_point          Diagnostic: Coupling point mask
+  !> @param[in,out] chr10m                 Diagnostic: 10m transfer coefficient
+  !> @param[in,out] ocn_cpl_point          Coupling point mask
   !> @param[in]     ndf_wth                Number of DOFs per cell for potential temperature space
   !> @param[in]     undf_wth               Number of unique DOFs for potential temperature space
   !> @param[in]     map_wth                Dofmap for the cell at the base of the column for potential temperature space
@@ -426,6 +428,7 @@ contains
                            q1_sd_2d,                              &
                            gross_prim_prod,                       &
                            z0h_eff,                               &
+                           chr10m,                                &
                            ocn_cpl_point,                         &
                            ndf_wth, undf_wth, map_wth,            &
                            ndf_w3, undf_w3, map_w3,               &
@@ -696,6 +699,7 @@ contains
     real(kind=r_def), dimension(undf_dust), intent(inout)  :: dust_div_flux
 
     real(kind=r_def), pointer, intent(inout) :: z0h_eff(:), gross_prim_prod(:)
+    real(kind=r_def), pointer, intent(inout) :: chr10m(:)
     real(kind=r_def), intent(in) :: flux_h
     real(kind=r_def), intent(in) :: flux_e
 
@@ -1393,6 +1397,8 @@ contains
     ! needed to ensure z0h_eff is saved if wanted
     sf_diag%l_z0h_eff_gb = .not. associated(z0h_eff, empty_real_data)
     sf_diag%l_z0m_gb = .true.
+    sf_diag%l_t10m = .not. associated(chr10m, empty_real_data)
+    sf_diag%l_q10m = .not. associated(chr10m, empty_real_data)
     call alloc_sf_expl(sf_diag, .true., land_field)
 
     !-----------------------------------------------------------------------
@@ -1853,6 +1859,11 @@ contains
     if (.not. associated(z0h_eff, empty_real_data) ) then
       do i = 1, seg_len
         z0h_eff(map_2d(1,i)) = sf_diag%z0h_eff_gb(i,1)
+      end do
+    end if
+    if (.not. associated(chr10m, empty_real_data) ) then
+      do i = 1, seg_len
+        chr10m(map_2d(1,i)) = sf_diag%chr10m(i,1)
       end do
     end if
 

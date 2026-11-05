@@ -135,6 +135,7 @@ contains
     type( field_type ), pointer :: massflux_down
     type( field_type ), pointer :: cape_diluted
     type( field_type ), pointer :: pressure_inc_env
+    type( field_type ), pointer :: conv_ppn_frac
 
     type( field_type ), pointer :: cf_fro
     type( field_type ), pointer :: cf_liq
@@ -337,6 +338,7 @@ contains
     call convection_fields%get_field('cv_base', cv_base)
     call convection_fields%get_field('cv_top', cv_top)
     call convection_fields%get_field('pressure_inc_env', pressure_inc_env)
+    call convection_fields%get_field('conv_ppn_frac',conv_ppn_frac)
 
     ! Unpack cloud fields
     call cloud_fields%get_field('frozen_fraction', cf_fro)
@@ -518,6 +520,7 @@ contains
                           zh, zh_nonloc, inv_depth, zhsc, bl_type_ind,        &
                           wvar, rhokm_bl, moist_flux, heat_flux, taux, tauy,  &
                           surf_interp, ustar, ls_rain, ls_snow,               &
+                          conv_ppn_frac,                                      &
                           dcfl_conv, dcff_conv, dbcf_conv,                    &
                           o3p,                                                &
                           o1d,                                                &
@@ -677,6 +680,9 @@ contains
                                   conv_rain_3d,           &
                                   conv_snow_3d,           &
                                   cca_2d,                 &
+                                  ls_rain,               &
+                                  ls_snow,               &
+                                  conv_ppn_frac,         &
                                   lowest_cv_base,         &
                                   lowest_cv_top,          &
                                   cv_base,                &

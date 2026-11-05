@@ -1,15 +1,16 @@
-@@ -1,22 +1,22 @@
+@@ -1,23 +1,23 @@
 -module adj_extract_w_kernel_mod
--  use argument_mod, only : arg_type, cell_column, gh_field, gh_read, gh_real, gh_write
 +module adj_sci_extract_w_kernel_mod
+   use, intrinsic :: iso_fortran_env, only : real32, real64
+-  use argument_mod, only : arg_type, cell_column, gh_field, gh_read, gh_real, gh_write
 +  use argument_mod, only : arg_type, cell_column, gh_field, gh_read, gh_real, gh_readwrite, gh_inc
-   use constants_mod, only : i_def, r_double, r_single
+   use constants_mod, only : i_def
    use fs_continuity_mod, only : w2, wtheta
    use kernel_mod, only : kernel_type
    implicit none
 -  interface extract_w_code
 +  interface adj_extract_w_code
-     module procedure :: adj_extract_w_code_r_single, adj_extract_w_code_r_double
+     module procedure :: adj_extract_w_code_real32, adj_extract_w_code_real64
 -  end interface extract_w_code
 +  end interface adj_extract_w_code
    type, public, extends(kernel_type) :: adj_extract_w_kernel_type
@@ -27,10 +28,10 @@
 +  public :: adj_extract_w_code
  
    contains
-   subroutine adj_extract_w_code_r_single(nlayers, velocity_w2v, u_physics, ndf_wth, undf_wth, map_wth, ndf_w2, undf_w2, map_w2)
-@@ -56,4 +56,4 @@
+   subroutine adj_extract_w_code_real32(nlayers, velocity_w2v, u_physics, ndf_wth, undf_wth, map_wth, ndf_w2, undf_w2, map_w2)
+@@ -57,4 +57,4 @@
  
-   end subroutine adj_extract_w_code_r_double
+   end subroutine adj_extract_w_code_real64
  
 -end module adj_extract_w_kernel_mod
 +end module adj_sci_extract_w_kernel_mod
