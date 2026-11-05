@@ -119,7 +119,7 @@ real(kind=r_bl), intent(in) ::                                                 &
                  ! IN Square of the neutral mixing length for Smagorinsky
  delta_smag(tdims%i_start:tdims%i_end)                                                   
                  ! IN delta_x used by Smagorinsky
- cumulus_cth(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end)
+ cumulus_cth(pdims%i_start:pdims%i_end)
                  ! IN cloud-top height for identifying shallow cu in blending
 
 ! Declaration of new BL diagnostics.

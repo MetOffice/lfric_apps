@@ -2774,7 +2774,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
               rhokh_surf_ent(i) /                                              &
                     ( rho_mix(i,k)*w_h_top(i)*vkman*zh(i) ) ) )
     km_top_factor(i) = max( 0.7_r_bl, one-sqrt( rhokm_surf_ent(i) /            &
-                    ( rho_wet_tq(i,k-1)*w_m_top(i,j)*vkman*zh(i) ) ) )
+                    ( rho_wet_tq(i,k-1)*w_m_top(i)*vkman*zh(i) ) ) )
     scdepth(i) = zh(i) - zsml_base(i)
     factor = g1 * rho_mix(i,k) * v_top(i) *vkman *scdepth(i)
 
