@@ -1,4 +1,4 @@
-@@ -13,46 +13,49 @@
+@@ -13,48 +13,50 @@
      use finite_element_config_mod, only : element_order_h, element_order_v
      use fs_continuity_mod, only : w2, w3, wtheta
      use operator_mod, only : operator_type
@@ -26,9 +26,11 @@
 -    type(operator_type) :: p3t
 -    type(operator_type) :: pt2
 -    type(operator_type) :: m3
--    real(kind=r_def) :: sgn
+-    real(kind=r_def) :: const_div
+-    real(kind=r_def) :: const_theta
 -    type(field_type) :: rhs_p
--    real(kind=r_def) :: sgn_input
+-    real(kind=r_def) :: const_div_input
+-    real(kind=r_def) :: const_theta_input
 -    type(field_type) :: lhs_input
 -    type(field_type) :: x_input
 -    type(field_type) :: mt_inv_input
@@ -42,7 +44,8 @@
 +    type(r_solver_operator_type) :: p3t
 +    type(r_solver_operator_type) :: pt2
 +    type(r_solver_operator_type) :: m3
-+    real(kind=r_solver) :: sgn
++    real(kind=r_solver) :: const_div
++    real(kind=r_solver) :: const_theta
 +    type(r_solver_field_type) :: rhs_p
 +    type(r_solver_field_type) :: lhs_input
 +    type(r_solver_field_type) :: x_input
@@ -74,18 +77,21 @@
  
      vector_space_w2_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2)
      vector_space_w3_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w3)
-@@ -68,48 +71,62 @@
+@@ -70,53 +72,63 @@
      call m3%initialise(vector_space_w3_ptr, vector_space_w3_ptr)
      call lhs_input%initialise(vector_space=vector_space_w3_ptr, name='lhs_input')
      call x_input%initialise(vector_space=vector_space_w2_ptr, name='x_input')
 -    call mt_inv_input%initialise(vector_space=vector_space_wtheta_ptr, name='mt_inv_input')
      call pressure_input%initialise(vector_space=vector_space_w3_ptr, name='pressure_input')
      call rhs_p_input%initialise(vector_space=vector_space_w3_ptr, name='rhs_p_input')
--    call RANDOM_NUMBER(sgn)
--    sgn_input = sgn
+-    call RANDOM_NUMBER(const_div)
+-    const_div_input = const_div
+-    call RANDOM_NUMBER(const_theta)
+-    const_theta_input = const_theta
 +    ! NOTE(JC): Known issue with scalar randomisation with MPI. Each process
 +    !           generates a different number. See LFRic-apps ticket #765.
-+    sgn = 1.0_r_def
++    const_div = 1.0_r_def
++    const_theta = 1.0_r_def
      lhs_inner_prod = 0.0_r_def
      x_inner_prod = 0.0_r_def
 -    mt_inv_inner_prod = 0.0_r_def
@@ -96,24 +102,27 @@
      call invoke(setval_random(lhs), setval_x(lhs_input, lhs), setval_random(x), setval_x(x_input, x), setval_random(mt_inv), &
 -&setval_x(mt_inv_input, mt_inv), setval_random(pressure), setval_x(pressure_input, pressure), setval_random(rhs_p), &
 -&setval_x(rhs_p_input, rhs_p), setop_random_kernel_type(div), setop_random_kernel_type(p3t), setop_random_kernel_type(pt2), &
--&setop_random_kernel_type(m3), opt_apply_variable_hx_kernel_type(lhs, x, mt_inv, pressure, div, p3t, pt2, m3, sgn, rhs_p), &
--&x_innerproduct_x(lhs_inner_prod, lhs), x_innerproduct_x(x_inner_prod, x), x_innerproduct_x(mt_inv_inner_prod, mt_inv), &
+-&setop_random_kernel_type(m3), opt_apply_variable_hx_kernel_type(lhs, x, mt_inv, pressure, div, p3t, pt2, m3, const_div, &
+-&const_theta, rhs_p), x_innerproduct_x(lhs_inner_prod, lhs), x_innerproduct_x(x_inner_prod, x), &
+-&x_innerproduct_x(mt_inv_inner_prod, mt_inv), x_innerproduct_x(pressure_inner_prod, pressure), x_innerproduct_x(rhs_p_inner_prod, &
+-&rhs_p))
+-    inner1 = 0.0_r_def
+-    inner1 = inner1 + const_div * const_div
+-    inner1 = inner1 + const_theta * const_theta
+-    inner1 = inner1 + lhs_inner_prod
+-    inner1 = inner1 + x_inner_prod
+-    inner1 = inner1 + mt_inv_inner_prod
+-    inner1 = inner1 + pressure_inner_prod
+-    inner1 = inner1 + rhs_p_inner_prod
 +&setval_random(pressure), setval_x(pressure_input, pressure), setval_random(rhs_p), &
 +&setval_x(rhs_p_input, rhs_p))
 +    call setop_random_alg(div)
 +    call setop_random_alg(p3t)
 +    call setop_random_alg(pt2)
 +    call setop_random_alg(m3)
-+    call invoke(opt_apply_variable_hx_kernel_type(lhs, x, mt_inv, pressure, div, p3t, pt2, m3, sgn, rhs_p), &
++    call invoke(opt_apply_variable_hx_kernel_type(lhs, x, mt_inv, pressure, div, p3t, pt2, m3, const_div, const_theta, rhs_p), &
 +&x_innerproduct_x(lhs_inner_prod, lhs), x_innerproduct_x(x_inner_prod, x), &
- &x_innerproduct_x(pressure_inner_prod, pressure), x_innerproduct_x(rhs_p_inner_prod, rhs_p))
--    inner1 = 0.0_r_def
--    inner1 = inner1 + sgn * sgn
--    inner1 = inner1 + lhs_inner_prod
--    inner1 = inner1 + x_inner_prod
--    inner1 = inner1 + mt_inv_inner_prod
--    inner1 = inner1 + pressure_inner_prod
--    inner1 = inner1 + rhs_p_inner_prod
++&x_innerproduct_x(pressure_inner_prod, pressure), x_innerproduct_x(rhs_p_inner_prod, rhs_p))
 +    write( log_scratch_space, * ) "adjt_opt_apply_variable_hx inner products:"
 +    call log_event( log_scratch_space, log_level_debug )
 +    write( log_scratch_space, * ) "lhs inner product = ", lhs_inner_prod
@@ -142,13 +151,14 @@
 -    mt_inv_mt_inv_input_inner_prod = 0.0_r_def
      pressure_pressure_input_inner_prod = 0.0_r_def
      rhs_p_rhs_p_input_inner_prod = 0.0_r_def
-     call invoke(adj_opt_apply_variable_hx_kernel_type(lhs, x, mt_inv, pressure, div, p3t, pt2, m3, sgn, rhs_p), &
+     call invoke(adj_opt_apply_variable_hx_kernel_type(lhs, x, mt_inv, pressure, div, p3t, pt2, m3, const_div, const_theta, rhs_p), &
  &x_innerproduct_y(lhs_lhs_input_inner_prod, lhs, lhs_input), x_innerproduct_y(x_x_input_inner_prod, x, x_input), &
 -&x_innerproduct_y(mt_inv_mt_inv_input_inner_prod, mt_inv, mt_inv_input), x_innerproduct_y(pressure_pressure_input_inner_prod, &
 +&x_innerproduct_y(pressure_pressure_input_inner_prod, &
  &pressure, pressure_input), x_innerproduct_y(rhs_p_rhs_p_input_inner_prod, rhs_p, rhs_p_input))
 -    inner2 = 0.0_r_def
--    inner2 = inner2 + sgn * sgn_input
+-    inner2 = inner2 + const_div * const_div_input
+-    inner2 = inner2 + const_theta * const_theta_input
 -    inner2 = inner2 + lhs_lhs_input_inner_prod
 -    inner2 = inner2 + x_x_input_inner_prod
 -    inner2 = inner2 + mt_inv_mt_inv_input_inner_prod

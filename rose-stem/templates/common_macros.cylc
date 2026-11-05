@@ -163,7 +163,7 @@
         "configurate",
         "psyclone",
         "generate_weights",
-        "rose_ana",
+        "kgo_compare",
         "perftools-export",
         "pert_compare"] %}
 

@@ -57,7 +57,7 @@ use bl_option_mod, only:                                                       &
     entr_taper_zh, kprof_cu, klcl_entr, buoy_integ, buoy_integ_low,            &
     max_cu_depth, bl_res_inv, a_ent_shr_nml,  a_ent_2, one_third, two_thirds,  &
     l_reset_dec_thres, improved_tke_diag,                                      &
-    l_use_var_fixes, dzrad_disc_opt, dzrad_ntm1, dzrad_1p5dz,                  &
+    dzrad_disc_opt, dzrad_ntm1, dzrad_1p5dz,                                   &
     num_sweeps_bflux, l_converge_ga, l_use_sml_dsc_fixes, zero, one, one_half
 use model_domain_mod, only: model_type, mt_single_column
 use missing_data_mod, only: rmdi
@@ -1004,11 +1004,6 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
         rhokm_top_ent(i) = 0.75_r_bl * rhokh_top_ent(i)                        &
                               * rdz(i,k) * (z_uv(i,k)-z_uv(i,k-1))             &
                               * rho_wet_tq(i,k-1) / rho_mix(i,k)
-        if (.not. l_use_var_fixes) then
-          rhokm(i,k) = rhokm_surf_ent(i)
-          rhokm_top(i,k) = rhokm_top_ent(i)
-        end if
-
       end if    ! test on DB_TOP gt 0
     end if
     !----------------------------------------------------------------
@@ -1105,7 +1100,6 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
           rhokm_dsct_top_ent(i) = rhokm_dsct_ent(i)                            &
                                 * ( rho_we_dsc_no_surf / rho_we_dsc(i) )
         end if
-        if (.not. l_use_var_fixes) rhokm_top(i,k) = rhokm_dsct_ent(i)
       end if   ! test on DB_DSCT gt 0
     end if
   end do ! i
@@ -1685,8 +1679,6 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
                       rdz(i,ntml(i)+1) ) /                                     &
                     ( rho_wet_tq(i,ntml(i)) * db_dsct(i) *                     &
                                       rdz(i,ntdsc(i)+1) )
-            if (.not. l_use_var_fixes)                                         &
-                  rhokm(i,ntdsc(i)+1) = rhokm_surf_ent(i)
           end if
           ! redesignate top-driven entrainment at ZHSC
           ! (ignore that calculated at ZH)
@@ -1768,7 +1760,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
         end if  ! ( l_use_sml_dsc_fixes )
 
         if ( .not. dsc(i) ) then
-          if (l_use_var_fixes .and. v_top(i) <= zero) then
+          if (v_top(i) <= zero) then
             ! If v_top=0 we have no mechanism to generate turbulence in a DSC
             ktop_iterate(i) = .false.
             z_top_lim(i)    = zh(i) ! needs to be set here as zhsc not used
@@ -1803,16 +1795,12 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
               ! Save entrainment coef excluding enhancement by surf contrib.
               rhokm_dsct_top_ent(i) = rhokm_top_ent(i)
             end if
+
             rhokm_dsct_ent(i) = rhokm_top_ent(i)                               &
                                 + rhokm_surf_ent(i)
             rhokm_top_ent(i) = zero
             rhokm_surf_ent(i) = zero
-            if (.not. l_use_var_fixes) then
-              rhokm_top(i,ntml(i)+1) = rhokm_top(i,ntml(i)+1)                  &
-                                          + rhokm(i,ntml(i)+1)
-              rhokm(i,ntml(i)+1) = zero
-            end if
-          end if ! test on l_use_var_fixes and v_top <= zero
+          end if ! test on v_top <= zero
         end if ! test no not.dsc
       end if   ! test on WB_RATIO le DEC_THRES
     end if   ! testing for well-mixed layer (TEST_WELL_MIXED)
@@ -2194,17 +2182,10 @@ do ii = pdims%i_start, pdims%i_end,bl_segment_size
           else
             ! for kprof_cu eq buoy_integ use max of ksurf top calculated
             ! from buoyancy flux integration and original LCL based values
-            ntml(i) =  max( ntml(i), ntml_new(i)-1 )
-            if (l_use_var_fixes) then
-              zh(i) = max( zh(i), zsml_top(i) )
-            else
-              zh(i) = zsml_top(i)
-            end if
+            zh(i) = max( zh(i), zsml_top(i) )
           end if
         end if
-
       end if  ! ksurf_iterate(i) .and. status_ntml(i)
-
     end do ! i
   end do ! k
 end do ! ii
@@ -2792,15 +2773,11 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
     kh_top_factor(i) = max( 0.7_r_bl , one - sqrt(                             &
               rhokh_surf_ent(i) /                                              &
                     ( rho_mix(i,k)*w_h_top(i)*vkman*zh(i) ) ) )
-    if (l_use_var_fixes) then
-      km_top_factor(i) = max( 0.7_r_bl, one-sqrt( rhokm_surf_ent(i) /          &
-                ( rho_wet_tq(i,k-1)*w_m_top(i)*vkman*zh(i) ) ) )
-    else
-      km_top_factor(i) = max( 0.7_r_bl , one - sqrt( rhokm(i,k) /              &
-                ( rho_wet_tq(i,k-1)*w_m_top(i)*vkman*zh(i) ) ) )
-    end if
+    km_top_factor(i) = max( 0.7_r_bl, one-sqrt( rhokm_surf_ent(i) /            &
+                    ( rho_wet_tq(i,k-1)*w_m_top(i,j)*vkman*zh(i) ) ) )
     scdepth(i) = zh(i) - zsml_base(i)
     factor = g1 * rho_mix(i,k) * v_top(i) *vkman *scdepth(i)
+
     if ( factor  >   zero) then
       kh_sct_factor(i) = one - ( rhokh_top_ent(i) / factor )**1.25_r_bl
                                                         ! 1.25=1/0.8
@@ -2810,14 +2787,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
     factor = g1 * rho_wet_tq(i,k-1) * v_top(i) *                               &
                     vkman * scdepth(i) * 0.75_r_bl
     if ( factor  >   zero) then
-      if (l_use_var_fixes) then
-        km_sct_factor(i) = one -                                               &
-              ( rhokm_top_ent(i) / factor )**1.25_r_bl
-                                                        ! 1.25=1/0.8
-      else
-        km_sct_factor(i) = one -                                               &
-              ( rhokm_top(i,k) / factor )**1.25_r_bl
-      end if
+      km_sct_factor(i) = one - ( rhokm_top_ent(i) / factor )**1.25_r_bl
     else
       km_sct_factor(i) = one
     end if
@@ -2844,14 +2814,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
       factor = 0.75_r_bl * g1 * rho_wet_tq(i,k-1) * v_top_dsc(i) *             &
                             vkman * dscdepth(i)
       if ( factor  >   zero) then
-        if (l_use_var_fixes) then
-          km_dsct_factor(i) = one -                                            &
-                ( rhokm_dsct_ent(i) / factor )**1.25_r_bl
-                                                        ! 1.25=1/0.8
-        else
-          km_dsct_factor(i) = one -                                            &
-                ( rhokm_top(i,k) / factor )**1.25_r_bl
-        end if
+        km_dsct_factor(i) = one - ( rhokm_dsct_ent(i) / factor )**1.25_r_bl
       else
         km_dsct_factor(i) = one
       end if

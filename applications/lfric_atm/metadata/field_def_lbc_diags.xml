@@ -1,4 +1,4 @@
-<field_definition prec="8">
+<field_definition prec="4">
 
   <!-- Lateral boundary conditions diagnostic group -->
   <field_group id="lbc_diags" freq_op="1ts" operation="instant" enabled=".TRUE." >

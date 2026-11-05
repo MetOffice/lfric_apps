@@ -39,7 +39,7 @@ will use this script unless overwritten with a ``local.py`` or if using a matchi
 filename. ::
 
     optimisation/
-    └── <platform>/
+    └── <architecture>/
         └── transmute/
             └── global.py
 
@@ -51,7 +51,7 @@ in the ``large_scale_precipitation`` directory will use this script unless overw
 with a matching source filename.::
 
     optimisation/
-    └── <platform>/
+    └── <architecture>/
         └── transmute/
             └── large_scale_precipitation/
                 └── local.py
@@ -85,7 +85,7 @@ Therefore, the transformation script for this module needs to be placed here
 (note the matching filename)::
 
     optimisation/
-    └── <platform>/
+    └── <architecture>/
         └── transmute/
             └── large_scale_precipitation/
                 └── ls_ppn.py

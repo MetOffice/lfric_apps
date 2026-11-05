@@ -600,6 +600,9 @@ real(kind=r_bl) ::                                                             &
            2:bl_levels),                                                       &
                                 ! Mixing length for heat (m),
                                 ! held on theta and rho levels, resp.
+   cumulus_cth(pdims%i_start:pdims%i_end),                                     &
+                                ! cf_bulk cloud top height used in blended BL
+                                ! for shallow convection
    fm_3d(tdims%i_start:tdims%i_end,bl_levels),                                 &
                                 ! stability function for momentum transport
                                 ! level 1 value is dummy
@@ -715,9 +718,6 @@ logical ::                                                                     &
                                ! Flag for having reached
                                ! the top of the turbulently mixed
                                ! layer.
- l_shallow_cth(pdims%i_start:pdims%i_end),                                     &
-                               ! Flag to indicate shallow convection based on
-                               ! cf_bulk cloud top height
  cloud_base_found(pdims%i_start:pdims%i_end),                                  &
                                ! Flag for having reached cloud base
  cloud_top_found(pdims%i_start:pdims%i_end)
@@ -1822,20 +1822,21 @@ end if  ! test on NON_LOCAL_BL
 !$OMP SCHEDULE(STATIC)                                                         &
 !$OMP DEFAULT(none)                                                            &
 !$OMP private(i)                                                               &
-!$OMP SHARED(pdims,l_shallow_cth)
+!$OMP SHARED(pdims,cumulus_cth)
 do i = pdims%i_start, pdims%i_end
-  l_shallow_cth(i) = .false.
+  cumulus_cth(i) = zero ! initialise to zero for case of no cloud
+                          ! - will then blend using BL depth
 end do
 !$OMP end PARALLEL do
 
 if (blending_option == blend_cth_shcu_only) then
-  ! only going to use the parcel top as the length scale in blending
+  ! going to use cloud top height as the length scale in blending only
   ! if the convection is shallow, where we define shallow convection here
   ! as the resolved cloud top (from cf_bluk) being below shallow_cu_maxtop
 !$OMP PARALLEL                                                                 &
 !$OMP DEFAULT(none)                                                            &
 !$OMP private(i,k)                                                             &
-!$OMP SHARED(pdims,bl_levels,z_uv,l_shallow_cth,cumulus,ntml,cf_bulk,          &
+!$OMP SHARED(pdims,bl_levels,z_uv,cumulus_cth,cumulus,ntml,cf_bulk,            &
 !$OMP        shallow_cu_maxtop,cloud_base_found,cloud_top_found)
 !$OMP do SCHEDULE(STATIC)
   do i = pdims%i_start, pdims%i_end
@@ -1856,7 +1857,7 @@ if (blending_option == blend_cth_shcu_only) then
             cf_bulk(i,k+1) < sc_cftol ) then
         ! got to cloud-top
         cloud_top_found(i) = .true.
-        l_shallow_cth(i)   = z_uv(i,k+1) < shallow_cu_maxtop
+        cumulus_cth(i)     = z_uv(i,k+1)
       end if
     end do
 !$OMP end do
@@ -1871,7 +1872,7 @@ call ex_coef (                                                                 &
    bl_levels,k_log_layr,BL_diag,                                               &
 ! in fields
    sigma_h,flandg,dvdzm,ri,rho_wet_tq,z_uv,z_tq,z0m_eff_gb,zhnl,zhpar,zhsc,    &
-   zdsc_base,ntpar,ntml_nl,ntdsc,nbdsc,l_shallow_cth,rmlmax2,rneutml_sq,       &
+   zdsc_base,ntpar,ntml_nl,ntdsc,nbdsc,cumulus_cth,rmlmax2,rneutml_sq,         &
    delta_smag,                                                                 &
 ! in/out fields
    cumulus,weight_1dbl,                                                        &
@@ -2468,7 +2469,7 @@ do i = pdims%i_start, pdims%i_end
       bl_type_6(i) = one
       ! Label this shallow regime as 2.0_r_bl here, to be able to identify it
       ! in diagnostics_bl, but the "cumulus" stash output will still be 1.0
-      if (l_shallow_cth(i)) bl_type_6(i) = 2.0_r_bl
+      if (cumulus_cth(i) < shallow_cu_maxtop) bl_type_6(i) = 2.0_r_bl
     end if
   end if
 end do
