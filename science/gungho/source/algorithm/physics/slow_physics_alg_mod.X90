@@ -101,6 +101,7 @@ module slow_physics_alg_mod
 #ifdef UM_PHYSICS
   use locate_tropopause_alg_mod, only: locate_tropopause_alg
   use radaer_alg_mod,            only: radaer_alg
+  use radaer_faster_alg_mod,     only: radaer_faster_alg
   use glomap_aerosol_alg_mod,    only: glomap_aerosol_alg
   use strat_aerosol_alg_mod,     only: strat_aerosol_alg
   use mphys_alg_mod,             only: mphys_alg
@@ -686,7 +687,7 @@ contains
              ( glomap_mode == glomap_mode_ukca ) .or.                          &
              ( glomap_mode == glomap_mode_radaer_test) ) .and.                 &
            l_radaer ) then
-        call radaer_alg( modeldb%config,                                       &
+        call radaer_faster_alg( modeldb%config,                                &
                          aerosol_fields,                                       &
                          radiation_fields,                                     &
                          rho_in_wth_aero,                                      &
