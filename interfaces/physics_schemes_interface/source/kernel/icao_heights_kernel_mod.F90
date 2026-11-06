@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 ! -----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code Enterprise (Claude Opus 4.8).
+
 !> @brief Calculate icao height.
 !>
 module icao_heights_kernel_mod

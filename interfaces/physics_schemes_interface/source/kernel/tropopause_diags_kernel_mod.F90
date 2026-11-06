@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code Enterprise (Claude Opus 4.8, Claude Sonnet 5).
+
 !> @brief Height, temperature, pressure and ICAO height at the tropopause
 
 module tropopause_diags_kernel_mod
