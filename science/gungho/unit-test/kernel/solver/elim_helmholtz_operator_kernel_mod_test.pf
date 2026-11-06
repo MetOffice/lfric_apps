@@ -84,11 +84,16 @@ contains
     ! Operators
     real(kind=r_solver), dimension(ncell, ndf_w2, ndf_w3) :: div_star
     real(kind=r_solver), dimension(ncell, ndf_w3, ndf_w2) :: q32
+    real(kind=r_solver), dimension(ncell, ndf_w3, ndf_w2) :: q32_theta
     real(kind=r_solver), dimension(ncell, ndf_w3, ndf_w3) :: m3_exner_star
 
     ! Number of dofs in a single column: 4*nlayers horizontal dofs
     ! and (nlayers + 1) vertical dofs
     integer(kind=i_def), parameter :: ndofs_col = 5*nlayers+1
+
+    real(kind=r_solver), parameter :: const_u = 1.0_r_solver
+    real(kind=r_solver), parameter :: const_r = 1.0_r_solver
+    real(kind=r_solver), parameter :: const_t = 1.0_r_solver
 
     integer(kind=i_def) :: df, k
     real(kind=r_solver)    :: answer
@@ -134,6 +139,9 @@ contains
     div_star = 1.0_r_solver
     m3_exner_star = 10.0_r_solver
     q32 = 10.0_r_solver
+    ! q32_theta is scaled by const_t; set to zero so it does not contribute
+    ! and the expected answers below (derived for a single Q32 operator) hold
+    q32_theta = 0.0_r_solver
 
     ! Compute Helmholtz operator
     call elim_helmholtz_operator_code(smap_size_w2,                     &
@@ -151,7 +159,10 @@ contains
                                       m3_exner_star,                    &
                                       ncell,                            &
                                       q32,                              &
+                                      ncell,                            &
+                                      q32_theta,                        &
                                       w2_mask,                          &
+                                      const_u, const_r, const_t,        &
                                       ndf_w3, undf_w3, map_w3,          &
                                       ndf_w2, undf_w2, map_w2)
     ! In terms of the kernel operators we have

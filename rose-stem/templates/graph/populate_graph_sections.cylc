@@ -21,10 +21,10 @@
 {% else %}
     {% set checksum_kgo = false %}
 {% endif %}
-{% if "rose_ana" in task_values["kgo_checks"] %}
-    {% set rose_ana_kgo = true %}
+{% if "full_kgo" in task_values["kgo_checks"] %}
+    {% set full_kgo = true %}
 {% else %}
-    {% set rose_ana_kgo = false %}
+    {% set full_kgo = false %}
 {% endif %}
 {% if "fields" in task_values["kgo_checks"] %}
     {% set fields_kgo = true %}
@@ -275,18 +275,18 @@
             application_run_task,
             checksum_task~"?"]) %}
     {% endif %}
-    {% if rose_ana_kgo %}
-        {% set rose_ana_task = "rose_ana_"~
+    {% if full_kgo %}
+        {% set full_kgo_task = "kgo_compare_"~
                                 task_ns.application~"_"~
                                 task_ns.conf_name~"_"~
                                 task_ns.platform~"_"~
                                 task_ns.compiler~"_"~
                                 task_ns.extras %}
-        {% if rose_ana_task not in tasks_to_run %}
-            {% do tasks_to_run.update({rose_ana_task: task_values}) %}
+        {% if full_kgo_task not in tasks_to_run %}
+            {% do tasks_to_run.update({full_kgo_task: task_values}) %}
         {% endif %}
         {% do graph_sections.append([
-            application_run_task, rose_ana_task
+            application_run_task, full_kgo_task
         ]) %}
     {% endif %}
     {% if plot %}
