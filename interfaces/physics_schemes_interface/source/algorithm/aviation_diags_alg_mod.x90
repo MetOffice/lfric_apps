@@ -1,14 +1,18 @@
-! -----------------------------------------------------------------------------
+!-------------------------------------------------------------------------------
 ! (C) Crown copyright Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
-! -----------------------------------------------------------------------------
-!> @brief Calculate aviation diagnostics.
+!-------------------------------------------------------------------------------
+!> Some of the content of this file has been produced with the assistance of
+!> Met Office Claude Code Enterprise.
 !>
+!> @brief Calculate aviation diagnostics.
+
 module aviation_diags_alg_mod
 
   use aviation_thickness_snow_kernel_mod,                                   &
                                       only: aviation_thickness_snow_kernel_type
+  use config_mod,                     only: config_type
   use constants_mod,                  only: r_def, i_def, l_def, str_long, RMDI
   use dg_matrix_vector_kernel_mod,    only: dg_matrix_vector_kernel_type
   use field_collection_mod,           only: field_collection_type
@@ -31,34 +35,47 @@ module aviation_diags_alg_mod
   use split_w2_field_kernel_mod,      only: split_w2_field_kernel_type
   use transport_constants_mod,        only: get_directional_im3_div_r_tran
   use transport_enumerated_types_mod, only: direction_h
+  use tropopause_diags_alg_mod,       only: tropopause_diags_alg
 
   implicit none
+  private
 
-private
-public :: aviation_diags_alg
+  public :: aviation_diags_alg
 
 contains
 
-  !> @brief Calculate aviation diagnostics.
-  !> @param[in]     plev_geopot        Geopotential height at pressure levels in m.
-  !>                                   including cloud base and top pressures.
-  !> @param[in]     wind              3D wind field on W2
-  !> @param[in]     exner_w3          Exner pressure on W3
-  !> @param[in]     main_mesh         Primary mesh pointer
-  !> @param[in]     element_order_h   Element order in the horizontal
-  !> @param[in]     element_order_v   Element order in the vertical
-  subroutine aviation_diags_alg(plev_geopot,                                &
-          wind, exner_w3, main_mesh, element_order_h, element_order_v)
+  !> @brief   Calculate aviation diagnostics.
+  !> @details Umbrella for aviation-related diagnostics: tropopause
+  !>          (from theta/exner), thickness/snow (from pressure-level
+  !>          geopotential) and horizontal wind divergence.
+  !> @param[in] config           Application namelist configuration object.
+  !> @param[in] theta            Potential temperature.
+  !> @param[in] exner_in_wth     Exner pressure on Wtheta space.
+  !> @param[in] plev_geopot      Geopotential height at pressure levels in m.
+  !> @param[in] wind             3D wind field on W2
+  !> @param[in] exner_w3         Exner pressure on W3
+  !> @param[in] main_mesh        Primary mesh pointer
+  !> @param[in] element_order_h  Element order in the horizontal
+  !> @param[in] element_order_v  Element order in the vertical
+  subroutine aviation_diags_alg(config, theta, exner_in_wth, plev_geopot,  &
+                                wind, exner_w3, main_mesh,                 &
+                                element_order_h, element_order_v)
+
     implicit none
 
     ! Arguments
+    type(config_type),   intent(in)          :: config
+    type(field_type),    intent(in)          :: theta, exner_in_wth
     type(field_type),    intent(in)          :: plev_geopot
     type(field_type),    intent(in)          :: wind
     type(field_type),    intent(in)          :: exner_w3
     type(mesh_type),     intent(in), pointer :: main_mesh
     integer(kind=i_def), intent(in)          :: element_order_h, element_order_v
 
-    ! Calculate geopotential thickness and snow probbability.
+    ! Tropopause height, temperature, pressure and ICAO height.
+    call tropopause_diags_alg(config, theta, exner_in_wth)
+
+    ! Geopotential thickness (1000-850hPa, 1000-500hPa) and snow probability.
     call from_plev_geopot(plev_geopot)
 
     ! Calculate uv wind divergence.
@@ -67,7 +84,7 @@ contains
 
   end subroutine aviation_diags_alg
 
-  !> @brief Calculate geopotential thickness and snow probabbility
+  !> @brief Calculate geopotential thickness and snow probability
   !>        from geopotential height at pressure levels.
   !> @param[in]    plev_geopot    Geopotential height at pressure levels in m.
   subroutine from_plev_geopot(plev_geopot)
