@@ -960,216 +960,259 @@ subroutine radaer_faster_code( nlayers,                                        &
       end select
     end do
 
-  ! -- ukca_mix_ratio --
-  n_fields = size(comp_names)
-  allocate(ukca_mix_ratio(n_fields, seg_size, nlayers))
-  ukca_mix_ratio = 0.0_r_um
+    ! -- ukca_mix_ratio --
+    n_fields = size(comp_names)
+    allocate(ukca_mix_ratio(n_fields, seg_size, nlayers))
+    do k = 1, nlayers
+      do i = 1, seg_size
+        do m = 1, n_fields
+          ukca_mix_ratio(m, i, k) = 0.0_r_um
+        end do
+      end do
+    end do
 
-  do m = 1, n_fields
-    select case(trim(comp_names(m)))
-    case('fldname_ait_sol_su')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_mix_ratio(m, i, k) = real( ait_sol_su(map_wth(1,i) + k), r_um )
+    do m = 1, n_fields
+      select case(trim(comp_names(m)))
+      case('fldname_ait_sol_su')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_mix_ratio(m, i, k) = real( ait_sol_su(map_wth(1,ii) + k),r_um )
+          end do
         end do
-      end do
-    case('fldname_ait_sol_bc')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_mix_ratio(m, i, k) = real( ait_sol_bc(map_wth(1,i) + k), r_um )
+      case('fldname_ait_sol_bc')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_mix_ratio(m, i, k) = real( ait_sol_bc(map_wth(1,ii) + k),r_um )
+          end do
         end do
-      end do
-    case('fldname_ait_sol_om')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_mix_ratio(m, i, k) = real( ait_sol_om(map_wth(1,i) + k), r_um )
+      case('fldname_ait_sol_om')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_mix_ratio(m, i, k) = real( ait_sol_om(map_wth(1,ii) + k),r_um )
+          end do
         end do
-      end do
-    case('fldname_acc_sol_su')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_mix_ratio(m, i, k) = real( acc_sol_su(map_wth(1,i) + k), r_um )
+      case('fldname_acc_sol_su')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_mix_ratio(m, i, k) = real( acc_sol_su(map_wth(1,ii) + k),r_um )
+          end do
         end do
-      end do
-    case('fldname_acc_sol_bc')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_mix_ratio(m, i, k) = real( acc_sol_bc(map_wth(1,i) + k), r_um )
+      case('fldname_acc_sol_bc')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_mix_ratio(m, i, k) = real( acc_sol_bc(map_wth(1,ii) + k),r_um )
+          end do
         end do
-      end do
-    case('fldname_acc_sol_om')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_mix_ratio(m, i, k) = real( acc_sol_om(map_wth(1,i) + k), r_um )
+      case('fldname_acc_sol_om')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_mix_ratio(m, i, k) = real( acc_sol_om(map_wth(1,ii) + k),r_um )
+          end do
         end do
-      end do
-    case('fldname_acc_sol_ss')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_mix_ratio(m, i, k) = real( acc_sol_ss(map_wth(1,i) + k), r_um )
+      case('fldname_acc_sol_ss')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_mix_ratio(m, i, k) = real( acc_sol_ss(map_wth(1,ii) + k),r_um )
+          end do
         end do
-      end do
-    case('fldname_acc_sol_du')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_mix_ratio(m, i, k) = 0.0_r_um
+      case('fldname_acc_sol_du')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_mix_ratio(m, i, k) = 0.0_r_um
+          end do
         end do
-      end do
-    case('fldname_cor_sol_su')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_mix_ratio(m, i, k) = real( cor_sol_su(map_wth(1,i) + k), r_um )
+      case('fldname_cor_sol_su')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_mix_ratio(m, i, k) = real( cor_sol_su(map_wth(1,ii) + k),r_um )
+          end do
         end do
-      end do
-    case('fldname_cor_sol_bc')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_mix_ratio(m, i, k) = real( cor_sol_bc(map_wth(1,i) + k), r_um )
+      case('fldname_cor_sol_bc')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_mix_ratio(m, i, k) = real( cor_sol_bc(map_wth(1,ii) + k),r_um )
+          end do
         end do
-      end do
-    case('fldname_cor_sol_om')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_mix_ratio(m, i, k) = real( cor_sol_om(map_wth(1,i) + k), r_um )
+      case('fldname_cor_sol_om')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_mix_ratio(m, i, k) = real( cor_sol_om(map_wth(1,ii) + k),r_um )
+          end do
         end do
-      end do
-    case('fldname_cor_sol_ss')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_mix_ratio(m, i, k) = real( cor_sol_ss(map_wth(1,i) + k), r_um )
+      case('fldname_cor_sol_ss')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_mix_ratio(m, i, k) = real( cor_sol_ss(map_wth(1,ii) + k),r_um )
+          end do
         end do
-      end do
-    case('fldname_cor_sol_du')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_mix_ratio(m, i, k) = 0.0_r_um
+      case('fldname_cor_sol_du')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_mix_ratio(m, i, k) = 0.0_r_um
+          end do
         end do
-      end do
-    case('fldname_ait_ins_bc')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_mix_ratio(m, i, k) = real( ait_ins_bc(map_wth(1,i) + k), r_um )
+      case('fldname_ait_ins_bc')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_mix_ratio(m, i, k) = real( ait_ins_bc(map_wth(1,ii) + k),r_um )
+          end do
         end do
-      end do
-    case('fldname_ait_ins_om')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_mix_ratio(m, i, k) = real( ait_ins_om(map_wth(1,i) + k), r_um )
+      case('fldname_ait_ins_om')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_mix_ratio(m, i, k) = real( ait_ins_om(map_wth(1,ii) + k),r_um )
+          end do
         end do
-      end do
-    case('fldname_acc_ins_du')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_mix_ratio(m, i, k) = real( acc_ins_du(map_wth(1,i) + k), r_um )
+      case('fldname_acc_ins_du')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_mix_ratio(m, i, k) = real( acc_ins_du(map_wth(1,ii) + k),r_um )
+          end do
         end do
-      end do
-    case('fldname_cor_ins_du')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_mix_ratio(m, i, k) = real( cor_ins_du(map_wth(1,i) + k), r_um )
+      case('fldname_cor_ins_du')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_mix_ratio(m, i, k) = real( cor_ins_du(map_wth(1,ii) + k),r_um )
+          end do
         end do
-      end do
-    case default
-      write( log_scratch_space, '(A,A)' )                                      &
+      case default
+        write( log_scratch_space, '(A,A)' )                                    &
            'Missing required ukca_mix_ratio : ', comp_names(m)
-      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-    end select
-  end do
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      end select
+    end do
 
-  ! -- ukca_modal_nbr --
-  n_fields = size(mode_names)
-  allocate(ukca_modal_nbr(seg_size, nlayers, n_fields))
-  ukca_modal_nbr = 0.0_r_um
+    ! -- ukca_modal_nbr --
+    n_fields = size(mode_names)
+    allocate(ukca_modal_nbr(seg_size, nlayers, n_fields))
 
-  do m = 1, n_fields
-    select case(trim(mode_names(m)))
-    case('fldname_n_nuc_sol')
-      write( log_scratch_space, '(A,A)' )                                      &
+    do m = 1, n_fields
+      do k = 1, nlayers
+        do i = 1, seg_size
+          ukca_modal_nbr(i, k, m) = 0.0_r_um
+        end do
+      end do
+    end do
+
+    do m = 1, n_fields
+      select case(trim(mode_names(m)))
+      case('fldname_n_nuc_sol')
+        write( log_scratch_space, '(A,A)' )                                    &
            'Radaer should not request soluble nucleation mode: ', mode_names(m)
-      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-    case('fldname_n_ait_sol')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_modal_nbr(i, k, m) = real( n_ait_sol(map_wth(1,i) + k), r_um )
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      case('fldname_n_ait_sol')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_modal_nbr(i, k, m) = real( n_ait_sol(map_wth(1,ii) + k), r_um )
+          end do
         end do
-      end do
-    case('fldname_n_acc_sol')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_modal_nbr(i, k, m) = real( n_acc_sol(map_wth(1,i) + k), r_um )
+      case('fldname_n_acc_sol')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_modal_nbr(i, k, m) = real( n_acc_sol(map_wth(1,ii) + k), r_um )
+          end do
         end do
-      end do
-    case('fldname_n_cor_sol')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_modal_nbr(i, k, m) = real( n_cor_sol(map_wth(1,i) + k), r_um )
+      case('fldname_n_cor_sol')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_modal_nbr(i, k, m) = real( n_cor_sol(map_wth(1,ii) + k), r_um )
+          end do
         end do
-      end do
-    case('fldname_n_ait_ins')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_modal_nbr(i, k, m) = real( n_ait_ins(map_wth(1,i) + k), r_um )
+      case('fldname_n_ait_ins')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_modal_nbr(i, k, m) = real( n_ait_ins(map_wth(1,ii) + k), r_um )
+          end do
         end do
-      end do
-    case('fldname_n_acc_ins')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_modal_nbr(i, k, m) = real( n_acc_ins(map_wth(1,i) + k), r_um )
+      case('fldname_n_acc_ins')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_modal_nbr(i, k, m) = real( n_acc_ins(map_wth(1,ii) + k), r_um )
+          end do
         end do
-      end do
-    case('fldname_n_cor_ins')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_modal_nbr(i, k, m) = real( n_cor_ins(map_wth(1,i) + k), r_um )
+      case('fldname_n_cor_ins')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_modal_nbr(i, k, m) = real( n_cor_ins(map_wth(1,ii) + k), r_um )
+          end do
         end do
-      end do
-    case default
-      write( log_scratch_space, '(A,A)' )                                      &
+      case default
+        write( log_scratch_space, '(A,A)' )                                    &
            'Missing required ukca_modal_nbr : ', mode_names(m)
-      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-    end select
-  end do
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      end select
+    end do
 
-  ! -- ukca_modal_rho --
-  n_fields = size(rhopar_mode_names)
-  allocate(ukca_modal_rho(seg_size, nlayers, n_fields))
-  ukca_modal_rho = 0.0_r_um
+    ! -- ukca_modal_rho --
+    n_fields = size(rhopar_mode_names)
+    allocate(ukca_modal_rho(seg_size, nlayers, n_fields))
+
+    do m = 1, n_fields
+      do k = 1, nlayers
+        do i = 1, seg_size
+          ukca_modal_rho(i, k, m) = 0.0_r_um
+        end do
+      end do
+    end do
 
   do m = 1, n_fields
     select case(trim(rhopar_mode_names(m)))
-    case('fldname_rhopar_ait_sol')
-      do i = 1, seg_size
-        do k = 1, nlayers
+      case('fldname_rhopar_ait_sol')
+        do i = 1, seg_size
+          do k = 1, nlayers
           ukca_modal_rho(i, k, m)=real( rhopar_ait_sol(map_wth(1,i) + k), r_um )
         end do
       end do
-    case('fldname_rhopar_acc_sol')
-      do i = 1, seg_size
-        do k = 1, nlayers
+      case('fldname_rhopar_acc_sol')
+        do i = 1, seg_size
+          do k = 1, nlayers
           ukca_modal_rho(i, k, m)=real( rhopar_acc_sol(map_wth(1,i) + k), r_um )
         end do
       end do
-    case('fldname_rhopar_cor_sol')
-      do i = 1, seg_size
-        do k = 1, nlayers
+      case('fldname_rhopar_cor_sol')
+        do i = 1, seg_size
+          do k = 1, nlayers
           ukca_modal_rho(i, k, m)=real( rhopar_cor_sol(map_wth(1,i) + k), r_um )
         end do
       end do
-    case('fldname_rhopar_ait_ins')
-      do i = 1, seg_size
-        do k = 1, nlayers
+      case('fldname_rhopar_ait_ins')
+        do i = 1, seg_size
+          do k = 1, nlayers
           ukca_modal_rho(i, k, m)=real( rhopar_ait_ins(map_wth(1,i) + k), r_um )
         end do
       end do
-    case('fldname_rhopar_acc_ins')
-      do i = 1, seg_size
-        do k = 1, nlayers
+      case('fldname_rhopar_acc_ins')
+        do i = 1, seg_size
+          do k = 1, nlayers
           ukca_modal_rho(i, k, m)=real( rhopar_acc_ins(map_wth(1,i) + k), r_um )
         end do
       end do
-    case('fldname_rhopar_cor_ins')
-      do i = 1, seg_size
-        do k = 1, nlayers
+      case('fldname_rhopar_cor_ins')
+        do i = 1, seg_size
+          do k = 1, nlayers
           ukca_modal_rho(i, k, m)=real( rhopar_cor_ins(map_wth(1,i) + k), r_um )
         end do
       end do
@@ -1187,39 +1230,39 @@ subroutine radaer_faster_code( nlayers,                                        &
 
   do m = 1, n_fields
     select case(trim(dry_diam_mode_names(m)))
-    case('fldname_drydp_ait_sol')
-      do i = 1, seg_size
-        do k = 1, nlayers
+      case('fldname_drydp_ait_sol')
+        do i = 1, seg_size
+          do k = 1, nlayers
           ukca_dry_diam(i, k, m) = real( drydp_ait_sol(map_wth(1,i) + k), r_um )
         end do
       end do
-    case('fldname_drydp_acc_sol')
-      do i = 1, seg_size
-        do k = 1, nlayers
+      case('fldname_drydp_acc_sol')
+        do i = 1, seg_size
+          do k = 1, nlayers
           ukca_dry_diam(i, k, m) = real( drydp_acc_sol(map_wth(1,i) + k), r_um )
         end do
       end do
-    case('fldname_drydp_cor_sol')
-      do i = 1, seg_size
-        do k = 1, nlayers
+      case('fldname_drydp_cor_sol')
+        do i = 1, seg_size
+          do k = 1, nlayers
           ukca_dry_diam(i, k, m) = real( drydp_cor_sol(map_wth(1,i) + k), r_um )
         end do
       end do
-    case('fldname_drydp_ait_ins')
-      do i = 1, seg_size
-        do k = 1, nlayers
+      case('fldname_drydp_ait_ins')
+        do i = 1, seg_size
+          do k = 1, nlayers
           ukca_dry_diam(i, k, m) = real( drydp_ait_ins(map_wth(1,i) + k), r_um )
         end do
       end do
-    case('fldname_drydp_acc_ins')
-      do i = 1, seg_size
-        do k = 1, nlayers
+      case('fldname_drydp_acc_ins')
+        do i = 1, seg_size
+          do k = 1, nlayers
           ukca_dry_diam(i, k, m) = real( drydp_acc_ins(map_wth(1,i) + k), r_um )
         end do
       end do
-    case('fldname_drydp_cor_ins')
-      do i = 1, seg_size
-        do k = 1, nlayers
+      case('fldname_drydp_cor_ins')
+        do i = 1, seg_size
+          do k = 1, nlayers
           ukca_dry_diam(i, k, m) = real( drydp_cor_ins(map_wth(1,i) + k), r_um )
         end do
       end do
