@@ -1,3 +1,7 @@
+<!--
+  Some content in this file was generated or refactored with assistance from
+  - Met Office Claude Code via AI Foundry (Claude Fable 5.1); PR #584.
+-->
 <file_definition>
 
   <!-- Main diagnostic output file for global climate runs -->
@@ -179,6 +183,7 @@
       <field field_ref="chemistry__rxnflux_oh_ch4_trop" />
       <field field_ref="chemistry__photol_rate_jo1d"/>
       <field field_ref="chemistry__photol_rate_jno2"/>
+      <field field_ref="chemistry__photol_rate_jo3p"/>
     </field_group>
 
     <!-- 2D fields averaged on radiation timesteps -->
