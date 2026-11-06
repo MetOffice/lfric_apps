@@ -32,7 +32,7 @@ module jules_control_init_mod
   ! Temporary development switch. When true and ancil_option is 'updating',
   ! leaf_area_index and canopy_height are read by an ancillary file object
   ! rather than the legacy time axis.
-  logical(kind=l_def), parameter :: pft_ancil_file_owned = .false.
+  logical(kind=l_def), parameter :: pft_ancil_file_owned = .true.
 
   integer(kind=i_def), protected :: n_land_tile
   integer(kind=i_def), protected :: n_sea_ice_tile
