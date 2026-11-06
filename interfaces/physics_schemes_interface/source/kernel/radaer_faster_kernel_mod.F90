@@ -1178,394 +1178,447 @@ subroutine radaer_faster_code( nlayers,                                        &
       end do
     end do
 
-  do m = 1, n_fields
-    select case(trim(rhopar_mode_names(m)))
+    do m = 1, n_fields
+      select case(trim(rhopar_mode_names(m)))
       case('fldname_rhopar_ait_sol')
         do i = 1, seg_size
           do k = 1, nlayers
-          ukca_modal_rho(i, k, m)=real( rhopar_ait_sol(map_wth(1,i) + k), r_um )
+            ii = jj + i - 1
+            ukca_modal_rho(i,k,m)=real( rhopar_ait_sol(map_wth(1,ii) + k),r_um )
+          end do
         end do
-      end do
       case('fldname_rhopar_acc_sol')
         do i = 1, seg_size
           do k = 1, nlayers
-          ukca_modal_rho(i, k, m)=real( rhopar_acc_sol(map_wth(1,i) + k), r_um )
+            ii = jj + i - 1
+            ukca_modal_rho(i,k,m)=real( rhopar_acc_sol(map_wth(1,ii) + k),r_um )
+          end do
         end do
-      end do
       case('fldname_rhopar_cor_sol')
         do i = 1, seg_size
           do k = 1, nlayers
-          ukca_modal_rho(i, k, m)=real( rhopar_cor_sol(map_wth(1,i) + k), r_um )
+            ii = jj + i - 1
+            ukca_modal_rho(i,k,m)=real( rhopar_cor_sol(map_wth(1,ii) + k),r_um )
+          end do
         end do
-      end do
       case('fldname_rhopar_ait_ins')
         do i = 1, seg_size
           do k = 1, nlayers
-          ukca_modal_rho(i, k, m)=real( rhopar_ait_ins(map_wth(1,i) + k), r_um )
+            ii = jj + i - 1
+            ukca_modal_rho(i,k,m)=real( rhopar_ait_ins(map_wth(1,ii) + k),r_um )
+          end do
         end do
-      end do
       case('fldname_rhopar_acc_ins')
         do i = 1, seg_size
           do k = 1, nlayers
-          ukca_modal_rho(i, k, m)=real( rhopar_acc_ins(map_wth(1,i) + k), r_um )
+            ii = jj + i - 1
+            ukca_modal_rho(i,k,m)=real( rhopar_acc_ins(map_wth(1,i) + k),r_um )
+          end do
         end do
-      end do
       case('fldname_rhopar_cor_ins')
         do i = 1, seg_size
           do k = 1, nlayers
-          ukca_modal_rho(i, k, m)=real( rhopar_cor_ins(map_wth(1,i) + k), r_um )
+            ii = jj + i - 1
+            ukca_modal_rho(i,k,m)=real( rhopar_cor_ins(map_wth(1,ii) + k),r_um )
+          end do
+        end do
+      case default
+        write( log_scratch_space, '(A,A)' )                                    &
+           'Missing required ukca_modal_nbr : ', rhopar_mode_names(m)
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      end select
+    end do
+
+    ! -- ukca_dry_diam --
+    n_fields = size(dry_diam_mode_names)
+    allocate(ukca_dry_diam(seg_size, nlayers, n_fields))
+
+    do m = 1, n_fields
+      do k = 1, nlayers
+        do i = 1, seg_size
+          ukca_dry_diam(i, k, m) = 0.0_r_um
         end do
       end do
-    case default
-      write( log_scratch_space, '(A,A)' )                                      &
-           'Missing required ukca_modal_nbr : ', rhopar_mode_names(m)
-      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-    end select
-  end do
+    end do
 
-  ! -- ukca_dry_diam --
-  n_fields = size(dry_diam_mode_names)
-  allocate(ukca_dry_diam(seg_size, nlayers, n_fields))
-  ukca_dry_diam = 0.0_r_um
-
-  do m = 1, n_fields
-    select case(trim(dry_diam_mode_names(m)))
+    do m = 1, n_fields
+      select case(trim(dry_diam_mode_names(m)))
       case('fldname_drydp_ait_sol')
         do i = 1, seg_size
           do k = 1, nlayers
-          ukca_dry_diam(i, k, m) = real( drydp_ait_sol(map_wth(1,i) + k), r_um )
+            ii = jj + i - 1
+            ukca_dry_diam(i,k,m)= real( drydp_ait_sol(map_wth(1,ii) + k), r_um )
+          end do
         end do
-      end do
       case('fldname_drydp_acc_sol')
         do i = 1, seg_size
           do k = 1, nlayers
-          ukca_dry_diam(i, k, m) = real( drydp_acc_sol(map_wth(1,i) + k), r_um )
+            ii = jj + i - 1
+            ukca_dry_diam(i,k,m)= real( drydp_acc_sol(map_wth(1,ii) + k), r_um )
+          end do
         end do
-      end do
       case('fldname_drydp_cor_sol')
         do i = 1, seg_size
           do k = 1, nlayers
-          ukca_dry_diam(i, k, m) = real( drydp_cor_sol(map_wth(1,i) + k), r_um )
+            ii = jj + i - 1
+            ukca_dry_diam(i,k,m)= real( drydp_cor_sol(map_wth(1,ii) + k), r_um )
+          end do
         end do
-      end do
       case('fldname_drydp_ait_ins')
         do i = 1, seg_size
           do k = 1, nlayers
-          ukca_dry_diam(i, k, m) = real( drydp_ait_ins(map_wth(1,i) + k), r_um )
-        end do
-      end do
+            ii = jj + i - 1
+            ukca_dry_diam(i,k,m)= real( drydp_ait_ins(map_wth(1,ii) + k), r_um )
+
       case('fldname_drydp_acc_ins')
         do i = 1, seg_size
           do k = 1, nlayers
-          ukca_dry_diam(i, k, m) = real( drydp_acc_ins(map_wth(1,i) + k), r_um )
+            ii = jj + i - 1
+            ukca_dry_diam(i,k,m)= real( drydp_acc_ins(map_wth(1,ii) + k), r_um )
+          end do
         end do
-      end do
       case('fldname_drydp_cor_ins')
         do i = 1, seg_size
           do k = 1, nlayers
-          ukca_dry_diam(i, k, m) = real( drydp_cor_ins(map_wth(1,i) + k), r_um )
+            ii = jj + i - 1
+            ukca_dry_diam(i,k,m)= real( drydp_cor_ins(map_wth(1,ii) + k), r_um )
+          end do
+        end do
+      case default
+        write( log_scratch_space, '(A,A)' )                                    &
+           'Missing required ukca_dry_diam : ', dry_diam_mode_names(m)
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      end select
+
+    end do
+
+    ! -- ukca_modal_vol --
+    n_fields = size(modal_volume_names)
+    allocate(ukca_modal_vol(seg_size, nlayers, n_fields))
+
+    do m = 1, n_fields
+      do k = 1, nlayers
+        do i = 1, seg_size
+          ukca_modal_vol(i, k, m) = 0.0_r_um
         end do
       end do
-    case default
-      write( log_scratch_space, '(A,A)' )                                      &
-           'Missing required ukca_dry_diam : ', dry_diam_mode_names(m)
-      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-    end select
-  end do
+    end do
 
-  ! -- ukca_modal_vol --
-  n_fields = size(modal_volume_names)
-  allocate(ukca_modal_vol(seg_size, nlayers, n_fields))
-  ukca_modal_vol = 0.0_r_um
+    do m = 1, n_fields
 
-  do m = 1, n_fields
+      select case( trim( modal_volume_names(m) ) )
+      case('fldname_mod_vol_ait_sol')
 
-    select case( trim( modal_volume_names(m) ) )
+        nn_fields = size(ait_sol_volume_names)
 
-    case('fldname_mod_vol_ait_sol')
+        do mm = 1, nn_fields
 
-      nn_fields = size(ait_sol_volume_names)
+          select case( trim( ait_sol_volume_names(mm) ) )
 
-      do mm = 1, nn_fields
-
-        select case( trim( ait_sol_volume_names(mm) ) )
-
-        case( 'pvol_wat_ait_sol' )
-          do i = 1, seg_size
-            do k = 1, nlayers
-              ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
-                               real( pvol_wat_ait_sol( map_wth(1,i) + k ), r_um)
+          case( 'pvol_wat_ait_sol' )
+            do i = 1, seg_size
+              do k = 1, nlayers
+                ii = jj + i - 1
+                ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +            &
+                              real( pvol_wat_ait_sol( map_wth(1,ii) + k ), r_um)
+              end do
             end do
-      end do
 
-        case( 'pvol_su_ait_sol' )
-              do i = 1, seg_size
-            do k = 1, nlayers
-              ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
-                               real( pvol_su_ait_sol( map_wth(1,i) + k ), r_um)
+          case( 'pvol_su_ait_sol' )
+            do i = 1, seg_size
+              do k = 1, nlayers
+                ii = jj + i - 1
+                ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +            &
+                               real( pvol_su_ait_sol( map_wth(1,ii) + k ), r_um)
+              end do
             end do
-      end do
 
-        case( 'pvol_bc_ait_sol' )
-              do i = 1, seg_size
-            do k = 1, nlayers
-              ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
-                               real( pvol_bc_ait_sol( map_wth(1,i) + k ), r_um)
+          case( 'pvol_bc_ait_sol' )
+            do i = 1, seg_size
+              do k = 1, nlayers
+                ii = jj + i - 1
+                ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +            &
+                               real( pvol_bc_ait_sol( map_wth(1,ii) + k ), r_um)
+              end do
             end do
-      end do
 
-        case( 'pvol_om_ait_sol' )
-              do i = 1, seg_size
-            do k = 1, nlayers
-              ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
-                               real( pvol_om_ait_sol( map_wth(1,i) + k ), r_um)
+          case( 'pvol_om_ait_sol' )
+            do i = 1, seg_size
+              do k = 1, nlayers
+                ii = jj + i - 1
+                ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +            &
+                               real( pvol_om_ait_sol( map_wth(1,ii) + k ), r_um)
+              end do
             end do
-      end do
 
-        case( 'null' )
+          case( 'null' )
+            write( log_scratch_space, '(A,A)' )                                &
+               'This mode should not require a contribution to pvol : ',       &
+               modal_volume_names(m)
+            call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+
+          case default
+            write( log_scratch_space, '(A,A)' )                                &
+            'Missing required ukca_modal_vol : ', ait_sol_volume_names(mm)
+            call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+          end select
+
+        end do ! do mm = 1, nn_fields
+
+      case('fldname_mod_vol_acc_sol')
+
+        nn_fields = size(acc_sol_volume_names)
+
+        do mm = 1, nn_fields
+             
+          select case( trim( acc_sol_volume_names(mm) ) )
+          case( 'pvol_wat_acc_sol' )
+            do i = 1, seg_size
+              do k = 1, nlayers
+                ii = jj + i - 1
+                ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +            &
+                              real( pvol_wat_acc_sol( map_wth(1,ii) + k ), r_um)
+              end do
+            end do
+
+          case( 'pvol_su_acc_sol' )
+            do i = 1, seg_size
+              do k = 1, nlayers
+                ii = jj + i - 1
+                ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +            &
+                               real( pvol_su_acc_sol( map_wth(1,ii) + k ), r_um)
+              end do
+            end do
+
+          case( 'pvol_bc_acc_sol' )
+            do i = 1, seg_size
+              do k = 1, nlayers
+                ii = jj + i - 1
+                ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +            &
+                               real( pvol_bc_acc_sol( map_wth(1,ii) + k ), r_um)
+              end do
+            end do
+
+          case( 'pvol_om_acc_sol' )
+            do i = 1, seg_size
+              do k = 1, nlayers
+                ii = jj + i - 1
+                ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +            &
+                               real( pvol_om_acc_sol( map_wth(1,ii) + k ), r_um)
+              end do
+            end do
+
+          case( 'pvol_ss_acc_sol' )
+            do i = 1, seg_size
+              do k = 1, nlayers
+                ii = jj + i - 1
+                ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +            &
+                               real( pvol_ss_acc_sol( map_wth(1,ii) + k ), r_um)
+              end do
+            end do
+
+          case( 'null' )
+              write( log_scratch_space, '(A,A)' )                              &
+               'This mode should not require a contribution to pvol : ',       &
+               modal_volume_names(m)
+              call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+
+          case default
+              write( log_scratch_space, '(A,A)' )                              &
+              'Missing required ukca_modal_vol : ', acc_sol_volume_names(mm)
+              call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+          end select
+
+          end do ! do mm = 1, nn_fields
+
+      case('fldname_mod_vol_cor_sol')
+
+        nn_fields = size(cor_sol_volume_names)
+
+        do mm = 1, nn_fields
+             
+          select case( trim( cor_sol_volume_names(mm) ) )
+          case( 'pvol_wat_cor_sol' )
+            do i = 1, seg_size
+              do k = 1, nlayers
+                ii = jj + i - 1
+                ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +            &
+                              real( pvol_wat_cor_sol( map_wth(1,ii) + k ), r_um)
+              end do
+            end do
+
+          case( 'pvol_su_cor_sol' )
+            do i = 1, seg_size
+              do k = 1, nlayers
+                ii = jj + i - 1
+                ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +            &
+                               real( pvol_su_cor_sol( map_wth(1,ii) + k ), r_um)
+              end do
+            end do
+
+          case( 'pvol_bc_cor_sol' )
+            do i = 1, seg_size
+              do k = 1, nlayers
+                ii = jj + i - 1
+                ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +            &
+                               real( pvol_bc_cor_sol( map_wth(1,ii) + k ), r_um)
+              end do
+            end do
+
+          case( 'pvol_om_cor_sol' )
+            do i = 1, seg_size
+              do k = 1, nlayers
+                ii = jj + i - 1
+                ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +            &
+                               real( pvol_om_cor_sol( map_wth(1,ii) + k ), r_um)
+
+
+          case( 'pvol_ss_cor_sol' )
+            do i = 1, seg_size
+              do k = 1, nlayers
+                ii = jj + i - 1
+                ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +            &
+                               real( pvol_ss_cor_sol( map_wth(1,ii) + k ), r_um)
+              end do
+            end do
+
+          case( 'null' )
           write( log_scratch_space, '(A,A)' )                                  &
                'This mode should not require a contribution to pvol : ',       &
                modal_volume_names(m)
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
 
-        case default
-          write( log_scratch_space, '(A,A)' )                                  &
-           'Missing required ukca_modal_vol : ', ait_sol_volume_names(mm)
-          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-        end select
-
-      end do
-
-    case('fldname_mod_vol_acc_sol')
-
-      nn_fields = size(acc_sol_volume_names)
-
-      do mm = 1, nn_fields
-        select case( trim( acc_sol_volume_names(mm) ) )
-        case( 'pvol_wat_acc_sol' )
-              do i = 1, seg_size
-            do k = 1, nlayers
-              ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
-                               real( pvol_wat_acc_sol( map_wth(1,i) + k ), r_um)
-            end do
-      end do
-
-        case( 'pvol_su_acc_sol' )
-              do i = 1, seg_size
-            do k = 1, nlayers
-              ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
-                               real( pvol_su_acc_sol( map_wth(1,i) + k ), r_um)
-            end do
-      end do
-
-        case( 'pvol_bc_acc_sol' )
-              do i = 1, seg_size
-            do k = 1, nlayers
-              ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
-                               real( pvol_bc_acc_sol( map_wth(1,i) + k ), r_um)
-            end do
-      end do
-
-        case( 'pvol_om_acc_sol' )
-              do i = 1, seg_size
-            do k = 1, nlayers
-              ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
-                               real( pvol_om_acc_sol( map_wth(1,i) + k ), r_um)
-            end do
-      end do
-
-        case( 'pvol_ss_acc_sol' )
-              do i = 1, seg_size
-            do k = 1, nlayers
-              ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
-                               real( pvol_ss_acc_sol( map_wth(1,i) + k ), r_um)
-            end do
-      end do
-
-        case( 'null' )
-          write( log_scratch_space, '(A,A)' )                                  &
-               'This mode should not require a contribution to pvol : ',       &
-               modal_volume_names(m)
-          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-
-        case default
-          write( log_scratch_space, '(A,A)' )                                  &
-           'Missing required ukca_modal_vol : ', acc_sol_volume_names(mm)
-          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-        end select
-
-      end do
-
-    case('fldname_mod_vol_cor_sol')
-
-      nn_fields = size(cor_sol_volume_names)
-
-      do mm = 1, nn_fields
-        select case( trim( cor_sol_volume_names(mm) ) )
-        case( 'pvol_wat_cor_sol' )
-              do i = 1, seg_size
-            do k = 1, nlayers
-              ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
-                               real( pvol_wat_cor_sol( map_wth(1,i) + k ), r_um)
-            end do
-      end do
-
-        case( 'pvol_su_cor_sol' )
-              do i = 1, seg_size
-            do k = 1, nlayers
-              ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
-                               real( pvol_su_cor_sol( map_wth(1,i) + k ), r_um)
-            end do
-      end do
-
-        case( 'pvol_bc_cor_sol' )
-              do i = 1, seg_size
-            do k = 1, nlayers
-              ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
-                               real( pvol_bc_cor_sol( map_wth(1,i) + k ), r_um)
-            end do
-      end do
-
-        case( 'pvol_om_cor_sol' )
-              do i = 1, seg_size
-            do k = 1, nlayers
-              ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
-                               real( pvol_om_cor_sol( map_wth(1,i) + k ), r_um)
-            end do
-      end do
-
-        case( 'pvol_ss_cor_sol' )
-              do i = 1, seg_size
-            do k = 1, nlayers
-              ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
-                               real( pvol_ss_cor_sol( map_wth(1,i) + k ), r_um)
-            end do
-      end do
-
-        case( 'null' )
-          write( log_scratch_space, '(A,A)' )                                  &
-               'This mode should not require a contribution to pvol : ',       &
-               modal_volume_names(m)
-          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-
-        case default
+          case default
           write( log_scratch_space, '(A,A)' )                                  &
            'Missing required ukca_modal_vol : ', cor_sol_volume_names(mm)
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-        end select
+          end select
 
-      end do
+        end do ! do mm = 1, nn_fields
 
-    case('fldname_mod_vol_ait_ins')
+      case('fldname_mod_vol_ait_ins')
 
-      nn_fields = size(ait_ins_volume_names)
+        nn_fields = size(ait_ins_volume_names)
 
-      do mm = 1, nn_fields
+        do mm = 1, nn_fields
 
-        select case( trim( ait_ins_volume_names(mm) ) )
+          select case( trim( ait_ins_volume_names(mm) ) )
 
-        case( 'pvol_bc_ait_ins' )
-              do i = 1, seg_size
-            do k = 1, nlayers
-              ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
-                               real( pvol_bc_ait_ins( map_wth(1,i) + k ), r_um)
+          case( 'pvol_bc_ait_ins' )
+            do i = 1, seg_size
+              do k = 1, nlayers
+                ii = jj + i - 1
+                ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +            &
+                               real( pvol_bc_ait_ins( map_wth(1,ii) + k ), r_um)
+              end do
             end do
-      end do
 
-        case( 'pvol_om_ait_ins' )
-              do i = 1, seg_size
-            do k = 1, nlayers
-              ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
-                               real( pvol_om_ait_ins( map_wth(1,i) + k ), r_um)
+          case( 'pvol_om_ait_ins' )
+            do i = 1, seg_size
+              do k = 1, nlayers
+                ii = jj + i - 1
+                ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +            &
+                               real( pvol_om_ait_ins( map_wth(1,ii) + k ), r_um)
+              end do
             end do
-      end do
 
-        case( 'null' )
+          case( 'null' )
           write( log_scratch_space, '(A,A)' )                                  &
                'This mode should not require a contribution to pvol : ',       &
                modal_volume_names(m)
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
 
-        case default
+          case default
           write( log_scratch_space, '(A,A)' )                                  &
            'Missing required ukca_modal_vol : ', ait_ins_volume_names(mm)
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-        end select
+          end select
 
-      end do
+        end do ! do mm = 1, nn_fields
 
-    case('fldname_mod_vol_acc_ins')
+      case('fldname_mod_vol_acc_ins')
 
-      nn_fields = size(acc_ins_volume_names)
+        nn_fields = size(acc_ins_volume_names)
 
-      do mm = 1, nn_fields
+        do mm = 1, nn_fields
+             
 
-        select case( trim( acc_ins_volume_names(mm) ) )
+          select case( trim( acc_ins_volume_names(mm) ) )
 
-        case( 'pvol_du_acc_ins' )
-              do i = 1, seg_size
-            do k = 1, nlayers
-              ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
-                               real( pvol_du_acc_ins( map_wth(1,i) + k ), r_um)
+          case( 'pvol_du_acc_ins' )
+            do i = 1, seg_size
+              do k = 1, nlayers
+                ii = jj + i - 1
+                ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +            &
+                               real( pvol_du_acc_ins( map_wth(1,ii) + k ), r_um)
+              end do
             end do
-      end do
 
-        case( 'null' )
+          case( 'null' )
           write( log_scratch_space, '(A,A)' )                                  &
                'This mode should not require a contribution to pvol : ',       &
                modal_volume_names(m)
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
 
-        case default
+          case default
           write( log_scratch_space, '(A,A)' )                                  &
            'Missing required ukca_modal_vol : ', acc_ins_volume_names(mm)
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-        end select
+          end select
 
-      end do
+        end do ! do mm = 1, nn_fields
 
-    case('fldname_mod_vol_cor_ins')
+      case('fldname_mod_vol_cor_ins')
 
-      nn_fields = size(cor_ins_volume_names)
+        nn_fields = size(cor_ins_volume_names)
 
-      do mm = 1, nn_fields
+        do mm = 1, nn_fields   
 
-        select case( trim( cor_ins_volume_names(mm) ) )
+          select case( trim( cor_ins_volume_names(mm) ) )
 
-        case( 'pvol_du_cor_ins' )
-              do i = 1, seg_size
-            do k = 1, nlayers
-              ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +              &
-                               real( pvol_du_cor_ins( map_wth(1,i) + k ), r_um)
+          case( 'pvol_du_cor_ins' )
+            do i = 1, seg_size
+              do k = 1, nlayers
+                ii = jj + i - 1
+                ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +            &
+                               real( pvol_du_cor_ins( map_wth(1,ii) + k ), r_um)
+              end do
             end do
-      end do
 
-        case( 'null' )
-          write( log_scratch_space, '(A,A)' )                                  &
+          case( 'null' )
+            write( log_scratch_space, '(A,A)' )                                &
                'This mode should not require a contribution to pvol : ',       &
                modal_volume_names(m)
-          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+            call log_event( log_scratch_space, LOG_LEVEL_ERROR )
 
-        case default
-          write( log_scratch_space, '(A,A)' )                                  &
-           'Missing required ukca_modal_vol : ', cor_ins_volume_names(mm)
-          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-        end select
+          case default
+            write( log_scratch_space, '(A,A)' )                                &
+             'Missing required ukca_modal_vol : ', cor_ins_volume_names(mm)
+            call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+          end select
 
-      end do
+        end do ! do mm = 1, nn_fields
 
-    case default
-      write( log_scratch_space, '(A,A)' )                                      &
+      case default
+        write( log_scratch_space, '(A,A)' )                                    &
            'Missing required ukca_modal_vol : ', modal_volume_names(m)
-      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-    end select
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      end select
 
-  end do
+    end do ! do m = 1, n_fields
 
-  ! -- ukca_modal_wtv --
-  n_fields = size(modal_wtv_names)
-  allocate(ukca_modal_wtv(seg_size, nlayers, n_fields))
-  ukca_modal_wtv = 0.0_r_um
+    ! -- ukca_modal_wtv --
+    n_fields = size(modal_wtv_names)
+    allocate(ukca_modal_wtv(seg_size, nlayers, n_fields))
+    ukca_modal_wtv = 0.0_r_um
+
+    do m = 1, n_fields
+      do k = 1, nlayers
+        do i = 1, seg_size
+          ukca_modal_wtv(i, k, m) = 0.0_r_um
+        end do
+      end do
+    end do
 
   do m = 1, n_fields
     select case(trim(modal_wtv_names(m)))
