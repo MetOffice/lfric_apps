@@ -15,6 +15,7 @@ module tl_si_timestep_alg_mod
                                          LOG_LEVEL_INFO,    &
                                          LOG_LEVEL_ERROR
   use driver_modeldb_mod,          only: modeldb_type
+  use model_clock_mod,             only: model_clock_type
   use reference_element_mod,       only: T
 
   ! Configuration options
@@ -78,9 +79,11 @@ module tl_si_timestep_alg_mod
   use tl_transport_control_alg_mod, &
                                    only: tl_transport_control_alg
 
-  use si_operators_alg_mod,        only: create_si_operators,  &
-                                         compute_si_operators, &
+  use si_operators_alg_mod,        only: create_si_operators,           &
+                                         compute_si_operators_common,   &
+                                         compute_helmholtz_operators,   &
                                          final_si_operators
+  use dycore_constants_mod,        only: stepper_siqn
   use checks_and_balances_alg_mod, only: check_fields
 
   use semi_implicit_solver_alg_mod,only: semi_implicit_solver_alg_init,       &
@@ -162,7 +165,8 @@ contains
   !> @brief Initialisation procedure for the tangent linear timestepping
   !>          algorithm
   !> @param[in]     config    Application configuration object
-  !> @param[in]     mesh      Mesh object on which the model runs
+  !> @param[in]     mesh      Mesh object
+  !> @param[in]     clock     Model clock
   !> @param[in,out] u         Change in 3D wind field
   !> @param[in,out] rho       Change in Density
   !> @param[in,out] theta     Change in Potential temperature
@@ -174,15 +178,17 @@ contains
   !> @param[in]     ls_exner  Lin. state for Exner pressure
   !> @param[in]     ls_mr     Lin. state for Mixing ratios
   !> @param[in]     ls_moist_dyn Lin. state for moist dynamical factors
-  subroutine tl_semi_implicit_alg_init( config, mesh, u, rho, theta, exner, mr,   &
-                                        ls_u, ls_rho, ls_theta, ls_exner, &
+
+  subroutine tl_semi_implicit_alg_init( config, mesh, clock, u, rho, theta, exner, &
+                                        mr, ls_u, ls_rho, ls_theta, ls_exner, &
                                         ls_mr, ls_moist_dyn, partial_init )
 
     implicit none
 
     ! Mesh
-    type(config_type),  intent( in ) :: config
-    type(mesh_type),    intent( in ) :: mesh
+    type(config_type),      intent( in ) :: config
+    type(mesh_type),        intent( in ) :: mesh
+    type(model_clock_type), intent( in ) :: clock
 
     ! Prognostic fields
     type( field_type ), intent( inout ) :: u, rho, theta, exner
@@ -335,9 +341,9 @@ contains
     ! Operators for si solves
     !--------------------------------------------------------------------
     if (full_init) then
-      call create_si_operators( mesh )
+      call create_si_operators( config, mesh, clock, stepper_siqn )
       call gungho_transport_control_alg_init( mesh )
-      call semi_implicit_solver_alg_init( config, state )
+      call semi_implicit_solver_alg_init( config, state, stepper_siqn )
     end if
 
     call log_event( "semi_implicit_timestep: initialised timestepping algorithm", LOG_LEVEL_INFO )
@@ -484,13 +490,15 @@ contains
     ! Note that this reset can only occur at most once per timestep.
     reference_reset_freq = nint(reference_reset_time / cast_dt, i_def)
     if ( mod(modeldb%clock%get_step() - 1_i_def, reference_reset_freq) == 0_i_def ) then
-      call compute_si_operators( modeldb%config,  &
-                                 ls_state(igh_t), &
-                                 ls_state(igh_d), &
-                                 ls_state(igh_p), &
-                                 modeldb%clock,   &
-                                 ls_moist_dyn_itns(:,1,1) )
+      call compute_si_operators_common(modeldb%config,  &
+                                       ls_state(igh_t), &
+                                       ls_state(igh_d), &
+                                       ls_state(igh_p), &
+                                       ls_moist_dyn_itns(:,1,1))
+      call compute_helmholtz_operators(modeldb%config, modeldb%clock, &
+                                       stepper_siqn)
     end if
+
 
     !--------------------------------------------------------------------
     ! Compute the time-level n dynamics terms
@@ -657,7 +665,7 @@ contains
                            dry_flux_solver,                                    &
                            ls_moist_dyn_itns(gas_law, next_outer, next_inner), &
                            ls_mr_itns(:, next_outer, next_inner),              &
-                           first_iteration=(inner==1) )
+                           first_iteration=(inner==1), stepper=stepper_siqn )
             ! If not already done update factors for moist dynamics
             if ( .not. guess_np1 .and. use_moisture) then
               call moist_dyn_factors_alg(                        &
@@ -886,12 +894,13 @@ contains
           ! If rhs_np1 is zero, there is no need to call the SI solver
           if ( .not. &
                bundle_is_zero(mixed_solver_a_tol, rhs_np1, bundle_size) ) then
-            call semi_implicit_solver_alg_step( modeldb%config, state, &
-                                                rhs_np1,               &
-                                                dry_flux_solver,       &
-                                                moist_dyn(gas_law),    &
-                                                mr,                    &
-                                                first_iteration=(inner==1) )
+            call semi_implicit_solver_alg_step( modeldb%config,      &
+                                                state, rhs_np1,      &
+                                                dry_flux_solver,     &
+                                                moist_dyn(gas_law),  &
+                                                mr,                  &
+                                                first_iteration=(inner==1), &
+                                                stepper=stepper_siqn )
           end if
 
           ! Update factors for moist dynamics

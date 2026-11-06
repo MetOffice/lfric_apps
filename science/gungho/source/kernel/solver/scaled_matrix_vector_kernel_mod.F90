@@ -6,7 +6,7 @@
 
 module scaled_matrix_vector_kernel_mod
 
-  use argument_mod,      only : arg_type,              &
+  use argument_mod,      only : arg_type, GH_SCALAR,   &
                                 GH_FIELD, GH_OPERATOR, &
                                 GH_READ, GH_INC,       &
                                 GH_REAL, CELL_COLUMN
@@ -24,12 +24,13 @@ module scaled_matrix_vector_kernel_mod
 
   type, public, extends(kernel_type) :: scaled_matrix_vector_kernel_type
     private
-    type(arg_type) :: meta_args(5) = (/                   &
+    type(arg_type) :: meta_args(6) = (/                   &
          arg_type(GH_FIELD,    GH_REAL, GH_INC,  W2),     &
          arg_type(GH_FIELD,    GH_REAL, GH_READ, W3),     &
          arg_type(GH_OPERATOR, GH_REAL, GH_READ, W2, W3), &
          arg_type(GH_FIELD,    GH_REAL, GH_READ, W2),     &
-         arg_type(GH_FIELD,    GH_REAL, GH_READ, W2)      &
+         arg_type(GH_FIELD,    GH_REAL, GH_READ, W2),     &
+         arg_type(GH_SCALAR,   GH_REAL, GH_READ)          &
          /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -53,6 +54,7 @@ contains
 !! @param[in] matrix Local matrix assembly form of the operator A
 !! @param[in] y Field to scale output by
 !! @param[in] z Second field to scale output by
+!> @param[in] scalar Scalar to scale output by
 !! @param[in] ndf1 Number of degrees of freedom per cell for the output field
 !! @param[in] undf1 Unique number of degrees of freedom  for the output field
 !! @param[in] map1 Dofmap for the cell at the base of the column for the output field
@@ -66,6 +68,7 @@ subroutine scaled_matrix_vector_code(cell,              &
                                      matrix,            &
                                      y,                 &
                                      z,                 &
+                                     scalar,            &
                                      ndf1, undf1, map1, &
                                      ndf2, undf2, map2)
 
@@ -83,6 +86,7 @@ subroutine scaled_matrix_vector_code(cell,              &
   real(kind=r_solver), dimension(ncell_3d,ndf1,ndf2), intent(in)    :: matrix
   real(kind=r_solver), dimension(undf1),              intent(in)    :: y
   real(kind=r_solver), dimension(undf1),              intent(in)    :: z
+  real(kind=r_solver),                                intent(in)    :: scalar
 
   ! Internal variables
   integer(kind=i_def) :: df, df2, ij, nl, i1, i2
@@ -94,7 +98,7 @@ subroutine scaled_matrix_vector_code(cell,              &
     do df2 = 1, ndf2
       i2 = map2(df2)
       lhs(i1:i1+nl) = lhs(i1:i1+nl) &
-                    + matrix(ij:ij+nl, df, df2)*x(i2:i2+nl)*y(i1:i1+nl)*z(i1:i1+nl)
+                    + scalar*matrix(ij:ij+nl, df, df2)*x(i2:i2+nl)*y(i1:i1+nl)*z(i1:i1+nl)
     end do
   end do
 

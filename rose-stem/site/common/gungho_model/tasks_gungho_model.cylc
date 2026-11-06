@@ -267,7 +267,7 @@
         "tsteps": 90,
         "wallclock": 5,
         "kgo_checks": ["checksum"],
-        "plot_str": "profile_plot.py $NODAL_DATA_DIR/lfric_diag.nc theta:m_v linear 38 10 $PLOT_DIR",
+        "plot_str": "profile_plot.py $NODAL_DATA_DIR/lfric_diag.nc theta:m_v:u_in_w2h:v_in_w2h linear 38 10 $PLOT_DIR",
     }) %}
 
 {% elif task_ns.conf_name == "rk-dcmip301-C24" %}
