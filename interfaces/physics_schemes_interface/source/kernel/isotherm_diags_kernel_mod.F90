@@ -114,8 +114,13 @@ contains
     ! Lapse rate (K/m) and pressure gradient (Pa/m) assumed below the surface
     real(kind=r_def), parameter :: lapse_below_surface = 10.0e-3_r_def
     real(kind=r_def), parameter :: dpdz_below_surface = -10.0_r_def
-    ! Only levels below this height (m) are searched. Above the stratosphere
-    ! the temperature falls again, and the search keeps the highest crossing.
+    ! Only levels below this height (m) above sea level are searched. Above
+    ! the stratosphere the temperature falls again, and the search keeps the
+    ! highest crossing. Columns that do not reach the isotherm below the
+    ! cut-off get rmdi, which outside the tropics is common for -70 C.
+    ! The UM uses the same 23 km here. It raised its similar tropopause
+    ! search limit from 22 km to 32 km after reports of missing data, but
+    ! left this one unchanged.
     real(kind=r_def), parameter :: height_cutoff = 23000.0_r_def
 
     ! Internal variables
@@ -134,6 +139,9 @@ contains
     t_lower = theta(map_wth(1) + 1) * exner(map_wth(1) + 1)
     if ( t_lower < t_ref ) then
       if ( extrapolate ) then
+        ! The isotherm is below the ground. As in the UM, the height is not
+        ! allowed below sea level but the pressure is not limited, so where
+        ! the height is held at sea level the two describe different levels.
         dz = ( t_lower - t_ref ) / lapse_below_surface
         z_iso = max( height_wth(map_wth(1)) + dz, 0.0_r_def )
         p_iso = p_zero * exner(map_wth(1))**recip_kappa                    &

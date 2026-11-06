@@ -47,7 +47,10 @@ contains
     real(kind=r_def), parameter :: minus_70_celsius =                      &
                                    zero_degrees_celsius - 70.0_r_def
 
-    ! Only the freezing level is extrapolated below the surface
+    ! Where the lowest level is already colder than the isotherm, only the
+    ! freezing level is extrapolated below the ground; the -20 C and -70 C
+    ! isotherms are placed at the surface. This follows the UM, which does
+    ! not record why the two are treated differently.
     call isotherm_diags(config, theta, exner_in_wth,                       &
                         zero_degrees_celsius, .true._l_def,                &
                         'aviation__freezing_level_height',                 &
