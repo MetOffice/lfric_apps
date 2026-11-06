@@ -1620,140 +1620,172 @@ subroutine radaer_faster_code( nlayers,                                        &
       end do
     end do
 
-  do m = 1, n_fields
-    select case(trim(modal_wtv_names(m)))
-    case('fldname_pvol_wat_ait_sol')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_modal_wtv(i,k,m)=real( pvol_wat_ait_sol(map_wth(1,i) + k), r_um )
+    do m = 1, n_fields
+      select case(trim(modal_wtv_names(m)))
+      case('fldname_pvol_wat_ait_sol')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_modal_wtv(i,k,m)=real( pvol_wat_ait_sol(map_wth(1,ii)+k),r_um )
+          end do
         end do
-      end do
-    case('fldname_pvol_wat_acc_sol')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_modal_wtv(i,k,m)=real( pvol_wat_acc_sol(map_wth(1,i) + k), r_um )
+
+      case('fldname_pvol_wat_acc_sol')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_modal_wtv(i,k,m)=real( pvol_wat_acc_sol(map_wth(1,ii)+k),r_um )
+          end do
         end do
-      end do
-    case('fldname_pvol_wat_cor_sol')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_modal_wtv(i,k,m)=real( pvol_wat_cor_sol(map_wth(1,i) + k), r_um )
+
+      case('fldname_pvol_wat_cor_sol')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_modal_wtv(i,k,m)=real( pvol_wat_cor_sol(map_wth(1,ii)+k),r_um )
+          end do
         end do
-      end do
-    case('fldname_pvol_wat_ait_ins')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_modal_wtv(i,k,m)=0.0_r_um
+
+      case('fldname_pvol_wat_ait_ins')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_modal_wtv(i,k,m)=0.0_r_um
+          end do
         end do
-      end do
-    case('fldname_pvol_wat_acc_ins')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_modal_wtv(i,k,m)=0.0_r_um
+
+      case('fldname_pvol_wat_acc_ins')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_modal_wtv(i,k,m)=0.0_r_um
+          end do
         end do
-      end do
-    case('fldname_pvol_wat_cor_ins')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_modal_wtv(i,k,m)=0.0_r_um
+
+      case('fldname_pvol_wat_cor_ins')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_modal_wtv(i,k,m)=0.0_r_um
+          end do
         end do
-      end do
-    case default
-      write( log_scratch_space, '(A,A)' )                                      &
+
+      case default
+        write( log_scratch_space, '(A,A)' )                                    &
            'Missing required ukca_modal_wtv : ', modal_wtv_names(m)
-      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-    end select
-  end do
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      end select
+    end do
 
-  ! -- ukca_wet_diam --
-  n_fields = size(wet_diam_mode_names)
-  allocate(ukca_wet_diam(seg_size, nlayers, n_fields))
-  ukca_wet_diam = 0.0_r_um
+    ! -- ukca_wet_diam --
+    n_fields = size(wet_diam_mode_names)
+    allocate(ukca_wet_diam(seg_size, nlayers, n_fields))
+    ukca_wet_diam = 0.0_r_um
 
-  do m = 1, n_fields
-    select case(trim(wet_diam_mode_names(m)))
-    case('fldname_wetdp_ait_sol')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_wet_diam(i, k, m) = real( wetdp_ait_sol(map_wth(1,i) + k), r_um )
+    do m = 1, n_fields
+      do k = 1, nlayers
+        do i = 1, seg_size
+          ukca_wet_diam(i, k, m) = 0.0_r_um
         end do
       end do
-    case('fldname_wetdp_acc_sol')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_wet_diam(i, k, m) = real( wetdp_acc_sol(map_wth(1,i) + k), r_um )
+    end do
+
+    do m = 1, n_fields
+      select case(trim(wet_diam_mode_names(m)))
+      case('fldname_wetdp_ait_sol')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_wet_diam(i,k,m)= real( wetdp_ait_sol(map_wth(1,ii) + k), r_um )
+          end do
         end do
-      end do
-    case('fldname_wetdp_cor_sol')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_wet_diam(i, k, m) = real( wetdp_cor_sol(map_wth(1,i) + k), r_um )
+
+      case('fldname_wetdp_acc_sol')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_wet_diam(i,k,m)= real( wetdp_acc_sol(map_wth(1,ii) + k), r_um )
+          end do
         end do
-      end do
-    !!!!! Note that wet and dry diameter are the same for insoluble modes
-    case('fldname_wetdp_ait_ins')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_wet_diam(i, k, m) = real( drydp_ait_ins(map_wth(1,i) + k), r_um )
+
+      case('fldname_wetdp_cor_sol')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_wet_diam(i,k,m)= real( wetdp_cor_sol(map_wth(1,ii) + k), r_um )
+          end do
         end do
-      end do
-    !!!!! Note that wet and dry diameter are the same for insoluble modes
-    case('fldname_wetdp_acc_ins')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_wet_diam(i, k, m) = real( drydp_acc_ins(map_wth(1,i) + k), r_um )
+
+      !!!!! Note that wet and dry diameter are the same for insoluble modes
+      case('fldname_wetdp_ait_ins')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_wet_diam(i,k,m)= real( drydp_ait_ins(map_wth(1,ii) + k), r_um )
+          end do
         end do
-      end do
-    !!!!! Note that wet and dry diameter are the same for insoluble modes
-    case('fldname_wetdp_cor_ins')
-      do i = 1, seg_size
-        do k = 1, nlayers
-          ukca_wet_diam(i, k, m) = real( drydp_cor_ins(map_wth(1,i) + k), r_um )
+
+      !!!!! Note that wet and dry diameter are the same for insoluble modes
+      case('fldname_wetdp_acc_ins')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_wet_diam(i,k,m)= real( drydp_acc_ins(map_wth(1,ii) + k), r_um )
+          end do
         end do
-      end do
-    case default
-      write( log_scratch_space, '(A,A)' )                                      &
+
+      !!!!! Note that wet and dry diameter are the same for insoluble modes
+      case('fldname_wetdp_cor_ins')
+        do i = 1, seg_size
+          do k = 1, nlayers
+            ii = jj + i - 1
+            ukca_wet_diam(i,k,m)= real( drydp_cor_ins(map_wth(1,ii) + k), r_um )
+          end do
+        end do
+
+      case default
+        write( log_scratch_space, '(A,A)' )                                    &
            'Missing required ukca_wet_diam : ', wet_diam_mode_names(m)
-      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
-    end select
-  end do
-
-  !------------------------------------------------
-  ! Calculate mass thickness of vertical levels
-  ! This duplicates calculation of d_mass from set_thermodynamic_kernel_mod
-  if ( ( .not. associated( aod_ukca_ait_sol, empty_real_data ) ) .or.          &
-       ( .not. associated( aaod_ukca_ait_sol, empty_real_data ) ) .or.         &
-       ( .not. associated( aod_ukca_acc_sol, empty_real_data ) ) .or.          &
-       ( .not. associated( aaod_ukca_acc_sol, empty_real_data ) ) .or.         &
-       ( .not. associated( aod_ukca_cor_sol, empty_real_data ) ) .or.          &
-       ( .not. associated( aaod_ukca_cor_sol, empty_real_data ) ) .or.         &
-       ( .not. associated( aod_ukca_ait_ins, empty_real_data ) ) .or.          &
-       ( .not. associated( aaod_ukca_ait_ins, empty_real_data ) ) .or.         &
-       ( .not. associated( aod_ukca_acc_ins, empty_real_data ) ) .or.          &
-       ( .not. associated( aaod_ukca_acc_ins, empty_real_data ) ) .or.         &
-       ( .not. associated( aod_ukca_cor_ins, empty_real_data ) ) .or.          &
-       ( .not. associated( aaod_ukca_cor_ins, empty_real_data ) ) ) then
-
-    do i = 1, seg_size
-      d_mass_theta_levels(i,1,1) = rho_in_wth( map_wth(2,i) ) *                &
-                                  ( dz_in_wth( map_wth(2,i) ) +                &
-                                    dz_in_wth( map_wth(1,i) ) )
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      end select
     end do
 
-    do i = 1, seg_size
-      do k = 2, nlayers - 1
-        d_mass_theta_levels(i,1,k) = rho_in_wth( map_wth(1,i) + k ) *          &
-                                      dz_in_wth( map_wth(1,i) + k )
+    !------------------------------------------------
+    ! Calculate mass thickness of vertical levels
+    ! This duplicates calculation of d_mass from set_thermodynamic_kernel_mod
+    if ( ( .not. associated( aod_ukca_ait_sol, empty_real_data ) ) .or.        &
+         ( .not. associated( aaod_ukca_ait_sol, empty_real_data ) ) .or.       &
+         ( .not. associated( aod_ukca_acc_sol, empty_real_data ) ) .or.        &
+         ( .not. associated( aaod_ukca_acc_sol, empty_real_data ) ) .or.       &
+         ( .not. associated( aod_ukca_cor_sol, empty_real_data ) ) .or.        &
+         ( .not. associated( aaod_ukca_cor_sol, empty_real_data ) ) .or.       &
+         ( .not. associated( aod_ukca_ait_ins, empty_real_data ) ) .or.        &
+         ( .not. associated( aaod_ukca_ait_ins, empty_real_data ) ) .or.       &
+         ( .not. associated( aod_ukca_acc_ins, empty_real_data ) ) .or.        &
+         ( .not. associated( aaod_ukca_acc_ins, empty_real_data ) ) .or.       &
+         ( .not. associated( aod_ukca_cor_ins, empty_real_data ) ) .or.        &
+         ( .not. associated( aaod_ukca_cor_ins, empty_real_data ) ) ) then
+
+      do i = 1, seg_size
+        d_mass_theta_levels(i,1,1) = rho_in_wth( map_wth(2,i) ) *              &
+                                    ( dz_in_wth( map_wth(2,i) ) +              &
+                                      dz_in_wth( map_wth(1,i) ) )
       end do
-    end do
 
-    do i = 1, seg_size
-      d_mass_theta_levels(i,1,nlayers) = p_zero *                              &
+      do i = 1, seg_size
+        do k = 2, nlayers - 1
+          d_mass_theta_levels(i,1,k) = rho_in_wth( map_wth(1,i) + k ) *        &
+                                        dz_in_wth( map_wth(1,i) + k )
+        end do
+      end do
+
+      do i = 1, seg_size
+        d_mass_theta_levels(i,1,nlayers) = p_zero *                            &
                exner_in_w3( map_w3(1,i) + nlayers - 1 )**( 1.0_r_def / kappa ) &
-                                         / gravity
-    end do
+                                           / gravity
+      end do
 
-  end if
+    end if
 
 
     !-----------------------------------------------------------------------
@@ -1762,7 +1794,7 @@ subroutine radaer_faster_code( nlayers,                                        &
 
     CALL ukca_radaer_faster_lfric_interface(                                   &
       ! Fixed array dimensions (input)
-      seg_size,                                                                  &
+      seg_size,                                                                &
       nlayers,                                                                 &
       npd_exclude_lw,                                                          &
       npd_exclude_sw,                                                          &
