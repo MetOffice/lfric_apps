@@ -108,6 +108,7 @@ module init_ancils_mod
               chloro_sea_ancil_names,     &
               ozone_ancil_names,          &
               ozone_file_owned,           &
+              murk_ancil_names,           &
               sea_ice_ancil_names,        &
               pft_ancil_names,            &
               easy_aerosol_names,         &
@@ -152,6 +153,10 @@ module init_ancils_mod
   character(len=str_def), parameter :: ozone_ancil_names(2,1) = reshape( &
     [ character(len=str_def) :: "ozone", "mass_fraction_of_ozone_in_air" ], &
     [2,1] )
+
+  ! Pair of (model field name, variable name in the murk emissions file)
+  character(len=str_def), parameter :: murk_ancil_names(2,1) = reshape( &
+    [ character(len=str_def) :: "murk_source", "m01s00i057" ], [2,1] )
 
   ! Pairs of (model field name, variable name in the sea ice file)
   character(len=str_def), parameter :: sea_ice_ancil_names(2,2) = reshape( &
@@ -497,11 +502,17 @@ contains
 
     !=====  AEROSOL ANCILS =====
     if (murk_prognostic) then
-      call murk_time_axis%initialise("murk_time", file_id="emiss_murk_ancil", &
-                                    interp_flag=interp_flag, pop_freq="monthly")
-      call setup_ancil_field("murk_source", depository, ancil_fields, mesh, &
-                             twod_mesh, time_axis=murk_time_axis)
-      call ancil_times_list%insert_item(murk_time_axis)
+      if (ancil_option == ancil_option_updating) then
+        ! Read and updated by the file object
+        call setup_ancil_field("murk_source", depository, ancil_fields, mesh, &
+                               twod_mesh, read_by_file=.true.)
+      else
+        call murk_time_axis%initialise("murk_time", file_id="emiss_murk_ancil", &
+                                      interp_flag=interp_flag, pop_freq="monthly")
+        call setup_ancil_field("murk_source", depository, ancil_fields, mesh, &
+                               twod_mesh, time_axis=murk_time_axis)
+        call ancil_times_list%insert_item(murk_time_axis)
+      end if
     end if
 
     if ( ( glomap_mode == glomap_mode_climatology ) .or. &
@@ -1052,6 +1063,12 @@ contains
     if ( ozone_file_owned() ) then
       collection => modeldb%fields%get_field_collection("ozone_ancil_fields")
       call create_file_owned_field( ozone_ancil_names(1,1), depository, &
+                                    collection, mesh, twod_mesh )
+    end if
+
+    if ( murk_prognostic ) then
+      collection => modeldb%fields%get_field_collection("murk_ancil_fields")
+      call create_file_owned_field( murk_ancil_names(1,1), depository, &
                                     collection, mesh, twod_mesh )
     end if
 

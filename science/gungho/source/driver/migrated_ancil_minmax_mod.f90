@@ -24,7 +24,8 @@ module migrated_ancil_minmax_mod
                                       glomap_mode_dust_and_clim, &
                                       easyaerosol_cdnc,          &
                                       easyaerosol_sw,            &
-                                      easyaerosol_lw
+                                      easyaerosol_lw,            &
+                                      murk_prognostic
   use jules_radiation_config_mod, only : l_albedo_obs, l_sea_alb_var_chl
 
   implicit none
@@ -58,6 +59,9 @@ module migrated_ancil_minmax_mod
 
   character(len=str_def), parameter :: chloro_names(1) =                    &
     [ character(len=str_def) :: "chloro_sea" ]
+
+  character(len=str_def), parameter :: murk_names(1) =                      &
+    [ character(len=str_def) :: "murk_source" ]
 
   ! Always logged. The plant functional type fields are included whether or
   ! not their migration is switched on. The sea ice fields and tile_fraction
@@ -100,6 +104,7 @@ contains
     if ( easyaerosol_sw )    call log_fields( depository, prefix, easy_sw_names )
     if ( easyaerosol_lw )    call log_fields( depository, prefix, easy_lw_names )
     if ( l_sea_alb_var_chl ) call log_fields( depository, prefix, chloro_names )
+    if ( murk_prognostic )   call log_fields( depository, prefix, murk_names )
     call log_fields( depository, prefix, always_names )
 
     nullify( depository )
