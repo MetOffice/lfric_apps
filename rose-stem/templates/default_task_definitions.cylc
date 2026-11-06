@@ -259,8 +259,8 @@
     {% do task_dict.update({"techtests_families": [task_ns.platform|upper~"_TECH_TESTS_"~task_ns.compiler|upper]}) %}
 {% endif %}
 
-{% if "rose_ana_families" not in task_dict %}
-    {% do task_dict.update({"rose_ana_families": [task_ns.platform|upper~"_ROSE_ANA"]}) %}
+{% if "full_kgo_families" not in task_dict %}
+    {% do task_dict.update({"full_kgo_families": [task_ns.platform|upper~"_FULL_KGO"]}) %}
 {% endif %}
 
 {% do LOG.debug("Finished in templates/default_task_definitions.cylc") %}

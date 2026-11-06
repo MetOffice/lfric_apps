@@ -88,6 +88,7 @@ module adjt_apply_mixed_u_operator_alg_mod
 
     ! Test parameters and variables
     real(kind=r_solver), parameter :: overall_tolerance = 1500.0_r_solver
+    real(kind=r_solver), parameter :: const_u = 1.7_r_solver
     real(kind=r_solver)            :: machine_tol
     real(kind=r_solver)            :: relative_diff
 
@@ -131,7 +132,8 @@ module adjt_apply_mixed_u_operator_alg_mod
     call invoke( apply_mixed_u_operator_kernel_type(lhs_uv,               &
                                                     wind_uv, wind_w,      &
                                                     exner,                &
-                                                    mu_cd, grad, norm_u), &
+                                                    mu_cd, grad, norm_u,  &
+                                                    const_u),             &
                  x_innerproduct_x(lhs_uv_inner_prod, lhs_uv),             &
                  x_innerproduct_x(wind_uv_inner_prod, wind_uv),           &
                  x_innerproduct_x(wind_w_inner_prod, wind_w),             &
@@ -171,7 +173,7 @@ module adjt_apply_mixed_u_operator_alg_mod
                  adj_apply_mixed_u_operator_kernel_type(lhs_uv,                              &
                                                         wind_uv, wind_w,                     &
                                                         exner,                               &
-                                                        mu_cd, grad, norm_u),                &
+                                                        mu_cd, grad, norm_u, const_u),       &
                  x_innerproduct_y(lhs_uv_lhs_uv_input_inner_prod, lhs_uv, lhs_uv_input),     &
                  x_innerproduct_y(wind_uv_wind_uv_input_inner_prod, wind_uv, wind_uv_input), &
                  x_innerproduct_y(wind_w_wind_w_input_inner_prod, wind_w, wind_w_input),     &

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 Inner product checksum rho =         46D871BE
 Inner product checksum theta =         518CD6F4
 Inner product checksum u =         6A8AAA0C
@@ -7,3 +8,14 @@ Inner product checksum mr3 =         3581020C
 Inner product checksum mr4 =         371994F6
 Inner product checksum mr5 =         2D280622
 Inner product checksum mr6 =         3552F2BC
+=======
+Inner product checksum rho =         46D873DE
+Inner product checksum theta =         518CE330
+Inner product checksum u =         6A8D6712
+Inner product checksum mr1 =         3FCD2497
+Inner product checksum mr2 =         383376C9
+Inner product checksum mr3 =         35894DE2
+Inner product checksum mr4 =         36AC8892
+Inner product checksum mr5 =         2CE6906C
+Inner product checksum mr6 =         353A8875
+>>>>>>> main
