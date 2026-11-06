@@ -2182,6 +2182,7 @@ do ii = pdims%i_start, pdims%i_end,bl_segment_size
           else
             ! for kprof_cu eq buoy_integ use max of ksurf top calculated
             ! from buoyancy flux integration and original LCL based values
+            ntml(i) =  max( ntml(i), ntml_new(i)-1 )
             zh(i) = max( zh(i), zsml_top(i) )
           end if
         end if
@@ -2828,8 +2829,7 @@ do ii = pdims%i_start, pdims%i_end, bl_segment_size
           km_dsct_factor_top(i) = one
         end if
       end if
-
-   end if
+    end if
   end do ! i
 end do ! ii
 !$OMP end do
