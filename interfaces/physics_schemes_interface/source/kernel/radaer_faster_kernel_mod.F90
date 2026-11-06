@@ -815,7 +815,14 @@ subroutine radaer_faster_code( nlayers,                                        &
     ! -- ukca_comp_vol --
     n_fields = size(pvol_comp_names)
     allocate(ukca_comp_vol(n_fields, seg_size, nlayers))
-    ukca_comp_vol = 0.0_r_um
+
+    do k = 1, nlayers
+      do i = 1, seg_size
+        do m = 1, n_fields
+          ukca_comp_vol(m, i, k) = 0.0_r_um
+        end do
+      end do
+    end do
 
     do m = 1, n_fields
       select case(trim(pvol_comp_names(m)))
@@ -963,6 +970,7 @@ subroutine radaer_faster_code( nlayers,                                        &
     ! -- ukca_mix_ratio --
     n_fields = size(comp_names)
     allocate(ukca_mix_ratio(n_fields, seg_size, nlayers))
+
     do k = 1, nlayers
       do i = 1, seg_size
         do m = 1, n_fields
@@ -1767,21 +1775,24 @@ subroutine radaer_faster_code( nlayers,                                        &
          ( .not. associated( aaod_ukca_cor_ins, empty_real_data ) ) ) then
 
       do i = 1, seg_size
-        d_mass_theta_levels(i,1,1) = rho_in_wth( map_wth(2,i) ) *              &
-                                    ( dz_in_wth( map_wth(2,i) ) +              &
-                                      dz_in_wth( map_wth(1,i) ) )
+        ii = jj + i - 1
+        d_mass_theta_levels(i,1,1) = rho_in_wth( map_wth(2,ii) ) *             &
+                                    ( dz_in_wth( map_wth(2,ii) ) +             &
+                                      dz_in_wth( map_wth(1,ii) ) )
       end do
 
       do i = 1, seg_size
         do k = 2, nlayers - 1
-          d_mass_theta_levels(i,1,k) = rho_in_wth( map_wth(1,i) + k ) *        &
-                                        dz_in_wth( map_wth(1,i) + k )
+          ii = jj + i - 1
+          d_mass_theta_levels(i,1,k) = rho_in_wth( map_wth(1,ii) + k ) *       &
+                                        dz_in_wth( map_wth(1,ii) + k )
         end do
       end do
 
       do i = 1, seg_size
+        ii = jj + i - 1
         d_mass_theta_levels(i,1,nlayers) = p_zero *                            &
-               exner_in_w3( map_w3(1,i) + nlayers - 1 )**( 1.0_r_def / kappa ) &
+              exner_in_w3( map_w3(1,ii) + nlayers - 1 )**( 1.0_r_def / kappa ) &
                                            / gravity
       end do
 
@@ -1873,8 +1884,10 @@ subroutine radaer_faster_code( nlayers,                                        &
     do i_mode = 1, n_radaer_mode
       do k = 1, nlayers
         do i = 1, seg_size
-          aer_mix_ratio( map_mode(1,i) + ( (i_mode-1)*(nlayers+1) ) + k ) =    &
-                                         ukca_mode_mix_ratio( i, k, i_mode )
+          ii = jj + i - 1
+          aer_mix_ratio( map_mode(1,ii) + ( (i_mode-1)*(nlayers+1) ) + k ) =   &
+               ukca_mode_mix_ratio( i, k, i_mode )
+        end do
       end do
     end do
 
@@ -1886,16 +1899,17 @@ subroutine radaer_faster_code( nlayers,                                        &
         i_rmode = i_rmode + 1
         do k = 1, nlayers
           do i = 1, seg_size
-              
-            aer_lw_absorption( map_rmode_lw(1,i) +                             &
+            ii = jj + i - 1
+
+            aer_lw_absorption( map_rmode_lw(1,ii) +                            &
                                ( (i_rmode-1)*(nlayers+1) ) + k ) =             &
                                aer_lw_absorption_radaer( i, k, i_mode, i_band )
 
-            aer_lw_scattering( map_rmode_lw(1,i) +                             &
+            aer_lw_scattering( map_rmode_lw(1,ii) +                            &
                                ( (i_rmode-1)*(nlayers+1) ) + k ) =             &
                                aer_lw_scattering_radaer( i, k, i_mode, i_band )
 
-            aer_lw_asymmetry( map_rmode_lw(1,i)  +                             &
+            aer_lw_asymmetry( map_rmode_lw(1,ii)  +                            &
                               ( (i_rmode-1)*(nlayers+1) ) + k ) =              &
                               max(minus1_plus_eps, min(one_minus_eps,          &
                               aer_lw_asymmetry_radaer(i, k, i_mode, i_band ) ) )
@@ -1927,19 +1941,20 @@ subroutine radaer_faster_code( nlayers,                                        &
 
         do k = 1, nlayers
           do i = 1, seg_size
+            ii = jj + i - 1
 
-            if ( ( lit_fraction(map_2d(1,i)) > 0.0_r_def  ) .or.               &
+            if ( ( lit_fraction(map_2d(1,ii)) > 0.0_r_def  ) .or.              &
                  n_radaer_step > 1 ) then
 
-              aer_sw_absorption( map_rmode_sw(1,i)     +                       &
+              aer_sw_absorption( map_rmode_sw(1,ii)     +                      &
                                  ( (i_rmode-1)*(nlayers+1) ) + k ) =           &
                                  aer_sw_absorption_radaer(i, k, i_mode, i_band )
 
-              aer_sw_scattering( map_rmode_sw(1,i)     +                       &
+              aer_sw_scattering( map_rmode_sw(1,ii)     +                      &
                                  ( (i_rmode-1)*(nlayers+1) ) + k ) =           &
                                  aer_sw_scattering_radaer(i, k, i_mode, i_band )
 
-              aer_sw_asymmetry( map_rmode_sw(1,i)      +                       &
+              aer_sw_asymmetry( map_rmode_sw(1,ii)      +                      &
                                 ( (i_rmode-1)*(nlayers+1) ) + k ) =            &
                                 max(minus1_plus_eps, min(one_minus_eps,        &
                                 aer_sw_asymmetry_radaer(i,k,i_mode, i_band ) ) )
@@ -1947,13 +1962,13 @@ subroutine radaer_faster_code( nlayers,                                        &
             ! unlit points
             else
 
-              aer_sw_absorption( map_rmode_sw(1,i) +                           &
+              aer_sw_absorption( map_rmode_sw(1,ii) +                          &
                    ( (i_rmode-1)*(nlayers+1) ) + k ) =  1.0_r_def
 
-              aer_sw_scattering( map_rmode_sw(1,i) +                           &
+              aer_sw_scattering( map_rmode_sw(1,ii) +                          &
                    ( (i_rmode-1)*(nlayers+1) ) + k ) =  1.0_r_def
 
-              aer_sw_asymmetry( map_rmode_sw(1,i)  +                           &
+              aer_sw_asymmetry( map_rmode_sw(1,ii)  +                          &
                    ( (i_rmode-1)*(nlayers+1) ) + k ) = one_minus_eps
 
             end if
@@ -1978,7 +1993,8 @@ subroutine radaer_faster_code( nlayers,                                        &
     if ( .not. associated( aod_ukca_ait_sol, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
         do i = 1, seg_size
-          aod_ukca_ait_sol( map_aod_wavel(1,i) + k - 1 ) =                     &
+          ii = jj + i - 1
+          aod_ukca_ait_sol( map_aod_wavel(1,ii) + k - 1 ) =                    &
                                       aod_ukca_all_modes(i,k,mode_ait_sol-1)
         end do
       end do
@@ -1987,7 +2003,8 @@ subroutine radaer_faster_code( nlayers,                                        &
     if ( .not. associated( aaod_ukca_ait_sol, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
         do i = 1, seg_size
-          aaod_ukca_ait_sol( map_aod_wavel(1,i) + k - 1 ) =                    &
+          ii = jj + i - 1
+          aaod_ukca_ait_sol( map_aod_wavel(1,ii) + k - 1 ) =                   &
                                      aaod_ukca_all_modes(i,k,mode_ait_sol-1)
         end do
       end do
@@ -2000,7 +2017,8 @@ subroutine radaer_faster_code( nlayers,                                        &
     if ( .not. associated( aod_ukca_acc_sol, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
         do i = 1, seg_size
-          aod_ukca_acc_sol( map_aod_wavel(1,i) + k - 1 ) =                     &
+          ii = jj + i - 1
+          aod_ukca_acc_sol( map_aod_wavel(1,ii) + k - 1 ) =                    &
                                       aod_ukca_all_modes(i,k,mode_acc_sol-1)
         end do
       end do
@@ -2009,7 +2027,8 @@ subroutine radaer_faster_code( nlayers,                                        &
     if ( .not. associated( aaod_ukca_acc_sol, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
         do i = 1, seg_size
-          aaod_ukca_acc_sol( map_aod_wavel(1,i) + k - 1 ) =                    &
+          ii = jj + i - 1
+          aaod_ukca_acc_sol( map_aod_wavel(1,ii) + k - 1 ) =                   &
                                      aaod_ukca_all_modes(i,k,mode_acc_sol-1)
         end do
       end do
@@ -2022,7 +2041,8 @@ subroutine radaer_faster_code( nlayers,                                        &
     if ( .not. associated( aod_ukca_cor_sol, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
         do i = 1, seg_size
-          aod_ukca_cor_sol( map_aod_wavel(1,i) + k - 1 ) =                     &
+          ii = jj + i - 1
+          aod_ukca_cor_sol( map_aod_wavel(1,ii) + k - 1 ) =                    &
                                       aod_ukca_all_modes(i,k,mode_cor_sol-1)
         end do
       end do
@@ -2031,7 +2051,8 @@ subroutine radaer_faster_code( nlayers,                                        &
     if ( .not. associated( aaod_ukca_cor_sol, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
         do i = 1, seg_size
-          aaod_ukca_cor_sol( map_aod_wavel(1,i) + k - 1 ) =                    &
+          ii = jj + i - 1
+          aaod_ukca_cor_sol( map_aod_wavel(1,ii) + k - 1 ) =                   &
                                      aaod_ukca_all_modes(i,k,mode_cor_sol-1)
         end do
       end do
@@ -2044,7 +2065,8 @@ subroutine radaer_faster_code( nlayers,                                        &
     if ( .not. associated( aod_ukca_ait_ins, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
         do i = 1, seg_size
-          aod_ukca_ait_ins( map_aod_wavel(1,i) + k - 1 ) =                     &
+          ii = jj + i - 1
+          aod_ukca_ait_ins( map_aod_wavel(1,ii) + k - 1 ) =                    &
                                     aod_ukca_all_modes(i,k,mode_ait_insol-1)
         end do
       end do
@@ -2053,7 +2075,8 @@ subroutine radaer_faster_code( nlayers,                                        &
     if ( .not. associated( aaod_ukca_ait_ins, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
         do i = 1, seg_size
-          aaod_ukca_ait_ins( map_aod_wavel(1,i) + k - 1 ) =                    &
+          ii = jj + i - 1
+          aaod_ukca_ait_ins( map_aod_wavel(1,ii) + k - 1 ) =                   &
                                    aaod_ukca_all_modes(i,k,mode_ait_insol-1)
         end do
       end do
@@ -2066,7 +2089,8 @@ subroutine radaer_faster_code( nlayers,                                        &
     if ( .not. associated( aod_ukca_acc_ins, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
         do i = 1, seg_size
-          aod_ukca_acc_ins( map_aod_wavel(1,i) + k - 1 ) =                     &
+          ii = jj + i - 1
+          aod_ukca_acc_ins( map_aod_wavel(1,ii) + k - 1 ) =                    &
                                     aod_ukca_all_modes(i,k,mode_acc_insol-1)
         end do
       end do
@@ -2075,7 +2099,8 @@ subroutine radaer_faster_code( nlayers,                                        &
     if ( .not. associated( aaod_ukca_acc_ins, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
         do i = 1, seg_size
-          aaod_ukca_acc_ins( map_aod_wavel(1,i) + k - 1 ) =                    &
+          ii = jj + i - 1
+          aaod_ukca_acc_ins( map_aod_wavel(1,ii) + k - 1 ) =                   &
                                    aaod_ukca_all_modes(i,k,mode_acc_insol-1)
         end do
       end do
@@ -2087,8 +2112,9 @@ subroutine radaer_faster_code( nlayers,                                        &
 
     if ( .not. associated( aod_ukca_cor_ins, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
-        do i = 1, seg_size
-          aod_ukca_cor_ins( map_aod_wavel(1,i) + k - 1 ) =                     &
+       do i = 1, seg_size
+          ii = jj + i - 1
+          aod_ukca_cor_ins( map_aod_wavel(1,ii) + k - 1 ) =                    &
                                     aod_ukca_all_modes(i,k,mode_cor_insol-1)
         end do
       end do
@@ -2097,19 +2123,17 @@ subroutine radaer_faster_code( nlayers,                                        &
     if ( .not. associated( aaod_ukca_cor_ins, empty_real_data ) ) then
       do k = 1, npd_ukca_aod_wavel
         do i = 1, seg_size
-           aaod_ukca_cor_ins( map_aod_wavel(1,i) + k - 1 ) =                   &
+           ii = jj + i - 1
+           aaod_ukca_cor_ins( map_aod_wavel(1,ii) + k - 1 ) =                  &
                                    aaod_ukca_all_modes(i,k,mode_cor_insol-1)
         end do
       end do
     end if
 
-  !------------------------------------------------
-  ! This is where we would close segmentation and openmp
-  !------------------------------------------------
+  end do ! Segmentation loop
+!$OMP end do
 
-  allocate( aaod_ukca_this_mode )
-  allocate(  sod_ukca_this_mode )
-  allocate(  aod_ukca_this_mode )
+!$OMP end PARALLEL 
 
   deallocate( ukca_modal_wtv )
   deallocate( ukca_modal_vol )
@@ -2137,7 +2161,6 @@ subroutine radaer_faster_code( nlayers,                                        &
   deallocate( d_mass_theta_levels )
   deallocate( t_theta_levels )
   deallocate( p_theta_levels )
-  
 
   deallocate( trindxrad )
 
