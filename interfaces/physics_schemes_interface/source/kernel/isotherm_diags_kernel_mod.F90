@@ -118,9 +118,6 @@ contains
     ! the stratosphere the temperature falls again, and the search keeps the
     ! highest crossing. Columns that do not reach the isotherm below the
     ! cut-off get rmdi, which outside the tropics is common for -70 C.
-    ! The UM uses the same 23 km here. It raised its similar tropopause
-    ! search limit from 22 km to 32 km after reports of missing data, but
-    ! left this one unchanged.
     real(kind=r_def), parameter :: height_cutoff = 23000.0_r_def
 
     ! Internal variables

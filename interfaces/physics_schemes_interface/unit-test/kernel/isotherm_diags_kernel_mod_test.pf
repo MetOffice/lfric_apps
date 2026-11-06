@@ -19,8 +19,9 @@ module isotherm_diags_kernel_mod_test
 
   private
   public :: test_simple_crossing, test_highest_crossing,                 &
-            test_crossing_above_cutoff, test_cold_surface,               &
-            test_cold_surface_extrapolated, test_extrapolation_cap,      &
+            test_crossing_above_cutoff, test_crossing_at_cutoff,         &
+            test_cold_surface, test_cold_surface_extrapolated,           &
+            test_crossing_overrides_cold_surface, test_extrapolation_cap, &
             test_no_crossing, test_unrequested_height,                   &
             test_unrequested_pressure, test_exner_pressure
 
@@ -133,6 +134,25 @@ contains
 
   end subroutine test_crossing_above_cutoff
 
+  !> @brief A crossing whose upper level is exactly at 23 km is ignored.
+  @test
+  subroutine test_crossing_at_cutoff()
+
+    implicit none
+
+    real(r_def) :: z_iso, p_iso
+
+    call run_kernel( [ 290.0_r_def, 280.0_r_def, 280.0_r_def,            &
+                       270.0_r_def, 260.0_r_def ],                       &
+                     [ 0.0_r_def, 10000.0_r_def, 20000.0_r_def,          &
+                       23000.0_r_def, 26000.0_r_def ],                   &
+                     275.0_r_def, .false._l_def, z_iso, p_iso )
+
+    @assertEqual( rmdi, z_iso )
+    @assertEqual( rmdi, p_iso )
+
+  end subroutine test_crossing_at_cutoff
+
   !> @brief Lowest level colder, no extrapolation: isotherm at the surface.
   @test
   subroutine test_cold_surface()
@@ -170,6 +190,28 @@ contains
     @assertEqual( p_zero + 3150.0_r_def, p_iso, 1.0e-6_r_def )
 
   end subroutine test_cold_surface_extrapolated
+
+  !> @brief Lowest level colder, but a crossing above it (an inversion):
+  !>        the crossing replaces the extrapolated value.
+  @test
+  subroutine test_crossing_overrides_cold_surface()
+
+    implicit none
+
+    real(r_def) :: z_iso, p_iso, lapse, p_expected
+
+    call run_kernel( [ 270.0_r_def, 272.0_r_def, 276.0_r_def,            &
+                       270.0_r_def, 265.0_r_def ],                       &
+                     [ 500.0_r_def, 1000.0_r_def, 2000.0_r_def,          &
+                       3000.0_r_def, 4000.0_r_def ],                     &
+                     273.15_r_def, .true._l_def, z_iso, p_iso )
+
+    lapse = 6.0_r_def / 1000.0_r_def
+    p_expected = p_zero * ( 273.15_r_def / 276.0_r_def )**( g_over_r / lapse )
+    @assertEqual( 2475.0_r_def, z_iso, 1.0e-6_r_def )
+    @assertEqual( p_expected, p_iso, tol )
+
+  end subroutine test_crossing_overrides_cold_surface
 
   !> @brief Extrapolated height is not allowed below 0 m; pressure is.
   @test
