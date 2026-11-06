@@ -547,13 +547,13 @@ class vn32_t723(MacroUpgrade):
         self.add_setting(
             config, ["namelist:physics", "lw_inc_segment_limit"], "32"
         )
-
         return config, self.reports
+
 
 class vn32_t714(MacroUpgrade):
     """Upgrade macro for ticket #714 by Thomas Bendall."""
 
-    BEFORE_TAG = "vn3.2_t776"
+    BEFORE_TAG = "vn3.2_t723"
     AFTER_TAG = "vn3.2_t714"
 
     def upgrade(self, config, meta_config=None):
