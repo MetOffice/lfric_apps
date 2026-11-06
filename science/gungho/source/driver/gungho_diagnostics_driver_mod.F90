@@ -4,7 +4,7 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 ! Some content in this file was generated or refactored with assistance from
-! - Claude Code (Claude Opus 5.5), 2026-10-16.
+! - Met Office Claude Code Enterprise (Claude Opus 5.5).
 
 !> @brief Outputs diagnostics from gungho/lfric_atm
 
