@@ -9,10 +9,16 @@
 module jules_control_init_mod
 
   ! LFRic namelists which have been read
-  use jules_sea_seaice_config_mod,          only : nice_in => nice
+  use jules_sea_seaice_config_mod,          only : nice_in => nice, amip_ice_thick
+  use initialization_config_mod,            only : ancil_option,            &
+                                                   ancil_option_updating,   &
+                                                   sea_ice_source,          &
+                                                   sea_ice_source_start_dump, &
+                                                   sea_ice_source_surf
+  use derived_config_mod,                   only : l_couple_sea_ice
 
   ! Other LFRic modules used
-  use constants_mod,        only : i_def, imdi
+  use constants_mod,        only : i_def, l_def, imdi
 
   implicit none
 
@@ -22,6 +28,11 @@ module jules_control_init_mod
   ! to cell faces in um_physics/source/kernel/bl_exp_kernel_mod.F90
   ! Has nothing to do with number of surface types
   integer(kind=i_def), parameter :: n_surf_interp = 11
+
+  ! Temporary development switch. When true and ancil_option is 'updating',
+  ! leaf_area_index and canopy_height are read by an ancillary file object
+  ! rather than the legacy time axis.
+  logical(kind=l_def), parameter :: pft_ancil_file_owned = .true.
 
   integer(kind=i_def), protected :: n_land_tile
   integer(kind=i_def), protected :: n_sea_ice_tile
@@ -33,9 +44,41 @@ module jules_control_init_mod
   private
   public :: n_land_tile, n_sea_tile, n_sea_ice_tile, n_surf_tile, &
        first_sea_tile, first_sea_ice_tile, jules_control_init,    &
-       soil_lev_tile, n_surf_interp
+       soil_lev_tile, n_surf_interp, pft_ancil_file_owned,        &
+       sea_ice_ancil_file_owned, sea_ice_thickness_file_owned
 
 contains
+
+  !>@brief Whether the sea ice ancillary is read by an ancillary file object
+  !>@details True in updating mode when the sea ice comes from an ancillary
+  !>         file (not the start dump, a SURF file or the coupler). The raw
+  !>         sea_ice_fraction is then read by the file object and the tile
+  !>         fractions derived from it are updated by update_ancils_alg.
+  function sea_ice_ancil_file_owned() result( file_owned )
+
+    implicit none
+
+    logical(kind=l_def) :: file_owned
+
+    file_owned = ancil_option == ancil_option_updating .and.     &
+                 sea_ice_source /= sea_ice_source_start_dump .and. &
+                 sea_ice_source /= sea_ice_source_surf .and.     &
+                 .not. l_couple_sea_ice
+
+  end function sea_ice_ancil_file_owned
+
+  !>@brief Whether sea_ice_thickness is also read by the file object
+  !>@details The thickness is only read from the ancillary when it is not
+  !>         derived from the ice fraction (amip_ice_thick).
+  function sea_ice_thickness_file_owned() result( file_owned )
+
+    implicit none
+
+    logical(kind=l_def) :: file_owned
+
+    file_owned = sea_ice_ancil_file_owned() .and. .not. amip_ice_thick
+
+  end function sea_ice_thickness_file_owned
 
   !>@brief Initialise JULES high levels variables with are either fixed in LFRic
   !>        or derived from LFRic inputs.

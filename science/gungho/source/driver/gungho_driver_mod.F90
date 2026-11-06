@@ -76,6 +76,7 @@ module gungho_driver_mod
   use lfric_xios_time_axis_mod,    only : regridder
   use intermesh_mappings_alg_mod,  only : map_scalar_intermesh
   use update_ancils_alg_mod,       only : update_ancils_alg
+  use migrated_ancil_minmax_mod,   only : log_migrated_ancil_minmax
   use gas_calc_all_mod,            only : gas_calc_all
   use multires_coupling_config_mod, &
                                    only : lowest_order_aero_flag
@@ -274,6 +275,11 @@ contains
 
     ! Model configuration initialisation
     call initialise_model( mesh, modeldb )
+
+#ifdef UM_PHYSICS
+    ! Temporary: log min/max of the migrated ancillary fields after initialisation
+    call log_migrated_ancil_minmax( modeldb, at_init=.true. )
+#endif
 
 #ifdef COUPLED
     ! Placeholder for ESM coupling initialisation code.
@@ -528,6 +534,9 @@ contains
                               ancil_fields,                &
                               surface_fields)
     end if
+
+    ! Temporary: log min/max of the migrated ancillary fields every timestep
+    call log_migrated_ancil_minmax( modeldb, at_init=.false. )
 
     ! Update the time varying trace gases
     call gas_calc_all()

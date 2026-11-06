@@ -21,7 +21,7 @@ module initial_surface_kernel_mod
 
   use jules_control_init_mod, only: n_land_tile, &
                                     n_sea_tile, n_sea_ice_tile, &
-       first_sea_tile, first_sea_ice_tile, n_surf_tile
+       first_sea_tile, first_sea_ice_tile, n_surf_tile, pft_ancil_file_owned
   use ideal_surface_config_mod, only: surf_tile_fracs, surf_tile_temps, &
                                       canopy_height_in => canopy_height, leaf_area_index_in => leaf_area_index
   use jules_surface_types_mod, only: npft
@@ -29,6 +29,7 @@ module initial_surface_kernel_mod
   use pftparm, only: emis_pft
   use jules_sea_seaice_mod, only: emis_sea, emis_sice
   use section_choice_config_mod, only: surface, surface_jules
+  use initialization_config_mod, only: ancil_option, ancil_option_updating
 
   implicit none
 
@@ -100,11 +101,14 @@ contains
 
     if (surface == surface_jules) then
 
-      ! Set from a namelist variable when no ancil read
-      do i = 1, npft
-        leaf_area_index(map_pft(1)+i-1) = leaf_area_index_in(i)
-        canopy_height(map_pft(1)+i-1) = canopy_height_in(i)
-      end do
+      ! Set from a namelist variable when no ancil read. When the ancillary
+      ! file object owns these fields they have already been set.
+      if (.not. (ancil_option == ancil_option_updating .and. pft_ancil_file_owned)) then
+        do i = 1, npft
+          leaf_area_index(map_pft(1)+i-1) = leaf_area_index_in(i)
+          canopy_height(map_pft(1)+i-1) = canopy_height_in(i)
+        end do
+      end if
 
       ! Initialise grey_albedos for all tiles
       do i = 1, n_land_tile
