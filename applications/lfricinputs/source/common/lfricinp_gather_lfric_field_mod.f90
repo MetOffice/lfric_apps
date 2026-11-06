@@ -56,6 +56,7 @@ integer(kind=int32) :: err, i
 integer(kind=int64) :: index_3d
 integer(kind=i_def) :: mpi_comm
 integer(kind=i_def) :: num_levels
+integer(kind=i_def) :: ndata
 !, unit_num
 
 real(kind=real64), allocatable :: local_data(:)
@@ -73,8 +74,9 @@ field_proxy = lfric_field%get_proxy()
 ! by the number of 2D cells and number of dofs per dof-location. Calculation
 ! accounts for the fact that Wtheta fields have one extra level than W3 field
 ! even though the number of levels in each function space is the same
+ndata = field_proxy%vspace%get_ndata()
 num_levels = field_proxy%vspace%get_last_dof_annexed() /                     &
-                (mesh%get_last_edge_cell() * field_proxy%vspace%get_ndata())
+                (mesh%get_last_edge_cell() * ndata)
 
 local_rank = global_mpi%get_comm_rank()
 total_ranks = global_mpi%get_comm_size()
@@ -88,7 +90,8 @@ allocate(local_data(local_size_2d))
 index_3d = level
 do i = 1, local_size_2d
   local_data(i) = field_proxy%data(index_3d)
-  index_3d = index_3d + num_levels
+  ! Size of a column of data is levels times data points per level
+  index_3d = index_3d + num_levels * ndata
 end do
 
 mpi_comm = comm%get_comm_mpi_val()
