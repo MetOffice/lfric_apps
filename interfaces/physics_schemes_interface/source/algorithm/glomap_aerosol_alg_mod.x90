@@ -3,8 +3,10 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
-! Some of the content of this file has been produced with the assistance of
-! Met Office Claude Code Enterprise.
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code via AI Foundry (Claude Opus 4.8); PR #743.
+! - Met Office Claude Code via AI Foundry (Claude Fable 5.1); PR #743.
+! - Met Office Claude Code via AI Foundry (Claude Opus 5.5); PR #743.
 !> @brief Interface to the UM GLOMAP-mode aerosol climatology scheme
 
 module glomap_aerosol_alg_mod

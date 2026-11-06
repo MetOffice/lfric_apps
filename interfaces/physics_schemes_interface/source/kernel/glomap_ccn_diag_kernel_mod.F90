@@ -4,7 +4,9 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 ! Some content in this file was generated or refactored with assistance from
-! - Claude Code.
+! - Met Office Claude Code via AI Foundry (Claude Opus 4.8); PR #743.
+! - Met Office Claude Code via AI Foundry (Claude Fable 5.1); PR #743.
+! - Met Office Claude Code via AI Foundry (Claude Opus 5.5); PR #743.
 !> @brief Cloud condensation nuclei number concentrations from the
 !>        GLOMAP-mode aerosol size distribution.
 !>
