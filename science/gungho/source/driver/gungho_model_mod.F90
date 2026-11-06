@@ -9,7 +9,6 @@
 module gungho_model_mod
 
   use add_mesh_map_mod,           only : assign_mesh_maps
-  use base_mesh_config_mod,       only : geometry_planar, topology_fully_periodic
   use sci_checksum_alg_mod,       only : checksum_alg
   use driver_fem_mod,             only : init_fem, final_fem
   use driver_io_mod,              only : init_io, final_io, &
@@ -73,7 +72,8 @@ module gungho_model_mod
                                          minmax_tseries_final
   use mesh_mod,                   only : mesh_type, &
                                          geometry_planar, &
-                                         geometry_spherical
+                                         geometry_spherical, &
+                                         topology_periodic
   use mesh_collection_mod,        only : mesh_collection
   use clock_mod,                  only : clock_type
   use model_clock_mod,            only : model_clock_type
@@ -303,7 +303,7 @@ contains
     call persistor%init(clock)
 
     legacy = ( (config%base_mesh%geometry() == geometry_planar) .and. &
-               (config%base_mesh%topology() == topology_fully_periodic) )
+               (config%base_mesh%topology() == topology_periodic) )
     call process_gungho_prognostics(persistor, legacy)
     ! Add the temperature_correction_rate to the appropriate files
     if(checkpoint_write) then
