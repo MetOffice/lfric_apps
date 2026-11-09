@@ -40,8 +40,10 @@ implicit none
 ! ARGUMENTS WITH intent in. IE: INPUT VARIABLES.
 
 type(array_dims), intent(in) ::                                                &
-   dimsi,      & ! Array dimensions for the inputs
-   dimsi_s,    & ! Array dimensions for input u or v (has halos).
+   dimsi,                                                                      &
+   ! Array dimensions for the inputs
+   dimsi_s,                                                                    &
+   ! Array dimensions for input u or v (has halos).
    dimso         ! Array dimensions for the outputs and work variables
 
 integer, intent(in) :: bl_levels
@@ -51,38 +53,37 @@ integer, intent(in) :: bl_levels
 
 real(kind=r_bl), intent(in) ::                                                 &
   rdz_u_v (dimsi%i_start:dimsi%i_end,                                          &
-           dimsi%j_start:dimsi%j_end, 2:bl_levels),                            &
+       2:bl_levels),                                                           &
 !                                in Reciprocal of the vertical
 !                                   distance from level K-1 to
 !                                   level K. (K > 1) on wind levels
     rhokm_u_v (dimsi%i_start:dimsi%i_end,                                      &
-               dimsi%j_start:dimsi%j_end, bl_levels),                          &
+         bl_levels),                                                           &
 !                                in Exchange coefficients for
 !                                   momentum, on UV-grid with
 !                                   first and last j_end ignored.
 !                                   for K>=2 (from KMKH).
     f_ngstress_uv(dimsi%i_start:dimsi%i_end,                                   &
-                  dimsi%j_start:dimsi%j_end,2:bl_levels),                      &
+          2:bl_levels),                                                        &
 !                                in dimensionless function for
                                !    non-gradient wind stress,
                                !    either U or V depending on call
     u_v (dimsi_s%i_start:dimsi_s%i_end,                                        &
-         dimsi_s%j_start:dimsi_s%j_end,bl_levels),                             &
+     bl_levels),                                                               &
 !                                in Westerly_Southerly component of
 !                                   wind.
     tau_xy_fd_uv(dimsi%i_start:dimsi%i_end,                                    &
-                 dimsi%j_start:dimsi%j_end, bl_levels),                        &
+         bl_levels),                                                           &
                                ! in X/Y-component of form-drag stress
                                !    at a UV point
-    zhnl(dimso%i_start:dimso%i_end,                                            &
-         dimso%j_start:dimso%j_end)    ! in non-local BL depth
+    zhnl(dimso%i_start:dimso%i_end)    ! in non-local BL depth
     ! Note: this is a work variable passed in from bdy_expl3, so has
     ! the same dimensions as the outputs.
 
 ! INOUT variables
 real(kind=r_bl), intent(in out) ::                                             &
   tau_x_y (dimso%i_start:dimso%i_end,                                          &
-           dimso%j_start:dimso%j_end, bl_levels)
+           bl_levels)
 !                                out explicit x_y-component of
 !                                    turbulent stress at levels
 !                                    k-1/2; eg. TAUX(,1) is surface
@@ -92,20 +93,18 @@ real(kind=r_bl), intent(in out) ::                                             &
 ! ARGUMENTS WITH intent out. IE: INPUT VARIABLES CHANGED ON OUTPUT.
 real(kind=r_bl), intent(out) ::                                                &
   tau_grad(dimso%i_start:dimso%i_end,                                          &
-           dimso%j_start:dimso%j_end,bl_levels),                               &
+           bl_levels),                                                         &
 !                                out k*du/dz grad stress (kg/m/s2)
     tau_non_grad(dimso%i_start:dimso%i_end,                                    &
-                 dimso%j_start:dimso%j_end,bl_levels)
+                 bl_levels)
 !                                out Non-grad stress (kg/m/s2)
 
 integer ::                                                                     &
   i,                                                                           &
-  j,                                                                           &
   k
 
 real(kind=r_bl) ::                                                             &
-  tau_surf(dimso%i_start:dimso%i_end,                                          &
-           dimso%j_start:dimso%j_end),                                         &
+  tau_surf(dimso%i_start:dimso%i_end),                                         &
                              ! Explicit surface stress
   sign_tau,                                                                    &
                              ! Sign of surface stress
@@ -125,7 +124,7 @@ if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
 ! Set diagnostics to zero in level 1
 
-!$OMP PARALLEL DEFAULT(SHARED) private(i, j, k, sign_tau, bl_stress_grad)
+!$OMP PARALLEL DEFAULT(SHARED) private(i, k, sign_tau, bl_stress_grad)
 if ( ng_stress == BrownGrant97_limited .or.                                    &
      ng_stress == BrownGrant97_original ) then
       ! Limit the explicitly calculated surface stress used to scale
@@ -136,21 +135,17 @@ if ( ng_stress == BrownGrant97_limited .or.                                    &
       ! solver, via large increments to W
 
 !$OMP do SCHEDULE(STATIC)
-  do j = dimso%j_start, dimso%j_end
-    do i = dimso%i_start, dimso%i_end
-      sign_tau = sign(one, tau_x_y(i,j,1) )
-      bl_stress_grad = abs( tau_x_y(i,j,1) )/zhnl(i,j)
-      bl_stress_grad = min( max_stress_grad, bl_stress_grad )
-      tau_surf(i,j) = sign_tau * zhnl(i,j) * bl_stress_grad
-    end do
+  do i = dimso%i_start, dimso%i_end
+    sign_tau = sign(one, tau_x_y(i,1) )
+    bl_stress_grad = abs( tau_x_y(i,1) )/zhnl(i)
+    bl_stress_grad = min( max_stress_grad, bl_stress_grad )
+    tau_surf(i) = sign_tau * zhnl(i) * bl_stress_grad
   end do
 !$OMP end do
 else
 !$OMP do SCHEDULE(STATIC)
-  do j = dimso%j_start, dimso%j_end
-    do i = dimso%i_start, dimso%i_end
-      tau_surf(i,j) = tau_x_y(i,j,1)
-    end do
+  do i = dimso%i_start, dimso%i_end
+    tau_surf(i) = tau_x_y(i,1)
   end do
 !$OMP end do
 end if
@@ -158,28 +153,24 @@ end if
 !$OMP do SCHEDULE(STATIC)
 do k = 1, bl_levels
   if ( k>1 ) then
-    do j = dimso%j_start, dimso%j_end
-      do i = dimso%i_start, dimso%i_end
+    do i = dimso%i_start, dimso%i_end
 
-        tau_grad(i,j,k) = rhokm_u_v(i,j,k) *                                   &
-                        ( u_v(i,j,k) - u_v(i,j,k-1) ) *rdz_u_v(i,j,k)
-        tau_non_grad(i,j,k) = f_ngstress_uv(i,j,k) * tau_surf(i,j)
-        tau_x_y(i,j,k) = tau_grad(i,j,k) + tau_non_grad(i,j,k)
+      tau_grad(i,k) = rhokm_u_v(i,k) *                                         &
+                      ( u_v(i,k) - u_v(i,k-1) ) *rdz_u_v(i,k)
+      tau_non_grad(i,k) = f_ngstress_uv(i,k) * tau_surf(i)
+      tau_x_y(i,k) = tau_grad(i,k) + tau_non_grad(i,k)
 
-        ! Add explicit orographic stress, noting that the surface stress
-        ! is to be added later
-        if (formdrag  ==  explicit_stress) then
-          tau_x_y(i,j,k) = tau_x_y(i,j,k) + tau_xy_fd_uv(i,j,k)
-        end if
+      ! Add explicit orographic stress, noting that the surface stress
+      ! is to be added later
+      if (formdrag  ==  explicit_stress) then
+        tau_x_y(i,k) = tau_x_y(i,k) + tau_xy_fd_uv(i,k)
+      end if
 
-      end do
     end do
   else
-    do j = dimso%j_start, dimso%j_end
-      do i = dimso%i_start, dimso%i_end
-        tau_grad(i,j,k) = tau_x_y(i,j,1)
-        tau_non_grad(i,j,k) = zero
-      end do
+    do i = dimso%i_start, dimso%i_end
+      tau_grad(i,k) = tau_x_y(i,1)
+      tau_non_grad(i,k) = zero
     end do
   end if
 end do

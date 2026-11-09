@@ -47,7 +47,8 @@ module um_ukca_init_mod
                                        photol_scheme_fastjx,                   &
                                        photol_scheme_prescribed, fastjx_mode,  &
                                        fastjx_numwavel, fastjx_prescutoff,     &
-                                       fjx_solcyc_type, fjx_solcyc_months
+                                       fjx_solcyc_type, fjx_solcyc_months,     &
+                                       ukca_chem_full_chunk_size
 
   ! Other LFRic modules used
   use model_clock_mod, only: model_clock_type
@@ -1905,6 +1906,7 @@ contains
            !
            i_mode_nzts=15,                                                     &
            ukca_mode_seg_size=i_ukca_mode_seg_size,                            &
+           ukca_chem_full_chunk_size=ukca_chem_full_chunk_size,                &
            ! i_mode_setup hard coded to ukca_i_du_2mode (6) for dust_and_clim
            i_mode_setup=ukca_i_du_2mode,                                       &
            i_mode_nucscav=i_mode_nucscav,                                      &

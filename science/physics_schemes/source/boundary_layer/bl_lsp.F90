@@ -33,23 +33,21 @@ integer, intent(in) ::                                                         &
   bl_levels             ! in   Number of boundary layer levels
 
 real(kind=real_umphys), intent(in out) ::                                      &
-  qcf(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                     &
+  qcf(tdims%i_start:tdims%i_end,                                               &
       bl_levels),                                                              &
                                  ! INOUT Ice water content
-  q(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                       &
+  q(tdims%i_start:tdims%i_end,                                                 &
     bl_levels),                                                                &
                                  ! INOUT
 !                                  in    Vapour+liquid+ice content
 !                                  out   Vapour+liquid content
-    t(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                     &
+    t(tdims%i_start:tdims%i_end,                                               &
       bl_levels)                   ! INOUT
 !                                  in    Liquid ice temperature
 !                                  out   Liquid temperature
 ! Temporary Space
 integer ::                                                                     &
         i,                                                                     &
-                               ! Counter over points
-        j,                                                                     &
                                ! Counter over points
         k                ! Counter over boundary layer levels
 real(kind=real_umphys) :: newqcf              ! Temporary variable for QCF
@@ -63,24 +61,22 @@ character(len=*), parameter :: RoutineName='BL_LSP'
 
 if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 !$OMP PARALLEL do DEFAULT(none) SCHEDULE(STATIC)                               &
-!$OMP          private(i,j,k,newqcf)                                           &
+!$OMP          private(i,k,newqcf)                                             &
 !$OMP          SHARED(bl_levels,tdims,q,qcf,t,lsrcp)
 do k = 1, bl_levels
-  do j = tdims%j_start, tdims%j_end
-    do i = tdims%i_start, tdims%i_end
-      ! Convert Q (vapour+liquid+ice) to (vapour+liquid)
-      q(i,j,k)=q(i,j,k)-qcf(i,j,k)
-      ! Check that Q is not negative
-      if (q(i,j,k)  <   0.0) then
-        ! Evaporate ice to keep Q positive, but don't let ice go negative
-        ! itself
-        newqcf=max(qcf(i,j,k)+q(i,j,k),0.0)
-        q(i,j,k)=q(i,j,k)+(qcf(i,j,k)-newqcf)
-        qcf(i,j,k)=newqcf
-      end if
-      ! Adjust T from T liquid ice to T liquid
-      t(i,j,k)=t(i,j,k)+lsrcp*qcf(i,j,k)
-    end do
+  do i = tdims%i_start, tdims%i_end
+    ! Convert Q (vapour+liquid+ice) to (vapour+liquid)
+    q(i,k)=q(i,k)-qcf(i,k)
+    ! Check that Q is not negative
+    if (q(i,k)  <   0.0) then
+      ! Evaporate ice to keep Q positive, but don't let ice go negative
+      ! itself
+      newqcf=max(qcf(i,k)+q(i,k),0.0)
+      q(i,k)=q(i,k)+(qcf(i,k)-newqcf)
+      qcf(i,k)=newqcf
+    end if
+    ! Adjust T from T liquid ice to T liquid
+    t(i,k)=t(i,k)+lsrcp*qcf(i,k)
   end do
 end do
 !$OMP end PARALLEL do
