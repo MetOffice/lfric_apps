@@ -10,8 +10,10 @@ module atl_si_timestep_alg_mod
   use atl_moist_dyn_factors_alg_mod,       only: atl_moist_dyn_factors_alg
   use config_mod,                          only: config_type
   use constants_mod,                       only: i_def, r_def, l_def, str_def
-  use log_mod,                             only: log_event, log_scratch_space, &
-                                                 LOG_LEVEL_INFO, LOG_LEVEL_ERROR
+  use log_mod,                             only: log_event, log_scratch_space,    &
+                                                 LOG_LEVEL_INFO, LOG_LEVEL_ERROR, &
+                                                 LOG_LEVEL_DEBUG
+  use sci_field_minmax_alg_mod,            only: log_field_minmax
   use driver_modeldb_mod,                  only: modeldb_type
   use reference_element_mod,               only: T
   use formulation_config_mod,              only: dlayer_on, exner_from_eos, si_momentum_equation, &
@@ -340,6 +342,7 @@ contains
     type(mesh_type), pointer                           :: mesh
     character(len=str_def)                             :: prime_mesh_name
     integer(tik)                                       :: id
+    integer(kind=i_def)                                :: i
 
     if ( LPROF ) call start_timing( id, 'atl_semi_implicit_timestep' )
 
@@ -363,6 +366,15 @@ contains
       varalpha = alpha
     end if
     varbeta = 1.0_r_def - varalpha
+
+    ! Log the derived variables at the beginning of the timestep
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'rho', rho)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'theta', theta)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'exner', exner)
+    call log_field_minmax(LOG_LEVEL_DEBUG, 'u', u)
+    do i = 1, num_moist_factors
+      call log_field_minmax(LOG_LEVEL_DEBUG, 'moist_dyn', moist_dyn(i))
+    end do
 
     ! Copy prognostic field data to state arrays
     call invoke( name="copy_init_fields_to_state",     &
