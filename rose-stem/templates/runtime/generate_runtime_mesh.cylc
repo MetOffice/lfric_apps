@@ -26,7 +26,8 @@
     inherit.str,
     task_values["mesh_wallclock"],
     task_values["mesh_cpus"],
-    task_values["mesh_memory"]
+    task_values["mesh_memory"],
+    task_values["tmpsize"],
     ) }}
 
     [[{{task}}]]

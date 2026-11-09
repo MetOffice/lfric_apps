@@ -296,6 +296,7 @@ profile_data=8*298.7,298.75138895,299.23958304,299.77916644,300.37014011,
 2422.44972326,2600.0,
 profile_heights=86*0.0,
 profile_size=86,
+profile_variable='potential',
 theta_surf=300.0,
 /
 &initial_vapour
@@ -323,6 +324,7 @@ profile_data=1.69730769e-02,1.69730769e-02,1.69282051e-02,1.68653846e-02,
 2.86662320e-07,1.00000000e-10,
 profile_heights=86*0.0,
 profile_size=86,
+profile_variable='mr',
 /
 &initial_wind
 nl_constant=0.0,
@@ -733,7 +735,10 @@ l_iceformdrag_lupkes=.true.,
 l_sice_heatflux=.true.,
 l_stability_lupkes=.true.,
 l_use_dtstar_sea=.false.,
+l_zenith_albedo=.false.,
+meltpond_alb_vn='none',
 nice=1,
+snowpatch=0.02,
 u_cdn_hw=55.0,
 u_cdn_max=33.0,
 /
@@ -827,6 +832,8 @@ shape_rime=.true.,
 turb_gen_mixph=.true.,
 /
 &mixed_solver
+chebyshev_lmax=2.5
+chebyshev_lmin=1.0
 eliminate_variables='discrete',
 fail_on_non_converged=.true.,
 gcrk=4,
@@ -877,12 +884,14 @@ gw_segment=0,
 limit_drag_incs=.false.,
 lowest_level='gradient',
 ls_ppn_segment=0,
+lw_inc_segment_limit=32,
 lw_segment_limit=32,
 microphysics_placement='slow',
 pmsl_halo_calcs=.true.,
 sample_physics_scalars=.true.,
 sample_physics_winds=.true.,
 sample_physics_winds_correction=.false.,
+sw_inc_segment_limit=32,
 sw_segment_limit=32,
 ussp_segment=0,
 /
@@ -967,7 +976,7 @@ timestep_start='1',
 &timestepping
 alpha=0.55,
 dt=1200,
-inner_iterations=2,
+inner_iterations_si=2
 method='semi_implicit',
 outer_iterations=1,
 runge_kutta_method='forward_euler',
