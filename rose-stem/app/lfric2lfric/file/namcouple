@@ -29,7 +29,7 @@ src_face dst_face 1 1 1 lfric2lfric_restart_oa.nc EXPORTED
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_conserve2nd.nc 
+regrid_weights_conserve.nc 
 ############################################
 $END 
 ############################################# 

@@ -10,7 +10,7 @@
     {% do task_dict.update({
         "opt_confs": ["src_seuk_L70","dst_seuk-coarse"],
         "resolution": "seuk_MG",
-	"int_method": "conserve2nd",
+	"int_method": "conserve",
         "dst_mesh": "",
         "dst_name": "",
         "dst_type": "",
@@ -29,7 +29,7 @@
     {% do task_dict.update({
         "opt_confs": ["src_seuk_L70","dst_seuk-coarse"],
         "resolution": "seuk_MG",
-        "int_method": "conserve2nd",
+        "int_method": "conserve",
         "dst_mesh": "",
         "dst_name": "",
         "dst_type": "",
@@ -49,7 +49,7 @@
     {% do task_dict.update({
         "opt_confs": ["oasis","src_seuk_L70","dst_seuk-coarse"],
         "resolution": "seuk_MG",
-        "int_method": "conserve2nd",
+        "int_method": "conserve",
         "dst_mesh": "seuk_MG",
         "dst_name": "multigrid_l1",
         "dst_type": "regional",
@@ -68,7 +68,7 @@
     {% do task_dict.update({
         "opt_confs": ["oasis","src_seuk_L70","dst_seuk-coarse"],
         "resolution": "seuk_MG",
-        "int_method": "conserve2nd",
+        "int_method": "conserve",
         "dst_mesh": "seuk_MG",
         "dst_name": "multigrid_l1",
         "dst_type": "regional",
@@ -88,7 +88,7 @@
     {% do task_dict.update({
         "opt_confs": ["ral3","ral3_seuk"],
         "resolution": "ral3_seuk",
-        "int_method": "conserve2nd",
+        "int_method": "conserve",
         "dst_mesh": "",
         "dst_name": "",
         "dst_type": "",
@@ -107,7 +107,7 @@
     {% do task_dict.update({
         "opt_confs": ["ral3","ral3_uk"],
         "resolution": "ral3_uk",
-        "int_method": "conserve2nd",
+        "int_method": "conserve",
         "dst_mesh": "",
         "dst_name": "",
         "dst_type": "",
@@ -126,7 +126,7 @@
     {% do task_dict.update({
         "opt_confs": ["ral3","ral3_ukv"],
         "resolution": "ral3_ukv",
-        "int_method": "conserve2nd",
+        "int_method": "conserve",
         "dst_mesh": "",
         "dst_name": "",
         "dst_type": "",
@@ -145,7 +145,7 @@
     {% do task_dict.update({
         "opt_confs": ["src_C12_L70","dst_C24"],
         "resolution": "C24_C12",
-        "int_method": "conserve2nd",
+        "int_method": "conserve",
         "dst_mesh": "",
         "dst_name": "",
         "dst_type": "",
@@ -163,7 +163,7 @@
     {% do task_dict.update({
         "opt_confs": ["src_C12_L70","dst_C24"],
         "resolution": "C24_C12",
-        "int_method": "conserve2nd",
+        "int_method": "conserve",
         "dst_mesh": "",
         "dst_name": "",
         "dst_type": "",
@@ -181,7 +181,7 @@
     {% do task_dict.update({
         "opt_confs": ["oasis","src_C12_L70","dst_C24"],
         "resolution": "C24_C12",
-        "int_method": "conserve2nd",
+        "int_method": "conserve",
         "dst_mesh": "C24_C12",
         "dst_name": "C24",
         "dst_type": "global",
@@ -199,7 +199,7 @@
     {% do task_dict.update({
         "opt_confs": ["oasis","src_C12_L70","dst_seuk","src_L70_80km","dst_L38_40km"],
         "resolution": ["C24_C12", "seuk_MG"],
-        "int_method": "conserve2nd",
+        "int_method": "conserve",
         "dst_mesh": "seuk_MG",
         "dst_name": "dynamics",
         "dst_type": "regional",
@@ -217,7 +217,7 @@
     {% do task_dict.update({
         "opt_confs": ["oasis","src_C12_L70","dst_C12","src_L70_80km","dst_L38_40km"],
         "resolution": ["C24_C12", "C12"],
-        "int_method": "conserve2nd",
+        "int_method": "conserve",
         "dst_mesh": "C12",
         "dst_name": "dynamics",
         "dst_type": "global",
@@ -235,7 +235,7 @@
     {% do task_dict.update({
         "opt_confs": ["oasis","src_C12_L70","dst_C24"],
         "resolution": "C24_C12",
-        "int_method": "conserve2nd",
+        "int_method": "conserve",
         "dst_mesh": "C24_C12",
         "dst_name": "C24",
         "dst_type": "global",
@@ -274,7 +274,7 @@
     {% do task_dict.update({
         "opt_confs": [ "oasis","src_C12_L70","dst_seuk","multi-cpu"],
         "resolution": ["C24_C12", "seuk_MG"],
-        "int_method": "conserve2nd",
+        "int_method": "conserve",
         "dst_mesh": "seuk_MG",
         "dst_name": "dynamics",
         "dst_type": "regional",
@@ -294,7 +294,7 @@
     {% do task_dict.update({
         "opt_confs": ["oasis","src_C12_L70","dst_seuk","lbc"],
         "resolution": ["C24_C12", "seuk_MG"],
-	"int_method": "conserve2nd",	
+	"int_method": "conserve",	
         "dst_mesh": "seuk_MG",
         "dst_name": "dynamics-lbc",
         "dst_type": "regional",
@@ -313,7 +313,7 @@
     {% do task_dict.update({
         "opt_confs": ["oasis","src_C12_L70","dst_seuk","lbc","multi-cpu"],
         "resolution": ["C24_C12", "seuk_MG"],
-        "int_method": "conserve2nd",
+        "int_method": "conserve",
         "dst_mesh": "seuk_MG",
         "dst_name": "dynamics-lbc",
         "dst_type": "regional",
