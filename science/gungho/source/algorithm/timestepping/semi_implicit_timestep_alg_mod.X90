@@ -896,7 +896,7 @@ contains
     ! Set the moisture to be transported to point to the moisture after slow physics
     mr_to_adv => self%mr_after_slow
     ! Set predictors for transport
-    call predictors_alg(self%advected_state, self%state_n(igh_u), &
+    call predictors_alg(self%config, self%advected_state, self%state_n(igh_u), &
                         self%rhs_n(igh_u),varbeta,model_clock)
 
     !==========================================================================
