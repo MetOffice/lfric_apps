@@ -301,7 +301,14 @@ module lfric2lfric_init_coupler_mod
 
       ! Read nfields
       if (trim(adjustl(line)) == '$NFIELDS') then
-        read(unit, *, iostat=ios) total_fields
+        do 
+          read(unit, *, iostat=ios) line
+          if (line(1:1) /= '#') then
+            backspace(unit)
+            read(unit, *, iostat=ios) total_fields
+            exit
+          end if
+        end do
 
         ! Error message if unable to read
         if (ios /= 0) then

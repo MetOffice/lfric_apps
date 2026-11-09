@@ -10,7 +10,7 @@
     {% do task_dict.update({
         "opt_confs": ["src_seuk_L70","dst_seuk-coarse"],
         "resolution": "seuk_MG",
-	"int_method": "conserve",
+	"int_method": "",
         "dst_mesh": "",
         "dst_name": "",
         "dst_type": "",
@@ -145,7 +145,7 @@
     {% do task_dict.update({
         "opt_confs": ["src_C12_L70","dst_C24"],
         "resolution": "C24_C12",
-        "int_method": "conserve",
+        "int_method": "",
         "dst_mesh": "",
         "dst_name": "",
         "dst_type": "",
@@ -252,7 +252,27 @@
 {% elif task_ns.conf_name == "oasis_clim_gal9_C12-ral_seuk_C16_lam_1cpu" %}
 
     {% do task_dict.update({
-        "opt_confs": ["oasis_masked","src_C12_L70","dst_seuk"],
+        "opt_confs": ["oasis","src_C12_L70","dst_seuk"],
+        "resolution": ["C24_C12", "seuk_MG"],
+        "int_method": "conserve",
+        "dst_mesh": "seuk_MG",
+        "dst_name": "dynamics",
+        "dst_type": "regional",
+	"dst_mask_path": "",
+	"dst_mask_name": "",
+        "src_mesh": "C24_C12",
+        "src_name": "C12",
+        "src_type": "global",
+	"src_mask_path": "",
+	"src_mask_name": "",
+	"log_level": "debug",
+        "xios_min_buffer_size": 2097152,
+    }) %}
+
+{% elif task_ns.conf_name == "oasis_C12_L70_seuk_masked" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["oasis_masked","src_C12_L70_alt","dst_seuk"],
         "resolution": ["C24_C12", "seuk_MG"],
         "int_method": "conserve2nd, neareststod, masked_conserve2nd, masked_neareststod",
         "dst_mesh": "seuk_MG",
