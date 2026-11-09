@@ -890,7 +890,7 @@ if (BL_diag%l_wb_ng) then
   do k = 2, shcu_levels
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
-        BL_diag%wb_ng(i, j, k) = wb_ng(i, j, k)
+        BL_diag%wb_ng(i, k) = wb_ng(i, j, k)
       end do
     end do
   end do

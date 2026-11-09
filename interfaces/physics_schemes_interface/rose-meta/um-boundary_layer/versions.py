@@ -47,6 +47,12 @@ class vn32_t46(MacroUpgrade):
             config, ["namelist:blayer", "blending_kprof"], mixing_method
         )
         self.add_setting(
+            config, ["namelist:mixing", "cap_blended_ml"], ".false."
+        )
+        self.add_setting(
+            config, ["namelist:mixing", "shallow_cu_maxtop"], "3000.0"
+        )
+        self.add_setting(
             config, ["namelist:blayer", "blending_hoc"], "'3dte_mk1'"
         )
         self.add_setting(

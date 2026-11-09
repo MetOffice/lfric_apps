@@ -330,17 +330,16 @@ outer_m_loop: do m = 1, nitr
   end if
   if (endflag /= -1) then
     exit outer_m_loop
-  else
-    bet = alp_num * alp / (alp_den * omg)
-    do k = 1, tke_levels
-      pvec_tsq(k) = rvec_tsq(k)                                                &
-                           + bet * (pvec_tsq(k) - omg * vvec_tsq(k))
-      pvec_qsq(k) = rvec_qsq(k)                                                &
-                           + bet * (pvec_qsq(k) - omg * vvec_qsq(k))
-      pvec_cov(k) = rvec_cov(k)                                                &
-                           + bet * (pvec_cov(k) - omg * vvec_cov(k))
-    end do
   end if
+  bet = alp_num * alp / (alp_den * omg)
+  do k = 1, tke_levels
+    pvec_tsq(k) = rvec_tsq(k)                                                  &
+                         + bet * (pvec_tsq(k) - omg * vvec_tsq(k))
+    pvec_qsq(k) = rvec_qsq(k)                                                  &
+                         + bet * (pvec_qsq(k) - omg * vvec_qsq(k))
+    pvec_cov(k) = rvec_cov(k)                                                  &
+                         + bet * (pvec_cov(k) - omg * vvec_cov(k))
+  end do
 end do outer_m_loop    ! loop m = 1, max_itr
 
 if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_out,zhook_handle)

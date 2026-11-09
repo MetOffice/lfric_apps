@@ -626,7 +626,7 @@ if (BL_diag%l_dbdz) then
   do k = 2, tke_levels
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
-        BL_diag%dbdz(i, j, k) = dbdz_l(i, j, k)
+        BL_diag%dbdz(i, k) = dbdz_l(i, j, k)
       end do
     end do
   end do
@@ -636,7 +636,7 @@ if (BL_diag%l_dvdzm) then
   do k = 2, tke_levels
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
-        BL_diag%dvdzm(i,j,k) = dvdzm(i, j, k)
+        BL_diag%dvdzm(i,k) = dvdzm(i, j, k)
       end do
     end do
   end do
@@ -646,7 +646,7 @@ if (BL_diag%l_tke_shr_prod) then
   do k = 2, tke_levels
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
-        BL_diag%tke_shr_prod(i, j, k) = prod_m(i, j, k)
+        BL_diag%tke_shr_prod(i, k) = prod_m(i, j, k)
       end do
     end do
   end do
@@ -656,7 +656,7 @@ if (BL_diag%l_tke_boy_prod) then
   do k = 2, tke_levels
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
-        BL_diag%tke_boy_prod(i, j, k) = prod_h(i, j, k)
+        BL_diag%tke_boy_prod(i, k) = prod_h(i, j, k)
       end do
     end do
   end do
@@ -666,7 +666,7 @@ if (BL_diag%l_tke_boy_prod) then
   do k = 2, tke_levels
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
-        BL_diag%tke_dissp(i, j, k) =                                           &
+        BL_diag%tke_dissp(i, k) =                                              &
                  coef_ce(i, j, k) * (ekw(i, j, k)) ** 3                        &
                            / max(elm(i, j, k), 1.0e-20)
       end do
@@ -678,7 +678,7 @@ if (BL_diag%l_elm) then
   do k = 2, tke_levels
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
-        BL_diag%elm(i, j, k) = elm(i, j, k)
+        BL_diag%elm(i, k) = elm(i, j, k)
       end do
     end do
   end do

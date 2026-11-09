@@ -597,11 +597,13 @@ class vn32_t714(MacroUpgrade):
 class vn32_t46(MacroUpgrade):
     """Upgrade macro for ticket #46 by Shusuke Nishimoto."""
 
-    BEFORE_TAG = "vn3.2_t479"
+    BEFORE_TAG = "vn3.2_t714"
     AFTER_TAG = "vn3.2_t46"
 
     def upgrade(self, config, meta_config=None):
         self.remove_setting(config, ["namelist:mixing", "method"])
+        self.remove_setting(config, ["namelist:mixing", "cap_blended_ml"])
+        self.remove_setting(config, ["namelist:mixing", "shallow_cu_maxtop"])
         self.add_setting(config, ["namelist:mixing", "leonard_tke"], ".true.")
         conf_hash = {}
         conf_list = ["field_names", "enforce_min_value", "min_value"]

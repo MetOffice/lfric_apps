@@ -433,13 +433,6 @@ contains
               mr_out, mr_in, nummr_to_transport,                               &
               transport_controller, transport_metadata                         &
       )
-<<<<<<< HEAD
-      ! ---------------------------------------------------------------------- !
-      ! Transport tracers which are active in fast physics, and therefore need
-      ! transporting on every outer iteration
-      if (present(gen_tracer_all_outer)                                        &
-          .and. check_transport_name('gen_tracer') ) then
-=======
     end if
 
     ! ------------------------------------------------------------------------ !
@@ -484,9 +477,8 @@ contains
         ! flux precomputations
       end if
 
-      if (present(adv_tracer_all_outer)                                        &
-          .and. check_transport_name('adv_tracer') ) then
->>>>>>> upstream/main
+      if (present(gen_tracer_all_outer)                                        &
+          .and. check_transport_name('gen_tracer') ) then
         call log_event(                                                        &
                  "Transporting general tracers (all)...", LOG_LEVEL_DEBUG      &
         )

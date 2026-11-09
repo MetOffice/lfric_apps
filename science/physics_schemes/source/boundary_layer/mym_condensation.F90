@@ -393,7 +393,7 @@ if (BL_diag%l_cf_trb) then
   do k = 2, tke_levels
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
-        BL_diag%cf_trb(i, j, k) = cld(i, j, k)
+        BL_diag%cf_trb(i, k) = cld(i, j, k)
       end do
     end do
   end do
@@ -403,7 +403,7 @@ if (BL_diag%l_ql_trb) then
   do k = 2, tke_levels
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
-        BL_diag%ql_trb(i, j, k) = ql(i, j, k)
+        BL_diag%ql_trb(i, k) = ql(i, j, k)
       end do
     end do
   end do
@@ -413,7 +413,7 @@ if (BL_diag%l_sgm_trb) then
   do k = 2, tke_levels
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
-        BL_diag%sgm_trb(i, j, k) = sgm(i, j, k)
+        BL_diag%sgm_trb(i, k) = sgm(i, j, k)
       end do
     end do
   end do

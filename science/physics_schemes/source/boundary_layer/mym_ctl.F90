@@ -469,7 +469,7 @@ if (BL_diag%l_dbdz) then
   do k = 2, tke_levels
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
-        BL_diag%dbdz(i, j, k) = dbdz_l(i, j, k)
+        BL_diag%dbdz(i, k) = dbdz_l(i, j, k)
       end do
     end do
   end do
@@ -479,7 +479,7 @@ if (BL_diag%l_dvdzm) then
   do k = 2, tke_levels
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
-        BL_diag%dvdzm(i,j,k) = dvdzm(i, j, k)
+        BL_diag%dvdzm(i,k) = dvdzm(i, j, k)
       end do
     end do
   end do

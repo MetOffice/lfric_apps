@@ -36,6 +36,7 @@ module um_physics_init_mod
                                         blending_Kprof_2d_smag,                &
                                         blending_Kprof_blend_smag_fa,          &
                                         blending_Kprof_blend_1dbl_fa,          &
+                                        blending_Kprof_blend_cth_shcu_only,    &
                                         blending_HoC, blending_HoC_3d_smag,    &
                                         blending_HoC_3dte_mk1,                 &
                                         tke_levels_in => tke_levels,           &
@@ -111,7 +112,9 @@ module um_physics_init_mod
                                 improved_tke_diag_in   => improved_tke_diag,   &
                                 l_use_sml_dsc_fixes_in => l_use_sml_dsc_fixes, &
                                 l_converge_ga_in       => l_converge_ga,       &
-                                num_sweeps_bflux_in    => num_sweeps_bflux
+                                num_sweeps_bflux_in    => num_sweeps_bflux,    &
+                                cap_blended_ml_in      => cap_blended_ml,      &
+                                shallow_cu_maxtop_in   => shallow_cu_maxtop
 
   use cloud_config_mod,          only : scheme, scheme_smith, scheme_pc2,      &
                                         scheme_bimodal,                        &
@@ -271,24 +274,10 @@ module um_physics_init_mod
                                         heavy_rain_evap_fac_in =>            &
                                                 heavy_rain_evap_fac
 
-<<<<<<< HEAD
   use mixing_config_mod,         only : smagorinsky,                   &
                                         mix_factor_in => mix_factor,   &
                                         leonard_term,                  &
                                         leonard_tke
-=======
-  use mixing_config_mod, only : smagorinsky,                               &
-                                mixing_method => method,                   &
-                                method_3d_smag,                            &
-                                method_2d_smag,                            &
-                                method_blend_smag_fa,                      &
-                                method_blend_1dbl_fa,                      &
-                                method_blend_cth_shcu_only,                &
-                                cap_blended_ml_in => cap_blended_ml,       &
-                                shallow_cu_maxtop_in => shallow_cu_maxtop, &
-                                mix_factor_in => mix_factor,               &
-                                leonard_term
->>>>>>> upstream/main
 
   use radiation_config_mod,      only : topography, topography_horizon
 
@@ -824,13 +813,6 @@ contains
           sg_orog_mixing = sg_shear_enh_lambda
       end select
 
-<<<<<<< HEAD
-=======
-      ! TKE scaling parameter
-      tke_diag_fac  = 1.0_r_bl
-      zhloc_depth_fac = real(zhloc_depth_fac_in, r_bl)
-
->>>>>>> upstream/main
       if (topography == topography_horizon) then
         ! Set control logical for use of skyview factor in JULES
         l_skyview = .true.
@@ -925,9 +907,8 @@ contains
           sc_diag_opt = sc_diag_all_rh_max
         end select
 
-        ! TKE scaling parameter and switch for fixes to variance diagnostics
+        ! TKE scaling parameter
         tke_diag_fac  = 1.0_r_bl
-        l_use_var_fixes = .true.
         zhloc_depth_fac = real(zhloc_depth_fac_in, r_bl)
 
         improved_tke_diag   = improved_tke_diag_in
@@ -1856,12 +1837,13 @@ contains
       mix_factor = real(mix_factor_in, r_um)
       turb_startlev_vert  = 2
       turb_endlev_vert    = bl_levels
-      if (mixing_method /= method_3d_smag) then
-        cap_blended_ml = cap_blended_ml_in
-      end if
 
       select case ( bl_scheme )
       case ( bl_scheme_Kprof )
+
+        if (blending_Kprof /= blending_Kprof_3d_smag) then
+          cap_blended_ml = cap_blended_ml_in
+        end if
 
         ! Options which are bespoke to the choice of scheme
         select case ( blending_Kprof )
@@ -1884,6 +1866,11 @@ contains
           l_subfilter_horiz = .true.
           l_subfilter_vert  = .true.
           blending_option   = blend_gridindep_fa
+        case( blending_Kprof_blend_cth_shcu_only )
+          l_subfilter_horiz = .true.
+          l_subfilter_vert  = .true.
+          blending_option   = blend_cth_shcu_only
+          shallow_cu_maxtop = real(shallow_cu_maxtop_in, r_bl)
         end select
 
       case ( bl_scheme_HoC )
@@ -1916,32 +1903,6 @@ contains
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end if
 
-<<<<<<< HEAD
-=======
-      case( method_3d_smag )
-        l_subfilter_horiz = .true.
-        l_subfilter_vert  = .true.
-        blending_option   = off
-        non_local_bl      = off
-        ng_stress         = off
-      case( method_2d_smag )
-        l_subfilter_horiz = .true.
-        l_subfilter_vert  = .false.
-        blending_option   = off
-      case( method_blend_smag_fa )
-        l_subfilter_horiz = .true.
-        l_subfilter_vert  = .true.
-        blending_option   = blend_allpoints
-      case( method_blend_1dbl_fa )
-        l_subfilter_horiz = .true.
-        l_subfilter_vert  = .true.
-        blending_option   = blend_gridindep_fa
-      case( method_blend_cth_shcu_only )
-        l_subfilter_horiz = .true.
-        l_subfilter_vert  = .true.
-        blending_option   = blend_cth_shcu_only
-        shallow_cu_maxtop = real(shallow_cu_maxtop_in, r_bl)
->>>>>>> upstream/main
       end select
 
     else ! not Smagorinsky

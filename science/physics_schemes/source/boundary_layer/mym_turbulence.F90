@@ -970,7 +970,7 @@ if (BL_diag%l_tke_shr_prod) then
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
         elq = el(i, j, k) * qkw(i, j, k)
-        BL_diag%tke_shr_prod(i, j, k) = el(i, j, k) * qkw(i, j, k)             &
+        BL_diag%tke_shr_prod(i, k) = el(i, j, k) * qkw(i, j, k)                &
                        * (sm(i, j, k) + smd(i, j, k)) * gm(i, j, k)
       end do
     end do
@@ -981,7 +981,7 @@ if (BL_diag%l_tke_boy_prod) then
   do k = 2, tke_levels
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
-        BL_diag%tke_boy_prod(i, j, k) = el(i, j, k) * qkw(i, j, k)             &
+        BL_diag%tke_boy_prod(i, k) = el(i, j, k) * qkw(i, j, k)                &
                        * (sh(i, j, k) * gh(i, j, k)                            &
                                     + gamv(i, j, k)) + wb_ng(i,j,k)
       end do
@@ -993,7 +993,7 @@ if (BL_diag%l_tke_dissp) then
   do k = k_start, tke_levels
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
-        BL_diag%tke_dissp(i, j, k) = qkw(i, j, k) ** 3                         &
+        BL_diag%tke_dissp(i, k) = qkw(i, j, k) ** 3                            &
                                               / (b1 * el(i, j, k))
       end do
     end do
@@ -1225,7 +1225,7 @@ if (BL_diag%l_elm) then
   do k = 2, tke_levels
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
-        BL_diag%elm(i, j, k) = el(i, j, k)
+        BL_diag%elm(i, k) = el(i, j, k)
       end do
     end do
   end do
@@ -1235,7 +1235,7 @@ if (BL_diag%l_sm) then
   do k = 2, tke_levels
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
-        BL_diag%sm(i, j, k) = sm(i, j, k)
+        BL_diag%sm(i, k) = sm(i, j, k)
       end do
     end do
   end do
@@ -1245,7 +1245,7 @@ if (BL_diag%l_sh) then
   do k = 2, tke_levels
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
-        BL_diag%sh(i, j, k) = sh(i, j, k)
+        BL_diag%sh(i, k) = sh(i, j, k)
       end do
     end do
   end do

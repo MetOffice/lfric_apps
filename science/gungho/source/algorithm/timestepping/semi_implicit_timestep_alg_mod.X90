@@ -933,23 +933,14 @@ contains
         call gungho_transport_control_alg( self%config,                        &
                 self%rhs_adv, self%advected_state, self%state(igh_u),          &
                 self%state_n(igh_u), mr, mr_to_adv, model_clock,               &
-<<<<<<< HEAD
-                outer, cheap_update, self%adv_inc_prev, self%wind_prev,        &
-                self%state_after_slow(igh_d), self%total_dry_flux,             &
-                gen_tracer_all_outer, gen_tracer_all_outer_after_slow,         &
-                gen_tracer_last_outer, gen_tracer_last_outer_after_slow,       &
-                pos_tracer_all_outer, pos_tracer_all_outer_after_slow,         &
-                pos_tracer_last_outer, pos_tracer_last_outer_after_slow        &
-=======
                 outer, stepper_siqn, cheap_update,                             &
                 self%adv_inc_prev, self%wind_prev,                             &
                 self%state_after_slow(igh_d), self%state_after_slow(igh_d),    &
                 self%total_dry_flux,                                           &
-                adv_tracer_all_outer, adv_tracer_all_outer_after_slow,         &
-                adv_tracer_last_outer, adv_tracer_last_outer_after_slow,       &
-                con_tracer_all_outer, con_tracer_all_outer_after_slow,         &
-                con_tracer_last_outer, con_tracer_last_outer_after_slow        &
->>>>>>> upstream/main
+                gen_tracer_all_outer, gen_tracer_all_outer_after_slow,         &
+                gen_tracer_last_outer, gen_tracer_last_outer_after_slow,       &
+                pos_tracer_all_outer, pos_tracer_all_outer_after_slow,         &
+                pos_tracer_last_outer, pos_tracer_last_outer_after_slow        &
         )
 
         if ( cheap_update .AND. (outer < outer_iterations) ) then

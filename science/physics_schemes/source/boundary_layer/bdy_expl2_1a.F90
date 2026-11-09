@@ -427,6 +427,8 @@ real(kind=r_bl) ::                                                      &
          2:bl_levels),                                                         &
                               ! Mixing length for heat (m),
                               ! held on theta and rho levels, resp.
+ cumulus_cth(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),             &
+                              ! merely a dummy array so that ex_coef can work
  tke_loc(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                  &
             2:bl_levels),                                                      &
                               ! Ri-based scheme diagnosed TKE
@@ -589,7 +591,7 @@ if (formdrag ==  explicit_stress) then
     do k = 1, bl_levels
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
-          BL_diag%ostressx(i,j,k)=tau_fd_x(i,j,k)
+          BL_diag%ostressx(i,k)=tau_fd_x(i,j,k)
         end do
       end do
     end do
@@ -598,7 +600,7 @@ if (formdrag ==  explicit_stress) then
     do k = 1, bl_levels
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
-          BL_diag%ostressy(i,j,k)=tau_fd_y(i,j,k)
+          BL_diag%ostressy(i,k)=tau_fd_y(i,j,k)
         end do
       end do
     end do
@@ -809,7 +811,7 @@ if (sg_orog_mixing == sg_shear .or.                                            &
                                weight1*slope*t_drain*dbdz(i,j,k) )
 
           if (k==2 .and. BL_diag%l_dvdzm)                                      &
-            BL_diag%dvdzm(i,j,1)=weight1*slope*t_drain*dbdz(i,j,k)
+            BL_diag%dvdzm(i,1)=weight1*slope*t_drain*dbdz(i,j,k)
 
         end if
       end do
@@ -867,7 +869,7 @@ if (BL_diag%l_rhokm) then
   do k = 1, bl_levels
     do j = pdims%j_start, pdims%j_end
       do i = pdims%i_start, pdims%i_end
-        BL_diag%rhokm(i,j,k)=rhokm(i,j,k)
+        BL_diag%rhokm(i,k)=rhokm(i,j,k)
       end do
     end do
   end do
@@ -877,7 +879,7 @@ if (BL_diag%l_rhokh) then
   do k = 1, bl_levels
     do j = pdims%j_start, pdims%j_end
       do i = pdims%i_start, pdims%i_end
-        BL_diag%rhokh(i,j,k)=rhokh(i,j,k)
+        BL_diag%rhokh(i,k)=rhokh(i,j,k)
       end do
     end do
   end do
@@ -905,7 +907,7 @@ if (l_subfilter_horiz .or. l_subfilter_vert .or.                               &
     do k = 2, bl_levels
       do j = pdims%j_start, pdims%j_end
         do i = pdims%i_start, pdims%i_end
-          BL_diag%gradrich(i,j,k)=ri(i,j,k)
+          BL_diag%gradrich(i,k)=ri(i,j,k)
         end do
       end do
     end do
@@ -918,7 +920,7 @@ if (l_subfilter_horiz .or. l_subfilter_vert .or.                               &
        bl_levels,k_log_layr,BL_diag,                                           &
   ! IN fields
       sigma_h,flandg,dvdzm,ri,rho_wet_tq,z_uv,z_tq,z0m_eff_gb,zhnl,zhpar_shcu, &
-      zhsc,zdsc_base,ntpar,ntml_nl,ntdsc,nbdsc,l_shallow,rmlmax2,rneutml_sq,   &
+      zhsc,zdsc_base,ntpar,ntml_nl,ntdsc,nbdsc,cumulus_cth,rmlmax2,rneutml_sq, &
       delta_smag,                                                              &
   ! IN/OUT fields
       cumulus,weight_1dbl,                                                     &
@@ -1089,7 +1091,7 @@ end if ! Main if-test for calling Ri-based scheme
 if (BL_diag%l_zht) then
   do j = pdims%j_start, pdims%j_end
     do i = pdims%i_start, pdims%i_end
-      bl_diag%zht(i,j) = max( zh(i,j) , zhsc(i,j) )
+      bl_diag%zht(i) = max( zh(i,j) , zhsc(i,j) )
     end do
   end do
 end if
@@ -1154,7 +1156,7 @@ if (BL_diag%l_rhogamu) then
   do k = 2, bl_levels
     do j = pdims%j_start, pdims%j_end
       do i = pdims%i_start, pdims%i_end
-        BL_diag%rhogamu(i, j, k) = rhogamu(i, j, k)
+        BL_diag%rhogamu(i, k) = rhogamu(i, j, k)
       end do
     end do
   end do
@@ -1164,7 +1166,7 @@ if (BL_diag%l_rhogamv) then
   do k = 2, bl_levels
     do j = pdims%j_start, pdims%j_end
       do i = pdims%i_start, pdims%i_end
-        BL_diag%rhogamv(i, j, k) = rhogamv(i, j, k)
+        BL_diag%rhogamv(i, k) = rhogamv(i, j, k)
       end do
     end do
   end do
@@ -1174,7 +1176,7 @@ if (BL_diag%l_rhogamt) then
   do k = 2, bl_levels
     do j = pdims%j_start, pdims%j_end
       do i = pdims%i_start, pdims%i_end
-        BL_diag%rhogamt(i, j, k) = - cp * rhogamt(i, j, k)
+        BL_diag%rhogamt(i, k) = - cp * rhogamt(i, j, k)
       end do
     end do
   end do
@@ -1184,7 +1186,7 @@ if (BL_diag%l_rhogamq) then
   do k = 2, bl_levels
     do j = pdims%j_start, pdims%j_end
       do i = pdims%i_start, pdims%i_end
-        BL_diag%rhogamq(i, j, k) = - lc * rhogamq(i, j, k)
+        BL_diag%rhogamq(i, k) = - lc * rhogamq(i, j, k)
       end do
     end do
   end do
@@ -1236,7 +1238,7 @@ do j = pdims%j_start, pdims%j_end
       vw0(i,j) = -5.0
     end if
     if (BL_diag%l_wstar .and. (fb_surf(i,j) >0.0)) then
-      BL_diag%wstar(i,j)= (zh(i,j)*fb_surf(i,j))**one_third
+      BL_diag%wstar(i)= (zh(i,j)*fb_surf(i,j))**one_third
     end if
   end do
 end do

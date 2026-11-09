@@ -57,9 +57,7 @@ contains
                               conservative_diffusion = .false.,  &
                               density_weighted = .false.,        &
                               max_diff_factor  = 1.0_r_def,      &
-                              fullstress       = .false.,        &
-                              cap_blended_ml   = .false.,        &
-                              shallow_cu_maxtop= 0.0_r_def )
+                              fullstress       = .false. )
 
     call feign_finite_element_config(      &
         cellshape=cellshape_quadrilateral, &

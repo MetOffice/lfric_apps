@@ -466,55 +466,55 @@ contains
     logical :: l_spec_z0, l_cape_opt
 
     ! profile fields from level 1 upwards
-    real(r_bl), dimension(seg_len,1,nlayers) :: z_rho, z_theta,              &
+    real(r_bl), dimension(seg_len,nlayers) :: z_rho, z_theta,                &
          bulk_cloud_fraction, rho_wet_tq, u_p, v_p, theta,                   &
          p_rho_levels, exner_rho_levels,                                     &
          exner_theta_levels,                                                 &
          bulk_cf_conv, qcf_conv, tnuc_new
     ! Single precision is not accurate enough for distance from centre of planet
-    real(r_um), dimension(seg_len,1,nlayers) :: r_rho_levels
+    real(r_um), dimension(seg_len,nlayers) :: r_rho_levels
 
     ! profile field on boundary layer levels
-    real(r_bl), dimension(seg_len,1,bl_levels) :: fqw, ftl, rhokh, bq_gb,    &
+    real(r_bl), dimension(seg_len,bl_levels) :: fqw, ftl, rhokh, bq_gb,      &
          bt_gb, rdz_charney_grid,                                            &
          temperature, qw, tl, bt, bq,                                        &
          bt_cld, bq_cld, a_qs, a_dqsdt, dqsdt, rhokm, tau_fd_x, tau_fd_y, rdz, &
          shear_3d, visc_m, visc_h, tke_trb, tsq_trb, qsq_trb, cov_trb
 
-    real(r_bl), dimension(seg_len,1,bl_levels+1) :: rho_mix
+    real(r_bl), dimension(seg_len,bl_levels+1) :: rho_mix
 
-    real(r_um), dimension(seg_len,1,bl_levels) :: w_mixed, w_flux,           &
-                                                  rhokm_mix,                 &
-                                                  dtrdz_charney_grid
+    real(r_um), dimension(seg_len,bl_levels) :: w_mixed, w_flux,             &
+                                                rhokm_mix,                   &
+                                                dtrdz_charney_grid
 
-    real(r_bl), dimension(seg_len,1,2:bl_levels) :: rhogamu, rhogamv
+    real(r_bl), dimension(seg_len,2:bl_levels) :: rhogamu, rhogamv
 
-    real(r_bl), dimension(seg_len,1,bl_levels,2) :: leonard_kl_tke
+    real(r_bl), dimension(seg_len,bl_levels,2) :: leonard_kl_tke
 
     ! profile fields from level 0 upwards
-    real(r_bl), dimension(seg_len,1,0:nlayers) :: p_theta_levels, w,         &
+    real(r_bl), dimension(seg_len,0:nlayers) :: p_theta_levels, w,           &
          q, qcl, qcf
     ! Single precision is not accurate enough for distance from centre of planet
-    real(r_um), dimension(seg_len,1,0:nlayers) :: r_theta_levels
+    real(r_um), dimension(seg_len,0:nlayers) :: r_theta_levels
 
     ! single level real fields
-    real(r_bl), dimension(seg_len,1) :: p_star, tstar, zh_prev, zlcl, zhpar, &
+    real(r_bl), dimension(seg_len) :: p_star, tstar, zh_prev, zlcl, zhpar,   &
          zh, dzh, wstar, wthvs, u_0_p, v_0_p, zlcl_uv, qsat_lcl, delthvu,    &
          bl_type_1, bl_type_2, bl_type_3, bl_type_4, bl_type_5, bl_type_6,   &
          bl_type_7, uw0, vw0,                                                &
          h_blend_orog, flandg, qcl_inv_top,                                  &
          fb_surf, rib_gb, z0m_eff_gb, zhsc, ustargbm,                        &
          delta_smag, tnuc_nlcl_um
-    real(r_um), dimension(seg_len,1) :: surf_dep_flux
+    real(r_um), dimension(seg_len) :: surf_dep_flux
 
-    real(r_bl), dimension(seg_len,1,3) :: t_frac, t_frac_dsc, we_lim,        &
+    real(r_bl), dimension(seg_len,3) :: t_frac, t_frac_dsc, we_lim,          &
          we_lim_dsc, zrzi, zrzi_dsc
 
     ! single level integer fields
-    integer(i_um), dimension(seg_len,1) :: ntml, ntpar, kent, kent_dsc
+    integer(i_um), dimension(seg_len) :: ntml, ntpar, kent, kent_dsc
 
     ! single level logical fields
-    logical, dimension(seg_len,1) :: land_sea_mask, cumulus, l_shallow
+    logical, dimension(seg_len) :: land_sea_mask, cumulus, l_shallow
 
     ! fields on land points
     real(r_bl), dimension(:), allocatable :: sil_orog_land_gb, ho2r2_orog_gb, &
@@ -529,26 +529,26 @@ contains
     integer(i_um), parameter :: nscmdpkgs=15
     logical,       parameter :: l_scmdiags(nscmdpkgs)=.false.
 
-    real(r_bl), dimension(seg_len,1,nlayers) :: rho_wet
+    real(r_bl), dimension(seg_len,nlayers) :: rho_wet
 
-    real(r_bl), dimension(seg_len,1,0:nlayers) :: conv_prog_precip
+    real(r_bl), dimension(seg_len,0:nlayers) :: conv_prog_precip
 
-    real(r_bl), dimension(seg_len,1) :: z0h_scm, z0m_scm, w_max, ql_ad,      &
+    real(r_bl), dimension(seg_len) :: z0h_scm, z0m_scm, w_max, ql_ad,        &
          cin_undilute, cape_undilute, entrain_coef, ustar_in, g_ccp, h_ccp,  &
          ccp_strength, cu_over_orog, shallowc, flux_e, flux_h,               &
          z0msea, tstar_sea, tstar_land, ice_fract, tstar_sice,               &
          zhpar_shcu
 
     ! single level integer fields
-    integer(i_um), dimension(seg_len,1) :: nlcl, conv_type, nbdsc, ntdsc
+    integer(i_um), dimension(seg_len) :: nlcl, conv_type, nbdsc, ntdsc
 
     ! single level logical fields
-    logical, dimension(seg_len,1) :: no_cumulus, l_congestus, l_congestus2,  &
+    logical, dimension(seg_len) :: no_cumulus, l_congestus, l_congestus2,    &
          l_mid
 
-    integer, dimension(seg_len,1) :: kent_dummy
-    real(r_um), dimension(seg_len,1) :: zeroes_2d
-    real(r_um), dimension(seg_len,1,3) :: zeroes_ent
+    integer, dimension(seg_len) :: kent_dummy
+    real(r_um), dimension(seg_len) :: zeroes_2d
+    real(r_um), dimension(seg_len,3) :: zeroes_ent
     logical, parameter :: l_extra_call = .false.
 
     !-----------------------------------------------------------------------
@@ -558,17 +558,17 @@ contains
     ! Land fraction
     land_field = 0
     do i = 1, seg_len
-      flandg(i,1) = surf_interp(map_surf(1,i)+0)
-      if (flandg(i,1) > 0.0_r_bl) then
+      flandg(i) = surf_interp(map_surf(1,i)+0)
+      if (flandg(i) > 0.0_r_bl) then
         land_field = land_field + 1
       end if
-      fb_surf(i,1) = surf_interp(map_surf(1,i)+6)
+      fb_surf(i) = surf_interp(map_surf(1,i)+6)
     end do
 
     allocate(land_index(land_field))
     l = 0
     do i = 1, seg_len
-      if (flandg(i,1) > 0.0_r_bl) then
+      if (flandg(i) > 0.0_r_bl) then
         l = l+1
         land_index(l) = i
       end if
@@ -579,7 +579,7 @@ contains
       do i = 1, seg_len
         do n = 1, n_surf_tile
           if (tile_fraction(map_tile(1,i)+n-1) > 0.0_r_bl) then
-            tstar(i,1) = tstar(i,1) + tile_temperature(map_tile(1,i)+n-1) *    &
+            tstar(i) = tstar(i) + tile_temperature(map_tile(1,i)+n-1) *        &
                          tile_fraction(map_tile(1,i)+n-1)
           end if
         end do
@@ -600,20 +600,20 @@ contains
 
     ! Information passed from Jules explicit
     do i = 1, seg_len
-      ustargbm(i,1) = ustar(map_2d(1,i))
-      rib_gb(i,1) = gradrinr(map_wth(1,i))
-      z0m_eff_gb(i,1) = z0m_eff(map_2d(1,i))
-      ftl(i,1,1) = heat_flux_bl(map_w3(1,i))
-      fqw(i,1,1) = moist_flux_bl(map_w3(1,i))
-      rhokh(i,1,1) = rhokh_bl(map_w3(1,i))
-      rhokm(i,1,1) = rhokm_bl(map_wth(1,i))
+      ustargbm(i) = ustar(map_2d(1,i))
+      rib_gb(i) = gradrinr(map_wth(1,i))
+      z0m_eff_gb(i) = z0m_eff(map_2d(1,i))
+      ftl(i,1) = heat_flux_bl(map_w3(1,i))
+      fqw(i,1) = moist_flux_bl(map_w3(1,i))
+      rhokh(i,1) = rhokh_bl(map_w3(1,i))
+      rhokm(i,1) = rhokm_bl(map_wth(1,i))
     end do
 
     if (prog_tnuc) then
       ! Use tnuc from LFRic and map onto tnuc_new for UM to be passed to conv_diag_6a
       do k = 1, nlayers
         do i = 1, seg_len
-          tnuc_new(i,1,k) = real(tnuc(map_wth(1,i) + k),kind=r_bl)
+          tnuc_new(i,k) = real(tnuc(map_wth(1,i) + k),kind=r_bl)
         end do ! i
       end do ! k
     end if
@@ -625,95 +625,95 @@ contains
     do i = 1, seg_len
       do k = 0, nlayers
         ! w wind on theta levels
-        w(i,1,k) = w_in_wth(map_wth(1,i) + k)
+        w(i,k) = w_in_wth(map_wth(1,i) + k)
         ! height of theta levels from centre of planet
-        r_theta_levels(i,1,k) = height_wth(map_wth(1,i) + k) + planet_radius
-        p_theta_levels(i,1,k) = p_zero*(exner_in_wth(map_wth(1,i) + k))**(1.0_r_def/kappa)
+        r_theta_levels(i,k) = height_wth(map_wth(1,i) + k) + planet_radius
+        p_theta_levels(i,k) = p_zero*(exner_in_wth(map_wth(1,i) + k))**(1.0_r_def/kappa)
       end do
 
       do k = 1, nlayers
-        exner_theta_levels(i,1,k) = exner_in_wth(map_wth(1,i) + k)
+        exner_theta_levels(i,k) = exner_in_wth(map_wth(1,i) + k)
         ! potential temperature on theta levels
-        theta(i,1,k) = theta_in_wth(map_wth(1,i) + k)
+        theta(i,k) = theta_in_wth(map_wth(1,i) + k)
         ! wet density on theta and rho levels
-        rho_wet_tq(i,1,k) = wetrho_in_wth(map_wth(1,i) + k)
+        rho_wet_tq(i,k) = wetrho_in_wth(map_wth(1,i) + k)
         ! pressure on rho levels
-        p_rho_levels(i,1,k) = p_zero*(exner_in_w3(map_w3(1,i) + k-1))**(1.0_r_def/kappa)
+        p_rho_levels(i,k) = p_zero*(exner_in_w3(map_w3(1,i) + k-1))**(1.0_r_def/kappa)
         ! exner pressure on rho levels
-        exner_rho_levels(i,1,k) = exner_in_w3(map_w3(1,i) + k-1)
+        exner_rho_levels(i,k) = exner_in_w3(map_w3(1,i) + k-1)
         ! u wind on rho levels
-        u_p(i,1,k) = u_in_w3(map_w3(1,i) + k-1)
+        u_p(i,k) = u_in_w3(map_w3(1,i) + k-1)
         ! v wind on rho levels
-        v_p(i,1,k) = v_in_w3(map_w3(1,i) + k-1)
+        v_p(i,k) = v_in_w3(map_w3(1,i) + k-1)
         ! height of rho levels from centre of planet
-        r_rho_levels(i,1,k) = height_w3(map_w3(1,i) + k-1) + planet_radius
+        r_rho_levels(i,k) = height_w3(map_w3(1,i) + k-1) + planet_radius
         ! height of levels above surface
-        z_rho(i,1,k) = height_w3(map_w3(1,i) + k-1) - height_wth(map_wth(1,i))
-        z_theta(i,1,k) = height_wth(map_wth(1,i) + k) - height_wth(map_wth(1,i))
+        z_rho(i,k) = height_w3(map_w3(1,i) + k-1) - height_wth(map_wth(1,i))
+        z_theta(i,k) = height_wth(map_wth(1,i) + k) - height_wth(map_wth(1,i))
         ! water vapour mixing ratio
-        q(i,1,k) = m_v_n(map_wth(1,i) + k)
+        q(i,k) = m_v_n(map_wth(1,i) + k)
         ! cloud liquid mixing ratio
-        qcl(i,1,k) = m_cl_n(map_wth(1,i) + k)
+        qcl(i,k) = m_cl_n(map_wth(1,i) + k)
         ! cloud ice mixing ratio
-        qcf_conv(i,1,k) = m_ci_n(map_wth(1,i) + k)
-        bulk_cf_conv(i,1,k) = cf_bulk(map_wth(1,i) + k)
+        qcf_conv(i,k) = m_ci_n(map_wth(1,i) + k)
+        bulk_cf_conv(i,k) = cf_bulk(map_wth(1,i) + k)
         if (l_noice_in_turb) then
-          qcf(i,1,k) = 0.0_r_bl
-          bulk_cloud_fraction(i,1,k) = cf_liquid(map_wth(1,i) + k)
+          qcf(i,k) = 0.0_r_bl
+          bulk_cloud_fraction(i,k) = cf_liquid(map_wth(1,i) + k)
         else
-          qcf(i,1,k) = m_ci_n(map_wth(1,i) + k)
-          bulk_cloud_fraction(i,1,k) = cf_bulk(map_wth(1,i) + k)
+          qcf(i,k) = m_ci_n(map_wth(1,i) + k)
+          bulk_cloud_fraction(i,k) = cf_bulk(map_wth(1,i) + k)
         end if
       end do
 
       do k = 1, bl_levels+1
-        rho_mix(i,1,k) = rho_in_w3(map_w3(1,i) + k-1)
+        rho_mix(i,k) = rho_in_w3(map_w3(1,i) + k-1)
       end do
 
       do k = 1, bl_levels
-        temperature(i,1,k) = theta_in_wth(map_wth(1,i) + k) * &
+        temperature(i,k) = theta_in_wth(map_wth(1,i) + k) * &
                              exner_in_wth(map_wth(1,i) + k)
-        tl(i,1,k) = temperature(i,1,k) - lcrcp*qcl(i,1,k) - lsrcp*qcf(i,1,k)
-        qw(i,1,k) = q(i,1,k) + qcl(i,1,k) + qcf(i,1,k)
-        rdz_charney_grid(i,1,k) = rdz_w3(map_w3(1,i) + k-1)
-        dtrdz_charney_grid(i,1,k) = dtrdz_wth(map_wth(1,i) + k) /              &
+        tl(i,k) = temperature(i,k) - lcrcp*qcl(i,k) - lsrcp*qcf(i,k)
+        qw(i,k) = q(i,k) + qcl(i,k) + qcf(i,k)
+        rdz_charney_grid(i,k) = rdz_w3(map_w3(1,i) + k-1)
+        dtrdz_charney_grid(i,k) = dtrdz_wth(map_wth(1,i) + k) /                &
                                       rho_in_wth(map_wth(1,i) + k)
-        tke_trb(i,1,k) = tke_bl(map_wth(1,i) + k-1)
+        tke_trb(i,k) = tke_bl(map_wth(1,i) + k-1)
       end do
 
       if (bdy_tke /= bdy_tke_deardorff) then
         do k = 1, bl_levels
-          tsq_trb(i,1,k) = tsq_bl(map_wth(1,i) + k-1)
-          qsq_trb(i,1,k) = qsq_bl(map_wth(1,i) + k-1)
-          cov_trb(i,1,k) = cov_bl(map_wth(1,i) + k-1)
+          tsq_trb(i,k) = tsq_bl(map_wth(1,i) + k-1)
+          qsq_trb(i,k) = qsq_bl(map_wth(1,i) + k-1)
+          cov_trb(i,k) = cov_bl(map_wth(1,i) + k-1)
         end do
       end if
 
       do k = 2, bl_levels
-        rdz(i,1,k) = 1.0_r_bl/dz_wth(map_wth(1,i) + k-1)
+        rdz(i,k) = 1.0_r_bl/dz_wth(map_wth(1,i) + k-1)
       end do
 
       ! surface pressure
-      p_star(i,1) = p_theta_levels(i,1,0)
+      p_star(i) = p_theta_levels(i,0)
       ! surface currents
-      u_0_p(i,1) = sea_u_current(map_2d(1,i))
-      v_0_p(i,1) = sea_v_current(map_2d(1,i))
+      u_0_p(i) = sea_u_current(map_2d(1,i))
+      v_0_p(i) = sea_v_current(map_2d(1,i))
       ! previous BL height
-      zh(i,1) = zh_2d(map_2d(1,i))
-      zh_prev(i,1) = zh(i,1)
+      zh(i) = zh_2d(map_2d(1,i))
+      zh_prev(i) = zh(i)
     end do
 
     if (shcu_buoy) then
       do i = 1, seg_len
-        zhpar_shcu(i,1) = zhpar_shcu_2d(map_2d(1,i))
+        zhpar_shcu(i) = zhpar_shcu_2d(map_2d(1,i))
       end do
     end if
 
     if ( smagorinsky ) then
       do i = 1, seg_len
-        delta_smag(i,1) = delta(map_wth(1,i))
+        delta_smag(i) = delta(map_wth(1,i))
         do k = 1, bl_levels
-          shear_3d(i,1,k) = shear(map_wth(1,i) + k)
+          shear_3d(i,k) = shear(map_wth(1,i) + k)
         end do
       end do
     end if
@@ -736,7 +736,7 @@ contains
     call alloc_bl_expl(bl_diag, .true.)
 
     bl_diag%l_gradrich = .true.
-    allocate(BL_diag%gradrich(seg_len,1,bl_levels))
+    allocate(BL_diag%gradrich(seg_len,bl_levels))
     bl_diag%gradrich = 0.0_r_bl
 
     !----------------------------------------------------------------!
@@ -770,15 +770,15 @@ contains
     !     IN Parallel variables
             seg_len, 1                                                  &
     !     IN model dimensions.
-          , bl_levels, p_rho_levels, p_theta_levels(1,1,1)              &
+          , bl_levels, p_rho_levels, p_theta_levels(1,1)                &
           , exner_rho_levels, rho_wet, rho_wet_tq, z_theta, z_rho       &
           , r_theta_levels                                              &
     !     IN Model switches
           , l_extra_call, no_cumulus                                    &
     !     IN cloud data
-          , qcf_conv, qcl(1,1,1), bulk_cf_conv                          &
+          , qcf_conv, qcl(1,1), bulk_cf_conv                            &
     !     IN everything not covered so far :
-          , p_star, q(1,1,1), theta, exner_theta_levels, u_p, v_p       &
+          , p_star, q(1,1), theta, exner_theta_levels, u_p, v_p         &
           , u_0_p, v_0_p, tstar_land, tstar_sea, tstar_sice, z0msea     &
           , flux_e, flux_h, ustar_in, L_spec_z0, z0m_scm, z0h_scm       &
           , tstar, land_sea_mask, flandg, ice_fract, w, w_max           &
@@ -797,7 +797,7 @@ contains
       ! Use tnuc_nlcl_um from conv_diag_6a (UM) and map onto tnuc_nlcl for
       ! LFRic to then be passed out to
       do i = 1, seg_len
-        tnuc_nlcl(map_2d(1,i)) = real(tnuc_nlcl_um(i,1),kind=r_def)
+        tnuc_nlcl(map_2d(1,i)) = real(tnuc_nlcl_um(i),kind=r_def)
       end do
     end if
 
@@ -845,37 +845,37 @@ contains
       ! Bottom model-level is surface in both arrays, so no interp needed
       ! (for rhokh_mix, this is done in the JULES routine sf_impl2_jls).
       do i = 1, seg_len
-        rhokm_mix(i,1,1) = rhokm(i,1,1)
+        rhokm_mix(i,1) = rhokm(i,1)
       end do
       do k = 2, bl_levels-1
         do i = 1, seg_len
-          weight1 = z_theta(i,1,k) - z_theta(i,1,k-1)
-          weight2 = z_theta(i,1,k) - z_rho(i,1,k)
-          weight3 = z_rho(i,1,k)   - z_theta(i,1,k-1)
-          rhokm_mix(i,1,k) = (weight3/weight1) * rhokm(i,1,k+1) &
-                           + (weight2/weight1) * rhokm(i,1,k)
+          weight1 = z_theta(i,k) - z_theta(i,k-1)
+          weight2 = z_theta(i,k) - z_rho(i,k)
+          weight3 = z_rho(i,k)   - z_theta(i,k-1)
+          rhokm_mix(i,k) = (weight3/weight1) * rhokm(i,k+1) &
+                           + (weight2/weight1) * rhokm(i,k)
           ! Scale exchange coefficients by 1/dz factor, as is done for
           ! rhokh_mix in bdy_impl4
           ! (note this doesn't need to be done for the surface exchange coef)
-          rhokm_mix(i,1,k) = rhokm_mix(i,1,k) * rdz_charney_grid(i,1,k)
+          rhokm_mix(i,k) = rhokm_mix(i,k) * rdz_charney_grid(i,k)
         end do
       end do
       k = bl_levels
       do i = 1, seg_len
-        weight1 = z_theta(i,1,k) - z_theta(i,1,k-1)
-        weight2 = z_theta(i,1,k) - z_rho(i,1,k)
+        weight1 = z_theta(i,k) - z_theta(i,k-1)
+        weight2 = z_theta(i,k) - z_rho(i,k)
         ! Assume rhokm(BL_LEVELS+1) is zero
-        rhokm_mix(i,1,k) = (weight2/weight1) * rhokm(i,1,k)
+        rhokm_mix(i,k) = (weight2/weight1) * rhokm(i,k)
         ! Scale exchange coefficients by 1/dz factor, as is done for
         ! rhokh_mix in bdy_impl4
-        rhokm_mix(i,1,k) = rhokm_mix(i,1,k) * rdz_charney_grid(i,1,k)
+        rhokm_mix(i,k) = rhokm_mix(i,k) * rdz_charney_grid(i,k)
       end do
 
       ! If full stress term is used, diagonal terms are doubled.
       if (fullstress) then
         do k = 1, bl_levels
           do i = 1, seg_len
-            rhokm_mix(i,1,k) = 2.0 * rhokm_mix(i,1,k)
+            rhokm_mix(i,k) = 2.0 * rhokm_mix(i,k)
           end do
         end do
       end if
@@ -885,7 +885,7 @@ contains
       zeroes_ent = 0.0_r_um
       do k = 1, bl_levels
         do i = 1, seg_len
-          w_mixed(i,1,k) = w(i,1,k)
+          w_mixed(i,k) = w(i,k)
         end do
       end do
 
@@ -893,8 +893,8 @@ contains
            ! IN fields
            r_theta_levels, r_rho_levels, pdims,                                &
            bl_levels, alpha_cd,                                                &
-           rhokm_mix(1:seg_len,1:1,2:bl_levels),                               &
-           rhokm_mix(1:seg_len,1:1,1),                                         &
+           rhokm_mix(1:seg_len,2:bl_levels),                                   &
+           rhokm_mix(1:seg_len,1),                                             &
            dtrdz_charney_grid, zeroes_2d, zeroes_2d, kent_dummy,               &
            zeroes_ent, zeroes_ent, zeroes_ent, kent_dummy,                     &
            zeroes_ent, zeroes_ent, zeroes_ent,                                 &
@@ -905,7 +905,7 @@ contains
 
       do k = 1, bl_levels
         do i = 1, seg_len
-          dw_bl(map_wth(1,i)+k) = w_mixed(i,1,k) - w(i,1,k)
+          dw_bl(map_wth(1,i)+k) = w_mixed(i,k) - w(i,k)
         end do
       end do
 
@@ -921,9 +921,9 @@ contains
 
     do k=1,bl_levels
       do i = 1, seg_len
-        bq_bl(map_wth(1,i) + k-1) = bq_gb(i,1,k)
-        bt_bl(map_wth(1,i) + k-1) = bt_gb(i,1,k)
-        dtrdz_tq_bl(map_wth(1,i) + k) = dtrdz_charney_grid(i,1,k)
+        bq_bl(map_wth(1,i) + k-1) = bq_gb(i,k)
+        bt_bl(map_wth(1,i) + k-1) = bt_gb(i,k)
+        dtrdz_tq_bl(map_wth(1,i) + k) = dtrdz_charney_grid(i,k)
       end do
     end do
 
@@ -936,8 +936,8 @@ contains
           ! wtheta (cell top centre) and need mapping to fd1 (cell top edge).
           ! Set wind will therefore work correctly, but the indexing is shifted
           ! by half a level in the vertical for the input & output
-          fd_taux(map_w3(1,i) + k-1) = tau_fd_x(i,1,k)
-          fd_tauy(map_w3(1,i) + k-1) = tau_fd_y(i,1,k)
+          fd_taux(map_w3(1,i) + k-1) = tau_fd_x(i,k)
+          fd_tauy(map_w3(1,i) + k-1) = tau_fd_y(i,k)
         end do
       end do
       do i = 1, seg_len
@@ -950,52 +950,52 @@ contains
 
     ! Update variables for convection scheme
     do i = 1, seg_len
-      zh_2d(map_2d(1,i))            = zh(i,1)
-      ntml_2d(map_2d(1,i))          = ntml(i,1)
-      if (cumulus(i,1)) then
+      zh_2d(map_2d(1,i))            = zh(i)
+      ntml_2d(map_2d(1,i))          = ntml(i)
+      if (cumulus(i)) then
         cumulus_2d(map_2d(1,i))     = 1_i_def
       else
         cumulus_2d(map_2d(1,i))     = 0_i_def
       end if
-      z_lcl(map_2d(1,i))            = real(zlcl(i,1), r_def)
-      inv_depth(map_2d(1,i))        = real(dzh(i,1), r_def)
-      qcl_at_inv_top(map_2d(1,i))   = real(qcl_inv_top(i,1), r_def)
-      if ( l_shallow(i,1) ) then
+      z_lcl(map_2d(1,i))            = real(zlcl(i), r_def)
+      inv_depth(map_2d(1,i))        = real(dzh(i), r_def)
+      qcl_at_inv_top(map_2d(1,i))   = real(qcl_inv_top(i), r_def)
+      if ( l_shallow(i) ) then
         shallow_flag(map_2d(1,i))   = 1_i_def
       else
         shallow_flag(map_2d(1,i))   = 0_i_def
       end if
-      uw0_flux(map_2d(1,i))         = uw0(i,1)
-      vw0_flux(map_2d(1,i))         = vw0(i,1)
-      lcl_height(map_2d(1,i))       = zlcl_uv(i,1)
-      parcel_top(map_2d(1,i))       = zhpar(i,1)
-      level_parcel_top(map_2d(1,i)) = ntpar(i,1)
-      wstar_2d(map_2d(1,i))         = wstar(i,1)
-      thv_flux(map_2d(1,i))         = wthvs(i,1)
-      parcel_buoyancy(map_2d(1,i))  = delthvu(i,1)
-      qsat_at_lcl(map_2d(1,i))      = qsat_lcl(i,1)
+      uw0_flux(map_2d(1,i))         = uw0(i)
+      vw0_flux(map_2d(1,i))         = vw0(i)
+      lcl_height(map_2d(1,i))       = zlcl_uv(i)
+      parcel_top(map_2d(1,i))       = zhpar(i)
+      level_parcel_top(map_2d(1,i)) = ntpar(i)
+      wstar_2d(map_2d(1,i))         = wstar(i)
+      thv_flux(map_2d(1,i))         = wthvs(i)
+      parcel_buoyancy(map_2d(1,i))  = delthvu(i)
+      qsat_at_lcl(map_2d(1,i))      = qsat_lcl(i)
     end do
 
     ! Update variables for boundary layer scheme
     do k = 1, bl_levels
       do i = 1, seg_len
-        tke_bl(map_wth(1,i) + k-1) = tke_trb(i,1,k)
+        tke_bl(map_wth(1,i) + k-1) = tke_trb(i,k)
       end do
     end do
 
     if (bdy_tke /= bdy_tke_deardorff) then
       do k = 1, bl_levels
         do i = 1, seg_len
-          tsq_bl(map_wth(1,i) + k-1) = tsq_trb(i,1,k)
-          qsq_bl(map_wth(1,i) + k-1) = qsq_trb(i,1,k)
-          cov_bl(map_wth(1,i) + k-1) = cov_trb(i,1,k)
+          tsq_bl(map_wth(1,i) + k-1) = tsq_trb(i,k)
+          qsq_bl(map_wth(1,i) + k-1) = qsq_trb(i,k)
+          cov_bl(map_wth(1,i) + k-1) = cov_trb(i,k)
         end do
       end do
       if (leonard_tke) then
         do k = 1, bl_levels
           do i = 1, seg_len
-            leonard_klm_tke(map_wth(1,i) + k) = leonard_kl_tke(i,1,k,2)
-            leonard_klh_tke(map_w3(1,i) + k-1) = leonard_kl_tke(i,1,k,1)
+            leonard_klm_tke(map_wth(1,i) + k) = leonard_kl_tke(i,k,2)
+            leonard_klh_tke(map_w3(1,i) + k-1) = leonard_kl_tke(i,k,1)
           end do
         end do
         do i = 1, seg_len
@@ -1010,20 +1010,20 @@ contains
 
     if (shcu_buoy) then
       do i = 1, seg_len
-        zhpar_shcu_2d(map_2d(1,i)) = zhpar_shcu(i,1)
+        zhpar_shcu_2d(map_2d(1,i)) = zhpar_shcu(i)
       end do
     end if
 
     do i = 1, seg_len
-      gradrinr(map_wth(1,i)) = rib_gb(i,1)
+      gradrinr(map_wth(1,i)) = rib_gb(i)
     end do
     do k = 2, bl_levels
       do i = 1, seg_len
-        rhokm_bl(map_wth(1,i) + k-1) = rhokm(i,1,k)
-        rhokh_bl(map_w3(1,i) + k-1) = rhokh(i,1,k)
-        moist_flux_bl(map_w3(1,i) + k-1) = fqw(i,1,k)
-        heat_flux_bl(map_w3(1,i) + k-1) = ftl(i,1,k)
-        gradrinr(map_wth(1,i) + k-1) = BL_diag%gradrich(i,1,k)
+        rhokm_bl(map_wth(1,i) + k-1) = rhokm(i,k)
+        rhokh_bl(map_w3(1,i) + k-1) = rhokh(i,k)
+        moist_flux_bl(map_w3(1,i) + k-1) = fqw(i,k)
+        heat_flux_bl(map_w3(1,i) + k-1) = ftl(i,k)
+        gradrinr(map_wth(1,i) + k-1) = BL_diag%gradrich(i,k)
       end do
     end do
 
@@ -1032,8 +1032,8 @@ contains
     do k = 2, bl_levels
       do i = 1, seg_len
         ! true defined position is map_wth(1,i) +k-1
-        rhogamu_w3(map_w3(1,i) + k-2) = rhogamu(i,1,k)
-        rhogamv_w3(map_w3(1,i) + k-2) = rhogamv(i,1,k)
+        rhogamu_w3(map_w3(1,i) + k-2) = rhogamu(i,k)
+        rhogamv_w3(map_w3(1,i) + k-2) = rhogamv(i,k)
       end do
     end do
     do i = 1, seg_len
@@ -1044,30 +1044,30 @@ contains
     end do
 
     do i = 1, seg_len
-      bl_type_ind(map_bl(1,i)+0) = bl_type_1(i,1)
-      bl_type_ind(map_bl(1,i)+1) = bl_type_2(i,1)
-      bl_type_ind(map_bl(1,i)+2) = bl_type_3(i,1)
-      bl_type_ind(map_bl(1,i)+3) = bl_type_4(i,1)
-      bl_type_ind(map_bl(1,i)+4) = bl_type_5(i,1)
-      bl_type_ind(map_bl(1,i)+5) = bl_type_6(i,1)
-      bl_type_ind(map_bl(1,i)+6) = bl_type_7(i,1)
+      bl_type_ind(map_bl(1,i)+0) = bl_type_1(i)
+      bl_type_ind(map_bl(1,i)+1) = bl_type_2(i)
+      bl_type_ind(map_bl(1,i)+2) = bl_type_3(i)
+      bl_type_ind(map_bl(1,i)+3) = bl_type_4(i)
+      bl_type_ind(map_bl(1,i)+4) = bl_type_5(i)
+      bl_type_ind(map_bl(1,i)+5) = bl_type_6(i)
+      bl_type_ind(map_bl(1,i)+6) = bl_type_7(i)
     end do
 
     ! Update blended Smagorinsky diffusion coefficients
     if ( smagorinsky ) then
       do i = 1, seg_len
-        visc_m_blend(map_wth(1,i)) = visc_m(i,1,1)
-        visc_h_blend(map_wth(1,i)) = visc_h(i,1,1)
+        visc_m_blend(map_wth(1,i)) = visc_m(i,1)
+        visc_h_blend(map_wth(1,i)) = visc_h(i,1)
       end do
       do k = 1, bl_levels-1
         do i = 1, seg_len
-          visc_m_blend(map_wth(1,i) + k) = visc_m(i,1,k)
-          visc_h_blend(map_wth(1,i) + k) = visc_h(i,1,k)
+          visc_m_blend(map_wth(1,i) + k) = visc_m(i,k)
+          visc_h_blend(map_wth(1,i) + k) = visc_h(i,k)
         end do
       end do
       do i = 1, seg_len
-        visc_m_blend(map_wth(1,i) + bl_levels) = visc_m(i,1,bl_levels-1)
-        visc_h_blend(map_wth(1,i) + bl_levels) = visc_h(i,1,bl_levels-1)
+        visc_m_blend(map_wth(1,i) + bl_levels) = visc_m(i,bl_levels-1)
+        visc_h_blend(map_wth(1,i) + bl_levels) = visc_h(i,bl_levels-1)
       end do
       do i = 1, seg_len
         do k = bl_levels+1, nlayers
@@ -1080,7 +1080,7 @@ contains
     if (.not. associated(rhogamu_bl, empty_real_data)) then
       do k = 2, bl_levels
         do i = 1, seg_len
-          rhogamu_bl(map_wth(1,i) + k-1) = rhogamu(i,1,k)
+          rhogamu_bl(map_wth(1,i) + k-1) = rhogamu(i,k)
         end do
       end do
       do i = 1, seg_len
@@ -1094,7 +1094,7 @@ contains
     if (.not. associated(rhogamv_bl, empty_real_data)) then
       do k = 2, bl_levels
         do i = 1, seg_len
-          rhogamv_bl(map_wth(1,i) + k-1) = rhogamv(i,1,k)
+          rhogamv_bl(map_wth(1,i) + k-1) = rhogamv(i,k)
         end do
       end do
       do i = 1, seg_len
@@ -1108,7 +1108,7 @@ contains
     if (.not. associated(rhogamt_bl, empty_real_data)) then
       do k = 2, bl_levels
         do i = 1, seg_len
-          rhogamt_bl(map_w3(1,i) + k-1) = BL_diag%rhogamt(i,1,k)
+          rhogamt_bl(map_w3(1,i) + k-1) = BL_diag%rhogamt(i,k)
         end do
       end do
       do i = 1, seg_len
@@ -1122,7 +1122,7 @@ contains
     if (.not. associated(rhogamq_bl, empty_real_data)) then
       do k = 2, bl_levels
         do i = 1, seg_len
-          rhogamq_bl(map_w3(1,i) + k-1) = BL_diag%rhogamq(i,1,k)
+          rhogamq_bl(map_w3(1,i) + k-1) = BL_diag%rhogamq(i,k)
         end do
       end do
       do i = 1, seg_len
@@ -1136,7 +1136,7 @@ contains
     if (.not. associated(tke_shr_prod, empty_real_data)) then
       do k = 2, tke_levels
         do i = 1, seg_len
-          tke_shr_prod(map_wth(1,i) + k-1) = BL_diag%tke_shr_prod(i,1,k)
+          tke_shr_prod(map_wth(1,i) + k-1) = BL_diag%tke_shr_prod(i,k)
         end do
       end do
       do i = 1, seg_len
@@ -1150,7 +1150,7 @@ contains
     if (.not. associated(tke_boy_prod, empty_real_data)) then
       do k = 2, tke_levels
         do i = 1, seg_len
-          tke_boy_prod(map_wth(1,i) + k-1) = BL_diag%tke_boy_prod(i,1,k)
+          tke_boy_prod(map_wth(1,i) + k-1) = BL_diag%tke_boy_prod(i,k)
         end do
       end do
       do i = 1, seg_len
@@ -1164,7 +1164,7 @@ contains
     if (.not. associated(tke_dissp, empty_real_data)) then
       do k = 2, tke_levels
         do i = 1, seg_len
-          tke_dissp(map_wth(1,i) + k-1) = BL_diag%tke_dissp(i,1,k)
+          tke_dissp(map_wth(1,i) + k-1) = BL_diag%tke_dissp(i,k)
         end do
       end do
       do i = 1, seg_len
@@ -1178,7 +1178,7 @@ contains
     if (.not. associated(master_length, empty_real_data)) then
       do k = 2, tke_levels
         do i = 1, seg_len
-          master_length(map_wth(1,i) + k-1) = BL_diag%elm(i,1,k)
+          master_length(map_wth(1,i) + k-1) = BL_diag%elm(i,k)
         end do
       end do
       do i = 1, seg_len
@@ -1194,7 +1194,7 @@ contains
     if (.not. associated(sm25, empty_real_data)) then
       do k = 2, tke_levels
         do i = 1, seg_len
-          sm25(map_wth(1,i) + k-1) = BL_diag%sm(i,1,k)
+          sm25(map_wth(1,i) + k-1) = BL_diag%sm(i,k)
         end do
       end do
       do i = 1, seg_len
@@ -1208,7 +1208,7 @@ contains
     if (.not. associated(sh25, empty_real_data)) then
       do k = 2, tke_levels
         do i = 1, seg_len
-          sh25(map_wth(1,i) + k-1) = BL_diag%sh(i,1,k)
+          sh25(map_wth(1,i) + k-1) = BL_diag%sh(i,k)
         end do
       end do
       do i = 1, seg_len
@@ -1222,7 +1222,7 @@ contains
     if (.not. associated(dbdz, empty_real_data)) then
       do k = 2, tke_levels
         do i = 1, seg_len
-          dbdz(map_wth(1,i) + k-1) = BL_diag%dbdz(i,1,k)
+          dbdz(map_wth(1,i) + k-1) = BL_diag%dbdz(i,k)
         end do
       end do
       do i = 1, seg_len
@@ -1236,7 +1236,7 @@ contains
     if (.not. associated(dvdzm, empty_real_data)) then
       do k = 2, tke_levels
         do i = 1, seg_len
-          dvdzm(map_wth(1,i) + k-1) = BL_diag%dvdzm(i,1,k)
+          dvdzm(map_wth(1,i) + k-1) = BL_diag%dvdzm(i,k)
         end do
       end do
       do i = 1, seg_len
