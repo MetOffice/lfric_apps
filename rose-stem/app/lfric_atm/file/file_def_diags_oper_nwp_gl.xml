@@ -144,9 +144,10 @@
       <field field_ref="surface__grid_moisture_flux"/>
       <field field_ref="surface__qt1p5m"/>
       <field field_ref="surface__leaf_area_index"/>
-      <field field_ref="soil__soil_moisture_content"/> 
-      <field field_ref="surface__grid_canopy_water"/> 
-      <field field_ref="cloud__cloud_amount_rnd"/> 
+      <field field_ref="soil__soil_moisture_content"/>
+      <field field_ref="surface__grid_canopy_water"/>
+      <field field_ref="cloud__cloud_amount_rnd"/>
+      <field field_ref="processed__zenith_total_delay"/>
       <field field_ref="turbulence__thermal_speed"/>
       <field field_ref="aviation__geopot_thickness_850"/>
       <field field_ref="aviation__geopot_thickness_500"/>

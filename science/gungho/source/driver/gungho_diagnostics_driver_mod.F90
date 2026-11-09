@@ -3,6 +3,8 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code Enterprise (Claude Fable 5.1, Claude Opus 5.5).
 
 !> @brief Outputs diagnostics from gungho/lfric_atm
 
@@ -60,6 +62,7 @@ module gungho_diagnostics_driver_mod
   use rh_diag_alg_mod,           only : rh_diag_alg
   use freeze_lev_alg_mod,        only : freeze_lev_alg
   use aviation_diags_alg_mod,    only : aviation_diags_alg
+  use zenith_delay_alg_mod,      only : zenith_delay_alg
 #endif
 
   implicit none
@@ -351,6 +354,8 @@ contains
       ! Aviation diagnostics
       call aviation_diags_alg(plev_geopot, &
         u, exner, mesh, element_order_h, element_order_v)
+      ! Zenith total delay
+      call zenith_delay_alg(modeldb%config, exner, exner_in_wth, mr, moist_dyn)
 #endif
 
       temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')
