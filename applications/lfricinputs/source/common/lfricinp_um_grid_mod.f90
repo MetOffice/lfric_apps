@@ -28,7 +28,6 @@ contains
 !-----------------------------------------------------------
 
 subroutine lfricinp_set_grid_from_file(um_input_file, num_snow_layers, &
-                                       num_snow_layers_and_tiles,      &
                                        num_surface_types, num_ice_cats)
 ! Description:
 !  Extracts grid information from UM input file to populate grid_info object
@@ -41,7 +40,6 @@ implicit none
 ! Arguments
 type(shum_file_type), intent(INOUT) :: um_input_file
 integer(kind=int64), intent(in) :: num_snow_layers
-integer(kind=int64), intent(in) :: num_snow_layers_and_tiles
 integer(kind=int64), intent(in) :: num_surface_types
 integer(kind=int64), intent(in) :: num_ice_cats
 
@@ -52,7 +50,6 @@ call um_grid%print_grid_coords()
 
 ! Set pseudo level information
 um_grid%num_snow_layers = num_snow_layers
-um_grid%num_snow_layers_and_tiles = num_snow_layers_and_tiles
 um_grid%num_surface_types = num_surface_types
 um_grid%num_ice_cats = num_ice_cats
 
