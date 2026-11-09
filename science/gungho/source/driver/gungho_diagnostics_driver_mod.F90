@@ -3,6 +3,8 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code Enterprise (Claude Fable 5.1, Claude Opus 5.5).
 
 !> @brief Outputs diagnostics from gungho/lfric_atm
 
