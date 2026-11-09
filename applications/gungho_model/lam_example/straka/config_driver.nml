@@ -68,6 +68,7 @@ theta_moist_source=.false.
 use_physics=.false.,
 use_wavedynamics=.true.,
 vector_invariant=.true.,
+wind_transport_predictor='3d',
 /
 &helmholtz_solver
 gcrk=18,

@@ -33,8 +33,9 @@ contains
                                             topology_fully_periodic
     use extrusion_config_mod,        only : method_uniform, &
                                             stretching_method_linear
-    use formulation_config_mod,      only : eos_method_projected,    &
-                                            moisture_formulation_dry
+    use formulation_config_mod,      only : eos_method_projected,      &
+                                            moisture_formulation_dry,  &
+                                            wind_transport_predictor_3d
     use initial_pressure_config_mod, only : method_balanced
     use initial_wind_config_mod,     only : profile_deep_baroclinic_steady
 
@@ -99,8 +100,9 @@ contains
                                   init_exner_bt        = .true.,           &
                                   si_momentum_equation=.true.,             &
                                   horizontal_physics_predictor=.false.,    &
-                                  horizontal_transport_predictor=.false.,  &
                                   solver_moisture_conservation=.true.,     &
+                                  wind_transport_predictor =               &
+                                    wind_transport_predictor_3d,           &
                                   vector_invariant=.true.)
 
   end subroutine set_up

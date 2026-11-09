@@ -67,6 +67,7 @@ use_multires_coupling=.false.,
 use_physics=.false.,
 use_wavedynamics=.true.,
 vector_invariant=.false.,
+wind_transport_predictor='3d',
 /
 &helmholtz_solver
 fail_on_non_converged=.true.,

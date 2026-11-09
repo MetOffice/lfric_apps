@@ -168,9 +168,9 @@ test='cosine_hill',
 /
 &formulation
 horizontal_physics_predictor=.false.
-horizontal_transport_predictor=.false.
 use_multires_coupling=.false.
 l_multigrid=.false.
+wind_transport_predictor='3d'
 /
 &departure_points
 horizontal_limit='cap',

@@ -44,8 +44,9 @@ contains
                                           topology_fully_periodic
     use finite_element_config_mod, only : cellshape_quadrilateral, &
                                           coord_system_xyz, coord_space_wchi
-    use formulation_config_mod,    only : eos_method_sampled,      &
-                                          moisture_formulation_dry
+    use formulation_config_mod,    only : eos_method_sampled,        &
+                                          moisture_formulation_dry,  &
+                                          wind_transport_predictor_3d
     use feign_config_mod,          only : feign_base_mesh_config, &
                                           feign_finite_element_config, &
                                           feign_formulation_config, &
@@ -94,8 +95,9 @@ contains
                                    use_multires_coupling=.false.,          &
                                    si_momentum_equation=.true.,            &
                                    horizontal_physics_predictor=.false.,   &
-                                   horizontal_transport_predictor=.false., &
                                    solver_moisture_conservation=.true.,    &
+                                   wind_transport_predictor =              &
+                                     wind_transport_predictor_3d,          &
                                    vector_invariant=.true.)
 
     call init_chi_transforms(geometry_planar, topology_fully_periodic)

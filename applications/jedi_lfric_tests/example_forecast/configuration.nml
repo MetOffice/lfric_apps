@@ -93,7 +93,6 @@ dry_static_adjust=.false.,
 eos_method='sampled',
 exner_from_eos=.true.,
 horizontal_physics_predictor=.false.
-horizontal_transport_predictor=.false.
 init_exner_bt=.true.,
 l_multigrid=.false.,
 lagged_orog=.false.,
@@ -108,6 +107,7 @@ use_multires_coupling=.false.,
 use_physics=.false.,
 use_wavedynamics=.true.,
 vector_invariant=.false.,
+wind_transport_predictor='3d',
 /
 &helmholtz_solver
 fail_on_non_converged=.true.,

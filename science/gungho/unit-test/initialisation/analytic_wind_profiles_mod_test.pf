@@ -32,8 +32,9 @@ contains
                                         feign_formulation_config,  &
                                         feign_extrusion_config,    &
                                         feign_initial_wind_config
-    use formulation_config_mod,  only : eos_method_projected,    &
-                                        moisture_formulation_dry
+    use formulation_config_mod,  only : eos_method_projected,      &
+                                        moisture_formulation_dry,  &
+                                        wind_transport_predictor_3d
     use initial_wind_config_mod, only : profile_none
     use extrusion_config_mod,    only : method_uniform, stretching_method_linear
 
@@ -71,8 +72,9 @@ contains
                                    dlayer_on             = .false.,              &
                                    si_momentum_equation  = .true.,               &
                                    horizontal_physics_predictor=.false.,         &
-                                   horizontal_transport_predictor=.false.,       &
                                    solver_moisture_conservation=.true.,          &
+                                   wind_transport_predictor =                    &
+                                     wind_transport_predictor_3d,                &
                                    vector_invariant=.true.)
 
     call feign_initial_wind_config( profile=profile_none,                  &

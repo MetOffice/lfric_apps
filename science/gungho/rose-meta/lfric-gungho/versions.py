@@ -18,6 +18,26 @@ class UpgradeError(Exception):
     __str__ = __repr__
 
 
+class vn31_tNNN(MacroUpgrade):
+    """Upgrade macro for ticket #NNN by Thomas Bendall."""
+
+    BEFORE_TAG = "vn3.1"
+    AFTER_TAG = "vn3.1_tNNN"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        """Replace horizontal_transport_predictor with wind_transport_predictor."""
+        old = ["namelist:formulation", "horizontal_transport_predictor"]
+        new = ["namelist:formulation", "wind_transport_predictor"]
+        value = self.get_setting_value(config, old)
+        self.remove_setting(config, old)
+        if value == ".true.":
+            self.add_setting(config, new, "'no_etadot'")
+        else:
+            self.add_setting(config, new, "'3d'")
+        return config, self.reports
+
+
 """
 Copy this template and complete to add your macro
 

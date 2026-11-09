@@ -295,7 +295,6 @@ dlayer_on             = .false.,
 dry_static_adjust     = .false.,
 exner_from_eos        = .false.,
 horizontal_physics_predictor   = .false.
-horizontal_transport_predictor = .false.
 init_exner_bt         = .false.,
 shallow               = .false.,
 si_momentum_equation  = .false.,
@@ -304,6 +303,7 @@ use_multires_coupling = .false.,
 use_physics           = .false.,
 use_wavedynamics      = .false.,
 vector_invariant      = .false.,
+wind_transport_predictor = '3d',
 /
 
 &helmholtz_solver

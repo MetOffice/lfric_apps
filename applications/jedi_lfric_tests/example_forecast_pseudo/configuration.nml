@@ -59,6 +59,7 @@ rehabilitate=.true.,
 /
 &formulation
 use_multires_coupling=.false.,
+wind_transport_predictor='3d',
 /
 &io
 file_convention='UGRID',

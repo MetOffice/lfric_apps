@@ -16,8 +16,11 @@ module predictors_alg_mod
 
   ! Constants and types
   use constants_mod,              only: r_def
+  use log_mod,                    only: log_event, LOG_LEVEL_ERROR
   use sci_fem_constants_mod,      only: get_im3_div_fe, &
                                         get_im3_div_fv
+  use sci_geometric_constants_mod, &
+                                  only: get_detj_at_w3_fe
   use field_indices_mod,          only: igh_u, igh_d
   use field_mod,                  only: field_type
   use model_clock_mod,            only: model_clock_type
@@ -27,14 +30,19 @@ module predictors_alg_mod
 
   ! Configurations
   use derived_config_mod,         only: bundle_size
-  use formulation_config_mod,     only: horizontal_transport_predictor, &
-                                        si_momentum_equation
+  use formulation_config_mod,     only: si_momentum_equation,                  &
+                                        wind_transport_predictor,              &
+                                        wind_transport_predictor_3d,           &
+                                        wind_transport_predictor_no_etadot,    &
+                                        wind_transport_predictor_3d_clipped
   use transport_config_mod,       only: use_density_predictor, &
                                         cap_density_predictor
 
   ! Algorithms and Kernels
   use dg_matrix_vector_kernel_mod, &
                                   only: dg_matrix_vector_kernel_type
+  use vertical_lipschitz_clipping_kernel_mod, &
+                                  only: vertical_lipschitz_clipping_kernel_type
   use sci_mass_matrix_solver_alg_mod, &
                                   only: mass_matrix_solver_alg
   use sci_hori_mass_matrix_solver_alg_mod, &
@@ -74,6 +82,10 @@ contains
     real( kind=r_def ),        intent(in)    :: beta
     class( model_clock_type ), intent(in)    :: model_clock
 
+    ! Fields needed for the 3d_clipped wind predictor
+    type(field_type)          :: u_clip_inc
+    type(field_type), pointer :: detj_at_w3
+
     ! Fields and values needed for the density predictor
     type(field_type) :: divergence
     type(field_type) :: div_factor
@@ -91,11 +103,29 @@ contains
 
     ! Predictor of the wind field (u-beta*dt*rhs)
     if ( .not. si_momentum_equation ) then
-      if (horizontal_transport_predictor) then
-        call hori_mass_matrix_solver_alg(advected_state(igh_u), rhs_n, advected_state(igh_u))
-      else
+      select case (wind_transport_predictor)
+      case (wind_transport_predictor_3d )
         call mass_matrix_solver_alg(advected_state(igh_u), rhs_n)
-      end if
+
+      case (wind_transport_predictor_no_etadot)
+        call hori_mass_matrix_solver_alg(advected_state(igh_u), rhs_n,         &
+                                         advected_state(igh_u) )
+
+      case (wind_transport_predictor_3d_clipped)
+        call mass_matrix_solver_alg(advected_state(igh_u), rhs_n)
+        cast_dt = real(model_clock%get_seconds_per_step(), r_def)
+        detj_at_w3 => get_detj_at_w3_fe(advected_state(igh_u)%get_mesh_id())
+        call u_clip_inc%initialise( advected_state(igh_u)%get_function_space() )
+        call invoke(                                                           &
+            setval_c(u_clip_inc, 0.0_r_def),                                   &
+            vertical_lipschitz_clipping_kernel_type(                           &
+                u_clip_inc, advected_state(igh_u), detj_at_w3, cast_dt),       &
+            inc_X_plus_Y(advected_state(igh_u), u_clip_inc)                    &
+        )
+      case default
+        call log_event("predictors_alg: unrecognised value for" //             &
+                       "wind_transport_predictor", LOG_LEVEL_ERROR)
+      end select
     end if
 
     ! Density predictor

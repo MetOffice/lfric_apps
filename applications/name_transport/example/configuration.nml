@@ -203,8 +203,8 @@ pert_width_scaling=1.0,
 /
 &formulation
 horizontal_physics_predictor=.false.
-horizontal_transport_predictor=.false.
 use_multires_coupling=.false.
+wind_transport_predictor='3d'
 /
 &section_choice
 aerosol='none',

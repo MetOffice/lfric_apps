@@ -10,6 +10,7 @@
 
 &formulation
   l_multigrid = .false.
+  wind_transport_predictor = '3d'
 /
 
 &extrusion

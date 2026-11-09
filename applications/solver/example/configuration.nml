@@ -43,11 +43,11 @@ coord_system='native',
   dry_static_adjust     = .false.
   exner_from_eos        = .false.
   horizontal_physics_predictor   = .false.
-  horizontal_transport_predictor = .false.
   init_exner_bt         = .false.
   theta_moist_source    = .false.
   si_momentum_equation  = .false.
   vector_invariant      = .true.
+  wind_transport_predictor = '3d'
 /
 
 &io

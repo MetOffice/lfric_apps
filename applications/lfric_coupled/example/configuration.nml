@@ -91,7 +91,6 @@ dlayer_on=.false.,
 dry_static_adjust=.true.,
 exner_from_eos=.true.,
 horizontal_physics_predictor=.false.
-horizontal_transport_predictor=.false.
 init_exner_bt=.true.,
 l_multigrid=.false.,
 moisture_formulation='traditional',
@@ -103,6 +102,7 @@ theta_moist_source=.true.
 use_physics=.true.,
 use_wavedynamics=.false.,
 vector_invariant=.false.,
+wind_transport_predictor='3d',
 /
 &helmholtz_solver
 gcrk=18,
