@@ -192,6 +192,7 @@ contains
   subroutine name_transport_step( config, model_clock, wind, tracer_con, &
                                   rho, transport_density )
 
+    use dycore_constants_mod,             only: stepper_rk
     use init_gungho_prognostics_alg_mod,  only: init_u_field
     use model_clock_mod,                  only: model_clock_type
     use sci_mass_matrix_solver_alg_mod,   only: mass_matrix_solver_alg
@@ -226,7 +227,7 @@ contains
     primary_mesh => wind%get_mesh()
 
     ! Initialise the main transport controller ---------------------------------
-    call transport_controller%initialise( config, model_clock, rho, wind )
+    call transport_controller%initialise( config, model_clock, stepper_rk, rho, wind )
 
     ! Transport dry density
     if (transport_density) then

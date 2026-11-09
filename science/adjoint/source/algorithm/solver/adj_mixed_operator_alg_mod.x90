@@ -159,9 +159,10 @@ contains
     end if
 
     ! Obtain operators from runtime constants
-    mt_lumped_inv => get_normalisation_r_solver(config, mesh, Wtheta)
-    m2_diag       => get_normalisation_r_solver(config, mesh, W2)
-    mm_vel => get_w2_mass_matrix_r_solver(config, mesh, w2_si_matrix)
+    mt_lumped_inv => get_normalisation_r_solver( config, mesh, Wtheta )
+    m2_diag       => get_normalisation_r_solver( config, mesh, W2 )
+    mm_vel        => get_w2_mass_matrix_r_solver( config, mesh, w2_si_matrix, &
+                                                  self%stepper )
 
     ! Obtain operators from SI operators
     p2theta       => get_p2theta()
