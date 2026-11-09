@@ -352,7 +352,7 @@ contains
     use jules_rivers_mod,         only: rivers_type, rivers_data_type,         &
                                         rivers_assoc, jules_rivers_alloc,      &
                                         rivers_nullify, rivers_dealloc,        &
-                                        l_reservoirs
+                                        l_reservoirs, l_minor_reservoirs
     use cable_fields_mod,         only: work_vars_cbl
     use jules_chemvars_mod,       only: chemvars_type, chemvars_data_type,     &
                                         chemvars_alloc, chemvars_assoc,        &
@@ -565,6 +565,7 @@ contains
     ! Set sensible default values for arguments.
     integer(i_um), parameter :: global_land_pts = 1
     logical, parameter :: l_is_master_task = .FALSE.
+
     type(jls_wtrac_type)       :: wtrac_jls
     type(jls_wtrac_data_type)  :: wtrac_jls_data
     type( coastal_type ) :: coast
@@ -679,8 +680,9 @@ contains
 
     call water_resources_alloc(global_land_pts, land_pts, n_sw_source,        &
                                nwater_use, sw_river_source,                   &
-                               l_have_groundwater, l_have_surface_water,      &
-                               l_is_master_task, l_reservoirs,                &
+                               l_have_groundwater,                            &
+                               l_have_surface_water, l_is_master_task,        &
+                               l_reservoirs, l_minor_reservoirs,              &
                                l_water_domestic, l_water_industry,            &
                                l_water_irrigation, l_water_livestock,         &
                                l_water_resources, l_water_transfers,          &
