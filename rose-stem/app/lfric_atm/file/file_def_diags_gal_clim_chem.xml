@@ -3,7 +3,7 @@
   <!-- Main diagnostic output file for global climate runs -->
   <file id="lfric_diagnostics" name="results/lfric_diagnostics" output_freq="1d" convention="UGRID" enabled=".TRUE.">
     <!-- 3D fields averaged every timestep -->
-    <field_group operation="average" freq_op="1ts" prec="4">
+    <field_group operation="average" freq_op="1ts">
       <field field_ref="u_in_w3"/>
       <field field_ref="theta"/>
       <field field_ref="m_v"/>
@@ -62,6 +62,7 @@
       <field field_ref="chemistry__h2so4" />
       <field field_ref="chemistry__monoterpene" />
       <field field_ref="chemistry__secondary_organic" />
+      <field field_ref="chemistry__o3_column_du" />
       <field field_ref="aerosol__n_nuc_sol" />
       <field field_ref="aerosol__n_ait_sol" />
       <field field_ref="aerosol__n_acc_sol" />
@@ -86,11 +87,12 @@
     </field_group>
 
     <!-- 2D fields averaged every timestep -->
-    <field_group operation="average" freq_op="1ts" prec="4">
+    <field_group operation="average" freq_op="1ts">
       <field field_ref="processed__total_rain"/>
       <field field_ref="processed__total_snow"/>
       <field field_ref="processed__total_prec"/>
       <field field_ref="processed__total_prec_acc"/>
+      <field field_ref="processed__trop_level"/>
       <field field_ref="microphysics__ls_rain"/>
       <field field_ref="microphysics__ls_snow"/>
       <field field_ref="microphysics__ls_prec"/>
@@ -174,12 +176,13 @@
     <!-- Chem fields only available on the hour -->
     <field_group operation="average" freq_op="1h" >
       <field field_ref="chemistry__o1d"/>
+      <field field_ref="chemistry__rxnflux_oh_ch4_trop" />
       <field field_ref="chemistry__photol_rate_jo1d"/>
       <field field_ref="chemistry__photol_rate_jno2"/>
     </field_group>
 
     <!-- 2D fields averaged on radiation timesteps -->
-    <field_group operation="average" freq_op="1h" freq_offset="0ts" prec="4">
+    <field_group operation="average" freq_op="1h" freq_offset="0ts">
       <field field_ref="radiation__lw_net_surf_rts"/>
       <field field_ref="radiation__lw_down_surf_rts"/>
       <field field_ref="radiation__lw_up_surf_rts"/>
@@ -203,7 +206,7 @@
     </field_group>
 
     <!-- Fields averaged every 6 hours  -->
-    <field_group operation="average" freq_op="6h" prec="4">
+    <field_group operation="average" freq_op="6h">
       <field field_ref="orography"/>
       <field field_ref="surface__tile_fraction"/>
       <field field_ref="surface__land_fraction"/>
@@ -232,7 +235,7 @@
     </field_group>
 
     <!-- COSP satellite simulator diagnostics -->
-    <field_group operation="average" freq_op="1ts" prec="4">
+    <field_group operation="average" freq_op="1ts">
       <field field_ref="cosp__cloud_thermal_absorptivity"/>
       <field field_ref="cosp__cloud_solar_extinction"/>
       <field field_ref="cosp__calipso_low_cloud"/>

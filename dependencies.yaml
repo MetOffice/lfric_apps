@@ -19,11 +19,11 @@
 
 casim:
     source: git@github.com:MetOffice/casim.git
-    ref: 2026.07.1
+    ref: 996db30c2bac55360623eb081b4d2e273289f4de
 
 jules:
     source: git@github.com:MetOffice/jules.git
-    ref: 2026.07.1
+    ref: 1fbe60fd7ca48b4a044966ca313ca633bb943c1d
 
 lfric_apps:
     source:
@@ -31,7 +31,7 @@ lfric_apps:
 
 lfric_core:
     source: git@github.com:MetOffice/lfric_core.git
-    ref: 3e965e8cea0211728a6bd1e793b4018d782a19d3
+    ref: 833c4c85f9ed906f0c7f308a4a9e13a338ea77c3
 
 moci:
     source: git@github.com:MetOffice/moci.git
@@ -51,4 +51,4 @@ socrates-spectral:
 
 ukca:
     source: git@github.com:MetOffice/ukca.git
-    ref: 9fc2b6da8701f4904911b561a2738e3f16c4e501
+    ref: 7be54590d32a5e8cd2971cffced4a40602cf6405

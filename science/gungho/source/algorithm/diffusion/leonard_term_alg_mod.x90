@@ -14,8 +14,12 @@ module leonard_term_alg_mod
   use field_collection_mod,       only: field_collection_type
   use integer_field_mod,          only: integer_field_type
   use mesh_mod,                   only: mesh_type
+<<<<<<< HEAD
   use mesh_collection_mod,        only: mesh_collection
   use mr_indices_mod,             only: nummr, imr_v, imr_cl
+=======
+  use mr_indices_mod,             only: nummr, imr_v, imr_cl, imr_s
+>>>>>>> upstream/main
 
   use formulation_config_mod,     only: moisture_formulation,    &
                                         moisture_formulation_dry
@@ -28,9 +32,14 @@ module leonard_term_alg_mod
                                         get_face_selector_ew,        &
                                         get_face_selector_ns
   use physics_constants_mod,      only: get_dtrdz_fd2
+<<<<<<< HEAD
   use function_space_mod,         only: function_space_type
   use function_space_collection_mod,    &
                                   only: function_space_collection
+=======
+
+  use mixing_config_mod,          only: leonard_kl, leonard_inc_ice
+>>>>>>> upstream/main
 
   use timing_mod,                 only: start_timing, stop_timing, tik, LPROF
   use log_mod,                    only: log_event, LOG_LEVEL_INFO
@@ -71,7 +80,7 @@ subroutine leonard_term_alg(config,                             &
     use leonard_term_kl_kernel_mod, only: leonard_term_kl_kernel_type
     use leonard_term_th_kernel_mod, only: leonard_term_th_kernel_type
     use leonard_term_u_kernel_mod,  only: leonard_term_u_kernel_type
-    use planet_constants_mod, only: lcrcp_def
+    use planet_constants_mod, only: lcrcp_def, lsrcp_def
     use extrusion_config_mod, only: planet_radius
     use nlsizes_namelist_mod, only: bl_levels
 
@@ -132,7 +141,12 @@ subroutine leonard_term_alg(config,                             &
     type( field_type ) :: mt
     ! w increment
     type( field_type ) :: vel_w2v_inc_leonard
+<<<<<<< HEAD
     real( kind=r_def ) :: leonard_kl
+=======
+    ! ice mixing ratio
+    type( field_type ) :: mr_ice
+>>>>>>> upstream/main
 
     if ( LPROF ) call start_timing( id, 'leonard_term' )
 
@@ -174,8 +188,18 @@ subroutine leonard_term_alg(config,                             &
     call theta%copy_field_properties(thetal)
     call theta%copy_field_properties(mt)
     call theta%copy_field_properties(vel_w2v_inc_leonard)
+<<<<<<< HEAD
     call rho%copy_field_properties(klh)
     call klm_sh_w2h%initialise(w2h_sh_fs)
+=======
+    call theta%copy_field_properties(mr_ice)
+
+    if (leonard_inc_ice) then
+      call invoke( setval_X( mr_ice, mr(imr_s)) )
+    else
+      call invoke( setval_C( mr_ice, 0.0_r_def ) )
+    end if
+>>>>>>> upstream/main
 
     if (config%mixing%leonard_tke()) then
       rmult => get_rmultiplicity_fv(W2H, shifted_mesh_id)
@@ -241,9 +265,10 @@ subroutine leonard_term_alg(config,                             &
     ! Flux of liquid + ice water potential temperature:
     !--------------------------------------------------------------------
                  ! Calculate thetaL =
-                 ! theta - ((lc/cp)*mcl) / exner
+                 ! theta - ((lc/cp)*mcl [-(ls/cp)*msnow]) / exner
                       X_times_Y(thetal, theta, exner_in_wth),           &
                  inc_X_minus_bY(thetal, lcrcp_def, mr(imr_cl)),         &
+                 inc_X_minus_bY(thetal, lsrcp_def, mr_ice),             &
                  inc_X_divideby_Y(thetal, exner_in_wth),                &
                  ! Call Leonard term code for scalars
                  leonard_term_th_kernel_type( thetal_inc_leonard,       &
@@ -262,8 +287,9 @@ subroutine leonard_term_alg(config,                             &
     ! Flux of total water content:
     !--------------------------------------------------------------------
     if ( moisture_formulation /= moisture_formulation_dry ) then
-                 ! Calculate mt = mv+mcl
+                 ! Calculate mt = mv+mcl(+msnow)
       call invoke(     X_plus_Y(mt, mr(imr_v), mr(imr_cl)),             &
+                   inc_X_plus_Y(mt, mr_ice),                            &
                    ! Call Leonard term code for scalars
                    leonard_term_th_kernel_type( mt_inc_leonard,         &
                                                 mt,                     &
