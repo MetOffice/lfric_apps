@@ -33,6 +33,7 @@ module lfric2lfric_init_coupler_mod
   public :: lfric2lfric_init_coupler_src, &
             lfric2lfric_init_coupler_dst, &
             lfric2lfric_end_coupler_init, &
+            read_nfields,                 &
             parse_namcouple
 
   contains
@@ -248,33 +249,15 @@ module lfric2lfric_init_coupler_mod
 
   end subroutine lfric2lfric_end_coupler_init
 
-  !> @brief   Populate src_name_cpl_list and dst_name_cpl_list
-  !> @details Create the lists of fields to be initialised by the oasis
-  !!          coupler, by reading from the namcouple file.
-  !> @param[inout] src_name_cpl_list List of source fields to be initialised
-  !> @param[inout] dst_name_cpl_list List of destination fields to be
-  !!               initialised
-  subroutine parse_namcouple(src_name_cpl_list, dst_name_cpl_list)
-
+  !> @brief   Read the total number of fields from the namcouple
+  !> @details Read the line below $NFIELDS. This is the number of fields
+  !!          and is equivalent to the number of entries.
+  !> @param[inout] total_fields total number of fields to be coupled
+  subroutine read_nfields(total_fields)
+    
     implicit none
 
-    character(len=str_def), allocatable, intent(inout) :: src_name_cpl_list(:)
-    character(len=str_def), allocatable, intent(inout) :: dst_name_cpl_list(:)
-
-    type :: coupling_field
-      ! Coupling field matches the format of the entry in the namcouple
-      ! e.g. {src} {dst} 1 {freq} 1 lfric2lfric_restart_oa.nc EXPORTED
-      character(len=str_def) :: src_name
-      character(len=str_def) :: dst_name
-      integer                :: int1
-      integer                :: freq
-      integer                :: int2
-      character(str_def)     :: file
-      character(str_def)     :: exported
-    end type coupling_field
-
-    type(coupling_field), allocatable :: fields(:)
-    integer :: unit, ios, total_fields, nfields
+    integer :: unit, ios, total_fields
     character(len=str_def) :: line
 
     ! Open the namcouple file (that already exists)
@@ -322,14 +305,58 @@ module lfric2lfric_init_coupler_mod
 
     enddo
 
+    close(unit)
+  end subroutine read_nfields
+
+  !> @brief   Populate src_name_cpl_list and dst_name_cpl_list
+  !> @details Create the lists of fields to be initialised by the oasis
+  !!          coupler, by reading from the namcouple file.
+  !> @param[inout] src_name_cpl_list List of source fields to be initialised
+  !> @param[inout] dst_name_cpl_list List of destination fields to be
+  !!               initialised
+  subroutine parse_namcouple(src_name_cpl_list, dst_name_cpl_list)
+
+    implicit none
+
+    character(len=str_def), allocatable, intent(inout) :: src_name_cpl_list(:)
+    character(len=str_def), allocatable, intent(inout) :: dst_name_cpl_list(:)
+
+    type :: coupling_field
+      ! Coupling field matches the format of the entry in the namcouple
+      ! e.g. {src} {dst} 1 {freq} 1 lfric2lfric_restart_oa.nc EXPORTED
+      character(len=str_def) :: src_name
+      character(len=str_def) :: dst_name
+      integer                :: int1
+      integer                :: freq
+      integer                :: int2
+      character(str_def)     :: file
+      character(str_def)     :: exported
+    end type coupling_field
+
+    type(coupling_field), allocatable :: fields(:)
+    integer :: unit, ios, total_fields, nfields
+    character(len=str_def) :: line
+
+    ! Get the total number of fields to couple
+    call read_nfields(total_fields)
+    
     ! Allocate the array sizes to be total_fields
     allocate(fields(total_fields))
     allocate(src_name_cpl_list(total_fields))
     allocate(dst_name_cpl_list(total_fields))
 
+    ! Open the namcouple file (that already exists)
+    open(newunit=unit, file='namcouple', status='old', iostat=ios)
+
+    ! Error message if unable to open
+    if (ios /= 0) then
+      write( log_scratch_space, '(A,I3)' ) &
+        'lfric2lfric_parse_namcouple: Could not open namcouple file, iostat=', ios
+      call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+    end if
+    
     ! Read the entries in the namcouple (denoted by 'EXPORTED') and
     ! populate src_name_cpl_list and dst_name_cpl_list
-    rewind(unit)
     nfields = 0
     do
       read(unit,'(A)',iostat=ios) line
