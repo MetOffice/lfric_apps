@@ -50,16 +50,10 @@ contains
   subroutine setUp( this )
 
     use finite_element_config_mod, only : cellshape_quadrilateral, &
-<<<<<<< HEAD
-                                          coord_system_xyz, coord_space_wchi
-    use formulation_config_mod,    only : eos_method_sampled,      &
-                                          moisture_formulation_dry
-=======
                                           coord_system_xyz, coord_space_wchi
     use formulation_config_mod,    only : eos_method_sampled,          &
                                           moisture_formulation_dry,    &
                                           wind_transport_predictor_3d
->>>>>>> horz_predictor
     use feign_config_mod,          only : feign_finite_element_config, &
                                           feign_formulation_config
     use sci_chi_transform_mod,     only : init_chi_transforms
