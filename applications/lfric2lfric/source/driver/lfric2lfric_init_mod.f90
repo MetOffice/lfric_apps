@@ -42,7 +42,10 @@ module lfric2lfric_init_mod
   !!                                          will hold the source file
   !> @param [in]       context_dst            The name of the XIOS context that
   !!                                          will hold the file to be written
-  !> @param [in]       start_dump_filename    File to get field names from
+  !> @param [in]       start_dump_filename    File to get field names from for
+  !!                                          origin field collection
+  !> @param [in]       target_example_filename File to get field names from for
+  !!                                          target field collection
   !> @param [in]       mode                   Process ics or lbcs
   !> @param [in]       origin_collection_name Holds the origin fields
   !> @param [in]       origin_mesh            Mesh to initialise 3D fields
@@ -68,7 +71,8 @@ module lfric2lfric_init_mod
     type(modeldb_type), intent(inout)       :: modeldb
     character(len=*),   intent(in)          :: context_src
     character(len=*),   intent(in)          :: context_dst
-    character(len=*),   intent(in)          :: start_dump_filename, target_example_filename
+    character(len=*),   intent(in)          :: start_dump_filename
+    character(len=*),   intent(in)          :: target_example_filename
     integer(i_def),     intent(in)          :: mode
     character(len=*),   intent(in)          :: origin_collection_name
     type(mesh_type),    intent(in), pointer :: origin_mesh
@@ -112,7 +116,8 @@ module lfric2lfric_init_mod
       prefix = ''
     end if
 
-    ! Get field names from filename and validate presence in iodef.xml
+    ! Get source field names from start dump filename and validate presence
+    ! in iodef.xml
     call get_field_list( num_fields_src, config_list_src, start_dump_filename, prefix )
 
     ! Initialise our field collection
@@ -144,7 +149,8 @@ module lfric2lfric_init_mod
       prefix = 'lbc_'
     end if
 
-    ! Get field names from filename and validate presence in iodef.xml
+    ! Get target field names from the example target filename and validate
+    ! presence in iodef.xml
     call get_field_list( num_fields_dst, config_list_dst, target_example_filename, prefix )
     
     do i = 1, num_fields_dst
@@ -180,9 +186,10 @@ module lfric2lfric_init_mod
         prefix = 'lbc_'
       end if
 
+      ! Use the same field list as the source.
       do i = 1, num_fields_dst
         call field_maker( field_collection,   &
-                          config_list_dst(i), &
+                          config_list_src(i), &
                           interm_mesh,        &
                           interm_twod_mesh,   &
                           prefix )
