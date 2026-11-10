@@ -561,9 +561,9 @@ if (land_pts > 0) then
 
         ! Compute flux divergence on rho points
         u_mag = sqrt(u_p(i,j,k)**2 + v_p(i,j,k)**2)
-        fd_impl_part(i,j,k) = drag_fac * I_beljaars
-        zdiv_taux(i,j,k) = u_mag * u_p(i,j,k) * fd_impl_part(i,j,k)
-        zdiv_tauy(i,j,k) = u_mag * v_p(i,j,k) * fd_impl_part(i,j,k)
+        fd_impl_part(i,j,k) = drag_fac * u_mag * I_beljaars
+        zdiv_taux(i,j,k) = u_p(i,j,k) * fd_impl_part(i,j,k)
+        zdiv_tauy(i,j,k) = v_p(i,j,k) * fd_impl_part(i,j,k)
 
       end do ! land_pts
 !$OMP end do
