@@ -541,8 +541,8 @@ contains
     ! ------------------------------------------------------------------------ !
     ! Operators for si solves
     ! ------------------------------------------------------------------------ !
-    call create_si_operators(mesh, stepper_tr, self%config, model_clock)
-    call create_si_operators(mesh, stepper_bdf2, self%config, model_clock)
+    call create_si_operators(self%config, mesh, model_clock, stepper_tr)
+    call create_si_operators(self%config, mesh, model_clock, stepper_bdf2)
 
     ! If using checkpointed reference state, then calculate semi-implicit
     ! operators using the checkpointed reference state
@@ -558,16 +558,16 @@ contains
       call compute_si_operators_common(                                        &
           self%config, theta_ref, rho_ref, exner_ref, moist_dyn_ref            &
       )
-      call compute_helmholtz_operators(model_clock, stepper_tr)
-      call compute_helmholtz_operators(model_clock, stepper_bdf2)
+      call compute_helmholtz_operators(self%config, model_clock, stepper_tr)
+      call compute_helmholtz_operators(self%config, model_clock, stepper_bdf2)
     end if
 
     if (use_wavedynamics) then
       call gungho_transport_control_alg_init(mesh)
 
       ! Construct semi-implicit solver
-      call semi_implicit_solver_alg_init(self%state, stepper_tr)
-      call semi_implicit_solver_alg_init(self%state, stepper_bdf2)
+      call semi_implicit_solver_alg_init(self%config, self%state, stepper_tr)
+      call semi_implicit_solver_alg_init(self%config, self%state, stepper_bdf2)
     end if
 
     call log_event(                                                            &
@@ -821,11 +821,11 @@ contains
 
     if (element_order_h == 0 .and. element_order_v == 0) then
       ! Lowest order so use finite volume constants
-      mm_wt => get_mass_matrix_fv(Wtheta, mesh%get_id())
-      mm_vel => get_mass_matrix_fv(W2, mesh%get_id())
+      mm_wt => get_mass_matrix_fv(self%config, mesh, Wtheta)
+      mm_vel => get_mass_matrix_fv(self%config, mesh, W2)
     else
-      mm_wt => get_mass_matrix_fe(Wtheta, mesh%get_id())
-      mm_vel => get_mass_matrix_fe(W2, mesh%get_id())
+      mm_wt => get_mass_matrix_fe(self%config, mesh, Wtheta)
+      mm_vel => get_mass_matrix_fe(self%config, mesh, W2)
     end if
 
     !---------------------------------------------------------------------------
@@ -928,8 +928,8 @@ contains
           self%config, self%state(igh_t), self%state(igh_d),                   &
           self%state(igh_p), moist_dyn                                         &
       )
-      call compute_helmholtz_operators(model_clock, stepper_tr)
-      call compute_helmholtz_operators(model_clock, stepper_bdf2)
+      call compute_helmholtz_operators(self%config, model_clock, stepper_tr)
+      call compute_helmholtz_operators(self%config, model_clock, stepper_bdf2)
 
       checkpoint_reference_fields = (                                          &
           mod(model_clock%get_first_step()-1, reference_reset_freq) /= 0 .or.  &
@@ -984,8 +984,8 @@ contains
 
     ! Set predictors for transport
     call predictors_alg(                                                       &
-            self%state_to_adv, self%state_n(igh_u), self%rhs_n(igh_u),         &
-            gamma, model_clock                                                 &
+            self%config, self%state_to_adv, self%state_n(igh_u),               &
+            self%rhs_n(igh_u), gamma, model_clock                              &
     )
 
     outer_tr_loop: do outer = 1, outer_iterations
@@ -1012,7 +1012,7 @@ contains
         if (outer == outer_iterations) then
           ! Store the transported state for the BDF2 step
           ! Need mass matrix solve on u:
-          call mass_matrix_solver_alg(self%du, self%rhs_adv(igh_u))
+          call mass_matrix_solver_alg(self%config, self%du, self%rhs_adv(igh_u))
           call invoke(                                                         &
               X_plus_Y(                                                        &
                 self%state_aft_adv(igh_u), self%du, self%state_to_adv(igh_u)   &
@@ -1075,8 +1075,8 @@ contains
                 self%state_m(igh_u), lbc_fields, prime_mesh_name               &
             )
             call calc_rhs_lbc(                                                 &
-                self%rhs_lbc, lbc_fields, model_clock, prime_mesh_name,        &
-                1.0_r_def, stepper_tr                                          &
+                self%config, self%rhs_lbc, lbc_fields, model_clock,            &
+                prime_mesh_name, 1.0_r_def, stepper_tr                         &
             )
           end if
 
@@ -1125,7 +1125,7 @@ contains
           ! Solve system: A*inc = rhs_m, and increment state by inc
           !---------------------------------------------------------------------
           call semi_implicit_solver_alg_step(                                  &
-              self%state_m, self%rhs_m,                                        &
+              self%config, self%state_m, self%rhs_m,                           &
               dry_flux_solver, moist_dyn(gas_law), mr,                         &
               first_iteration=(inner==1), stepper=stepper_tr                   &
           )
@@ -1136,7 +1136,8 @@ contains
           end if
 
           if (exner_from_eos) then
-            call derive_exner_from_eos(self%state_m, moist_dyn(gas_law))
+            call derive_exner_from_eos(self%config, self%state_m, &
+                                       moist_dyn(gas_law))
           end if
         end do inner_tr_loop
 
@@ -1283,8 +1284,8 @@ contains
         ! Predictors
         !-----------------------------------------------------------------------
         call calc_phys_predictors_alg(                                         &
-            derived_fields, self%rhs_np1, self%rhs_adv, self%rhs_bdf,          &
-            self%state, self%state_dag, lbc_fields, model_clock                &
+            self%config, derived_fields, self%rhs_np1, self%rhs_adv,           &
+            self%rhs_bdf, self%state, self%state_dag, lbc_fields, model_clock  &
         )
 
         if (outer == outer_iterations .and. self%output_cld_incs) then
@@ -1365,8 +1366,8 @@ contains
                 self%state(igh_u), lbc_fields, prime_mesh_name                 &
             )
             call calc_rhs_lbc(                                                 &
-                self%rhs_lbc, lbc_fields, model_clock, prime_mesh_name,        &
-                1.0_r_def, stepper_bdf2                                        &
+                self%config, self%rhs_lbc, lbc_fields, model_clock,            &
+                prime_mesh_name, 1.0_r_def, stepper_bdf2                       &
             )
           end if
 
@@ -1419,7 +1420,7 @@ contains
           ! Solve system: A*inc = rhs_np1, and increment state by inc
           !---------------------------------------------------------------------
           call semi_implicit_solver_alg_step(                                  &
-              self%state, self%rhs_np1,                                        &
+              self%config, self%state, self%rhs_np1,                           &
               dry_flux_solver, moist_dyn(gas_law), mr,                         &
               first_iteration=(inner==1), stepper=stepper_bdf2                 &
           )
@@ -1430,7 +1431,8 @@ contains
           end if
 
           if (exner_from_eos) then
-            call derive_exner_from_eos(self%state, moist_dyn(gas_law))
+            call derive_exner_from_eos(self%config, self%state, &
+                                       moist_dyn(gas_law))
           end if
 
           !---------------------------------------------------------------------
@@ -1581,7 +1583,7 @@ contains
     if (write_diag .and. use_xios_io .and.                                     &
         mod(model_clock%get_step(), diagnostic_frequency) == 0) then
       call output_diags_for_si(                                                &
-          self%state, self%state_n, self%state_dag,                            &
+          self%config, self%state, self%state_n, self%state_dag,               &
           mr, self%mr_n, self%mr_dag, self%mr_aft_adv,                         &
           derived_fields, self%du, self%dtheta, self%dtheta_cld                &
       )

@@ -155,7 +155,9 @@ module linear_step_mod
                                         'After timestep' )
       end if
 
-      if (write_minmax_tseries) call minmax_tseries(u, 'u', mesh)
+      if (write_minmax_tseries) then
+        call minmax_tseries(modeldb%config, mesh, u, 'u')
+      end if
 
       call log_field_minmax( LOG_LEVEL_INFO, 'u', u )
       call log_field_minmax( LOG_LEVEL_INFO, 'theta', theta )
