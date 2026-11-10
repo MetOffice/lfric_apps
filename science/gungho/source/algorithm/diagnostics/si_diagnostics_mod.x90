@@ -157,6 +157,11 @@ contains
         call dtheta_adv%write_field()
       end if
 
+      ! NB: these increments are the difference between the state after slow
+      ! physics and before the *last* fast physics. They include advection, but
+      ! also increments from forcing terms (Coriolis, pressure gradient) and
+      ! the evolution of the model through previous outer loops.
+      ! For TR-BDF2, all of the TR step is included in these increments
       du_adv_flag = init_diag(du_adv, 'advection__du_adv')
       dv_adv_flag = init_diag(dv_adv, 'advection__dv_adv')
       dw_adv_flag = init_diag(dw_adv, 'advection__dw_adv')
@@ -198,6 +203,8 @@ contains
 
       ! Solver increments
       ! Difference between solver value (X-dX_cld) and X_star+dX_fast_physics
+      ! NB: these increments only include the increment from the *final* call
+      ! to the solver
       if (init_diag(dtheta_solv, 'solver__dtheta_solv')) then
         call derived_fields%get_field('theta_star', theta_star)
         call invoke(X_minus_Y(dtheta_solv,state(igh_t),theta_star), &

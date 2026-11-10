@@ -31,7 +31,7 @@ use comorph_constants_mod, only: real_hmprec, l_init_constants, name_length,   &
 use fields_type_mod, only: fields_type, l_init_fields_type_mod,                &
                            fields_set_addresses,                               &
                            fields_list_make, fields_list_clear,                &
-                           field_names, field_positive, n_fields
+                           field_names, field_min, field_max, n_fields
 use grid_type_mod, only: grid_type, grid_check_bad_values
 use turb_type_mod, only: turb_type,                                            &
                          turb_list_make, turb_list_clear,                      &
@@ -56,6 +56,7 @@ use calc_layer_mass_mod, only: calc_layer_mass
 use copy_field_mod, only: copy_field_3d
 use calc_turb_diags_mod, only: calc_turb_diags
 use calc_virt_temp_mod, only: calc_virt_temp_3d
+use interp_virt_temp_mod, only: interp_virt_temp
 use init_test_mod, only: init_test
 use comorph_main_mod, only: comorph_main
 
@@ -146,6 +147,9 @@ real(kind=real_hmprec) :: virt_temp_n( nx_full, ny_full,                       &
 ! Latest fields
 real(kind=real_hmprec) :: virt_temp_np1( nx_full, ny_full,                     &
                                          k_bot_conv:k_top_conv )
+! Latest virtual temperature interpolated to half-levels
+real(kind=real_hmprec) :: virt_temp_half( nx_full, ny_full,                    &
+                                          k_bot_conv:k_top_conv+1 )
 
 ! 3-D mask of points where convective initiation mass-sources
 ! for updrafts or downdrafts might be possible
@@ -182,6 +186,8 @@ integer :: lb_s(3), ub_s(3)
 integer :: lb_g(3), ub_g(3)
 integer :: lb_1(3), ub_1(3)
 integer :: lb_2(3), ub_2(3)
+integer :: lb_3(3), ub_3(3)
+integer :: lb_4(3), ub_4(3)
 
 ! String indicating where in the code bad-value checks are done
 character(len=name_length) :: where_string
@@ -242,7 +248,8 @@ if ( i_check_bad_values_3d > i_check_bad_none ) then
     ub_1 = ubound( fields_n % list(i_field)%pt )
     call check_bad_values_3d( lb_1, ub_1, fields_n%list(i_field)%pt,           &
                               where_string, field_names(i_field),              &
-                              field_positive(i_field) )
+                              field_min=field_min(i_field),                    &
+                              field_max=field_max(i_field) )
   end do
   ! Check latest fields:
   where_string = "On input to CoMorph: latest fields:"
@@ -251,7 +258,8 @@ if ( i_check_bad_values_3d > i_check_bad_none ) then
     ub_1 = ubound( fields_np1 % list(i_field)%pt )
     call check_bad_values_3d( lb_1, ub_1, fields_np1%list(i_field)%pt,         &
                               where_string, field_names(i_field),              &
-                              field_positive(i_field) )
+                              field_min=field_min(i_field),                    &
+                              field_max=field_max(i_field) )
   end do
 
   ! Check input grid fields
@@ -367,6 +375,21 @@ call calc_virt_temp_3d( lb_t, ub_t, fields_np1 % temperature,                  &
                         lb_g, ub_g, fields_np1 % q_graup,                      &
                         virt_temp_np1 )
 
+! Interpolate latest virtual temperature to half-levels
+lb_1 = lbound( grid%height_full )
+ub_1 = ubound( grid%height_full )
+lb_2 = lbound( grid%height_half )
+ub_2 = ubound( grid%height_half )
+lb_3 = lbound( grid%pressure_full )
+ub_3 = ubound( grid%pressure_full )
+lb_4 = lbound( grid%pressure_half )
+ub_4 = ubound( grid%pressure_half )
+call interp_virt_temp( lb_1, ub_1, grid%height_full,                           &
+                       lb_2, ub_2, grid%height_half,                           &
+                       lb_3, ub_3, grid%pressure_full,                         &
+                       lb_4, ub_4, grid%pressure_half,                         &
+                       virt_temp_np1, virt_temp_half )
+
 
 !----------------------------------------------------------------
 ! 2) Compute any diagnostics not calculated inside the convection
@@ -467,7 +490,7 @@ end do
 !$OMP  SHARED(  n_segments, seg_n_points, seg_ij_last,                         &
 !$OMP           n_fields_tot, l_tracer,                                        &
 !$OMP           grid, turb, cloudfracs, fields_np1,                            &
-!$OMP           layer_mass, virt_temp_n, virt_temp_np1,                        &
+!$OMP           layer_mass, virt_temp_n, virt_temp_np1, virt_temp_half,        &
 !$OMP           l_init_poss, comorph_diags )                                   &
 !$OMP  PRIVATE( i_seg )
 !$OMP DO SCHEDULE(DYNAMIC)
@@ -482,7 +505,7 @@ do i_seg = 1, n_segments
                      n_fields_tot, l_tracer,                                   &
                      grid, turb, cloudfracs, fields_np1,                       &
                      layer_mass, virt_temp_n, virt_temp_np1,                   &
-                     l_init_poss, comorph_diags )
+                     virt_temp_half, l_init_poss, comorph_diags )
 
 end do  ! i_seg = 1, n_segments
 !$OMP END DO NOWAIT
@@ -514,7 +537,8 @@ if ( i_check_bad_values_3d > i_check_bad_none ) then
     ub_1 = ubound( fields_np1 % list(i_field)%pt )
     call check_bad_values_3d( lb_1, ub_1, fields_np1%list(i_field)%pt,         &
                               where_string, field_names(i_field),              &
-                              field_positive(i_field) )
+                              field_min=field_min(i_field),                    &
+                              field_max=field_max(i_field) )
   end do
 
   ! Check cloud and rain fractions (the convective cloud fields

@@ -13,14 +13,14 @@
       <domain id="face_half_levels" name="Mesh2d_half_levels" nvertex="4"/>
       <domain id="face_full_levels" name="Mesh2d_full_levels" nvertex="4"/>
       <domain id="edge_half_levels" name="Mesh2d_edge_half_levels" nvertex="2"/>
-      <domain id="checkpoint_W0" name="checkpoint_W0" nvertex="1"/>
-      <domain id="checkpoint_W1" name="checkpoint_W1" nvertex="1"/>
-      <domain id="checkpoint_W2" name="checkpoint_W2" nvertex="1"/>
-      <domain id="checkpoint_W3" name="checkpoint_W3" nvertex="1"/>
-      <domain id="checkpoint_Wtheta" name="checkpoint_Wtheta" nvertex="1"/>
-      <domain id="fd_checkpoint_W3" name="fd_checkpoint_W3" nvertex="1"/>
-      <domain id="fd_checkpoint_Wtheta" name="fd_checkpoint_Wtheta" nvertex="1"/>
-      <domain id="checkpoint_W3_2D" name="checkpoint_W3_2D" nvertex="1"/>
+      <domain id="legacy_W0" name="legacy_W0" nvertex="1"/>
+      <domain id="legacy_W1" name="legacy_W1" nvertex="1"/>
+      <domain id="legacy_W2" name="legacy_W2" nvertex="1"/>
+      <domain id="legacy_W3" name="legacy_W3" nvertex="1"/>
+      <domain id="legacy_Wtheta" name="legacy_Wtheta" nvertex="1"/>
+      <domain id="fd_legacy_W3" name="fd_legacy_W3" nvertex="1"/>
+      <domain id="fd_legacy_Wtheta" name="fd_legacy_Wtheta" nvertex="1"/>
+      <domain id="legacy_W3_2D" name="legacy_W3_2D" nvertex="1"/>
       <domain id="checkpoint_pft" name="checkpoint_pft" nvertex="1"/>
       <domain id="checkpoint_tile" name="checkpoint_tile" nvertex="1"/>
       <domain id="checkpoint_sice" name="checkpoint_sice" nvertex="1"/>
@@ -52,13 +52,13 @@
 
      <!-- Checkpoint group -->
      <field_group id="checkpoint_fields" freq_op="1ts" operation="once"  enabled=".FALSE." >
-       <field id="checkpoint_geopot" name="geopot" long_name="fluid_geopotential" standard_name="geopotential" unit="m2 s-2" domain_ref="checkpoint_W3" />
-       <field id="checkpoint_buoyancy" name="buoyancy" long_name="buoyancy" unit="kg m s-2" domain_ref="checkpoint_Wtheta" />
-       <field id="checkpoint_q" name="q" long_name="potential vorticity" standard_name="potential vorticity" unit="m-1 s-1" domain_ref="checkpoint_W3" />
-       <field id="checkpoint_wind" name="wind" long_name="wind" unit="m s-1" domain_ref="checkpoint_W2" />
-       <field id="checkpoint_tracer_const" name="tracer_const" long_name="tracer constant" unit="kg kg-1" domain_ref="checkpoint_W3" />
-       <field id="checkpoint_tracer_pv" name="tracer_pv" long_name="tracer potential vorticity" unit="kg kg-1" domain_ref="checkpoint_W3" />
-       <field id="checkpoint_tracer_step" name="tracer_step" long_name="tracer step function" unit="kg kg-1" domain_ref="checkpoint_W3" />
+       <field id="checkpoint_geopot" name="geopot" long_name="fluid_geopotential" standard_name="geopotential" unit="m2 s-2" domain_ref="legacy_W3" />
+       <field id="checkpoint_buoyancy" name="buoyancy" long_name="buoyancy" unit="kg m s-2" domain_ref="legacy_Wtheta" />
+       <field id="checkpoint_q" name="q" long_name="potential vorticity" standard_name="potential vorticity" unit="m-1 s-1" domain_ref="legacy_W3" />
+       <field id="checkpoint_wind" name="wind" long_name="wind" unit="m s-1" domain_ref="legacy_W2" />
+       <field id="checkpoint_tracer_const" name="tracer_const" long_name="tracer constant" unit="kg kg-1" domain_ref="legacy_W3" />
+       <field id="checkpoint_tracer_pv" name="tracer_pv" long_name="tracer potential vorticity" unit="kg kg-1" domain_ref="legacy_W3" />
+       <field id="checkpoint_tracer_step" name="tracer_step" long_name="tracer step function" unit="kg kg-1" domain_ref="legacy_W3" />
      </field_group>
 
      <!-- Main diagnostic group -->
@@ -113,13 +113,13 @@
        <!-- file definition for checkpoint read -->
       <file id="lfric_checkpoint_read" name="lfric_swe_checkpoint" mode="read" output_freq="1ts" cyclic="true" enabled=".FALSE.">
        <field_group id="lfric_checkpoint_read_field_group" >
-       <field id="restart_geopot" name="geopot" long_name="fluid_geopotential" standard_name="geopotential" unit="m2 s-2" operation="instant" domain_ref="checkpoint_W3" />
-       <field id="restart_buoyancy" name="buoyancy" long_name="buoyancy" unit="kg m s-2" operation="instant" domain_ref="checkpoint_Wtheta" />
-       <field id="restart_wind" name="wind" long_name="wind" unit="m s-1" operation="instant" domain_ref="checkpoint_W2" />
-       <field id="restart_q" name="q" long_name="potential vorticity" standard_name="potential vorticity" unit="m-1 s-1" operation="instant" domain_ref="checkpoint_W3" />
-       <field id="restart_tracer_const" name="tracer_const" long_name="tracer constant" unit="kg kg-1" operation="instant" domain_ref="checkpoint_W3" />
-       <field id="restart_tracer_pv" name="tracer_pv" long_name="tracer potential vorticity" unit="kg kg-1" operation="instant" domain_ref="checkpoint_W3" />
-       <field id="restart_tracer_step" name="tracer_step" long_name="tracer step function" unit="kg kg-1" operation="instant" domain_ref="checkpoint_W3" />
+       <field id="restart_geopot" name="geopot" long_name="fluid_geopotential" standard_name="geopotential" unit="m2 s-2" operation="instant" domain_ref="legacy_W3" />
+       <field id="restart_buoyancy" name="buoyancy" long_name="buoyancy" unit="kg m s-2" operation="instant" domain_ref="legacy_Wtheta" />
+       <field id="restart_wind" name="wind" long_name="wind" unit="m s-1" operation="instant" domain_ref="legacy_W2" />
+       <field id="restart_q" name="q" long_name="potential vorticity" standard_name="potential vorticity" unit="m-1 s-1" operation="instant" domain_ref="legacy_W3" />
+       <field id="restart_tracer_const" name="tracer_const" long_name="tracer constant" unit="kg kg-1" operation="instant" domain_ref="legacy_W3" />
+       <field id="restart_tracer_pv" name="tracer_pv" long_name="tracer potential vorticity" unit="kg kg-1" operation="instant" domain_ref="legacy_W3" />
+       <field id="restart_tracer_step" name="tracer_step" long_name="tracer step function" unit="kg kg-1" operation="instant" domain_ref="legacy_W3" />
        </field_group>
      </file>
 
