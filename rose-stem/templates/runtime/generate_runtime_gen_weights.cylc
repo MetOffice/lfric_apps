@@ -3,6 +3,8 @@
 {# The file LICENCE, distributed with this code, contains details of the terms #}
 {# under which the code may be used. #}
 {# ########################################################################### #}
+{# Some content in this file was generated or refactored with assistance from #}
+{# - Met Office Claude Code Enterprise (Claude Opus 5.5) #}
 {% do LOG.debug("Entered templates/runtime/generate_runtime_gen_weights.cylc") %}
 
 {# Generate Weights tasks are assumed to run on the Scripts Platform - Spice for meto #}
@@ -35,6 +37,8 @@
             INTERPOLATION_DIRECTION = {{task_values["app_name"]}}
             LFRIC_MESH_FILE = {{mesh_dir}}/{{task_values["resolution"][0]}}/mesh_{{task_values["resolution"][0]}}.nc
             LFRIC_MESH_NAME = {{task_values["mesh_name"]|default("")}}
+            LFRIC_MASK_FILE = {{task_values["mask_file"]|default("")}}
+            LFRIC_MASK_VAR = {{task_values["mask_var"]|default("")}}
     {% if task_ns.application == "lfric2lfric" %}
             DST_GRID_PATH = {{mesh_dir}}/{{task_values["dst_mesh"]}}/mesh_{{task_values["dst_mesh"]}}.nc
             DST_GRID_TYPE = {{task_values["dst_type"]}}
