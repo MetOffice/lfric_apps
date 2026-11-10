@@ -87,7 +87,7 @@ do i_stash = 1, lfric2um_config%num_fields
   stashcode = lfric2um_config%stash_list(i_stash)
   write(log_scratch_space, '(A,I0)') "Processing stashcode ", stashcode
   call log_event(log_scratch_space, LOG_LEVEL_INFO)
-  n_um_levels = lfricinp_get_num_levels(um_output_file, stashcode)
+
   um_first_level = lfricinp_get_first_level_num(stashcode)
   um_level_type = get_stashmaster_item(stashcode, levelt)
   lfric_level_offset = 0
