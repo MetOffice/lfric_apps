@@ -38,7 +38,7 @@ private
 
 type, public, extends(kernel_type) :: radaer_faster_kernel_type
   private
-  type(arg_type) :: meta_args(80) = (/                &
+  type(arg_type) :: meta_args(81) = (/                &
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! theta_in_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! exner_in_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  W3),     & ! exner_in_w3
