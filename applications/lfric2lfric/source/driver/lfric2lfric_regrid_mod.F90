@@ -11,7 +11,7 @@ module lfric2lfric_regrid_mod
                                       geometry_planar,         &
                                       topology_fully_periodic, &
                                       topology_non_periodic
-  use constants_mod,            only: str_def, i_def
+  use constants_mod,            only: str_def, i_def, l_def
   use driver_modeldb_mod,       only: modeldb_type
   use extrusion_mod,            only: TWOD
   use field_parent_mod,         only: field_parent_type
@@ -41,8 +41,7 @@ module lfric2lfric_regrid_mod
                                             regrid_method_oasis
   use lfric2lfric_map_regrid_mod,     only: lfric2lfric_map_regrid
   use lfric2lfric_no_regrid_mod,      only: lfric2lfric_no_regrid
-  use lfric2lfric_oasis_regrid_mod,   only: lfric2lfric_oasis_regrid_three_d, &
-                                            lfric2lfric_oasis_regrid_two_d
+  use lfric2lfric_oasis_regrid_mod,   only: lfric2lfric_oasis_regrid
   use lfric2lfric_init_coupler_mod,   only: read_nfields
 
   implicit none
@@ -106,7 +105,8 @@ contains
     integer(kind=i_def), parameter :: dst = 1
     integer(kind=i_def), parameter :: src = 2
 
-    integer :: total_fields
+    integer(kind=i_def) :: total_fields
+    logical(kind=l_def) :: general
     
     ! Obtain namelist parameters
     mesh_names(dst) = 'dst_'//trim(modeldb%config%lfric2lfric%destination_mesh_name())
@@ -244,14 +244,16 @@ contains
             if ( total_fields == 1 ) then
               ! If only 1 entry in namcouple, use the standard 3D method for
               ! all 2D fields
-              call lfric2lfric_oasis_regrid_three_d(modeldb, oasis_clock, &
-                   field_dst, field_src)
+              general = .true. 
+              call lfric2lfric_oasis_regrid(modeldb, oasis_clock, &
+                   field_dst, field_src, general)
 
             else if (total_fields > 1) then
               ! else use special regridding for each 2D field, as defined
               ! by the namcouple
-              call lfric2lfric_oasis_regrid_two_d(modeldb, oasis_clock, &
-                   field_dst, field_src)
+              general = .false.
+              call lfric2lfric_oasis_regrid(modeldb, oasis_clock, &
+                   field_dst, field_src, general)
 
             else
               call log_event( 'Error in total_fields', LOG_LEVEL_ERROR )  
@@ -301,12 +303,13 @@ contains
               call interp_w2_to_w3wth_alg(field_src, u_in_w3_src,   &
                                           v_in_w3_src, w_in_wth_src)
 
-              call lfric2lfric_oasis_regrid_three_d(modeldb, oasis_clock, &
-                                        u_in_w3_dst, u_in_w3_src)
-              call lfric2lfric_oasis_regrid_three_d(modeldb, oasis_clock, &
-                                        v_in_w3_dst, v_in_w3_src)
-              call lfric2lfric_oasis_regrid_three_d(modeldb, oasis_clock, &
-                                        w_in_wth_dst, w_in_wth_src)
+              general = .true.
+              call lfric2lfric_oasis_regrid(modeldb, oasis_clock, &
+                                        u_in_w3_dst, u_in_w3_src, general)
+              call lfric2lfric_oasis_regrid(modeldb, oasis_clock, &
+                                        v_in_w3_dst, v_in_w3_src, general)
+              call lfric2lfric_oasis_regrid(modeldb, oasis_clock, &
+                                        w_in_wth_dst, w_in_wth_src, general)
 
               call interp_w3wth_to_w2_alg(field_dst, u_in_w3_dst,    &
                                           v_in_w3_dst, w_in_wth_dst, &
@@ -314,8 +317,9 @@ contains
           
             else
 
-              call lfric2lfric_oasis_regrid_three_d(modeldb, oasis_clock, &
-                   field_dst, field_src)
+              general = .true.
+              call lfric2lfric_oasis_regrid(modeldb, oasis_clock, &
+                   field_dst, field_src, general)
             end if
           else
             call lfric2lfric_no_regrid(field_dst)
