@@ -3,7 +3,7 @@
 {# The file LICENCE, distributed with this code, contains details of the terms #}
 {# under which the code may be used. #}
 {# ########################################################################### #}
-{# Some content in this file was generated or refactored with assistance from #}
+{% do LOG.debug("Entered site/meto/groups/groups_lfricinputs.cylc") %}
 
 {# um2lfric Groups by Config #}
 {% do site_groups.update({
