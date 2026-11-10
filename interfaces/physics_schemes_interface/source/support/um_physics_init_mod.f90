@@ -4,7 +4,7 @@
 ! under which the code may be used.
 !----------------------------------------------------------------------------
 ! Some content in this file was generated or refactored with assistance from
-! - Met Office Claude Code via AI Foundry (Opus 5);
+! - Met Office Claude Code via AI Foundry (Opus 5); #709
 !----------------------------------------------------------------------------
 !> @brief Controls the setting of variables for UM physics schemes, which
 !>         are either fixed in LFRic or derived from LFRic inputs

@@ -4,7 +4,7 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 ! Some content in this file was generated or refactored with assistance from
-! - Met Office Claude Code via AI Foundry (Opus 5);
+! - Met Office Claude Code via AI Foundry (Opus 5); #709
 !-----------------------------------------------------------------------------
 
 !> @brief A two time-level iterative time-discretisation of the nonlinear
@@ -751,7 +751,7 @@ contains
     character(str_def) :: prime_mesh_name
     integer(i_def)     :: lbc_option
     logical(l_def)     :: l_mcr_precfrac
-    logical(l_def)     :: microphysics_casim = .false.
+    logical(l_def)     :: microphysics_casim
     logical(l_def)     :: murk_lbc
     real(r_def)        :: tau_r
 
@@ -772,6 +772,7 @@ contains
         murk_lbc =  self%config%aerosol%murk_lbc()
       end if
     end if
+    microphysics_casim = .false.
     if (lbc_option == lbc_option_um2lfric_file .or. &
         (use_physics .and. cloud == cloud_um)) then
       microphysics_casim = self%config%microphysics%microphysics_casim()

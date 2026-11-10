@@ -5,7 +5,7 @@
 ! *****************************COPYRIGHT*******************************
 !-------------------------------------------------------------------------------
 ! Some content in this file was generated or refactored with assistance from
-! - Met Office Claude Code via AI Foundry (Opus 5);
+! - Met Office Claude Code via AI Foundry (Opus 5); #709
 !-------------------------------------------------------------------------------
 
 ! Code Owner: Please refer to the UM file CodeOwners.txt

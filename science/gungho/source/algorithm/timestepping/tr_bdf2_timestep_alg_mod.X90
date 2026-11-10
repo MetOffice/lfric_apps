@@ -722,7 +722,7 @@ contains
     logical(kind=l_def)         :: checkpoint_reference_fields
     character(len=str_def)      :: prime_mesh_name
     integer(kind=i_def)         :: lbc_option
-    logical(kind=l_def)         :: microphysics_casim = .false.
+    logical(kind=l_def)         :: microphysics_casim
     logical(kind=l_def)         :: l_mcr_precfrac
     logical(kind=l_def)         :: murk_lbc
     logical(kind=l_def)         :: outer_smagorinsky
@@ -816,6 +816,7 @@ contains
         murk_lbc = self%config%aerosol%murk_lbc()
       end if
     end if
+    microphysics_casim = .false.
     if (lbc_option == lbc_option_um2lfric_file                                 &
         .or. (use_physics .and. cloud == cloud_um)) then
       microphysics_casim = self%config%microphysics%microphysics_casim()
@@ -1549,7 +1550,7 @@ contains
 
       if (microphysics_casim) then
         call casim_activate_alg(                                               &
-             self%config, self%state(igh_t), mr, self%mr_after_adv(imr_cl),    &
+             self%config, self%state(igh_t), mr, self%mr_aft_adv(imr_cl),      &
              derived_fields, cloud_fields, microphysics_fields,                &
              convection_fields, aerosol_fields, turbulence_fields,             &
              initialise=.false.                                                &
