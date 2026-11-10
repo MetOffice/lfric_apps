@@ -410,7 +410,7 @@ subroutine init_mesh( config,                  &
                               partitioner_src,            &
                               mapping_factors(src:src),   &
                               enforce_constraints )
-      
+
       call create_local_mesh( stored_mesh_names(dst:dst), &
                               local_rank, total_ranks,    &
                               decomposition_dst,          &
@@ -422,7 +422,7 @@ subroutine init_mesh( config,                  &
 
       ! Create the associated local mesh maps
       !===========================================================
-   
+
       src_local_mesh => local_mesh_collection%get_local_mesh(stored_mesh_names(src))
       dst_local_mesh => local_mesh_collection%get_local_mesh(stored_mesh_names(dst))
 
@@ -432,7 +432,7 @@ subroutine init_mesh( config,                  &
       call global_mesh_collection%clear()
 
     else
-      
+
       mapping_factors = 1
       enforce_constraints = .false.
 
@@ -475,7 +475,7 @@ subroutine init_mesh( config,                  &
                               enforce_constraints )
 
       call global_mesh_collection%clear()
-      
+
     end if
 
   end if  ! prepartitioned
