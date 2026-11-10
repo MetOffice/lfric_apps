@@ -3,6 +3,8 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code Enterprise (Claude Opus 5.5).
 
 !> @brief Outputs diagnostics from gungho/lfric_atm
 
@@ -59,6 +61,7 @@ module gungho_diagnostics_driver_mod
   use pmsl_alg_mod,              only : pmsl_alg
   use rh_diag_alg_mod,           only : rh_diag_alg
   use freeze_lev_alg_mod,        only : freeze_lev_alg
+  use max_wind_diags_alg_mod,    only : max_wind_diags_alg
 #endif
 
   implicit none
@@ -336,6 +339,8 @@ contains
                               mr, moist_dyn)
       ! Wet bulb freezing level
       call freeze_lev_alg(modeldb%config,theta, mr, moist_dyn, exner_in_wth)
+      ! Maximum wind and the base and top of the jet around it
+      call max_wind_diags_alg(exner, derived_fields)
 #endif
 
       temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')

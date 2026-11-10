@@ -1005,6 +1005,13 @@
   <!-- Vertical integrals -->
   <field id="processed__sw_aer_optical_depth_rts" field_ref="radiation__sw_aer_optical_depth_rts" grid_ref="vert_sum_face_grid"/>
   <field id="processed__lw_aer_optical_depth_rts" field_ref="radiation__lw_aer_optical_depth_rts" grid_ref="vert_sum_face_grid"/>
+  <!-- Aviation diagnostics -->
+  <field id="aviation__max_wind_u" name="aviation_max_wind_u" long_name="eastward_wind_at_maximum_wind_level" unit="m s-1" domain_ref="face"/>
+  <field id="aviation__max_wind_v" name="aviation_max_wind_v" long_name="northward_wind_at_maximum_wind_level" unit="m s-1" domain_ref="face"/>
+  <field id="aviation__max_wind_pressure" name="aviation_max_wind_pressure" long_name="air_pressure_at_maximum_wind_level" unit="Pa" domain_ref="face"/>
+  <field id="aviation__max_wind_icao_height" name="aviation_max_wind_icao_height" long_name="icao_height_of_maximum_wind_level" unit="kft" domain_ref="face"/>
+  <field id="aviation__max_wind_base_icao_height" name="aviation_max_wind_base_icao_height" long_name="icao_height_of_maximum_wind_base" unit="kft" domain_ref="face"/>
+  <field id="aviation__max_wind_top_icao_height" name="aviation_max_wind_top_icao_height" long_name="icao_height_of_maximum_wind_top" unit="kft" domain_ref="face"/>
 </field_group>
 
 <!-- Integer diagnostic group -->

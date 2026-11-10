@@ -1,0 +1,116 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code Enterprise (Claude Opus 5.5).
+!> @brief Wind, pressure and ICAO height of the maximum wind, and ICAO
+!>        heights of the base and top of the jet around it.
+
+module max_wind_diags_alg_mod
+
+  use constants_mod,              only: l_def
+  use field_collection_mod,       only: field_collection_type
+  use field_mod,                  only: field_type
+  use icao_heights_kernel_mod,    only: icao_heights_kernel_type
+  use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field
+  use max_wind_diags_kernel_mod,  only: max_wind_diags_kernel_type
+  use planet_config_mod,          only: p_zero
+  use planet_constants_mod,       only: g_over_r_def, recip_kappa_def
+
+  implicit none
+
+  private
+
+  public :: max_wind_diags_alg
+
+contains
+
+  !> @brief Output the maximum wind diagnostics that are requested.
+  !> @param[in] exner           Exner pressure in W3
+  !> @param[in] derived_fields  Collection of derived fields
+  subroutine max_wind_diags_alg(exner, derived_fields)
+
+    implicit none
+
+    type(field_type),            intent(in) :: exner
+    type(field_collection_type), intent(in) :: derived_fields
+
+    type(field_type)                  :: max_wind_u, max_wind_v
+    type(field_type)                  :: max_wind_pressure, max_wind_icao
+    type(field_type),         target  :: base_icao, top_icao
+    type(field_type),         target  :: base_pressure, top_pressure
+    type(field_type),         pointer :: u_in_w3, v_in_w3
+    type(field_type),         pointer :: base_pressure_ptr, top_pressure_ptr
+    logical(kind=l_def) :: u_flag, v_flag, pressure_flag, icao_flag
+    logical(kind=l_def) :: base_flag, top_flag
+
+    nullify(u_in_w3, v_in_w3, base_pressure_ptr, top_pressure_ptr)
+
+    u_flag = init_diag(max_wind_u, 'aviation__max_wind_u')
+    v_flag = init_diag(max_wind_v, 'aviation__max_wind_v')
+    ! The ICAO height is computed from the pressure, so requesting it
+    ! activates the pressure
+    icao_flag = init_diag(max_wind_icao, 'aviation__max_wind_icao_height')
+    pressure_flag = init_diag(max_wind_pressure,                           &
+                              'aviation__max_wind_pressure',               &
+                              activate=icao_flag)
+    base_flag = init_diag(base_icao, 'aviation__max_wind_base_icao_height')
+    top_flag = init_diag(top_icao, 'aviation__max_wind_top_icao_height')
+
+    if ( .not. (u_flag .or. v_flag .or. pressure_flag .or. icao_flag       &
+                .or. base_flag .or. top_flag) ) return
+
+    ! The base and top pressures are not diagnostics, so they are held in
+    ! local fields. When an ICAO height is not requested its empty field
+    ! takes the place of the pressure, and the kernel skips that output.
+    if ( base_flag ) then
+      call base_icao%copy_field_properties(base_pressure,                  &
+                                           name='max_wind_base_pressure')
+      base_pressure_ptr => base_pressure
+    else
+      base_pressure_ptr => base_icao
+    end if
+    if ( top_flag ) then
+      call top_icao%copy_field_properties(top_pressure,                    &
+                                          name='max_wind_top_pressure')
+      top_pressure_ptr => top_pressure
+    else
+      top_pressure_ptr => top_icao
+    end if
+
+    call derived_fields%get_field('u_in_w3', u_in_w3)
+    call derived_fields%get_field('v_in_w3', v_in_w3)
+
+    call invoke( max_wind_diags_kernel_type(u_in_w3, max_wind_u,           &
+                                            max_wind_v, max_wind_pressure, &
+                                            base_pressure_ptr,             &
+                                            top_pressure_ptr, v_in_w3,     &
+                                            exner, p_zero,                 &
+                                            recip_kappa_def) )
+
+    if ( icao_flag ) then
+      call invoke( icao_heights_kernel_type(max_wind_icao,                 &
+                                            max_wind_pressure,             &
+                                            g_over_r_def) )
+      call max_wind_icao%write_field()
+    end if
+    if ( base_flag ) then
+      call invoke( icao_heights_kernel_type(base_icao, base_pressure,      &
+                                            g_over_r_def) )
+      call base_icao%write_field()
+    end if
+    if ( top_flag ) then
+      call invoke( icao_heights_kernel_type(top_icao, top_pressure,        &
+                                            g_over_r_def) )
+      call top_icao%write_field()
+    end if
+
+    if ( u_flag ) call max_wind_u%write_field()
+    if ( v_flag ) call max_wind_v%write_field()
+    if ( pressure_flag ) call max_wind_pressure%write_field()
+
+  end subroutine max_wind_diags_alg
+
+end module max_wind_diags_alg_mod

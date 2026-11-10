@@ -1,0 +1,380 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code Enterprise (Claude Opus 5.5).
+!> @brief Test the maximum wind diagnostics kernel.
+!> @details The wind blows in a fixed direction, u = 0.6 s and v = 0.8 s,
+!>          with a speed s that is a quadratic in pressure peaking at
+!>          60 m s-1. The splines reproduce a quadratic exactly, so the
+!>          refined values are known. Away from the jet the quadratic gives
+!>          large speeds, but those levels are outside the pressure window
+!>          and the walks.
+
+module max_wind_diags_kernel_mod_test
+
+  use funit
+  use constants_mod, only: r_def, i_def, rmdi
+
+  implicit none
+
+  private
+  public :: test_max_wind, test_base_and_top, test_uneven_jet,            &
+            test_tie_goes_higher, test_walk_stops, test_slow_core,         &
+            test_no_level_in_window, test_top_edge, test_base_edge,        &
+            test_unrequested_outputs, test_unrequested_base_top
+
+  integer(i_def), parameter :: nlayers = 11_i_def
+  integer(i_def), parameter :: ndf_w3 = 1_i_def
+  integer(i_def), parameter :: undf_w3 = nlayers
+  integer(i_def), parameter :: ndf_2d = 1_i_def
+  integer(i_def), parameter :: undf_2d = 1_i_def
+
+  real(r_def), parameter :: p_zero = 100000.0_r_def
+  real(r_def), parameter :: recip_kappa = 1.0_r_def / 0.2857_r_def
+  real(r_def), parameter :: tol = 1.0e-6_r_def
+
+  ! Pressure on each layer (Pa). The first guess can be on layers 5 to 8.
+  real(r_def), parameter :: p_layers(nlayers) = [                          &
+       100000.0_r_def, 95000.0_r_def, 85000.0_r_def, 65000.0_r_def,        &
+       50000.0_r_def, 40000.0_r_def, 30000.0_r_def, 20000.0_r_def,         &
+       12000.0_r_def, 7000.0_r_def, 3000.0_r_def ]
+
+contains
+
+  !> @brief Winds of a jet centred on a pressure.
+  !> @param[in]  p_col     Pressure on each layer (Pa)
+  !> @param[in]  p_centre  Pressure of the jet core (Pa)
+  !> @param[in]  spread    Speed falls by dp**2 / spread m s-1 at dp Pa
+  !>                       from the core
+  !> @param[in]  scale     Factor applied to the speed
+  !> @param[out] u         Eastward wind on each layer (m s-1)
+  !> @param[out] v         Northward wind on each layer (m s-1)
+  subroutine jet_winds( p_col, p_centre, spread, scale, u, v )
+
+    implicit none
+
+    real(r_def), intent(in)  :: p_col(nlayers), p_centre, spread, scale
+    real(r_def), intent(out) :: u(nlayers), v(nlayers)
+
+    real(r_def) :: speed(nlayers)
+
+    speed = scale * ( 60.0_r_def - ( p_col - p_centre )**2 / spread )
+    u = 0.6_r_def * speed
+    v = 0.8_r_def * speed
+
+  end subroutine jet_winds
+
+  !> @brief Run the kernel on one column with every output requested.
+  !> @param[in]  p_col   Pressure on each layer (Pa)
+  !> @param[in]  u       Eastward wind on each layer (m s-1)
+  !> @param[in]  v       Northward wind on each layer (m s-1)
+  !> @param[out] result  u, v and pressure of the maximum, and base and
+  !>                     top pressures
+  subroutine run_kernel( p_col, u, v, result )
+
+    use max_wind_diags_kernel_mod, only: max_wind_diags_code
+
+    implicit none
+
+    real(r_def), intent(in)  :: p_col(nlayers), u(nlayers), v(nlayers)
+    real(r_def), intent(out) :: result(5)
+
+    real(r_def), pointer :: max_u(:), max_v(:), max_p(:)
+    real(r_def), pointer :: base_p(:), top_p(:)
+    real(r_def) :: exner(undf_w3)
+    integer(i_def) :: map_w3(ndf_w3), map_2d(ndf_2d)
+
+    allocate( max_u(undf_2d), max_v(undf_2d), max_p(undf_2d),            &
+              base_p(undf_2d), top_p(undf_2d) )
+    exner = ( p_col / p_zero )**( 1.0_r_def / recip_kappa )
+    map_w3 = 1_i_def
+    map_2d = 1_i_def
+
+    call max_wind_diags_code( nlayers, u, max_u, max_v, max_p, base_p,   &
+                              top_p, v, exner, p_zero, recip_kappa,      &
+                              ndf_w3, undf_w3, map_w3,                   &
+                              ndf_2d, undf_2d, map_2d )
+
+    result = [ max_u(1), max_v(1), max_p(1), base_p(1), top_p(1) ]
+    deallocate( max_u, max_v, max_p, base_p, top_p )
+
+  end subroutine run_kernel
+
+  !> @brief The maximum lies between layers 7 and 8, on a spline step.
+  @test
+  subroutine test_max_wind()
+
+    implicit none
+
+    real(r_def) :: u(nlayers), v(nlayers), result(5)
+
+    call jet_winds( p_layers, 27500.0_r_def, 1.0e7_r_def,   &
+                    1.0_r_def, u, v )
+    call run_kernel( p_layers, u, v, result )
+
+    @assertEqual( 36.0_r_def, result(1), tol )
+    @assertEqual( 48.0_r_def, result(2), tol )
+    @assertEqual( 27500.0_r_def, result(3), tol )
+
+  end subroutine test_max_wind
+
+  !> @brief The speed falls to 80 knots at 41227 Pa below the core and
+  !>        13773 Pa above it; the nearest spline steps are at 41250 Pa
+  !>        and 14000 Pa.
+  @test
+  subroutine test_base_and_top()
+
+    implicit none
+
+    real(r_def) :: u(nlayers), v(nlayers), result(5)
+
+    call jet_winds( p_layers, 27500.0_r_def, 1.0e7_r_def,   &
+                    1.0_r_def, u, v )
+    call run_kernel( p_layers, u, v, result )
+
+    @assertEqual( 41250.0_r_def, result(4), tol )
+    @assertEqual( 14000.0_r_def, result(5), tol )
+
+  end subroutine test_base_and_top
+
+  !> @brief A jet that is not a polynomial, so the result depends on which
+  !>        spline interval each step uses. The expected values come from
+  !>        a separate implementation of the method.
+  @test
+  subroutine test_uneven_jet()
+
+    implicit none
+
+    real(r_def), parameter :: speed(nlayers) = [                          &
+         10.0_r_def, 10.0_r_def, 10.0_r_def, 20.0_r_def, 30.0_r_def,      &
+         45.0_r_def, 60.0_r_def, 50.0_r_def, 20.0_r_def, 10.0_r_def,      &
+         10.0_r_def ]
+    real(r_def) :: result(5)
+
+    call run_kernel( p_layers, 0.6_r_def * speed, 0.8_r_def * speed,     &
+                     result )
+
+    @assertEqual( 36.25055337654205_r_def, result(1), tol )
+    @assertEqual( 48.33407116872274_r_def, result(2), tol )
+    @assertEqual( 28125.0_r_def, result(3), tol )
+    @assertEqual( 42500.0_r_def, result(4), tol )
+    @assertEqual( 17500.0_r_def, result(5), tol )
+
+  end subroutine test_uneven_jet
+
+  !> @brief Layers 6 and 7 are equally fast; the first guess is the higher
+  !>        one. The expected values come from a separate implementation
+  !>        of the method; starting from layer 6 gives u = 38.59 m s-1.
+  @test
+  subroutine test_tie_goes_higher()
+
+    implicit none
+
+    real(r_def), parameter :: speed(nlayers) = [                          &
+         10.0_r_def, 10.0_r_def, 10.0_r_def, 20.0_r_def, 30.0_r_def,      &
+         60.0_r_def, 60.0_r_def, 30.0_r_def, 20.0_r_def, 10.0_r_def,      &
+         10.0_r_def ]
+    real(r_def) :: result(5)
+
+    call run_kernel( p_layers, 0.6_r_def * speed, 0.8_r_def * speed,     &
+                     result )
+
+    @assertEqual( 38.69483824063977_r_def, result(1), tol )
+    @assertEqual( 35000.0_r_def, result(3), tol )
+
+  end subroutine test_tie_goes_higher
+
+  !> @brief The walk down stops at layer 5, the first slower than 80 knots,
+  !>        so layer 3 is not used even though its speed is nearer 80 knots.
+  @test
+  subroutine test_walk_stops()
+
+    use science_conversions_mod, only: knots_to_metre_per_second
+
+    implicit none
+
+    real(r_def) :: u(nlayers), v(nlayers), result(5), speed
+
+    call jet_winds( p_layers, 27500.0_r_def, 1.0e7_r_def,   &
+                    1.0_r_def, u, v )
+    speed = 80.0_r_def * knots_to_metre_per_second + 0.01_r_def
+    u(3) = 0.6_r_def * speed
+    v(3) = 0.8_r_def * speed
+    call run_kernel( p_layers, u, v, result )
+
+    @assertEqual( 41250.0_r_def, result(4), tol )
+
+  end subroutine test_walk_stops
+
+  !> @brief A core slower than 80 knots has no base or top.
+  @test
+  subroutine test_slow_core()
+
+    implicit none
+
+    real(r_def) :: u(nlayers), v(nlayers), result(5)
+
+    call jet_winds( p_layers, 27500.0_r_def, 1.0e7_r_def,   &
+                    0.5_r_def, u, v )
+    call run_kernel( p_layers, u, v, result )
+
+    @assertEqual( 18.0_r_def, result(1), tol )
+    @assertEqual( 24.0_r_def, result(2), tol )
+    @assertEqual( 27500.0_r_def, result(3), tol )
+    @assertEqual( rmdi, result(4) )
+    @assertEqual( rmdi, result(5) )
+
+  end subroutine test_slow_core
+
+  !> @brief Every output is missing when no layer has its neighbours in the
+  !>        100 to 700 hPa window.
+  @test
+  subroutine test_no_level_in_window()
+
+    implicit none
+
+    real(r_def) :: p_col(nlayers), u(nlayers), v(nlayers), result(5)
+    integer(i_def) :: k
+
+    do k = 1, nlayers
+      p_col(k) = 100000.0_r_def - 2000.0_r_def * real( k - 1, r_def )
+    end do
+    call jet_winds( p_col, 90000.0_r_def, 1.0e7_r_def,      &
+                    1.0_r_def, u, v )
+    call run_kernel( p_col, u, v, result )
+
+    @assertEqual( rmdi, result(1) )
+    @assertEqual( rmdi, result(2) )
+    @assertEqual( rmdi, result(3) )
+    @assertEqual( rmdi, result(4) )
+    @assertEqual( rmdi, result(5) )
+
+  end subroutine test_no_level_in_window
+
+  !> @brief The core is above the highest layer the top walk may visit, so
+  !>        the top is missing.
+  @test
+  subroutine test_top_edge()
+
+    implicit none
+
+    real(r_def), parameter :: p_col(nlayers) = [                          &
+         100000.0_r_def, 95000.0_r_def, 85000.0_r_def, 65000.0_r_def,     &
+         50000.0_r_def, 40000.0_r_def, 30000.0_r_def, 25000.0_r_def,      &
+         20000.0_r_def, 15000.0_r_def, 12000.0_r_def ]
+    real(r_def) :: u(nlayers), v(nlayers), result(5)
+
+    call jet_winds( p_col, 17500.0_r_def, 1.0e7_r_def,      &
+                    1.0_r_def, u, v )
+    call run_kernel( p_col, u, v, result )
+
+    @assertEqual( 17500.0_r_def, result(3), tol )
+    @assertEqual( rmdi, result(5) )
+
+  end subroutine test_top_edge
+
+  !> @brief The core is below the lowest layer the base walk may visit, so
+  !>        the base is missing.
+  @test
+  subroutine test_base_edge()
+
+    implicit none
+
+    real(r_def), parameter :: p_col(nlayers) = [                          &
+         80000.0_r_def, 60000.0_r_def, 50000.0_r_def, 40000.0_r_def,      &
+         30000.0_r_def, 20000.0_r_def, 15000.0_r_def, 12000.0_r_def,      &
+         10000.0_r_def, 7000.0_r_def, 3000.0_r_def ]
+    real(r_def) :: u(nlayers), v(nlayers), result(5)
+
+    call jet_winds( p_col, 55000.0_r_def, 1.0e8_r_def, 1.0_r_def, u, v )
+    call run_kernel( p_col, u, v, result )
+
+    @assertEqual( 55000.0_r_def, result(3), tol )
+    @assertEqual( rmdi, result(4) )
+
+  end subroutine test_base_edge
+
+  !> @brief Unrequested outputs are left alone; the base and top are still
+  !>        found without the maximum wind outputs.
+  @test
+  subroutine test_unrequested_outputs()
+
+    use empty_data_mod,            only: empty_real_data
+    use max_wind_diags_kernel_mod, only: max_wind_diags_code
+
+    implicit none
+
+    real(r_def), pointer :: max_u(:), max_v(:), max_p(:)
+    real(r_def), pointer :: base_p(:), top_p(:)
+    real(r_def) :: u(nlayers), v(nlayers), exner(undf_w3)
+    real(r_def) :: empty_before
+    integer(i_def) :: map_w3(ndf_w3), map_2d(ndf_2d)
+
+    call jet_winds( p_layers, 27500.0_r_def, 1.0e7_r_def,   &
+                    1.0_r_def, u, v )
+    exner = ( p_layers / p_zero )**( 1.0_r_def / recip_kappa )
+    map_w3 = 1_i_def
+    map_2d = 1_i_def
+
+    max_u => empty_real_data
+    max_v => empty_real_data
+    max_p => empty_real_data
+    allocate( base_p(undf_2d), top_p(undf_2d) )
+    empty_before = empty_real_data(1)
+
+    call max_wind_diags_code( nlayers, u, max_u, max_v, max_p, base_p,   &
+                              top_p, v, exner, p_zero, recip_kappa,      &
+                              ndf_w3, undf_w3, map_w3,                   &
+                              ndf_2d, undf_2d, map_2d )
+
+    @assertEqual( empty_before, empty_real_data(1) )
+    @assertEqual( 41250.0_r_def, base_p(1), tol )
+    @assertEqual( 14000.0_r_def, top_p(1), tol )
+    deallocate( base_p, top_p )
+
+  end subroutine test_unrequested_outputs
+
+  !> @brief Without the base and top, the maximum wind is still written
+  !>        and the empty outputs are left alone.
+  @test
+  subroutine test_unrequested_base_top()
+
+    use empty_data_mod,            only: empty_real_data
+    use max_wind_diags_kernel_mod, only: max_wind_diags_code
+
+    implicit none
+
+    real(r_def), pointer :: max_u(:), max_v(:), max_p(:)
+    real(r_def), pointer :: base_p(:), top_p(:)
+    real(r_def) :: u(nlayers), v(nlayers), exner(undf_w3)
+    real(r_def) :: empty_before
+    integer(i_def) :: map_w3(ndf_w3), map_2d(ndf_2d)
+
+    call jet_winds( p_layers, 27500.0_r_def, 1.0e7_r_def, 1.0_r_def,      &
+                    u, v )
+    exner = ( p_layers / p_zero )**( 1.0_r_def / recip_kappa )
+    map_w3 = 1_i_def
+    map_2d = 1_i_def
+
+    allocate( max_u(undf_2d), max_v(undf_2d), max_p(undf_2d) )
+    base_p => empty_real_data
+    top_p => empty_real_data
+    empty_before = empty_real_data(1)
+
+    call max_wind_diags_code( nlayers, u, max_u, max_v, max_p, base_p,   &
+                              top_p, v, exner, p_zero, recip_kappa,      &
+                              ndf_w3, undf_w3, map_w3,                   &
+                              ndf_2d, undf_2d, map_2d )
+
+    @assertEqual( empty_before, empty_real_data(1) )
+    @assertEqual( 36.0_r_def, max_u(1), tol )
+    @assertEqual( 48.0_r_def, max_v(1), tol )
+    @assertEqual( 27500.0_r_def, max_p(1), tol )
+    deallocate( max_u, max_v, max_p )
+
+  end subroutine test_unrequested_base_top
+
+end module max_wind_diags_kernel_mod_test
