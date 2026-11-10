@@ -40,8 +40,7 @@ use lfricinp_um_level_codes_mod,       only: lfricinp_get_num_levels,          &
 ! lfric modules
 use field_mod,  only: field_type
 use log_mod,    only: log_event, log_scratch_space,   &
-                      LOG_LEVEL_INFO, LOG_LEVEL_ERROR,&
-                      log_level_warning
+                      LOG_LEVEL_INFO, LOG_LEVEL_ERROR
 
 implicit none
 
