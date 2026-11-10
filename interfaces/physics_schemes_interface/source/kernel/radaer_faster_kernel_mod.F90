@@ -1481,7 +1481,8 @@ subroutine radaer_faster_code( nlayers,                                        &
                 ii = jj + i - 1
                 ukca_modal_vol(i, k, m) = ukca_modal_vol(i, k, m) +            &
                                real( pvol_om_cor_sol( map_wth(1,ii) + k ), r_um)
-
+              end do
+            end do
 
           case( 'pvol_ss_cor_sol' )
             do i = 1, seg_size
