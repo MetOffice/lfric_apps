@@ -7,7 +7,7 @@
 !>        routine for field creation.
 module lfric2lfric_field_init_mod
 
-  use constants_mod,                      only: i_def, str_def
+  use constants_mod,                      only: i_def, str_def, l_def
   use field_collection_mod,               only: field_collection_type
   use field_mod,                          only: field_type
   use field_parent_mod,                   only: read_interface,            &
@@ -153,14 +153,26 @@ contains
     procedure(checkpoint_write_interface), pointer :: cp_write_behaviour
     procedure(checkpoint_read_interface),  pointer :: cp_read_behaviour
 
+    ! Exclusion list
+    integer(i_def), parameter :: n_excluded = 1
+    logical(l_def) :: excluded
+    character(str_def), dimension(n_excluded) :: list_excluded
+    
     ! Set write behaviour to generic
     write_behaviour    => write_field_generic
     read_behaviour     => read_field_generic
     cp_read_behaviour  => checkpoint_read_xios
     cp_write_behaviour => checkpoint_write_xios
 
-    if (trim(field_name) /= 'random_seed') then
-    if ( .NOT. field_collection%field_exists(field_name) ) then
+    ! Define a list of fields that should NOT be added to the field collection
+    ! e.g. random seed is an integer and not a full field, so it can be part of
+    ! the iodef file output list, but not a field in the field collection. Then
+    ! test to see if the current field is in the current list.
+
+    list_excluded = [character(len=str_def) :: "random_seed"]
+    excluded = any(list_excluded == trim(field_name))
+    
+    if ( .NOT. field_collection%field_exists(field_name) .and. .NOT. excluded ) then
       ! Get function space from metadata
       vector_space => space_from_metadata(trim(prefix)//trim(field_name), &
                                           mesh_3d=mesh,                   &
@@ -183,8 +195,7 @@ contains
 
       ! Add to field_colleciton
       call field_collection%add_field(field)
-   endif
-   end if
+    end if
 
   end subroutine field_maker
 

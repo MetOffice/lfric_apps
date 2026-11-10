@@ -30,8 +30,6 @@ module lfric2lfric_oasis_regrid_mod
                                 level_insert_kernel_type
   use sci_level_extract_kernel_mod, only:                           &
                                 level_extract_kernel_type
-
-  use lfric_xios_diag_mod,  only: get_field_axis_ref
   
   implicit none
 
@@ -93,9 +91,8 @@ contains
     type(field_collection_type), pointer   :: cpl_snd_2d => null()
     type(field_collection_type), pointer   :: cpl_rcv_2d => null()
     integer(i_def), pointer                :: local_index(:)
-    character(len=str_def)                 :: coupling_src_name, coupling_dst_name, field_name
     character(len=str_def)                 :: coupling_field_src_name, coupling_field_dst_name
-    character(len=str_def)                 :: k_string, format_string
+    character(len=str_def)                 :: field_name, k_string, format_string
     logical(l_def)                         :: is_running
 #endif
 
@@ -104,7 +101,6 @@ contains
 #ifdef MCT
 
     fs = field_src%which_function_space()
-    mesh_src => field_src%get_mesh()
 
     if (fs == W3 .or. fs == Wtheta) then
 
@@ -117,8 +113,7 @@ contains
       ndf = vector_space%get_ndf()
       nlayers = nlayers + ndf - 1
 
-      coupling_src_name = "coupling"
-      coupling_dst_name = "coupling_dst"
+      mesh_src => field_src%get_mesh()
 
       do l = 0, nlayers - 1
         do k = 0, ndata - 1
@@ -146,7 +141,7 @@ contains
             coupling_field_dst_name = 'dst_' // trim(field_name) // '_level_' // trim(k_string)
           end if
          
-          !Get the 2D fields where to store layer and field level data
+          ! Get the 2D fields where to store layer and field level data
           cpl_snd_2d => modeldb%fields%get_field_collection( "cpl_snd_2d")
           call cpl_snd_2d%get_field(TRIM(coupling_field_src_name), src_field)
 
@@ -154,13 +149,13 @@ contains
           call cpl_rcv_2d%get_field(TRIM(coupling_field_dst_name), dst_field)
 
           ! Extract one level k of multidata
-          call invoke(name = "extract_multigrid_layer",             &
+          call invoke(name = "extract_layer",                       &
                               level_extract_kernel_type(src_field,  &
                                                  field_src, l, k))
 
           ! send the layer via OASIS
           ! Extract the version that was actually placed in the collection
-          coupling_ptr => get_coupling_from_collection(modeldb%values, TRIM(coupling_src_name) )
+          coupling_ptr => get_coupling_from_collection(modeldb%values, "coupling" )
           local_index => coupling_ptr%get_local_index()
           call coupler_exchange_2d%initialise(src_field, local_index)
           call coupler_exchange_2d%set_time(clock)
@@ -169,7 +164,7 @@ contains
 
           ! receive the layer via OASIS
           ! Extract the version that was actually placed in the collection
-          coupling_ptr => get_coupling_from_collection(modeldb%values, TRIM(coupling_dst_name) )
+          coupling_ptr => get_coupling_from_collection(modeldb%values, "coupling_dst" )
           local_index => coupling_ptr%get_local_index()
           call coupler_exchange_2d%initialise(dst_field, local_index)
           call coupler_exchange_2d%set_time(clock)
@@ -177,7 +172,7 @@ contains
           call coupler_exchange_2d%clear()
 
           ! write the received layer information in the destination field
-          call invoke(name = "insert_multigrid_layer",             &
+          call invoke(name = "insert_layer",                       &
                               level_insert_kernel_type(field_dst,  &
                               dst_field, l, k))
 
