@@ -265,7 +265,13 @@ contains
     integer(kind=i_def),        parameter :: MINUS_FAR_AWAY = -FAR_AWAY
     integer(tik)                          :: id
 
+    integer(kind=i_def) :: geometry
+    integer(kind=i_def) :: topology
+
     if ( LPROF ) call start_timing( id, 'runtime_constants.transport' )
+
+    geometry = mesh%geometry()
+    topology = mesh%topology()
 
     ! Initialise inventories if they haven't already been
     if (.not. panel_edge_dist_inventory%is_initialised()) then
