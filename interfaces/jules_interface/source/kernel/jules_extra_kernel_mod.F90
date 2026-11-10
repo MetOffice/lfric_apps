@@ -300,7 +300,7 @@ contains
                                         l_water_industry, l_water_irrigation,  &
                                         l_water_livestock, l_water_resources,  &
                                         l_water_transfers, n_sw_source,        &
-                                        nwater_use
+                                        nwater_use, sw_river_source
     use jules_water_tracers_mod,  only: l_wtrac_jls, n_wtrac_jls, n_evap_srce
 
     use crop_vars_mod,            only: crop_vars_type, crop_vars_data_type,   &
@@ -351,7 +351,8 @@ contains
                                         fluxes_nullify, fluxes_dealloc
     use jules_rivers_mod,         only: rivers_type, rivers_data_type,         &
                                         rivers_assoc, jules_rivers_alloc,      &
-                                        rivers_nullify, rivers_dealloc
+                                        rivers_nullify, rivers_dealloc,        &
+                                        l_minor_reservoirs
     use cable_fields_mod,         only: work_vars_cbl
     use jules_chemvars_mod,       only: chemvars_type, chemvars_data_type,     &
                                         chemvars_alloc, chemvars_assoc,        &
@@ -556,12 +557,18 @@ contains
     ! Variables for dry deposition
     type(chemvars_type) :: chemvars
     type(chemvars_data_type) :: chemvars_data
+    integer(i_um) :: ndry_dep_species  ! Dummy variable for now
+
     type(water_resources_type) :: water_resources
     type(water_resources_data_type) :: water_resources_data
+    ! Water resources is not currently available.
+    ! Set sensible default values for arguments.
+    integer(i_um), parameter :: global_land_pts = 1
+    logical, parameter :: l_is_master_task = .FALSE.
+
     type(jls_wtrac_type)       :: wtrac_jls
     type(jls_wtrac_data_type)  :: wtrac_jls_data
     type( coastal_type ) :: coast
-    integer(i_um) :: ndry_dep_species  ! Dummy variable for now
 
     !-----------------------------------------------------------------------
     ! Initialisation of JULES data and pointer types
@@ -671,8 +678,10 @@ contains
                         l_deposition, ndry_dep_species, chemvars_data)
     call chemvars_assoc(chemvars, chemvars_data)
 
-    call water_resources_alloc(land_pts, n_sw_source, nwater_use,             &
+    call water_resources_alloc(global_land_pts, land_pts, n_sw_source,        &
+                               nwater_use, sw_river_source,                   &
                                l_have_groundwater, l_have_surface_water,      &
+                               l_is_master_task, l_minor_reservoirs,          &
                                l_water_domestic, l_water_industry,            &
                                l_water_irrigation, l_water_livestock,         &
                                l_water_resources, l_water_transfers,          &
@@ -1019,7 +1028,7 @@ contains
     do n = 1, nsurft
       do j = 1, nsmax
         do l = 1, land_pts
-          i_snow = nsmax*(n-1) + j - 1 
+          i_snow = nsmax*(n-1) + j - 1
           ! Thickness of snow layers
           snow_layer_thickness(map_snow(1,ainfo%land_index(l))+i_snow) = real(progs%ds_surft(l,n,j), r_def)
           ! Mass of ice in snow layers

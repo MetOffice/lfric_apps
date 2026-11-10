@@ -1,0 +1,86 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+! Some of the content of this file has been produced with the assistance of
+! Met Office GitHub Copilot Enterprise.
+!-----------------------------------------------------------------------------
+
+!> Test analytic-elimination Q32 contribution kernel
+module apply_analytic_q32_rhs_kernel_mod_test
+
+  use constants_mod, only : i_def, r_solver
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+contains
+
+  @test( )
+  subroutine test_all( )
+
+    use apply_analytic_q32_rhs_kernel_mod, only : apply_analytic_q32_rhs_code
+
+    implicit none
+
+    real(kind=r_solver), parameter :: tol = 1.0e-12_r_solver
+
+    integer(kind=i_def), parameter :: nlayers = 1_i_def
+    integer(kind=i_def), parameter :: cell = 1_i_def
+    integer(kind=i_def), parameter :: ncell = 1_i_def
+
+    integer(kind=i_def), parameter :: ndf_w3 = 2_i_def
+    integer(kind=i_def), parameter :: ndf_w2 = 3_i_def
+    integer(kind=i_def), parameter :: undf_w3 = ndf_w3*nlayers
+    integer(kind=i_def), parameter :: undf_w2 = ndf_w2*nlayers
+
+    integer(kind=i_def), dimension(ndf_w3) :: map_w3
+    integer(kind=i_def), dimension(ndf_w2) :: map_w2
+
+    real(kind=r_solver), dimension(undf_w3) :: rhs
+    real(kind=r_solver), dimension(undf_w2) :: rhs_u
+
+    real(kind=r_solver), dimension(ncell, ndf_w3, ndf_w2) :: q32_rho
+    real(kind=r_solver), dimension(ncell, ndf_w3, ndf_w2) :: q32_theta
+
+    real(kind=r_solver), parameter :: const_r = 2.0_r_solver
+    real(kind=r_solver), parameter :: const_t = 5.0_r_solver
+
+    integer(kind=i_def) :: df
+    real(kind=r_solver) :: answer
+
+    map_w3 = (/ 1_i_def, 2_i_def /)
+    map_w2 = (/ 1_i_def, 2_i_def, 3_i_def /)
+
+    rhs_u = (/ 0.2_r_solver, -0.7_r_solver, 1.4_r_solver /)
+
+    q32_rho(1,1,:) = (/ 1.0_r_solver, 0.5_r_solver, -2.0_r_solver /)
+    q32_rho(1,2,:) = (/ -1.5_r_solver, 2.0_r_solver, 0.1_r_solver /)
+
+    q32_theta(1,1,:) = (/ 0.4_r_solver, -0.2_r_solver, 1.0_r_solver /)
+    q32_theta(1,2,:) = (/ 3.0_r_solver, 0.0_r_solver, -0.5_r_solver /)
+
+    rhs = 0.0_r_solver
+
+    call apply_analytic_q32_rhs_code(cell,                    &
+                                     nlayers,                 &
+                                     rhs,                     &
+                                     rhs_u,                   &
+                                     ncell, q32_rho,          &
+                                     ncell, q32_theta,        &
+                                     const_r, const_t,        &
+                                     ndf_w3, undf_w3, map_w3, &
+                                     ndf_w2, undf_w2, map_w2)
+
+    do df = 1, ndf_w3
+          answer = const_r*sum(q32_rho(1,df,:)*rhs_u(:))         &
+            + const_t*sum(q32_theta(1,df,:)*rhs_u(:))
+      @assertEqual(answer, rhs(df), tol)
+    end do
+
+  end subroutine test_all
+
+end module apply_analytic_q32_rhs_kernel_mod_test

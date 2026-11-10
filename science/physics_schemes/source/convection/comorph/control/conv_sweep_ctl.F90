@@ -47,7 +47,7 @@ subroutine conv_sweep_ctl( n_fields_tot,                                       &
                            l_tracer, l_down, l_fallback,                       &
                            l_output_fallback,                                  &
                            grid, layer_mass, turb,                             &
-                           fields, virt_temp,                                  &
+                           fields, virt_temp, virt_temp_half,                  &
                            par_gen, res_source, fields_2d,                     &
                            draft_diags, draft_diags_super,                     &
                            fallback_par_gen )
@@ -159,6 +159,9 @@ type(fields_type), intent(in) :: fields
 ! Full 3-D array of environment virtual temperature on full-levels
 real(kind=real_hmprec), intent(in) :: virt_temp                                &
        ( nx_full, ny_full, k_bot_conv:k_top_conv )
+! Latest virtual temperature interpolated to half-levels
+real(kind=real_hmprec), intent(in) :: virt_temp_half                           &
+       ( nx_full, ny_full, k_bot_conv:k_top_conv+1 )
 
 ! Array of input structures containing the initiating parcel
 ! properties on each level for the current draft.
@@ -609,14 +612,8 @@ do k = k_first, k_last, dk
       delta_tv(ij) = zero
     end do
 
-    ! TEMPORARILY COMMENTED-OUT TO PRESERVE KGO:
-    ! When in the last model-level we can't really have any compensating
-    ! subsidence to treat implicitly (since there is no next level to subside).
-    ! For now, keep calculation of delta_tv from subsidence during the
-    ! last level but remove this soon...
-    !IF ( .NOT. l_last_level ) THEN
-    if ( .true. ) then
-       ! Calculation needs data from k+1; leave as zero at last level
+    if ( .not. l_last_level ) then
+      ! Calculation needs data from k+1; leave as zero at last level
 
       ! Find points where mass-flux is non-zero
       cmpr_tmp%n_points = 0
@@ -632,7 +629,7 @@ do k = k_first, k_last, dk
       ! Pre-estimate subsidence virtual temperature increment per unit
       ! mass-flux, used for the implicit detrainment
       if ( cmpr_tmp%n_points > 0 ) then
-        call calc_delta_tv( .false., l_last_level,                             &
+        call calc_delta_tv( .false.,                                           &
                             cmpr_tmp, k, k_next, dk, ij_first, ij_last,        &
                             virt_temp, layer_mass, grid, fields,               &
                             delta_tv )
@@ -718,10 +715,11 @@ do k = k_first, k_last, dk
           ! Compress environment fields onto convecting points
           call conv_sweep_compress(                                            &
                  k, k_next, dk, max_points, ij_first, ij_last, n_fields_tot,   &
-                 l_to_full_level, l_last_level,                                &
+                 l_to_full_level,                                              &
                  par_conv(i_type,i_layr) % cmpr,                               &
                  grid, turb, fields,                                           &
-                 virt_temp, layer_mass, sum_massflux, delta_tv,                &
+                 virt_temp, virt_temp_half,                                    &
+                 layer_mass, sum_massflux, delta_tv,                           &
                  l_within_bl, grid_k_super, grid_prev_super,                   &
                  env_k_fields, env_k_super, env_prev_super,                    &
                  layer_mass_step, frac_level_step,                             &
@@ -947,13 +945,7 @@ do k = k_first, k_last, dk
     call calc_sum_massflux( n_conv_types, n_conv_layers, ij_first, ij_last,    &
                             par_conv, sum_massflux )
 
-    ! TEMPORARILY COMMENTED-OUT TO PRESERVE KGO:
-    ! When in the last model-level we can't really have any compensating
-    ! subsidence to treat implicitly (since there is no next level to subside).
-    ! For now, keep calculation of delta_tv from subsidence during the
-    ! last level but remove this soon...
-    !IF ( .NOT. l_last_level ) THEN
-    if ( .true. ) then
+    if ( .not. l_last_level ) then
       ! Calculation needs data from k+1; leave as zero at last level
 
       ! Find points where mass-flux is non-zero
@@ -970,7 +962,7 @@ do k = k_first, k_last, dk
       ! Pre-estimate subsidence virtual temperature increment per unit
       ! mass-flux, used for the implicit detrainment
       if ( cmpr_tmp%n_points > 0 ) then
-        call calc_delta_tv( .true., l_last_level,                              &
+        call calc_delta_tv( .true.,                                            &
                             cmpr_tmp, k, k_next, dk, ij_first, ij_last,        &
                             virt_temp, layer_mass, grid, fields,               &
                             delta_tv )
@@ -989,10 +981,11 @@ do k = k_first, k_last, dk
           ! Compress environment fields onto convecting points
           call conv_sweep_compress(                                            &
                  k, k_next, dk, max_points, ij_first, ij_last, n_fields_tot,   &
-                 l_to_full_level, l_last_level,                                &
+                 l_to_full_level,                                              &
                  par_conv(i_type,i_layr) % cmpr,                               &
                  grid, turb, fields,                                           &
-                 virt_temp, layer_mass, sum_massflux, delta_tv,                &
+                 virt_temp, virt_temp_half,                                    &
+                 layer_mass, sum_massflux, delta_tv,                           &
                  l_within_bl, grid_k_super, grid_next_super,                   &
                  env_k_fields, env_k_super, env_next_super,                    &
                  layer_mass_step, frac_level_step,                             &
@@ -1085,7 +1078,7 @@ do k = k_first, k_last, dk
           if ( l_homog_conv_bl ) then
             ! Save parcel properties at the first layer interface
             ! beyond the boundary-layer top
-            call save_parcel_bl_top( n_fields_tot, k, dk,                      &
+            call save_parcel_bl_top( n_fields_tot, k,                          &
                                      grid, turb,                               &
                                      par_conv(i_type,i_layr),                  &
                                      par_bl_top(i_type,i_layr,k) )

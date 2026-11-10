@@ -16,6 +16,7 @@ use argument_mod,      only: arg_type, GH_FIELD, GH_SCALAR, GH_INTEGER,        &
                              ANY_DISCONTINUOUS_SPACE_5,                        &
                              ANY_DISCONTINUOUS_SPACE_6,                        &
                              ANY_DISCONTINUOUS_SPACE_7,                        &
+                             ANY_DISCONTINUOUS_SPACE_8,                        &
                              DOMAIN
 
 use fs_continuity_mod, only: WTHETA, W3
@@ -31,7 +32,7 @@ implicit none
 
 type, public, extends(kernel_type) :: aerosol_ukca_kernel_type
   private
-  type(arg_type) :: meta_args(280) = (/                     &
+  type(arg_type) :: meta_args(282) = (/                     &
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! o3p
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! o1d
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! o3
@@ -178,6 +179,8 @@ type, public, extends(kernel_type) :: aerosol_ukca_kernel_type
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! pvol_om_ait_ins
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! pvol_du_acc_ins
        arg_type( GH_FIELD, GH_REAL, GH_READWRITE, WTHETA ), & ! pvol_du_cor_ins
+       arg_type( GH_FIELD, GH_REAL, GH_READWRITE, ANY_DISCONTINUOUS_SPACE_8 ), & ! diagnostics_fullht_real
+       arg_type( GH_SCALAR, GH_INTEGER, GH_READ ),          & ! n_req_ukca_diags_3d
        arg_type( GH_SCALAR, GH_INTEGER, GH_READ ),          & ! timestep_number
        arg_type( GH_SCALAR, GH_INTEGER, GH_READ ),          & ! current_time_year
        arg_type( GH_SCALAR, GH_INTEGER, GH_READ ),          & ! current_time_month
@@ -482,6 +485,8 @@ contains
 !> @param[in,out] pvol_om_ait_ins     Partial vol. of organic matter in aitken insoluble mode (m3)
 !> @param[in,out] pvol_du_acc_ins     Partial vol. of dust in accum insoluble mode (m3)
 !> @param[in,out] pvol_du_cor_ins     Partial vol. of dust in coarse insoluble mode (m3)
+!> @param[in,out] diagnostics_fullht_real  Super array for 3-D diagnostics (various)
+!> @param[in]     n_req_ukca_diags_3d  Number of requested 3-D diagnostics
 !> @param[in]     timestep_number     Time step number
 !> @param[in]     current_time_year   Current model year
 !> @param[in]     current_time_month  Current model month
@@ -619,6 +624,9 @@ contains
 !> @param[in]     ndf_wth             Number of DOFs per cell for potential temperature space
 !> @param[in]     undf_wth            Number of unique DOFs for potential temperature space
 !> @param[in]     map_wth             Dofmap for the cell at the base of the column for potential temperature space
+!> @param[in]     ndf_wdiag           Number of DOFs per cell for Diagnostics array (3-D, num_diags)
+!> @param[in]     undf_wdiag          Number of unique DOFs for Diagnostics array
+!> @param[in]     map_wdiag           Dofmap for the cell at the base of the column for Diagnostics array
 !> @param[in]     ndf_w3              Number of DOFs per cell for density space
 !> @param[in]     undf_w3             Number of unique DOFs for density space
 !> @param[in]     map_w3              Dofmap for the cell at the base of the column for density space
@@ -792,6 +800,10 @@ subroutine aerosol_ukca_code( nlayers,                                         &
                               pvol_om_ait_ins,                                 &
                               pvol_du_acc_ins,                                 &
                               pvol_du_cor_ins,                                 &
+                              ! Diagnostics
+                              diagnostics_fullht_real,                         &
+                              n_req_ukca_diags_3d,                             &
+                              ! End diagnostics
                               timestep_number,                                 &
                               current_time_year,                               &
                               current_time_month,                              &
@@ -927,6 +939,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
                               emiss_so2_nat,                                   &
                               photol_rates,                                    &
                               ndf_wth, undf_wth, map_wth,                      &
+                              ndf_wdiag, undf_wdiag, map_wdiag,                &
                               ndf_w3, undf_w3, map_w3,                         &
                               ndf_tile, undf_tile, map_tile,                   &
                               ndf_pft, undf_pft, map_pft,                      &
@@ -1225,7 +1238,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
                               fldname_photol_rates,                            &
                               nlev_ent_tr_mix,                                 &
                               n_phot_spc
-
+  
   use log_mod,              only: log_event, log_scratch_space, LOG_LEVEL_ERROR
   use chemistry_config_mod, only: chem_scheme, chem_scheme_strattrop
 
@@ -1253,7 +1266,11 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   ! UKCA API module
   use ukca_api_mod,         only: ukca_step_control, ukca_maxlen_message, &
-                                  ukca_maxlen_procname
+                                  ukca_maxlen_procname,                   &
+                                  ukca_diag_status_requested,             &
+                                  ukca_diag_status_inactive,              &
+                                  ukca_diagname_rxnflux_oh_ch4_trop,      &
+                                  ukca_diagname_o3_column_du
 
   implicit none
 
@@ -1288,7 +1305,10 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   integer(kind=i_def), intent(in) :: ndf_nphot
   integer(kind=i_def), intent(in) :: undf_nphot
   integer(kind=i_def), dimension(ndf_nphot, seg_len), intent(in) :: map_nphot
-
+  integer(kind=i_def), intent(in) :: ndf_wdiag
+  integer(kind=i_def), intent(in) :: undf_wdiag
+  integer(kind=i_def), dimension(ndf_wdiag, seg_len), intent(in) :: map_wdiag
+  
   real(kind=r_def), intent(in out), dimension(undf_wth) :: o3p
   real(kind=r_def), intent(in out), dimension(undf_wth) :: o1d
   real(kind=r_def), intent(in out), dimension(undf_wth) :: o3
@@ -1435,6 +1455,11 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   real(kind=r_def), intent(in out), dimension(undf_wth) :: pvol_om_ait_ins
   real(kind=r_def), intent(in out), dimension(undf_wth) :: pvol_du_acc_ins
   real(kind=r_def), intent(in out), dimension(undf_wth) :: pvol_du_cor_ins
+
+  ! Diagnostics supper array
+  real(kind=r_def), intent(in out), dimension(undf_wdiag) ::                   &
+                                                       diagnostics_fullht_real
+  integer(kind=i_def), intent(in) :: n_req_ukca_diags_3d  
 
   integer(kind=i_timestep), intent(in) :: timestep_number
   integer(kind=i_def), intent(in) :: current_time_year
@@ -1654,6 +1679,12 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   ! Dimensions: X,Y,Z,JPPJ (Num photolysis species), M
   real(r_um), allocatable :: environ_fullhtphot_real(:,:,:,:,:)
 
+  ! Dimensions : X,Y,Z,N_UKCA_DIAG_3D
+  real(r_um), allocatable :: diag_fullht_real(:,:,:,:)
+  integer(i_um)           :: idiag_status_3d(n_req_ukca_diags_3d)
+                             ! Status of requested diagnostics from UKCA i.e.
+                             ! whether they have been provided or not
+
   ! Working variables
 
   integer(i_um) :: m_fields   ! Number of fields in a group
@@ -1684,7 +1715,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
   real(r_um) :: exner_theta_top ! Exner pressure at top theta level
 
   ! switches to indicate whether derived humidity fields are required by UKCA
-  logical :: l_req_rel_humid 
+  logical :: l_req_rel_humid
   logical :: l_req_rel_humid_clear_sky
   logical :: l_req_svp
   logical :: l_req_p_theta_lev
@@ -2983,7 +3014,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
         end do
       end do
 
-    end if 
+    end if
 
     if (l_req_rel_humid) then
       allocate( rel_humid(seg_len, 1, nlayers) )
@@ -4246,7 +4277,7 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
     m_fields = size(env_names_fullhtphot_real)
     allocate(environ_fullhtphot_real( seg_len, 1, nlayers, n_phot_spc, m_fields ))
-    
+
     do m = 1, m_fields
       if ( env_names_fullhtphot_real(m) == fldname_photol_rates ) then
         ! Photol rates
@@ -4265,12 +4296,16 @@ subroutine aerosol_ukca_code( nlayers,                                         &
         call log_event( log_scratch_space, LOG_LEVEL_ERROR )
       end if
     end do    ! m_fields
-    
+
   else
     ! Allocate to minimal size and initialise
     allocate(environ_fullhtphot_real( 1, 1, 1, 1, 0 ))
 
   end if     ! chem_scheme_strattrop / photol_rates reqd
+
+  ! Diagnostics - ONLY aLLOCATE the super-array, no fields to be passed in
+  allocate(diag_fullht_real( seg_len, 1, nlayers, n_req_ukca_diags_3d ))
+  idiag_status_3d(:) = ukca_diag_status_inactive
 
   ! Clear working fields used in environmental driver setup
   deallocate(z0h_bare_surft)
@@ -4336,7 +4371,9 @@ subroutine aerosol_ukca_code( nlayers,                                         &
                           envgroup_entlev_real=environ_entlev_real,            &
                           emissions_fullht=emissions_fullht,                   &
                           envgroup_fullhtphot_real=environ_fullhtphot_real,    &
-                          ! 5d
+                          ! Diagnostics
+                          diag_data_fullht_real=diag_fullht_real,              &
+                          diag_status_fullht_real=idiag_status_3d,             &
                           !
                           ! Optional in out arguments
                           !
@@ -5781,6 +5818,19 @@ subroutine aerosol_ukca_code( nlayers,                                         &
 
   deallocate( ntp )
   deallocate( tracer )
+
+  ! Extract diagnostic fields from UKCA super array
+  ! Currently only 3-D
+  do m = 1, n_req_ukca_diags_3d
+    if ( idiag_status_3d(m) == ukca_diag_status_inactive ) cycle
+    do i = 1, seg_len
+      do k = 1, nlayers
+        diagnostics_fullht_real( map_wdiag(1, i) + ((m-1)*(nlayers+1)) + k ) = &
+          real( diag_fullht_real( i, 1, k, m ), r_def )
+      end do      
+    end do
+  end do
+ deallocate( diag_fullht_real )
 
 end subroutine aerosol_ukca_code
 

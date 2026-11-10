@@ -53,9 +53,9 @@
       <!-- File definition for lfric checkpoint read -->
       <file id="lfric_checkpoint_read" name="lfric_checkpoint_read" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".FALSE.">
        <field_group id="lfric_checkpoint_read_field_group" >
-	<field id="read_ew_wind" name="ew_wind" long_name="eastward_wind" standard_name="eastward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="instant" />
-	<field id="read_ns_wind" name="ns_wind" long_name="northward_wind" standard_name="northward_wind" unit="m s-1" grid_ref="half_level_face_grid" operation="instant" />
-	<field id="read_upward_wind" name="upward_wind" long_name="upward_air_velocity" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" operation="instant" />
+        <field id="read_u_in_w3" name="u_in_w3" long_name="eastward_wind_at_cell_centres" standard_name="eastward_wind" unit="ms-1" grid_ref="half_level_face_grid" operation="instant" />
+        <field id="read_v_in_w3" name="v_in_w3" long_name="northward_wind_at_cell_centres" standard_name="northward_wind" unit="ms-1" grid_ref="half_level_face_grid" operation="instant" />
+        <field id="read_w_in_wth" name="w_in_wth" long_name="upward_air_velocity_at_cell_interfaces" standard_name="upward_air_velocity" unit="m s-1" grid_ref="full_level_face_grid" operation="instant" />
 	<field id="read_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" grid_ref="full_level_face_grid" operation="instant" />
 	<field id="read_rho" name="rho" long_name="air_density" unit="1" grid_ref="half_level_face_grid" operation="instant" />
 	<field id="read_m_v" name="m_v" long_name="humidity_mixing_ratio"  unit="1" grid_ref="full_level_face_grid" operation="instant" />
@@ -81,7 +81,8 @@
     <variable_definition>
       <variable_group id = "buffer">
         <variable id = "optimal_buffer_size" type = "string" >performance</variable>
-        <variable id = "buffer_size_factor" type = "double" >1.0</variable>
+        <variable id = "buffer_size_factor" type = "double" >$XIOS_BUFFER_SIZE_FACTOR</variable>
+        <variable id = "min_buffer_size" type = "int" >$XIOS_MIN_BUFFER_SIZE</variable>
       </variable_group>
 
       <variable_group id = "parameters" >
