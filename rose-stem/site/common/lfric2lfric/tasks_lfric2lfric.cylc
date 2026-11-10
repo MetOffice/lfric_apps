@@ -3,25 +3,13 @@
 {# The file LICENCE, distributed with this code, contains details of the terms #}
 {# under which the code may be used. #}
 {# ########################################################################### #}
-{% do LOG.debug("Entered site/common/lfric2lfric/tasks_solver.cylc") %}
+{% do LOG.debug("Entered site/common/lfric2lfric/tasks_lfric2lfric.cylc") %}
 
-{% if task_ns.conf_name == "ral_seuk-C32_lam_MG_1cpu" %}
 
-    {% do task_dict.update({
-        "opt_confs": ["ral_seuk"],
-        "resolution": "seuk_MG",
-        "dst_mesh": "",
-        "dst_name": "",
-        "dst_type": "",
-        "src_mesh": "",
-        "src_name": "",
-        "src_type": "",
-    }) %}
-
-{% elif task_ns.conf_name == "ral_seuk-C32_lam_MG_4cpu" %}
+{% if task_ns.conf_name == "map_seuk_fine_to_coarse_ral" %}
 
     {% do task_dict.update({
-        "opt_confs": ["ral_seuk"],
+        "opt_confs": ["src_seuk_L70","dst_seuk-coarse"],
         "resolution": "seuk_MG",
         "dst_mesh": "",
         "dst_name": "",
@@ -30,25 +18,13 @@
         "src_name": "",
         "src_type": "",
         "mpi_parts": 4,
+        "xios_min_buffer_size": 2097152,
     }) %}
 
-{% elif task_ns.conf_name == "oasis_ral_seuk-C32_lam_MG_1cpu" %}
+{% elif task_ns.conf_name == "oasis_seuk_fine_to_coarse_ral" %}
 
     {% do task_dict.update({
-        "opt_confs": ["ral_seuk","oasis"],
-        "resolution": "seuk_MG",
-        "dst_mesh": "seuk_MG",
-        "dst_name": "multigrid_l1",
-        "dst_type": "regional",
-        "src_mesh": "seuk_MG",
-        "src_name": "dynamics",
-        "src_type": "regional",
-    }) %}
-
-{% elif task_ns.conf_name == "oasis_ral_seuk-C32_lam_MG_4cpu" %}
-
-    {% do task_dict.update({
-        "opt_confs": ["ral_seuk","oasis"],
+        "opt_confs": ["oasis","src_seuk_L70","dst_seuk-coarse"],
         "resolution": "seuk_MG",
         "dst_mesh": "seuk_MG",
         "dst_name": "multigrid_l1",
@@ -57,12 +33,13 @@
         "src_name": "dynamics",
         "src_type": "regional",
         "mpi_parts": 4,
+        "xios_min_buffer_size": 2097152,
     }) %}
 
-{% elif task_ns.conf_name == "ral3-seuk" %}
+{% elif task_ns.conf_name == "map_seuk_coarse_to_fine_ral3" %}
 
     {% do task_dict.update({
-        "opt_confs": ["ral3"],
+        "opt_confs": ["ral3","ral3_seuk"],
         "resolution": "ral3_seuk",
         "dst_mesh": "",
         "dst_name": "",
@@ -70,38 +47,27 @@
         "src_mesh": "",
         "src_name": "",
         "src_type": "",
+        "xios_min_buffer_size": 2097152,
     }) %}
 
-{% elif task_ns.conf_name == "ral3-uk" %}
+{% elif task_ns.conf_name == "map_C24_to_C12" %}
 
     {% do task_dict.update({
-        "opt_confs": ["ral3"],
-        "resolution": "ral3_uk",
+        "opt_confs": ["src_C12_L70","dst_C24"],
+        "resolution": "C24_C12",
         "dst_mesh": "",
         "dst_name": "",
         "dst_type": "",
         "src_mesh": "",
         "src_name": "",
         "src_type": "",
+        "mpi_parts": 6,
     }) %}
 
-{% elif task_ns.conf_name == "ral3-ukv" %}
+{% elif task_ns.conf_name == "map_C24_to_C12_1cpu" %}
 
     {% do task_dict.update({
-        "opt_confs": ["ral3"],
-        "resolution": "ral3_ukv",
-        "dst_mesh": "",
-        "dst_name": "",
-        "dst_type": "",
-        "src_mesh": "",
-        "src_name": "",
-        "src_type": "",
-    }) %}
-
-{% elif task_ns.conf_name == "clim_gal9-C24_C12_1cpu" %}
-
-    {% do task_dict.update({
-        "opt_confs": ["clim_gal9"],
+        "opt_confs": ["src_C12_L70","dst_C24"],
         "resolution": "C24_C12",
         "dst_mesh": "",
         "dst_name": "",
@@ -111,36 +77,36 @@
         "src_type": "",
     }) %}
 
-{% elif task_ns.conf_name == "clim_gal9-C24_C12_6cpu" %}
+{% elif task_ns.conf_name == "oasis_C12L70_to_seukL38" %}
 
     {% do task_dict.update({
-        "opt_confs": ["clim_gal9"],
-        "resolution": "C24_C12",
-        "dst_mesh": "",
-        "dst_name": "",
-        "dst_type": "",
-        "src_mesh": "",
-        "src_name": "",
-        "src_type": "",
+        "opt_confs": ["oasis","src_C12_L70","dst_seuk","src_L70_80km","dst_L38_40km"],
+        "resolution": ["C24_C12", "seuk_MG"],
+        "dst_mesh": "seuk_MG",
+        "dst_name": "dynamics",
+        "dst_type": "regional",
+        "src_mesh": "C24_C12",
+        "src_name": "C12",
+        "src_type": "global",
     }) %}
 
-{% elif task_ns.conf_name == "oasis_clim_gal9-C24_C12_1cpu" %}
+{% elif task_ns.conf_name == "oasis_C12L70_to_C12L38" %}
 
     {% do task_dict.update({
-        "opt_confs": ["clim_gal9","oasis"],
-        "resolution": "C24_C12",
-        "dst_mesh": "C24_C12",
-        "dst_name": "C24",
+        "opt_confs": ["oasis","src_C12_L70","dst_C12","src_L70_80km","dst_L38_40km"],
+        "resolution": ["C24_C12", "C12"],
+        "dst_mesh": "C12",
+        "dst_name": "dynamics",
         "dst_type": "global",
         "src_mesh": "C24_C12",
         "src_name": "C12",
         "src_type": "global",
     }) %}
 
-{% elif task_ns.conf_name == "oasis_clim_gal9-C24_C12_6cpu" %}
+{% elif task_ns.conf_name == "oasis_C24_to_C12" %}
 
     {% do task_dict.update({
-        "opt_confs": ["clim_gal9","oasis"],
+        "opt_confs": ["oasis","src_C12_L70","dst_C24"],
         "resolution": "C24_C12",
         "dst_mesh": "C24_C12",
         "dst_name": "C24",
@@ -151,24 +117,25 @@
         "mpi_parts": 6,
     }) %}
 
-{% elif task_ns.conf_name == "oasis_clim_gal9_C12-ral_seuk_C16_lam_1cpu" %}
+{% elif task_ns.conf_name == "oasis_C12_to_seuk_1cpu" %}
 
     {% do task_dict.update({
-        "opt_confs": ["clim_gal9_ral_seuk","oasis"],
-        "resolution": "C12_C16_lam",
+        "opt_confs": ["oasis","src_C12_L70","dst_seuk"],
+        "resolution": ["C24_C12", "seuk_MG"],
         "dst_mesh": "seuk_MG",
         "dst_name": "dynamics",
         "dst_type": "regional",
         "src_mesh": "C24_C12",
         "src_name": "C12",
         "src_type": "global",
+        "xios_min_buffer_size": 2097152,
     }) %}
 
-{% elif task_ns.conf_name == "oasis_clim_gal9_C12-ral_seuk_C16_lam_4cpu" %}
+{% elif task_ns.conf_name == "oasis_C12_to_seuk" %}
 
     {% do task_dict.update({
-        "opt_confs": ["clim_gal9_ral_seuk","oasis", "multi-cpu"],
-        "resolution": "C12_C16_lam",
+        "opt_confs": [ "oasis","src_C12_L70","dst_seuk","multi-cpu"],
+        "resolution": ["C24_C12", "seuk_MG"],
         "dst_mesh": "seuk_MG",
         "dst_name": "dynamics",
         "dst_type": "regional",
@@ -176,26 +143,14 @@
         "src_name": "C12",
         "src_type": "global",
         "mpi_parts": 4,
+        "xios_min_buffer_size": 2097152,
     }) %}
 
-{% elif task_ns.conf_name == "oasis_clim_gal9_C12-ral_seuk_C16_lam-lbc_1cpu" %}
+{% elif task_ns.conf_name == "oasis_C12_to_seuk-lbc" %}
 
     {% do task_dict.update({
-        "opt_confs": ["clim_gal9_ral_seuk","oasis","lbc"],
-        "resolution": "C12_C16_lam",
-        "dst_mesh": "seuk_MG",
-        "dst_name": "dynamics-lbc",
-        "dst_type": "regional",
-        "src_mesh": "C24_C12",
-        "src_name": "C12",
-        "src_type": "global",
-    }) %}
-
-{% elif task_ns.conf_name == "oasis_clim_gal9_C12-ral_seuk_C16_lam-lbc_4cpu" %}
-
-    {% do task_dict.update({
-        "opt_confs": ["clim_gal9_ral_seuk","oasis","lbc", "multi-cpu"],
-        "resolution": "C12_C16_lam",
+        "opt_confs": ["oasis","src_C12_L70","dst_seuk","lbc","multi-cpu"],
+        "resolution": ["C24_C12", "seuk_MG"],
         "dst_mesh": "seuk_MG",
         "dst_name": "dynamics-lbc",
         "dst_type": "regional",
@@ -203,6 +158,7 @@
         "src_name": "C12",
         "src_type": "global",
         "mpi_parts": 4,
+        "xios_min_buffer_size": 2097152,
     }) %}
 
 {% elif task_ns.conf_name == "canned" %}
@@ -227,7 +183,7 @@
 
 {% endif %}
 
-{# Set default values for Solver tasks #}
+{# Set default values for Lfric2lfric tasks #}
 {% if task_dict %}
     {% do task_dict.update({"application_dir": "lfric_apps/applications/lfric2lfric"}) %}
     {% if "app_name" not in task_dict %}
@@ -238,4 +194,4 @@
     {% endif %}
 {% endif %}
 
-{% do LOG.debug("Finished in site/common/lfric2lfric/tasks_solver.cylc") %}
+{% do LOG.debug("Finished in site/common/lfric2lfric/tasks_lfric2lfric.cylc") %}

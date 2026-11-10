@@ -30,10 +30,8 @@ stochastic_physics='none',
 surface='none',
 /
 &convection
-dx_ref=50000.0,
 l_cvdiag_ctop_qmax=.false.,
 qlmin=4.0e-4,
-resdep_precipramp=.false.,
 /
 &cosp
 l_cosp=.false.,
@@ -154,10 +152,12 @@ ancil_option='none',
 coarse_aerosol_ancil=.false.,
 coarse_orography_ancil=.false.,
 coarse_ozone_ancil=.false.,
+init_eos_height=100,
+init_exner_method='hydrostatic',
 init_option='fd_start_dump',
+init_sort_theta=.true.,
 lbc_option='none',
 ls_option='file',
-model_eos_height=100,
 read_w2h_wind=.true.,
 sea_ice_source='ancillary',
 snow_source='start_dump',
@@ -354,7 +354,7 @@ timestep_start='1',
 &timestepping
 alpha=0.55,
 dt=1800,
-inner_iterations=2,
+inner_iterations_si=2,2
 method='semi_implicit',
 outer_iterations=2,
 runge_kutta_method='forward_euler',

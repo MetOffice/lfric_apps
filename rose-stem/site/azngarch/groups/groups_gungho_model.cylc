@@ -13,7 +13,7 @@
         "gungho_model_dcmip301-C24_MG_sandbox_gnu_fast-debug-64bit",
         "gungho_model_force_profile-BiP4x4-600x400_sandbox_gnu_fast-debug-64bit",
         "gungho_model_no-timestep-method-C12_sandbox_gnu_fast-debug-64bit",
-        "gungho_model_relax_theta-BiP4x4-600x400_sandbox_gnu_fast-debug-64bit",
+        "gungho_model_relax_profile-BiP4x4-600x400_sandbox_gnu_fast-debug-64bit",
         "gungho_model_rk-dcmip301-C24_sandbox_gnu_fast-debug-64bit",
         "gungho_model_robert-moist-lam-BiP100x8-10x10_sandbox_gnu_fast-debug-64bit",
         "gungho_model_robert-moist-smag-BiP100x8-10x10_sandbox_gnu_fast-debug-64bit",

@@ -59,9 +59,11 @@
         {% do graph_sections.append([
             application_build_task,
             crun_task]) %}
-        {% do graph_sections.append([
-            mesh_run_task,
-            crun_task]) %}
+        {% for mesh_run_task in mesh_run_tasks %}
+            {% do graph_sections.append([
+                mesh_run_task,
+                crun_task]) %}
+        {% endfor %}
     {% else %}
         {# All other runs depend on the run previously #}
         {% do graph_sections.append([

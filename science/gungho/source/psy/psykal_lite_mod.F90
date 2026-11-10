@@ -2,6 +2,8 @@
 ! Copyright (c) 2017,  Met Office, on behalf of HMSO and Queen's Printer
 ! For further details please refer to the file LICENCE.original which you
 ! should have received as part of this distribution.
+! Some of the content of this file has been produced with the assistance of
+! Met Office GitHub Copilot Enterprise.
 !-----------------------------------------------------------------------------
 !
 !-------------------------------------------------------------------------------
@@ -77,7 +79,8 @@ contains
   ! see PSyclone #1103: https://github.com/stfc/PSyclone/issues/1103
   ! The LFRic infrastructure for this will be introduced in #2532
   subroutine invoke_helmholtz_operator_kernel_type(helmholtz_operator, hb_lumped_inv, stencil_depth, u_normalisation, div_star, &
-                                                   t_normalisation, ptheta2v, compound_div, m3_exner_star, p3theta, w2_mask)
+                                                   t_normalisation, ptheta2v, compound_div, m3_exner_star, p3theta, w2_mask, &
+                                                   tau_u_dt_cp, tau_t_dt, tau_r_dt)
     use helmholtz_operator_kernel_mod, only: helmholtz_operator_code
     use mesh_mod, only: mesh_type
     use stencil_2d_dofmap_mod, only: stencil_2d_cross
@@ -88,16 +91,17 @@ contains
     type(r_solver_field_type), intent(in) :: helmholtz_operator(9)
     type(r_solver_field_type), intent(in) ::  hb_lumped_inv, u_normalisation, t_normalisation, w2_mask
     type(r_solver_operator_type), intent(in) :: div_star, ptheta2v, compound_div, m3_exner_star, p3theta
+    real(kind=r_solver), intent(in) :: tau_u_dt_cp, tau_t_dt, tau_r_dt
     integer(kind=i_def), intent(in) :: stencil_depth
     integer(kind=i_def) :: stencil_size
-    integer(kind=i_def) cell
-    integer(kind=i_def) nlayers
-    type(r_solver_operator_proxy_type) div_star_proxy, ptheta2v_proxy, compound_div_proxy, m3_exner_star_proxy, p3theta_proxy
-    type(r_solver_field_proxy_type) helmholtz_operator_proxy(9)
-    type(r_solver_field_proxy_type) hb_lumped_inv_proxy, u_normalisation_proxy, t_normalisation_proxy, &
+    integer(kind=i_def) :: cell
+    integer(kind=i_def) :: nlayers
+    type(r_solver_operator_proxy_type) :: div_star_proxy, ptheta2v_proxy, compound_div_proxy, m3_exner_star_proxy, p3theta_proxy
+    type(r_solver_field_proxy_type) :: helmholtz_operator_proxy(9)
+    type(r_solver_field_proxy_type) :: hb_lumped_inv_proxy, u_normalisation_proxy, t_normalisation_proxy, &
                            w2_mask_proxy
     integer(kind=i_def), pointer :: map_w2(:,:) => null(), map_w3(:,:) => null(), map_wtheta(:,:) => null()
-    integer(kind=i_def) ndf_w3, undf_w3, ndf_w2, undf_w2, ndf_wtheta, undf_wtheta
+    integer(kind=i_def) :: ndf_w3, undf_w3, ndf_w2, undf_w2, ndf_wtheta, undf_wtheta
     type(mesh_type), pointer :: mesh => null()
     INTEGER(KIND=i_def) :: hb_lumped_inv_max_branch_length
     integer(kind=i_def), pointer :: hb_lumped_inv_stencil_sizes(:,:) => null()
@@ -105,7 +109,7 @@ contains
     type(stencil_2d_dofmap_type), pointer :: hb_lumped_inv_stencil_map => null()
     integer(kind=i_def) :: i,j
     integer(kind=i_def), allocatable :: cell_stencil(:)
-    integer(kind=i_def) nfaces_re_h
+    integer(kind=i_def) :: nfaces_re_h
     class(reference_element_type), pointer :: reference_element => null()
     !
     ! Initialise field and/or operator proxies
@@ -232,6 +236,7 @@ contains
                                    p3theta_proxy%ncell_3d, &
                                    p3theta_proxy%local_stencil, &
                                    w2_mask_proxy%data, &
+                                   tau_u_dt_cp, tau_t_dt, tau_r_dt, &
                                    ndf_w3, undf_w3, map_w3(:,cell), &
                                    ndf_w2, undf_w2, map_w2(:,cell), &
                                    ndf_wtheta, undf_wtheta, map_wtheta(:,cell))
@@ -262,8 +267,9 @@ contains
   ! The LFRic infrastructure for this will be introduced in #2532
   subroutine invoke_elim_helmholtz_operator_kernel_type(helmholtz_operator, hb_lumped_inv, stencil_depth, &
                                                    u_normalisation, div_star, &
-                                                   m3_exner_star, Q32, &
-                                                   w2_mask)
+                                                   m3_exner_star, Q32_rho, Q32_theta, &
+                                                   w2_mask, &
+                                                   tau_u_dt_cp, tau_r_dt, tau_t_dt)
     use elim_helmholtz_operator_kernel_mod, only: elim_helmholtz_operator_code
     use mesh_mod, only: mesh_type
     use stencil_dofmap_mod, only: stencil_cross
@@ -274,24 +280,25 @@ contains
 
     type(r_solver_field_type), intent(in) :: helmholtz_operator(9)
     type(r_solver_field_type), intent(in) :: hb_lumped_inv, u_normalisation, w2_mask
-    type(r_solver_operator_type), intent(in) :: div_star, m3_exner_star, Q32
+    type(r_solver_operator_type), intent(in) :: div_star, m3_exner_star, Q32_rho, Q32_theta
+    real(kind=r_solver), intent(in) :: tau_u_dt_cp, tau_r_dt, tau_t_dt
     integer(kind=i_def), intent(in) :: stencil_depth
     integer(kind=i_def) :: stencil_size
-    integer(kind=i_def) cell
-    integer(kind=i_def) nlayers
-    type(r_solver_operator_proxy_type) div_star_proxy, m3_exner_star_proxy, Q32_proxy
-    type(r_solver_field_proxy_type) helmholtz_operator_proxy(9)
-    type(r_solver_field_proxy_type) hb_lumped_inv_proxy, u_normalisation_proxy, &
+    integer(kind=i_def) :: cell
+    integer(kind=i_def) :: nlayers
+    type(r_solver_operator_proxy_type) :: div_star_proxy, m3_exner_star_proxy, Q32_rho_proxy, Q32_theta_proxy
+    type(r_solver_field_proxy_type) :: helmholtz_operator_proxy(9)
+    type(r_solver_field_proxy_type) :: hb_lumped_inv_proxy, u_normalisation_proxy, &
                            w2_mask_proxy
     integer(kind=i_def), pointer :: map_w2(:,:) => null(), map_w3(:,:) => null()
-    integer(kind=i_def) ndf_w3, undf_w3, ndf_w2, undf_w2
+    integer(kind=i_def) :: ndf_w3, undf_w3, ndf_w2, undf_w2
     type(mesh_type), pointer :: mesh => null()
-    integer(kind=i_def) hb_lumped_inv_stencil_size
+    integer(kind=i_def) :: hb_lumped_inv_stencil_size
     integer(kind=i_def), pointer :: hb_lumped_inv_stencil_dofmap(:,:,:) => null()
     type(stencil_dofmap_type), pointer :: hb_lumped_inv_stencil_map => null()
     integer(kind=i_def) :: i
     integer(kind=i_def), allocatable :: cell_stencil(:)
-    integer(kind=i_def) nfaces_re_h
+    integer(kind=i_def) :: nfaces_re_h
     class(reference_element_type), pointer :: reference_element => null()
     !
     ! Initialise field and/or operator proxies
@@ -309,7 +316,8 @@ contains
     u_normalisation_proxy = u_normalisation%get_proxy()
     div_star_proxy = div_star%get_proxy()
     m3_exner_star_proxy = m3_exner_star%get_proxy()
-    Q32_proxy = Q32%get_proxy()
+    Q32_rho_proxy = Q32_rho%get_proxy()
+    Q32_theta_proxy = Q32_theta%get_proxy()
     w2_mask_proxy = w2_mask%get_proxy()
     !
     ! Initialise number of layers
@@ -391,9 +399,12 @@ contains
                                    div_star_proxy%local_stencil, &
                                    m3_exner_star_proxy%ncell_3d, &
                                    m3_exner_star_proxy%local_stencil, &
-                                   Q32_proxy%ncell_3d, &
-                                   Q32_proxy%local_stencil, &
+                                   Q32_rho_proxy%ncell_3d, &
+                                   Q32_rho_proxy%local_stencil, &
+                                   Q32_theta_proxy%ncell_3d, &
+                                   Q32_theta_proxy%local_stencil, &
                                    w2_mask_proxy%data, &
+                                   tau_u_dt_cp, tau_r_dt, tau_t_dt, &
                                    ndf_w3, undf_w3, map_w3(:,cell), &
                                    ndf_w2, undf_w2, map_w2(:,cell))
     end do
@@ -605,18 +616,18 @@ stencil_dofmap(:,:,cell), ndf_adspc1_target_field, &
     use mesh_mod, only: mesh_type
     type(field_type),    intent(in) :: target_field, source_field
     integer(kind=i_def), intent(in) :: ndata
-    integer(kind=i_def) cell
-    integer(kind=i_def) loop0_start, loop0_stop
-    integer(kind=i_def) nlayers
-    type(field_proxy_type) target_field_proxy, source_field_proxy
+    integer(kind=i_def) :: cell
+    integer(kind=i_def) :: loop0_start, loop0_stop
+    integer(kind=i_def) :: nlayers
+    type(field_proxy_type) :: target_field_proxy, source_field_proxy
     integer(kind=i_def), pointer :: map_adspc1_target_field(:,:) => null(), map_adspc2_source_field(:,:) => null()
-    integer(kind=i_def) ndf_adspc1_target_field, undf_adspc1_target_field, ndf_adspc2_source_field, undf_adspc2_source_field
-    integer(kind=i_def) ncell_source_field, ncpc_source_field_target_field_x, ncpc_source_field_target_field_y
+    integer(kind=i_def) :: ndf_adspc1_target_field, undf_adspc1_target_field, ndf_adspc2_source_field, undf_adspc2_source_field
+    integer(kind=i_def) :: ncell_source_field, ncpc_source_field_target_field_x, ncpc_source_field_target_field_y
     integer(kind=i_def), pointer :: cell_map_target_field(:,:,:) => null()
     type(mesh_map_type), pointer :: mmap_source_field_target_field => null()
-    integer(kind=i_def) max_halo_depth_mesh_target_field
+    integer(kind=i_def) :: max_halo_depth_mesh_target_field
     type(mesh_type), pointer :: mesh_target_field => null()
-    integer(kind=i_def) max_halo_depth_mesh_source_field
+    integer(kind=i_def) :: max_halo_depth_mesh_source_field
     type(mesh_type), pointer :: mesh_source_field => null()
     !
     ! Initialise field and/or operator proxies
@@ -794,5 +805,200 @@ map_adspc2_source_field(:,cell), ndf_adspc3_source_mask, &
     !
     !
   end subroutine invoke_prolong_multidata_linear_kernel_type
+
+! ============================================================================ !
+! NUDGING ROUTINES
+! ============================================================================ !
+! These kernels use a 1D scalar array, which is not yet fully supported by
+! Psyclone. This code can be removed once PSyclone issue #1312 is closed
+
+  subroutine invoke_newtonian_nudging_kernel_type(coarse_increment, coarse_field_in, field_ref, vertical_weights, &
+&tropopause_level, min_level, max_level, time_weight, dims_vertical_weights)
+
+    use newtonian_nudging_kernel_mod, only: newtonian_nudging_code
+    use mesh_mod, only : mesh_type
+
+    implicit none
+
+    type(field_type), intent(in) :: coarse_increment
+    type(field_type), intent(in) :: coarse_field_in
+    type(field_type), intent(in) :: field_ref
+    type(integer_field_type), intent(in) :: tropopause_level
+    integer(kind=i_def), intent(in) :: min_level
+    integer(kind=i_def), intent(in) :: max_level
+    real(kind=r_def), intent(in) :: time_weight
+    integer(kind=i_def), dimension(1), intent(in) :: dims_vertical_weights
+    real(kind=r_def), dimension(dims_vertical_weights(1)), intent(in) :: vertical_weights
+    integer(kind=i_def) :: cell
+    type(mesh_type), pointer :: mesh => null()
+    integer(kind=i_def) :: max_halo_depth_mesh
+    real(kind=r_def), pointer, dimension(:) :: coarse_increment_data => null()
+    real(kind=r_def), pointer, dimension(:) :: coarse_field_in_data => null()
+    real(kind=r_def), pointer, dimension(:) :: field_ref_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: tropopause_level_data => null()
+    integer(kind=i_def) :: nlayers_coarse_increment
+    integer(kind=i_def) :: ndf_a1_ce_it
+    integer(kind=i_def) :: undf_a1_ce_it
+    integer(kind=i_def) :: ndf_a2_te_ll
+    integer(kind=i_def) :: undf_a2_te_ll
+    integer(kind=i_def), pointer :: map_a1_ce_it(:,:) => null()
+    integer(kind=i_def), pointer :: map_a2_te_ll(:,:) => null()
+    type(field_proxy_type) :: coarse_increment_proxy
+    type(field_proxy_type) :: coarse_field_in_proxy
+    type(field_proxy_type) :: field_ref_proxy
+    type(integer_field_proxy_type) :: tropopause_level_proxy
+    integer(kind=i_def) :: loop0_start
+    integer(kind=i_def) :: loop0_stop
+
+    ! Initialise field and/or operator proxies
+    coarse_increment_proxy = coarse_increment%get_proxy()
+    coarse_increment_data => coarse_increment_proxy%data
+    coarse_field_in_proxy = coarse_field_in%get_proxy()
+    coarse_field_in_data => coarse_field_in_proxy%data
+    field_ref_proxy = field_ref%get_proxy()
+    field_ref_data => field_ref_proxy%data
+    tropopause_level_proxy = tropopause_level%get_proxy()
+    tropopause_level_data => tropopause_level_proxy%data
+
+    ! Initialise number of layers
+    nlayers_coarse_increment = coarse_increment_proxy%vspace%get_nlayers()
+
+    ! Create a mesh object
+    mesh => coarse_increment_proxy%vspace%get_mesh()
+    max_halo_depth_mesh = mesh%get_halo_depth()
+
+    ! Look-up dofmaps for each function space
+    map_a1_ce_it => coarse_increment_proxy%vspace%get_whole_dofmap()
+    map_a2_te_ll => tropopause_level_proxy%vspace%get_whole_dofmap()
+
+    ! Initialise number of DoFs for a1_ce_it
+    ndf_a1_ce_it = coarse_increment_proxy%vspace%get_ndf()
+    undf_a1_ce_it = coarse_increment_proxy%vspace%get_undf()
+
+    ! Initialise number of DoFs for a2_te_ll
+    ndf_a2_te_ll = tropopause_level_proxy%vspace%get_ndf()
+    undf_a2_te_ll = tropopause_level_proxy%vspace%get_undf()
+
+    ! Set-up all of the loop bounds
+    loop0_start = 1
+    loop0_stop = mesh%get_last_edge_cell()
+
+    ! Call kernels and communication routines
+    do cell = loop0_start, loop0_stop, 1
+      call newtonian_nudging_code(nlayers_coarse_increment, coarse_increment_data, coarse_field_in_data, field_ref_data, &
+&dims_vertical_weights, vertical_weights, tropopause_level_data, min_level, max_level, time_weight, ndf_a1_ce_it, undf_a1_ce_it, &
+&map_a1_ce_it(:,cell), ndf_a2_te_ll, undf_a2_te_ll, map_a2_te_ll(:,cell))
+    enddo
+
+    ! Set halos dirty/clean for fields modified in the above loop(s)
+    call coarse_increment_proxy%set_dirty()
+
+  end subroutine invoke_newtonian_nudging_kernel_type
+
+  subroutine invoke_convolution_2d_kernel_type(coarse_increment, coarse_field_diff, &
+&spectral_stencil_extent, vertical_weights, convolution_weights, &
+&tropopause_level, min_level, max_level, time_weight, dims_vertical_weights)
+
+    use convolution_2d_kernel_mod, only: convolution_2d_code
+    use mesh_mod, only : mesh_type
+    use stencil_dofmap_mod, only : STENCIL_REGION, stencil_dofmap_type
+
+    implicit none
+
+    type(field_type), intent(in) :: coarse_increment
+    type(field_type), intent(in) :: coarse_field_diff
+    type(field_type), intent(in) :: convolution_weights
+    type(integer_field_type), intent(in) :: tropopause_level
+    integer(kind=i_def), intent(in) :: min_level
+    integer(kind=i_def), intent(in) :: max_level
+    real(kind=r_def), intent(in) :: time_weight
+    integer(kind=i_def), intent(in) :: spectral_stencil_extent
+    integer(kind=i_def), dimension(1), intent(in) :: dims_vertical_weights
+    real(kind=r_def), dimension(dims_vertical_weights(1)), intent(in) :: vertical_weights
+    integer(kind=i_def) :: cell
+    type(mesh_type), pointer :: mesh => null()
+    integer(kind=i_def) :: max_halo_depth_mesh
+    real(kind=r_def), pointer, dimension(:) :: coarse_increment_data => null()
+    real(kind=r_def), pointer, dimension(:) :: coarse_field_diff_data => null()
+    real(kind=r_def), pointer, dimension(:) :: convolution_weights_data => null()
+    integer(kind=i_def), pointer, dimension(:) :: tropopause_level_data => null()
+    integer(kind=i_def) :: nlayers_coarse_increment
+    type(stencil_dofmap_type), pointer :: coarse_field_diff_stencil_map => null()
+    integer(kind=i_def), pointer, dimension(:,:,:) :: coarse_field_diff_stencil_dofmap => null()
+    integer(kind=i_def) :: ndf_a1_ce_it
+    integer(kind=i_def) :: undf_a1_ce_it
+    integer(kind=i_def) :: ndf_a9_cn_ws
+    integer(kind=i_def) :: undf_a9_cn_ws
+    integer(kind=i_def) :: ndf_a2_te_ll
+    integer(kind=i_def) :: undf_a2_te_ll
+    integer(kind=i_def), pointer :: map_a1_ce_it(:,:) => null()
+    integer(kind=i_def), pointer :: map_a2_te_ll(:,:) => null()
+    integer(kind=i_def), pointer :: map_a9_cn_ws(:,:) => null()
+    type(field_proxy_type) :: coarse_increment_proxy
+    type(field_proxy_type) :: coarse_field_diff_proxy
+    type(field_proxy_type) :: convolution_weights_proxy
+    type(integer_field_proxy_type) :: tropopause_level_proxy
+    integer(kind=i_def), pointer, dimension(:) :: coarse_field_diff_stencil_size => null()
+    integer(kind=i_def) :: loop0_start
+    integer(kind=i_def) :: loop0_stop
+
+    ! Initialise field and/or operator proxies
+    coarse_increment_proxy = coarse_increment%get_proxy()
+    coarse_increment_data => coarse_increment_proxy%data
+    coarse_field_diff_proxy = coarse_field_diff%get_proxy()
+    coarse_field_diff_data => coarse_field_diff_proxy%data
+    convolution_weights_proxy = convolution_weights%get_proxy()
+    convolution_weights_data => convolution_weights_proxy%data
+    tropopause_level_proxy = tropopause_level%get_proxy()
+    tropopause_level_data => tropopause_level_proxy%data
+
+    ! Initialise number of layers
+    nlayers_coarse_increment = coarse_increment_proxy%vspace%get_nlayers()
+
+    ! Create a mesh object
+    mesh => coarse_increment_proxy%vspace%get_mesh()
+    max_halo_depth_mesh = mesh%get_halo_depth()
+
+    ! Initialise stencil dofmaps
+    coarse_field_diff_stencil_map => coarse_field_diff_proxy%vspace%get_stencil_dofmap(STENCIL_REGION, spectral_stencil_extent)
+    coarse_field_diff_stencil_dofmap => coarse_field_diff_stencil_map%get_whole_dofmap()
+    coarse_field_diff_stencil_size => coarse_field_diff_stencil_map%get_stencil_sizes()
+
+    ! Look-up dofmaps for each function space
+    map_a1_ce_it => coarse_increment_proxy%vspace%get_whole_dofmap()
+    map_a9_cn_ws => convolution_weights_proxy%vspace%get_whole_dofmap()
+    map_a2_te_ll => tropopause_level_proxy%vspace%get_whole_dofmap()
+
+    ! Initialise number of DoFs for a1_ce_it
+    ndf_a1_ce_it = coarse_increment_proxy%vspace%get_ndf()
+    undf_a1_ce_it = coarse_increment_proxy%vspace%get_undf()
+
+    ! Initialise number of DoFs for a9_cn_ws
+    ndf_a9_cn_ws = convolution_weights_proxy%vspace%get_ndf()
+    undf_a9_cn_ws = convolution_weights_proxy%vspace%get_undf()
+
+    ! Initialise number of DoFs for a2_te_ll
+    ndf_a2_te_ll = tropopause_level_proxy%vspace%get_ndf()
+    undf_a2_te_ll = tropopause_level_proxy%vspace%get_undf()
+
+    ! Set-up all of the loop bounds
+    loop0_start = 1
+    loop0_stop = mesh%get_last_edge_cell()
+
+    ! Call kernels and communication routines
+    if (coarse_field_diff_proxy%is_dirty(depth=spectral_stencil_extent)) then
+      call coarse_field_diff_proxy%halo_exchange(depth=spectral_stencil_extent)
+    end if
+    do cell = loop0_start, loop0_stop, 1
+      call convolution_2d_code(nlayers_coarse_increment, coarse_increment_data, coarse_field_diff_data, &
+&coarse_field_diff_stencil_size(cell), coarse_field_diff_stencil_dofmap(:,:,cell), dims_vertical_weights, vertical_weights, &
+&convolution_weights_data, tropopause_level_data, min_level, max_level, time_weight, ndf_a1_ce_it, undf_a1_ce_it, &
+&map_a1_ce_it(:,cell), ndf_a9_cn_ws, undf_a9_cn_ws, map_a9_cn_ws(:,cell), ndf_a2_te_ll, undf_a2_te_ll, map_a2_te_ll(:,cell))
+    enddo
+
+    ! Set halos dirty/clean for fields modified in the above loop(s)
+    call coarse_increment_proxy%set_dirty()
+
+  end subroutine invoke_convolution_2d_kernel_type
 
 end module psykal_lite_mod

@@ -7,7 +7,7 @@
 !> Test the computation of the cubed-sphere panel extension
 module panel_edge_coords_kernel_mod_test
 
-  use constants_mod, only: i_def, r_def, pi, IMDI
+  use constants_mod, only: i_def, r_def, pi, imdi, pi
   use funit
 
   implicit none
@@ -29,8 +29,8 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine setUp( this )
 
-    use base_mesh_config_mod,      only : geometry_spherical,                  &
-                                          topology_fully_periodic
+    use mesh_mod,                  only : geometry_spherical, &
+                                          topology_periodic
     use sci_chi_transform_mod,     only : init_chi_transforms
     use extrusion_config_mod,      only : method_uniform,                      &
                                           stretching_method_linear
@@ -45,12 +45,16 @@ contains
 
     class(panel_edge_coords_test_type), intent(inout) :: this
 
+    real(r_def), parameter :: geostrophic_north_pole(2) = [0.0_r_def, PI/2.0_r_def]
+    real(r_def), parameter :: null_island(2) = [0.0_r_def, 0.0_r_def]
+    real(r_def), parameter :: equator_latitude = 0.0_r_def
+
     call feign_base_mesh_config(                                               &
         file_prefix='foo',                                                     &
         prime_mesh_name='unit_test',                                           &
         geometry=geometry_spherical,                                           &
         prepartitioned=.false.,                                                &
-        topology=topology_fully_periodic,                                      &
+        topology=topology_periodic,                                            &
         fplane=.false., f_lat_deg=0.0_r_def                                    &
     )
     call feign_extrusion_config(                                               &
@@ -82,7 +86,14 @@ contains
         vorticity_in_w1=.false.                                                &
     )
 
-    call init_chi_transforms(geometry_spherical, topology_fully_periodic)
+    ! Note: Calling 'init_chi_transforms' is only valid for meshes which have a
+    !       spherical geometry and coordinate system. While it may not be relevant
+    !       to this mesh, it is called due to an unknown interaction which changes
+    !       results. If it is not applicable to this mesh, it should be removed once
+    !       this issue is resolved.
+    call init_chi_transforms( geostrophic_north_pole, &
+                              null_island, &
+                              equator_latitude )
 
   end subroutine setUp
 

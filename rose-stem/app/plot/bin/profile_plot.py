@@ -22,12 +22,36 @@ if iris.__version__ < "3.0.0":
     iris.FUTURE.netcdf_promote = True
 
 #------------------------------------------------------------------------------#
+# Parameters for dry atmosphere composition
+#------------------------------------------------------------------------------#
+RD = 287.05
+CP = 1005.0
+P0 = 1.0e5
+KAPPA = RD / CP
+RECIP_KAPPA = 1.0 / KAPPA
+
+#------------------------------------------------------------------------------#
 # Use a variables name to obtain its data from an iris cube
 #------------------------------------------------------------------------------#
 def load_cube_by_varname(filename, var):
 
    variable_constraint = iris.Constraint(cube_func=(lambda c: c.var_name == var))
    return iris.load_cube(filename, constraint=variable_constraint)
+
+#------------------------------------------------------------------------------#
+# Saturation mixing ratio
+#------------------------------------------------------------------------------#
+def mv_sat(T, p):
+    TK0C = 273.15   # Zero Celsius in Kelvin
+    e_sat0 = 610.9  # Saturation vapour pressure at zero Celsius
+    Rv = 461.51     # Gas constant of water vapour
+    c1 = 17.2693882 # Constants in Tetens formula for saturation vapour pressure 
+    c2 = 35.86      #
+
+    e_sat = e_sat0 * np.exp(c1 * (T - TK0C) / (T - c2))
+
+    return (RD / Rv) * e_sat / ( p - e_sat )
+
 
 #------------------------------------------------------------------------------#
 # Set heights of levels for selected extrusion
@@ -119,9 +143,20 @@ def make_figures(file_name, field_list, extrusion, number_of_layers, domain_top,
 
     z1d, z1dh = make_extrusion(extrusion, number_of_layers, domain_top)
 
+    split_name = file_name.split('/')
+    initial_data = (split_name[-1] == 'lfric_initial.nc')
+
     for field_name in field_list:
 
-        field_cube = load_cube_by_varname(file_name, field_name)
+        if field_name == 't_abs': # Diagnose absolute temperature
+            exner_cube = load_cube_by_varname(file_name, 'exner')
+            field_cube = load_cube_by_varname(file_name, 'theta')
+        elif field_name == 'rh':  # Diagnose relative humidity
+            exner_cube = load_cube_by_varname(file_name, 'exner')
+            theta_cube = load_cube_by_varname(file_name, 'theta')
+            field_cube = load_cube_by_varname(file_name, 'm_v')
+        else:
+            field_cube = load_cube_by_varname(file_name, field_name)
 
         field_shape = field_cube.shape
 
@@ -140,11 +175,47 @@ def make_figures(file_name, field_list, extrusion, number_of_layers, domain_top,
             raise Exception('Number of levels in ' + field_name +
                             'not same as for specified grid.')
 
+# If diagnosing absolute temperature or rel humidity, don't bother with boundaries
+        if field_name == 't_abs' or field_name == 'rh':
+            z = z[1:-1]
+
         for itim in range(ntims):
+
             if len(field_shape) == 3:
                 field = field_cube.data[itim, :, :]
             else:
                 field = field_cube.data[:,:]
+
+            if field_name == 't_abs':
+                if len(field_shape) == 3:
+                    for k in range(nlevs-2):
+                        xi = (z1d[k+1]-z1dh[k])/(z1dh[k+1]-z1dh[k])
+                        field[k+1, :] = field[k+1, :] * \
+                                        ( (1.0-xi)*exner_cube.data[itim,k,:] + \
+                                          xi*exner_cube.data[itim,k+1,:] )
+                else:
+                    for k in range(nlevs-2):
+                        xi = (z1d[k+1]-z1dh[k])/(z1dh[k+1]-z1dh[k])
+                        field[k+1, :] = field[k+1, :] * \
+                                        ( (1.0-xi)*exner_cube.data[k,:] + \
+                                          xi*exner_cube.data[k+1,:] )
+            elif field_name == 'rh':
+                if len(field_shape) == 3:
+                    for k in range(nlevs-2):
+                        xi = (z1d[k+1]-z1dh[k])/(z1dh[k+1]-z1dh[k])
+                        exner_bar = ( (1.0-xi)*exner_cube.data[itim,k,:] + \
+                                      xi*exner_cube.data[itim,k+1,:] )
+                        p = P0 * exner_bar ** RECIP_KAPPA
+                        T = theta_cube.data[itim,k+1,:] * exner_bar
+                        field[k+1,:] = field[k+1, :] / mv_sat(T,p)
+                else:
+                    for k in range(nlevs-2):
+                        xi = (z1d[k+1]-z1dh[k])/(z1dh[k+1]-z1dh[k])
+                        exner_bar = ( (1.0-xi)*exner_cube.data[k,:] + \
+                                      xi*exner_cube.data[k+1,:] )
+                        p = P0 * exner_bar ** RECIP_KAPPA
+                        T = theta_cube.data[k+1,:] * exner_bar
+                        field[k+1,:] = field[k+1, :] / mv_sat(T,p)
 
             field_prof = np.zeros(nlevs)
             field_prof_var = np.zeros(nlevs)
@@ -152,19 +223,29 @@ def make_figures(file_name, field_list, extrusion, number_of_layers, domain_top,
                 field_prof[k] = np.sum(field[k, :]) / float(npts)
                 field_prof_var[k] = np.sum( (field[k,:] - field_prof[k])**2 ) / float(npts)
 
-            plt.subplot(1,2,1)
-            plt.plot(field_prof, z)
+            if field_name == 't_abs' or field_name == 'rh':
+                field_prof = field_prof[1:-1]
+                field_prof_var = field_prof[1:-1]
+
+            if initial_data:
+                plt.plot(field_prof, z)
+            else:
+                plt.subplot(1,2,1)
+                plt.plot(field_prof, z)
  
+                plt.subplot(1,2,2)
+                plt.plot(field_prof_var, z)
+
+        if initial_data:
+            plt.xlabel('Domain mean '+field_name, style='italic')
+            plt.ylabel('height (km)', style='italic')
+        else:
+            plt.subplot(1,2,1)
+            plt.xlabel('Domain mean '+field_name, style='italic')
+            plt.ylabel('height (km)', style='italic')
+
             plt.subplot(1,2,2)
-            plt.plot(field_prof_var, z)
-
-
-        plt.subplot(1,2,1)
-        plt.xlabel('Domain mean '+field_name, style='italic')
-        plt.ylabel('height (km)', style='italic')
-
-        plt.subplot(1,2,2)
-        plt.xlabel('Domain variance '+field_name, style='italic')
+            plt.xlabel('Domain variance '+field_name, style='italic')
 
         plt.savefig(plot_path+'/'+field_name+'_profile.png')
         plt.close()

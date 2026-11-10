@@ -44,7 +44,7 @@ procedure(read_interface), pointer :: tmp_read_ptr
 character(len=genpar_len) :: parlist
 !
 ! Id of field to read from file
-character(len=field_name_len) field_io_name
+character(len=field_name_len) :: field_io_name
 
 ! Error code for reading parameter list
 integer :: ioerr

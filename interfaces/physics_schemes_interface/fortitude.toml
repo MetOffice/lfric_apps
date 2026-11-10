@@ -14,7 +14,10 @@ select = ["E000", "C001", "C032",
 "C051", "C071", "C072", "C091", "C092",
 "C132", "C141", "OB011", "OB021", "OB051", "OB061", "MOD001", "MOD021",
 "PORT011", "PORT012", "PORT021", "FORT001",
-"FORT002", "FORT003", "FORT004", "FORT005"]
+"FORT002", "FORT003", "FORT004", "FORT005",
+"E011", "C122", "C151", "C161", "C171", "C182", "OB041", "OB201", "OB211",
+"MOD002", "S211", "S212", "S263", "PORT001", "C143", "S081", "S253","S255",
+"S242", "S252", "S254"]
 
 output-format = "grouped"                #group results by file
 
@@ -25,9 +28,8 @@ output-format = "grouped"                #group results by file
 "fastjx_inphot_mod.f90" = ["C072"]
 "umprintmgr.f90" = ["C072", "C132"]
 "ukca_photol_param_mod.f90" = ["C072", "C132"]
-"psykal_lite_phys_mod.F90" = ["C132", "MOD021"]
-"um_sizes_init_mod.f90" = ["MOD021"]
+"psykal_lite_phys_mod.F90" = ["C132"]
 
 # Leaving out for now (these rules are used in the universal config):
-# S101, C081, C021, C022, C061, S071, E001, C121
+# C081, C021, C022, C061, E001, C121
 

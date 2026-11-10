@@ -10,15 +10,14 @@
 !!          a routine which sets the halo of the operator properly.
 module setop_random_alg_mod
 
-  use field_mod,                           only : field_type
-  use operator_mod,                        only : operator_type
   use function_space_mod,                  only : function_space_type
   use setop_average_two_fields_kernel_mod, only : setop_average_two_fields_kernel_type
 
   implicit none
 
   private
-  public :: setop_random_alg
+  public :: setop_random_alg, &
+            setop_random_rsol_alg
 
   contains
 
@@ -26,6 +25,9 @@ module setop_random_alg_mod
   !> @brief Sets an operator with randomised field values and consistent halo
   !> @param[in,out] operator  Operator to be set
   subroutine setop_random_alg( operator )
+
+    use field_mod,                           only : field_type
+    use operator_mod,                        only : operator_type
 
     implicit none
 
@@ -45,10 +47,42 @@ module setop_random_alg_mod
 
     call invoke( setval_random( field_to ),                      &
                  setval_random( field_from ),                    &
-                 setop_average_two_Fields_kernel_type( operator, &
+                 setop_average_two_fields_kernel_type( operator, &
                                                        field_to, &
                                                        field_from ) )
 
   end subroutine setop_random_alg
+
+  !=============================================================================
+  !> @brief Sets an operator with randomised r_solver field values and consistent halo
+  !> @param[in,out] rsol_operator  Operator on r_solver to be set
+  subroutine setop_random_rsol_alg( rsol_operator )
+
+    use r_solver_field_mod,                  only : r_solver_field_type
+    use operator_mod,                        only : r_solver_operator_type
+
+    implicit none
+
+    ! Arguments
+    type(r_solver_operator_type), intent(inout) :: rsol_operator
+
+    ! Internal variables
+    type(function_space_type), pointer :: field_to_fs
+    type(function_space_type), pointer :: field_from_fs
+    type(r_solver_field_type)          :: rsol_field_to
+    type(r_solver_field_type)          :: rsol_field_from
+
+    field_to_fs => rsol_operator%get_fs_to()
+    field_from_fs => rsol_operator%get_fs_from()
+    call rsol_field_to%initialise( vector_space = field_to_fs )
+    call rsol_field_from%initialise( vector_space = field_from_fs )
+
+    call invoke( setval_random( rsol_field_to ),                      &
+                 setval_random( rsol_field_from ),                    &
+                 setop_average_two_fields_kernel_type( rsol_operator, &
+                                                       rsol_field_to, &
+                                                       rsol_field_from ) )
+
+  end subroutine setop_random_rsol_alg
 
 end module setop_random_alg_mod

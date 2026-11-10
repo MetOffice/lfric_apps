@@ -79,7 +79,7 @@ subroutine pseudo_photol_code(nlayers,                             &
   implicit none
 
   ! Arguments
-  integer(kind=i_def), intent(in) :: nlayers   
+  integer(kind=i_def), intent(in) :: nlayers
   integer(kind=i_def), intent(in) :: ndf_wtheta
   integer(kind=i_def), intent(in) :: undf_wtheta
   integer(kind=i_def), dimension(ndf_wtheta), intent(in) :: map_wtheta

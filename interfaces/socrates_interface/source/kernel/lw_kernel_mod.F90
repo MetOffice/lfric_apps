@@ -430,10 +430,10 @@ subroutine lw_code(nlayers, n_profile, &
   ! Segmentation variables for threading call to Socrates
   integer(i_def) :: max_threads, soc_lw_block, seg_start, seg_end, &
                     ncols_per_thread, nblocks
-  
+
   ! Note, changes to variables in this file may require corresponding changes in
   ! applications/lfric_atm/optimisation/meto-ex1a/transmute/kernel/lw_kernel_mod.py
-  
+
   ! Set indexing
   wth_0 = map_wth(1,1)
   wth_1 = map_wth(1,1)+1
@@ -577,7 +577,7 @@ subroutine lw_code(nlayers, n_profile, &
   else
     l_aerosol_mode = .false.
   end if
-  
+
   max_threads = 1
   !$ max_threads = omp_get_max_threads()
 
