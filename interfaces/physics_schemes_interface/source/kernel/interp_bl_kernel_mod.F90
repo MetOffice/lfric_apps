@@ -34,15 +34,17 @@ module interp_bl_kernel_mod
   !> Kernel metadata type.
   type, public, extends(kernel_type) :: interp_bl_kernel_type
     private
-    type(arg_type) :: meta_args(9) = (/                                  &
+    type(arg_type) :: meta_args(11) = (/                                  &
          arg_type(GH_FIELD, GH_REAL, GH_READ, WTHETA),                    &! rhokm_bl
          arg_type(GH_FIELD, GH_REAL, GH_READ, ANY_DISCONTINUOUS_SPACE_1), &! surf_interp
          arg_type(GH_FIELD, GH_REAL, GH_READ, WTHETA),                    &! ngstress_bl
          arg_type(GH_FIELD, GH_REAL, GH_READ, W3),                        &! wetrho_in_w3
+         arg_type(GH_FIELD, GH_REAL, GH_READ, W3),                        &! fd_impl_part_bl
          arg_type(GH_FIELD, GH_REAL, GH_INC,  W2),                        &! rhokm_w2
          arg_type(GH_FIELD, GH_REAL, GH_INC,  ANY_SPACE_1),               &! surf_interp_w2
          arg_type(GH_FIELD, GH_REAL, GH_INC,  W2),                        &! ngstress_w2
          arg_type(GH_FIELD, GH_REAL, GH_INC,  W2),                        &! wetrho_in_w2
+         arg_type(GH_FIELD, GH_REAL, GH_INC,  W2),                        &! fd_impl_part_w2
          arg_type(GH_FIELD, GH_REAL, GH_READ, W2)                         &! w2_rmultiplicity
          /)
     integer :: operates_on = CELL_COLUMN
@@ -63,10 +65,12 @@ contains
   !> @param[in]     surf_interp   Surface variables for interpolation
   !> @param[in]     ngstress_bl   Non-gradient stress function on BL levels
   !> @param[in]     wetrho_in_w3  Wet density in W3 space
-  !> @param[in,out] rhokm_w2      Momentum eddy diffusivity mapped to cell faces
-  !> @param[in,out] surf_interp_w2 Surface variables on cell faces
-  !> @param[in,out] ngstress_w2   NG stress function mapped to cell faces
-  !> @param[in,out] wetrho_in_w2  Wet density in W2 space
+  !> @param[in]     fd_impl_part_bl  Implicit solver part in W3 space
+  !> @param[in,out] rhokm_w2         Momentum eddy diffusivity mapped to cell faces
+  !> @param[in,out] surf_interp_w2   Surface variables on cell faces
+  !> @param[in,out] ngstress_w2      NG stress function mapped to cell faces
+  !> @param[in,out] wetrho_in_w2     Wet density in W2 space
+  !> @param[in,out] fd_impl_part_w2  Implicit solver part in W2 space
   !> @param[in]     w2_rmultiplicity Reciprocal of multiplicity for w2
   !> @param[in]     ndf_wth       Number of DOFs per cell for potential temperature space
   !> @param[in]     undf_wth      Number of unique DOFs for potential temperature space
@@ -88,10 +92,12 @@ contains
                             surf_interp,      &
                             ngstress_bl,      &
                             wetrho_in_w3,     &
+                            fd_impl_part_bl,  &
                             rhokm_w2,         &
                             surf_interp_w2,   &
                             ngstress_w2,      &
                             wetrho_in_w2,     &
+                            fd_impl_part_w2,  &
                             w2_rmultiplicity, &
                             ndf_wth,          &
                             undf_wth,         &
@@ -132,7 +138,8 @@ contains
     real(kind=r_def), dimension(undf_wth), intent(in) :: rhokm_bl,           &
                                                          ngstress_bl
 
-    real(kind=r_def), dimension(undf_w3),  intent(in) :: wetrho_in_w3
+    real(kind=r_def), dimension(undf_w3),  intent(in) :: wetrho_in_w3,         &
+                                                         fd_impl_part_bl
 
     real(kind=r_def), dimension(undf_surf), intent(in)  :: surf_interp
 
@@ -140,7 +147,8 @@ contains
 
     real(kind=r_def), dimension(undf_w2), intent(inout) :: rhokm_w2,           &
                                                            ngstress_w2,        &
-                                                           wetrho_in_w2
+                                                           wetrho_in_w2,       &
+                                                           fd_impl_part_w2
 
     real(kind=r_def), dimension(undf_w2_2d), intent(inout) :: surf_interp_w2
 
@@ -167,6 +175,9 @@ contains
         wetrho_in_w2(map_w2(df) + k) = wetrho_in_w2(map_w2(df) + k) +          &
                                        w2_rmultiplicity(map_w2(df) + k) *      &
                                        wetrho_in_w3(map_w3(1) + k)
+        fd_impl_part_w2(map_w2(df)+k) = fd_impl_part_w2(map_w2(df) + k) +      &
+                                        w2_rmultiplicity(map_w2(df) + k) *     &
+                                        fd_impl_part_bl(map_w3(1) + k)
       end do
 
       do k = 1, bl_levels-1

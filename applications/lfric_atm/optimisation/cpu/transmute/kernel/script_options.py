@@ -27,7 +27,7 @@ SCRIPT_OPTIONS_DICT["bl_exp_kernel_mod"+str(FILE_EXTEN)] = {
         "tnuc_nlcl", "dw_bl", "surf_interp", "bq_bl", "bt_bl",
         "dtrdz_tq_bl", "level_ent", "level_ent_dsc", "ent_we_lim",
         "ent_t_frac", "ent_zrzi", "ent_we_lim_dsc", "ent_t_frac_dsc",
-        "ent_zrzi_dsc", "fd_taux", "fd_tauy", "gradrinr", "rhokm_bl",
+        "ent_zrzi_dsc", "fd_taux", "fd_tauy", "fd_impl_part_bl",
         "rhokh_bl", "moist_flux_bl", "heat_flux_bl", "gradrinr", "lmix_bl",
         "ngstress_bl", "tke_bl", "bl_weight_1dbl", "zh_nonloc", "z_lcl",
         "inv_depth", "qcl_at_inv_top", "shallow_flag", "uw0_flux", "vw0_flux",

@@ -689,10 +689,12 @@ contains
                          empty=(.not. l_calc_tau_at_p) ))
     call processor%apply(make_spec('tauy', main%turbulence, W3, &
                          empty=(.not. l_calc_tau_at_p) ))
+    call processor%apply(make_spec('fd_impl_part_bl', main%turbulence, W3))
 
     ! W2 fields, don't need checkpointing
     call processor%apply(make_spec('rhokm_w2', main%turbulence, W2))
     call processor%apply(make_spec('tau_w2', main%turbulence, W2))
+    call processor%apply(make_spec('fd_impl_part_w2', main%turbulence, W2))
 
     ! Fields on entrainment levels, don't need checkpointing
     ! vector_space => function_space_collection%get_fs(twod_mesh, 0, 0, W3,

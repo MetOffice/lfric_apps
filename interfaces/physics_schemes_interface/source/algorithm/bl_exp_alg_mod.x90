@@ -155,6 +155,8 @@ contains
     type( field_type ), pointer :: taux
     type( field_type ), pointer :: tauy
     type( field_type ), pointer :: rhokm_bl
+    type( field_type ), pointer :: fd_impl_part_bl
+    type( field_type ), pointer :: fd_impl_part_w2,
     type( integer_field_type ), pointer :: level_ent
     type( integer_field_type ), pointer :: level_ent_dsc
     type( field_type ), pointer :: ent_we_lim
@@ -270,6 +272,8 @@ contains
     call turbulence_fields%get_field('rhokm_w2', rhokm_w2)
     call turbulence_fields%get_field('rhokm_bl', rhokm_bl)
     call turbulence_fields%get_field('tau_w2', tau_w2)
+    call turbulence_fields%get_field('fd_impl_part_bl', fd_impl_part_bl)
+    call turbulence_fields%get_field('fd_impl_part_w2', fd_impl_part_w2)
     call turbulence_fields%get_field('level_ent', level_ent)
     call turbulence_fields%get_field('level_ent_dsc', level_ent_dsc)
     call turbulence_fields%get_field('ent_we_lim', ent_we_lim)
@@ -399,7 +403,8 @@ contains
                                     dw_bl, rhokm_bl, surf_interp, rhokh_bl,    &
                                     tke_bl, ngstress_bl, bq_bl, bt_bl,         &
                                     moist_flux_bl, heat_flux_bl, dtrdz_tq_bl,  &
-                                    fd_taux, fd_tauy, sea_u_current_ptr,       &
+                                    fd_taux, fd_tauy, fd_impl_part_bl,         &
+                                    sea_u_current_ptr,                         &
                                     sea_v_current_ptr, lmix_bl, gradrinr,      &
                                     z0m_eff, ustar, zh_nonloc, zhsc, z_lcl,    &
                                     inv_depth, qcl_at_inv_top, shallow_flag,   &
@@ -416,11 +421,13 @@ contains
                 setval_c(ngstress_w2,    0.0_r_def),                           &
                 setval_c(wetrho_in_w2,   0.0_r_def),                           &
                 setval_c(tau_w2,         0.0_r_def),                           &
+                setval_c(fd_impl_part_w2,0.0_r_def),                           &
                 ! Re-grid the required variables into w2
                 interp_bl_kernel_type(rhokm_bl, surf_interp, ngstress_bl,      &
-                                      wetrho_in_w3,                            &
+                                      wetrho_in_w3, fd_impl_part_bl,           &
                                       rhokm_w2, surf_interp_w2, ngstress_w2,   &
-                                      wetrho_in_w2, w2_rmultiplicity) )
+                                      wetrho_in_w2, fd_impl_part_w2,           &     
+                                      w2_rmultiplicity))
     ! Switch UM back to columns
     call um_sizes_init(1_i_def)
 

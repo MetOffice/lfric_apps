@@ -171,6 +171,7 @@ contains
     type( field_type ), pointer :: gradrinr       => null()
     type( field_type ), pointer :: rhokm_w2       => null()
     type( field_type ), pointer :: tau_w2         => null()
+    type( field_type ), pointer :: fd_impl_part_w2 => null()
     type( field_type ), pointer :: dw_bl          => null()
     type( field_type ), pointer :: mt_inc_leonard => null()
     type( field_type ), pointer :: thetal_inc_leonard => null()
@@ -261,6 +262,7 @@ contains
     call turbulence_fields%get_field('gradrinr', gradrinr)
     call turbulence_fields%get_field('rhokm_w2', rhokm_w2)
     call turbulence_fields%get_field('tau_w2', tau_w2)
+    call turbulence_fields%get_field('fd_impl_part_w2', fd_impl_part_w2)
     call turbulence_fields%get_field('dw_bl', dw_bl)
     call turbulence_fields%get_field('mt_inc_leonard', mt_inc_leonard)
     call turbulence_fields%get_field('thetal_inc_leonard', thetal_inc_leonard)
@@ -338,8 +340,8 @@ contains
                                       tau_land_w2, tau_ssi_w2, pseudotau_w2,   &
                                       rhokm_w2, rdz, dtrdz, wetrho_in_w2,      &
                                       u_physics, u_physics_star,               &
-                                      surf_interp_w2, dw_bl, dA,               &
-                                      height_w1, height_w2,                    &
+                                      fd_impl_part_w2, surf_interp_w2, dw_bl,  &
+                                      dA, height_w1, height_w2,                &
                                       face_selector_ew, face_selector_ns),     &
                 ! Map the wind back into dynamics quantities
                 inc_X_times_Y(du_bl, dA),                                      &

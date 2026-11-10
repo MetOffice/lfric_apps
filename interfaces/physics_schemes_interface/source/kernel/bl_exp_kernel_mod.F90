@@ -40,7 +40,7 @@ module bl_exp_kernel_mod
   !>
   type, public, extends(kernel_type) :: bl_exp_kernel_type
     private
-    type(arg_type) :: meta_args(93) = (/                                       &
+    type(arg_type) :: meta_args(94) = (/                                       &
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! theta_in_wth
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      W3),                       &! rho_in_w3
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! rho_in_wth
@@ -101,6 +101,7 @@ module bl_exp_kernel_mod
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     WTHETA),                   &! dtrdz_tq_bl
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     W3),                       &! fd_taux
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     W3),                       &! fd_tauy
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     W3),                       &! fd_impl_part_bl
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! sea_u_current
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      ANY_DISCONTINUOUS_SPACE_1),&! sea_v_current
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     WTHETA),                   &! lmix_bl
@@ -209,6 +210,7 @@ contains
   !> @param[in,out] dtrdz_tq_bl            dt/(rho*r*r*dz) in wth
   !> @param[in,out] fd_taux                'Zonal' momentum stress from form drag
   !> @param[in,out] fd_tauy                'Meridional' momentum stress from form drag
+  !> @param[in,out] fd_impl_part_bl        Implicit part of form drag stress
   !> @param[in]     sea_u_current          Ocean surface U current
   !> @param[in]     sea_v_current          Ocean surface V current
   !> @param[in,out] lmix_bl                Turbulence mixing length in wth
@@ -324,6 +326,7 @@ contains
                          dtrdz_tq_bl,                           &
                          fd_taux,                               &
                          fd_tauy,                               &
+                         fd_impl_part_bl,                       &
                          sea_u_current,                         &
                          sea_v_current,                         &
                          lmix_bl,                               &
@@ -431,7 +434,8 @@ contains
     real(kind=r_def), dimension(undf_w3),  intent(inout):: rhokh_bl,           &
                                                            moist_flux_bl,      &
                                                            heat_flux_bl,       &
-                                                           fd_taux, fd_tauy
+                                                           fd_taux, fd_tauy,   &
+                                                           fd_impl_part_bl
     real(kind=r_def), dimension(undf_w3),  intent(in)   :: rho_in_w3,          &
                                                            exner_in_w3,        &
                                                            u_in_w3, v_in_w3,   &
@@ -525,7 +529,8 @@ contains
     real(r_bl), dimension(seg_len,1,bl_levels) :: fqw, ftl, rhokh, bq_gb,    &
          bt_gb, dtrdz_charney_grid, rdz_charney_grid, rhokm_mix,             &
          temperature, rho_mix_tq, dzl_charney, qw, tl, bt, bq,               &
-         bt_cld, bq_cld, a_qs, a_dqsdt, dqsdt, rhokm, tau_fd_x, tau_fd_y, rdz
+         bt_cld, bq_cld, a_qs, a_dqsdt, dqsdt, rhokm, tau_fd_x, tau_fd_y,    &
+         fd_impl_part, rdz 
 
     real(r_um), dimension(seg_len,1,bl_levels) :: w_mixed, w_flux
 
@@ -895,7 +900,7 @@ contains
       zh,dzh,ntml,ntpar,l_shallow,cumulus,fqw,ftl,rhokh,rhokm,w,etadot,        &
       t1_sd,q1_sd,wtrac_bl,                                                    &
     ! OUT New variables for message passing
-      tau_fd_x, tau_fd_y, f_ngstress,                                          &
+      tau_fd_x, tau_fd_y, f_ngstress, fd_impl_part,                            &
     ! OUT Diagnostic not requiring STASH flags :
       zhnl,shallowc,cu_over_orog,                                              &
       bl_type_1,bl_type_2,bl_type_3,bl_type_4,bl_type_5,bl_type_6, bl_type_7,  &
@@ -1027,12 +1032,21 @@ contains
           ! by half a level in the vertical for the input & output
           fd_taux(map_w3(1,i) + k-1) = tau_fd_x(i,1,k)
           fd_tauy(map_w3(1,i) + k-1) = tau_fd_y(i,1,k)
+          fd_impl_part_bl(map_w3(1,i) + k-1) = fd_impl_part(i,1,k)
         end do
       end do
       do i = 1, seg_len
         do k=bl_levels+1,nlayers
           fd_taux(map_w3(1,i) + k-1) = 0.0_r_def
           fd_tauy(map_w3(1,i) + k-1) = 0.0_r_def
+          fd_impl_part_bl(map_w3(1,i) + k-1) = 0.0_r_def
+        end do
+      end do
+    else
+      ! if not distributed TOFD, set implicit solver part to zero
+      do i = 1, seg_len
+        do k= 1, nlayers
+          fd_impl_part_bl(map_w3(1,i) + k-1) = 0.0_r_def
         end do
       end do
     end if
