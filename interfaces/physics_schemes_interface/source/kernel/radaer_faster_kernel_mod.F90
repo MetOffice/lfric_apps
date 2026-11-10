@@ -388,7 +388,8 @@ subroutine radaer_faster_code( nlayers,                                        &
 
   use ukca_option_mod,                   only: do_not_prescribe
 
-  use ukca_radaer_faster_lfric_api_mod, only: ukca_radaer_faster_lfric_interface
+  use ukca_radaer_lfric_api_mod,         only: ukca_radaer_lfric_interface
+  !use ukca_radaer_faster_lfric_api_mod,only: ukca_radaer_faster_lfric_interface
 
   use ukca_radaer_lfric_list_mod,        only: max_fldname_len,                &
                                                pvol_comp_names,                &
@@ -713,59 +714,59 @@ subroutine radaer_faster_code( nlayers,                                        &
   !  mode_ait_insol, mode_acc_insol, mode_cor_insol,
   !  minus1_plus_eps, one_minus_eps,
 
-!$OMP PARALLEL DEFAULT(none)                                                   &
-!$OMP private( i, ii, j, jj, k, i_mode, i_rmode, i_band,                       &
-!$OMP          l_any_lit_points_um, trindxrad_um,                              &
-!$OMP          p_theta_levels_um, t_theta_levels_um, ukca_comp_vol_um,         &
-!$OMP          ukca_mix_ratio_um, ukca_dry_diam_um, ukca_modal_nbr_um,         &
-!$OMP          ukca_modal_rho_um, ukca_modal_vol_um, ukca_modal_wtv_um,        &
-!$OMP          ukca_wet_diam_um, d_mass_theta_levels_um,                       &
-!$OMP          ukca_mode_mix_ratio_um,                                         &
-!$OMP          aer_lw_absorption_um, aer_lw_scattering_um, aer_lw_asymmetry_um,&
-!$OMP          aer_sw_absorption_um, aer_sw_scattering_um, aer_sw_asymmetry_um,&
-!$OMP          aod_ukca_all_modes_um, aaod_ukca_all_modes_um )                 &
-!$OMP shared( num_seg, seg_size, n_radaer_step, nlayers, npd_exclude_lw,       &
-!$OMP         npd_exclude_sw,                                                  &
-!$OMP         ncp_max_x_nmodes, n_cpnt_in_mode, n_radaer_mode, n_lw_band,      &
-!$OMP         n_sw_band, n_aer_mode_lw, n_aer_mode_sw,                         &
-!$OMP         i_cpnt_index, i_cpnt_type, i_mode_type,                          &
-!$OMP         trop_level, p_zero, kappa, lit_fraction, gravity,                &
-!$OMP         theta_in_wth, exner_in_wth, ukca_radaer_presc_ssa,               &
-!$OMP         map_2d, map_wth, map_w3, map_mode, map_rmode_lw, map_rmode_sw,   &
-!$OMP         map_aod_wavel,                                                   &
-!$OMP         l_soluble,                                                       &
-!$OMP         l_aod_ukca_ait_sol, l_aod_ukca_acc_sol, l_aod_ukca_cor_sol,      &
-!$OMP         l_aaod_ukca_ait_sol, l_aaod_ukca_acc_sol, l_aaod_ukca_cor_sol,   &
-!$OMP         l_aod_ukca_ait_ins, l_aod_ukca_acc_ins, l_aod_ukca_cor_ins,      &
-!$OMP         l_aaod_ukca_ait_ins, l_aaod_ukca_acc_ins, l_aaod_ukca_cor_ins,   &
-!$OMP         pvol_wat_ait_sol, pvol_wat_acc_sol, pvol_wat_cor_sol,            &
-!$OMP         pvol_su_ait_sol, pvol_bc_ait_sol, pvol_om_ait_sol,               &
-!$OMP         pvol_su_acc_sol, pvol_bc_acc_sol, pvol_om_acc_sol,               &
-!$OMP         pvol_ss_acc_sol,                                                 &
-!$OMP         pvol_su_cor_sol, pvol_bc_cor_sol, pvol_om_cor_sol,               &
-!$OMP         pvol_ss_cor_sol,                                                 &
-!$OMP         pvol_bc_ait_ins, pvol_om_ait_ins,                                &
-!$OMP         pvol_du_acc_ins, pvol_du_cor_ins,                                &
-!$OMP         ait_sol_su, ait_sol_bc, ait_sol_om,                              &
-!$OMP         acc_sol_su, acc_sol_bc, acc_sol_om, acc_sol_ss,                  &
-!$OMP         cor_sol_su, cor_sol_bc, cor_sol_om, cor_sol_ss,                  &
-!$OMP         ait_ins_bc, ait_ins_om, acc_ins_du, cor_ins_du,                  &
-!$OMP         n_ait_sol, n_acc_sol, n_cor_sol, n_ait_ins, n_acc_ins, n_cor_ins,&
-!$OMP         rhopar_ait_sol, rhopar_acc_sol, rhopar_cor_sol,                  &
-!$OMP         rhopar_ait_ins, rhopar_acc_ins, rhopar_cor_ins,                  &
-!$OMP         drydp_ait_sol, drydp_acc_sol, drydp_cor_sol,                     &
-!$OMP         drydp_ait_ins, drydp_acc_ins, drydp_cor_ins,                     &
-!$OMP         wetdp_ait_sol, wetdp_acc_sol, wetdp_cor_sol,                     &
-!$OMP         aod_ukca_ait_sol, aod_ukca_acc_sol, aod_ukca_cor_sol,            &
-!$OMP         aaod_ukca_ait_sol, aaod_ukca_acc_sol, aaod_ukca_cor_sol,         &
-!$OMP         aod_ukca_ait_ins, aod_ukca_acc_ins, aod_ukca_cor_ins,            &
-!$OMP         aaod_ukca_ait_ins, aaod_ukca_acc_ins, aaod_ukca_cor_ins,         &
-!$OMP         rho_in_wth, dz_in_wth, exner_in_w3, aer_mix_ratio,               &
-!$OMP         aer_lw_absorption, aer_lw_scattering, aer_lw_asymmetry,          &
-!$OMP         aer_sw_absorption, aer_sw_scattering, aer_sw_asymmetry,          &
-!$OMP         empty_real_data )
+! !$OMP PARALLEL DEFAULT(none)                                                 &
+! !$OMP private( i, ii, j, jj, k, i_mode, i_rmode, i_band,                     &
+! !$OMP          l_any_lit_points_um, trindxrad_um,                            &
+! !$OMP          p_theta_levels_um, t_theta_levels_um, ukca_comp_vol_um,       &
+! !$OMP          ukca_mix_ratio_um, ukca_dry_diam_um, ukca_modal_nbr_um,       &
+! !$OMP          ukca_modal_rho_um, ukca_modal_vol_um, ukca_modal_wtv_um,      &
+! !$OMP          ukca_wet_diam_um, d_mass_theta_levels_um,                     &
+! !$OMP          ukca_mode_mix_ratio_um,                                       &
+! !$OMP        aer_lw_absorption_um, aer_lw_scattering_um, aer_lw_asymmetry_um,&
+! !$OMP        aer_sw_absorption_um, aer_sw_scattering_um, aer_sw_asymmetry_um,&
+! !$OMP          aod_ukca_all_modes_um, aaod_ukca_all_modes_um )               &
+! !$OMP shared( num_seg, seg_size, n_radaer_step, nlayers, npd_exclude_lw,     &
+! !$OMP         npd_exclude_sw,                                                &
+! !$OMP         ncp_max_x_nmodes, n_cpnt_in_mode, n_radaer_mode, n_lw_band,    &
+! !$OMP         n_sw_band, n_aer_mode_lw, n_aer_mode_sw,                       &
+! !$OMP         i_cpnt_index, i_cpnt_type, i_mode_type,                        &
+! !$OMP         trop_level, p_zero, kappa, lit_fraction, gravity,              &
+! !$OMP         theta_in_wth, exner_in_wth, ukca_radaer_presc_ssa,             &
+! !$OMP         map_2d, map_wth, map_w3, map_mode, map_rmode_lw, map_rmode_sw, &
+! !$OMP         map_aod_wavel,                                                 &
+! !$OMP         l_soluble,                                                     &
+! !$OMP         l_aod_ukca_ait_sol, l_aod_ukca_acc_sol, l_aod_ukca_cor_sol,    &
+! !$OMP         l_aaod_ukca_ait_sol, l_aaod_ukca_acc_sol, l_aaod_ukca_cor_sol, &
+! !$OMP         l_aod_ukca_ait_ins, l_aod_ukca_acc_ins, l_aod_ukca_cor_ins,    &
+! !$OMP         l_aaod_ukca_ait_ins, l_aaod_ukca_acc_ins, l_aaod_ukca_cor_ins, &
+! !$OMP         pvol_wat_ait_sol, pvol_wat_acc_sol, pvol_wat_cor_sol,          &
+! !$OMP         pvol_su_ait_sol, pvol_bc_ait_sol, pvol_om_ait_sol,             &
+! !$OMP         pvol_su_acc_sol, pvol_bc_acc_sol, pvol_om_acc_sol,             &
+! !$OMP         pvol_ss_acc_sol,                                               &
+! !$OMP         pvol_su_cor_sol, pvol_bc_cor_sol, pvol_om_cor_sol,             &
+! !$OMP         pvol_ss_cor_sol,                                               &
+! !$OMP         pvol_bc_ait_ins, pvol_om_ait_ins,                              &
+! !$OMP         pvol_du_acc_ins, pvol_du_cor_ins,                              &
+! !$OMP         ait_sol_su, ait_sol_bc, ait_sol_om,                            &
+! !$OMP         acc_sol_su, acc_sol_bc, acc_sol_om, acc_sol_ss,                &
+! !$OMP         cor_sol_su, cor_sol_bc, cor_sol_om, cor_sol_ss,                &
+! !$OMP         ait_ins_bc, ait_ins_om, acc_ins_du, cor_ins_du,                &
+! !$OMP       n_ait_sol, n_acc_sol, n_cor_sol, n_ait_ins, n_acc_ins, n_cor_ins,&
+! !$OMP         rhopar_ait_sol, rhopar_acc_sol, rhopar_cor_sol,                &
+! !$OMP         rhopar_ait_ins, rhopar_acc_ins, rhopar_cor_ins,                &
+! !$OMP         drydp_ait_sol, drydp_acc_sol, drydp_cor_sol,                   &
+! !$OMP         drydp_ait_ins, drydp_acc_ins, drydp_cor_ins,                   &
+! !$OMP         wetdp_ait_sol, wetdp_acc_sol, wetdp_cor_sol,                   &
+! !$OMP         aod_ukca_ait_sol, aod_ukca_acc_sol, aod_ukca_cor_sol,          &
+! !$OMP         aaod_ukca_ait_sol, aaod_ukca_acc_sol, aaod_ukca_cor_sol,       &
+! !$OMP         aod_ukca_ait_ins, aod_ukca_acc_ins, aod_ukca_cor_ins,          &
+! !$OMP         aaod_ukca_ait_ins, aaod_ukca_acc_ins, aaod_ukca_cor_ins,       &
+! !$OMP         rho_in_wth, dz_in_wth, exner_in_w3, aer_mix_ratio,             &
+! !$OMP         aer_lw_absorption, aer_lw_scattering, aer_lw_asymmetry,        &
+! !$OMP         aer_sw_absorption, aer_sw_scattering, aer_sw_asymmetry,        &
+! !$OMP         empty_real_data )
 
-!$OMP do SCHEDULE(DYNAMIC)
+! !$OMP do SCHEDULE(DYNAMIC)
   do j = 1, num_seg
 
     jj = ( (j-1)*seg_size ) + 1
@@ -1803,7 +1804,10 @@ subroutine radaer_faster_code( nlayers,                                        &
     ! Call UKCA modules
     !-----------------------------------------------------------------------
 
-    CALL ukca_radaer_faster_lfric_interface(                                   &
+    ! Testing if the current UKCA RADAER bit compares
+    ! Switch back once this is confirmed
+    !CALL ukca_radaer_faster_lfric_interface(                                  &
+    CALL ukca_radaer_lfric_interface(                                  &
       ! Fixed array dimensions (input)
       seg_size,                                                                &
       nlayers,                                                                 &
@@ -2131,9 +2135,9 @@ subroutine radaer_faster_code( nlayers,                                        &
     end if
 
   end do ! Segmentation loop
-!$OMP end do
+! !$OMP end do
 
-!$OMP end PARALLEL 
+! !$OMP end PARALLEL 
 
   deallocate( ukca_modal_wtv )
   deallocate( ukca_modal_vol )
