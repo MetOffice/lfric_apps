@@ -4,8 +4,6 @@
 {# under which the code may be used. #}
 {# ########################################################################### #}
 {# Some content in this file was generated or refactored with assistance from #}
-{# - Met Office Claude Code Enterprise (Claude Opus 5.5) #}
-{% do LOG.debug("Entered site/meto/groups/groups_lfricinputs.cylc") %}
 
 {# um2lfric Groups by Config #}
 {% do site_groups.update({
@@ -155,10 +153,6 @@
         "lfricinputs_lfric2um-umlam-C48L70_N512L70_azspice_gnu_fast-debug-64bit",
         "lfricinputs_lfric2um-nwp_gal9-C48L70_N48L70_azspice_gnu_fast-debug-64bit",
         "lfricinputs_lfric2um-nwp_gal9-C48L70_N48L70_azspice_gnu_full-debug-64bit",
-        "lfric2um_azspice_land_mask_nwp_gal9",
-    ],
-    "lfric2um_azspice_land_mask_nwp_gal9": [
-        "lfricinputs_lfric2um-land_mask_nwp_gal9-C48L70_N48L70_azspice_gnu_fast-debug-64bit",
     ],
     "lfric2um_azspice": [
         "lfric2um_azspice_developer",
@@ -222,10 +216,6 @@
         "lfricinputs_lfric2um-umlam-C48L70_N512L70_ex1a_gnu_full-debug-64bit",
         "lfricinputs_lfric2um-nwp_gal9-C48L70_N48L70_ex1a_gnu_fast-debug-64bit",
         "lfricinputs_lfric2um-nwp_gal9-C48L70_N48L70_ex1a_gnu_full-debug-64bit",
-        "lfric2um_ex1a_land_mask_nwp_gal9",
-    ],
-    "lfric2um_ex1a_land_mask_nwp_gal9": [
-        "lfricinputs_lfric2um-land_mask_nwp_gal9-C48L70_N48L70_ex1a_gnu_fast-debug-64bit",
     ],
     "lfric2um_ex1a": [
         "lfric2um_ex1a_developer",

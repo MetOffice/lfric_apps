@@ -83,7 +83,10 @@ if __name__ == "__main__":
         argument = os.environ.get('RESOLUTION')
         run_command(["create_um_grid_nml.py", "-r", argument])
 
-    # Optionally add a mask field to a local copy of the LFRic mesh
+    int_methods = ["bilinear", "neareststod"]
+
+    # Optionally add a mask field to a local copy of the LFRic mesh, used
+    # only for the land_mask_bilinear weights
     mask_file = os.environ.get('MASK_FILE')
     if mask_file:
         if os.environ.get('INT_DIRECT') != 'lfric2um':
@@ -96,10 +99,11 @@ if __name__ == "__main__":
                      "--mask-var", os.environ.get('MASK_VAR'),
                      "--mesh-out", masked_mesh,
                      "--out-var", os.environ.get('MASK_VAR')])
-        os.environ["GRID_PATH_LFRIC"] = masked_mesh
+        os.environ["GRID_PATH_LFRIC_MASKED"] = masked_mesh
         os.environ["MASK_VAR_LFRIC"] = os.environ.get('MASK_VAR')
+        int_methods.append("land_mask_bilinear")
 
     # Loop over grid types and generate weights for each
     for um_ptype in ["P", "U", "V"]:
-        for int_method in ["bilinear", "neareststod"]:
+        for int_method in int_methods:
             weight_gen(um_ptype, int_method)

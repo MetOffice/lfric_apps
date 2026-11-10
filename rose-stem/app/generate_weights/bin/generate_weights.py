@@ -42,6 +42,7 @@ class INTER:
         self.um_grid_path = os.environ.get('GRID_PATH_UM')
         self.lfric_grid_type = os.environ.get('GRID_TYPE_LFRIC')
         self.lfric_grid_path = os.environ.get('GRID_PATH_LFRIC')
+        self.lfric_masked_grid_path = os.environ.get('GRID_PATH_LFRIC_MASKED')
         self.lfric_mask_var = os.environ.get('MASK_VAR_LFRIC')
 
     def set_arguments_um2lfric(self):
@@ -70,21 +71,22 @@ class INTER:
 
     def set_arguments_lfric2um(self):
         '''Set ESMF regrid command line options'''
-        options = ' -s ' + self.lfric_grid_path
-        options = options + ' --src_loc center'
-        if self.lfric_mask_var:
+        if self.method == 'land_mask_bilinear':
+            options = ' -s ' + self.lfric_masked_grid_path
+            options = options + ' --src_loc center'
             options = options + ' --src_missingvalue ' + self.lfric_mask_var
             # TODO: ESMF has a bug that means the masked weights generation
             # doesn't work with bilinear interpolation. Force the regridding to
             # use nearest neighbour interpolation, until the bug is fixed. The
             # weights won't be correct, but we can continue to build the rest
-            # of the process. When the bug is fixed, the else clause should
-            # be used for the following options in all cases
-            options = options + ' -d ' + self.um_grid_path
-            options = options + ' --64bit_offset --check -m ' + 'neareststod'
+            # of the process. When the bug is fixed, use 'bilinear' here.
+            esmf_method = 'neareststod'
         else:
-            options = options + ' -d ' + self.um_grid_path
-            options = options + ' --64bit_offset --check -m ' + self.method
+            options = ' -s ' + self.lfric_grid_path
+            options = options + ' --src_loc center'
+            esmf_method = self.method
+        options = options + ' -d ' + self.um_grid_path
+        options = options + ' --64bit_offset --check -m ' + esmf_method
         if self.um_grid_type == 'regional':
             options = options + ' --src_regional '
         if self.lfric_grid_type == 'regional':
