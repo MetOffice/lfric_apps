@@ -4,8 +4,8 @@
 ! which you should have received as part of this distribution.
 ! *****************************COPYRIGHT*******************************
 !-------------------------------------------------------------------------------
-! Some of the content of this file has been produced with the assistance of
-! Met Office Claude Code Enterprise.
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code via AI Foundry (Opus 5);
 !-------------------------------------------------------------------------------
 !
 ! Sizes for many of the UM's main, dynamic data arrays

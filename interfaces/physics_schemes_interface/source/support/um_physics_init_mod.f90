@@ -3,8 +3,8 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !----------------------------------------------------------------------------
-! Some of the content of this file has been produced with the assistance of
-! Met Office Claude Code Enterprise.
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code via AI Foundry (Opus 5);
 !----------------------------------------------------------------------------
 !> @brief Controls the setting of variables for UM physics schemes, which
 !>         are either fixed in LFRic or derived from LFRic inputs
