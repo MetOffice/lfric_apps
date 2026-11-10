@@ -246,8 +246,11 @@ do while ( maxval(nc_check)>0 .and. iter<n_cond_species )
         nc_cor = 0
         do ic2 = 1, nc_check(i_ice)
           ic = index_ic_check(ic2,i_ice)
-          if ( q_cond(ic,i_ice) + dq_cond(ic,i_ice)                            &
-                                - dq_melt(ic,i_ice) < zero ) then
+          ! Note: the brackets below are important; we must not select this
+          ! point due to rounding error when in-fact (dq_cond - dq_melt) is
+          ! exactly zero, as we divide by this factor in modify_coefs_ice.
+          if ( q_cond(ic,i_ice) + ( dq_cond(ic,i_ice) - dq_melt(ic,i_ice) )    &
+               < zero ) then
             nc_cor = nc_cor + 1
             index_ic_cor(nc_cor) = ic
           end if
@@ -363,8 +366,8 @@ do while ( maxval(nc_check)>0 .and. iter<n_cond_species )
       nc_cor = 0
       do ic2 = 1, nc_check(i_liq)
         ic = index_ic_check(ic2,i_liq)
-        if ( q_cond(ic,i_liq) + dq_cond(ic,i_liq)                              &
-                              + melt_source(ic2) < zero ) then
+        if ( q_cond(ic,i_liq) + ( dq_cond(ic,i_liq) + melt_source(ic2) )       &
+             < zero ) then
           nc_cor = nc_cor + 1
           index_ic_cor(nc_cor) = ic
         end if

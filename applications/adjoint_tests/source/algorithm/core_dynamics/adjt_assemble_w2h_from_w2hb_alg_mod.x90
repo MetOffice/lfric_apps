@@ -1,0 +1,143 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be brief.
+!-----------------------------------------------------------------------------
+!> @brief Module containing adjoint test for adj_assemble_w2h_from_w2hb_kernel
+module adjt_assemble_w2h_from_w2hb_alg_mod
+
+  use config_mod,                    only : config_type
+  use field_mod,                     only : field_type
+  use function_space_mod,            only : function_space_type
+  use mesh_mod,                      only : mesh_type
+  use function_space_collection_mod, only : function_space_collection
+  use fs_continuity_mod,             only : W2broken, W2h
+  use constants_mod,                 only : i_def, r_def, EPS
+  use log_mod,                       only : log_event,         &
+                                            log_scratch_space, &
+                                            LOG_LEVEL_ERROR,   &
+                                            LOG_LEVEL_INFO,    &
+                                            LOG_LEVEL_DEBUG
+
+  implicit none
+
+  public :: adjt_assemble_w2h_from_w2hb_alg
+
+  contains
+  !=============================================================================
+  !> @brief   Adjoint test for adj_assemble_w2h_from_w2hb.
+  !> @details Passes if adjoint is transpose of tangent linear.
+  !>          Determined by testing the equality of inner products <Mx, Mx> and <AMx, x>,
+  !>          where M is the tangent linear and A is the adjoint.
+  !> @param[in]  config       Application namelist configuration object
+  !> @param[in]  mesh         Mesh object
+  subroutine adjt_assemble_w2h_from_w2hb_alg(config, mesh)
+
+    use assemble_w2h_from_w2hb_kernel_mod,     only : assemble_w2h_from_w2hb_kernel_type
+    use adj_assemble_w2h_from_w2hb_kernel_mod, only : adj_assemble_w2h_from_w2hb_kernel_type
+
+    implicit none
+
+    ! Arguments
+    type(config_type),        intent(in) :: config
+    type(mesh_type), pointer, intent(in) :: mesh
+
+    ! Arguments for tl and adj calls
+    type(field_type)    :: field_w2h
+    type(field_type)    :: field_w2h_broken
+
+    ! Copies of input fields used in inner products
+    type(field_type)    :: field_w2h_inp
+    type(field_type)    :: field_w2h_broken_inp
+
+    ! Variables for initialising fields
+    type(function_space_type), pointer :: vector_space_w2b_ptr
+    type(function_space_type), pointer :: vector_space_w2h_ptr
+    integer(kind=i_def)                :: element_order_h
+    integer(kind=i_def)                :: element_order_v
+
+    ! Inner products
+    real(kind=r_def) :: field_w2h_inner_prod
+    real(kind=r_def) :: field_w2h_broken_inner_prod
+    real(kind=r_def) :: field_w2h_sf
+    real(kind=r_def) :: field_w2h_broken_sf
+    real(kind=r_def) :: inner1
+    real(kind=r_def) :: fw2h_fw2h_inp_inner_prod
+    real(kind=r_def) :: fw2hb_fw2hb_inp_inner_prod
+    real(kind=r_def) :: inner2
+
+    ! Test parameters and variables
+    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    real(kind=r_def)            :: machine_tol
+    real(kind=r_def)            :: relative_diff
+
+    element_order_h = config%finite_element%element_order_h()
+    element_order_v = config%finite_element%element_order_v()
+    vector_space_w2b_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2broken)
+    vector_space_w2h_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2h)
+
+    call field_w2h%initialise(vector_space=vector_space_w2h_ptr, name='field_w2h')
+    call field_w2h_broken%initialise(vector_space=vector_space_w2b_ptr, name='field_w2h_broken')
+
+
+    call field_w2h%copy_field_properties(field_w2h_inp)
+    call field_w2h_broken%copy_field_properties(field_w2h_broken_inp)
+
+    field_w2h_inner_prod = 0.0_r_def
+    field_w2h_broken_inner_prod = 0.0_r_def
+
+    ! Initialise arguments and call the tangent-linear kernel.
+    call invoke( setval_random(field_w2h),                             &
+                 setval_x(field_w2h_inp, field_w2h),                   &
+                 setval_random(field_w2h_broken),                      &
+                 setval_x(field_w2h_broken_inp, field_w2h_broken),     &
+                 assemble_w2h_from_w2hb_kernel_type(field_w2h,         &
+                                                    field_w2h_broken), &
+                 x_innerproduct_x(field_w2h_inner_prod, field_w2h),    &
+                 x_innerproduct_x(field_w2h_broken_inner_prod, field_w2h_broken) )
+
+    write( log_scratch_space, * ) "adjt_assemble_w2h_from_w2hb inner products:"
+    call log_event( log_scratch_space, log_level_debug )
+    write( log_scratch_space, * ) "field_w2h inner product = ", field_w2h_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+    write( log_scratch_space, * ) "field_w2h_broken inner product = ", field_w2h_broken_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+
+    field_w2h_sf = 1.0_r_def / (field_w2h_inner_prod + EPS)
+    field_w2h_broken_sf = 1.0_r_def / (field_w2h_broken_inner_prod + EPS)
+
+    inner1 = 0.0_r_def
+    inner1 = inner1 + field_w2h_inner_prod * field_w2h_sf
+    inner1 = inner1 + field_w2h_broken_inner_prod * field_w2h_broken_sf
+
+    call invoke( inc_a_times_X( field_w2h_sf, field_w2h ), &
+                 inc_a_times_X( field_w2h_broken_sf, field_w2h_broken ) )
+
+    fw2h_fw2h_inp_inner_prod = 0.0_r_def
+    fw2hb_fw2hb_inp_inner_prod = 0.0_r_def
+
+    call invoke( adj_assemble_w2h_from_w2hb_kernel_type(field_w2h,         &
+                                                        field_w2h_broken), &
+                 x_innerproduct_y(fw2h_fw2h_inp_inner_prod,                &
+                                  field_w2h, field_w2h_inp),               &
+                 x_innerproduct_y(fw2hb_fw2hb_inp_inner_prod,              &
+                                  field_w2h_broken, field_w2h_broken_inp) )
+
+    inner2 = 0.0_r_def
+    inner2 = inner2 + fw2h_fw2h_inp_inner_prod
+    inner2 = inner2 + fw2hb_fw2hb_inp_inner_prod
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing(max(abs(inner1), abs(inner2)))
+    relative_diff = abs(inner1 - inner2) / machine_tol
+    if (relative_diff < overall_tolerance) then
+      write(log_scratch_space, *) "PASSED assemble_w2h_from_w2hb_kernel_type:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+    else
+      write(log_scratch_space, *) "FAILED assemble_w2h_from_w2hb_kernel_type:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+  end subroutine adjt_assemble_w2h_from_w2hb_alg
+
+end module adjt_assemble_w2h_from_w2hb_alg_mod

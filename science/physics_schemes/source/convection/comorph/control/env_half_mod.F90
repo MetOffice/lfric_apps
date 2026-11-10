@@ -29,10 +29,10 @@ contains
 !----------------------------------------------------------------
 ! Subroutine to interpolate the required fields onto half-level
 !----------------------------------------------------------------
-subroutine env_half_interp( l_last_level, k_full, n_points_super, cmpr,        &
+subroutine env_half_interp( k_full, k_half, n_points_super, cmpr,              &
                             height_full, height_k, height_half,                &
-                            wind_w, virt_temp,                                 &
-                            wind_w_k, virt_temp_k,                             &
+                            wind_w, virt_temp_half,                            &
+                            wind_w_k,                                          &
                             env_half )
 
 use cmpr_type_mod, only: cmpr_type
@@ -42,11 +42,11 @@ use compress_mod, only: compress
 
 implicit none
 
-! Flag for reached the final model-level
-logical, intent(in) :: l_last_level
-
 ! k-index of neighbouring full model-level needed for interpolating to k_half
 integer, intent(in) :: k_full
+
+! k-index of half-level fields between k and k_full
+integer, intent(in) :: k_half
 
 ! Array dimension of the env_half super-array
 integer, intent(in) :: n_points_super
@@ -67,11 +67,11 @@ real(kind=real_cvprec), intent(in) :: height_half                              &
 
 ! Full 3-D array of vertical velocity
 real(kind=real_hmprec), pointer, intent(in) :: wind_w(:,:,:)
-! Latest virtual temperature 3D array
-real(kind=real_hmprec), intent(in) :: virt_temp                                &
-       ( nx_full, ny_full, k_bot_conv:k_top_conv )
+! Latest virtual temperature 3D array already interpolated to half-levels
+real(kind=real_hmprec), intent(in) :: virt_temp_half                           &
+       ( nx_full, ny_full, k_bot_conv:k_top_conv+1 )
 
-! Note: the array dimensions of virt_temp are known, because it
+! Note: the array dimensions of virt_temp_half are known, because it
 ! is a local array within comorph.
 ! But wind_w is passed in from outside and may
 ! or may not have halos / BC points that we don't want to mess
@@ -80,9 +80,6 @@ real(kind=real_hmprec), intent(in) :: virt_temp                                &
 
 ! Vertical velocity already compressed onto convecting points at level k
 real(kind=real_cvprec), intent(in) :: wind_w_k                                 &
-                                      ( cmpr%n_points )
-! Virtual temperature  already compressed onto convecting points at level k
-real(kind=real_cvprec), intent(in) :: virt_temp_k                              &
                                       ( cmpr%n_points )
 
 ! Super-array to contain fields interpolated to the half-level
@@ -102,12 +99,9 @@ integer :: lb(3), ub(3)
 integer :: ic
 
 
-! TEMPORARY CODE TO PRESERVE KGO:
-! If in the last level but interpolating to find Tv at prev, we should
-! enter the ELSE branch below and interpolate between k and k-dk;
-! this code wrongly sets Tv at prev equal to Tv(k); fix this soon...
-!IF ( k_full > k_top_conv .OR. k_full < k_bot_conv ) THEN
-if ( l_last_level ) then
+! 1) Linear interpolation of vertical velocity onto half-level
+
+if ( k_full > k_top_conv .or. k_full < k_bot_conv ) then
   ! If trying to interpolate beyond the first or last full level,
   ! just assume fields are constant
   ! beyond and copy the fields at the current level, as the
@@ -116,9 +110,6 @@ if ( l_last_level ) then
 
   do ic = 1, cmpr%n_points
     env_half(ic,i_wind_w_half) = wind_w_k(ic)
-  end do
-  do ic = 1, cmpr%n_points
-    env_half(ic,i_virt_temp) = virt_temp_k(ic)
   end do
 
 else  ! ( k_full <= k_top_conv .AND. k_full >== k_bot_conv )
@@ -146,18 +137,20 @@ else  ! ( k_full <= k_top_conv .AND. k_full >== k_bot_conv )
       +      weight(ic)  * work_cmpr(ic)
   end do
 
-  ! Compress virtual temperatures from the next full model-level
-  lb = [1,1,k_bot_conv]
-  ub = [nx_full,ny_full,k_top_conv]
-  call compress( cmpr, lb(1:2), ub(1:2), virt_temp(:,:,k_full), work_cmpr )
-  ! Interpolate compressed virtual temperatures onto half-level
-  do ic = 1, cmpr%n_points
-    env_half(ic,i_virt_temp)                                                   &
-      = (one-weight(ic)) * virt_temp_k(ic)                                     &
-      +      weight(ic)  * work_cmpr(ic)
-  end do
-
 end if  ! ( k_full <= k_top_conv .AND. k_full >== k_bot_conv )
+
+
+! 2) Set virtual temperature on half-level
+
+! Tv on half-levels has already been calculated in a full 3D array
+! at a higher level in the code, to account for kinks in the profile
+! (requires vertically non-local calculation).
+
+! Just compress the 3D half-level array for Tv
+lb = [1,1,k_bot_conv]
+ub = [nx_full,ny_full,k_top_conv+1]
+call compress( cmpr, lb(1:2), ub(1:2), virt_temp_half(:,:,k_half),             &
+               env_half(:,i_virt_temp) )
 
 
 return
