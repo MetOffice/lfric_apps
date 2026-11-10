@@ -16,6 +16,8 @@
       <field field_ref="surface__u10m"/>
       <field field_ref="surface__v10m"/>
       <field field_ref="surface__wspd10m"/>
+      <field field_ref="processed__u50m"/>
+      <field field_ref="processed__v50m"/>
       <field field_ref="surface__grid_sensible_heat"/>
       <field field_ref="surface__grid_moisture_flux"/>
       <field field_ref="surface__grid_latent_heat"/>
@@ -146,7 +148,9 @@
       <field field_ref="surface__leaf_area_index"/>
       <field field_ref="soil__soil_moisture_content"/> 
       <field field_ref="surface__grid_canopy_water"/> 
-      <field field_ref="cloud__cloud_amount_rnd"/> 
+      <field field_ref="cloud__cloud_amount_rnd"/>
+      <field field_ref="processed__pv_on_theta_levs"/>
+      <field field_ref="processed__theta_on_pv2"/>
       <field field_ref="turbulence__thermal_speed"/>
       <field field_ref="aviation__geopot_thickness_850"/>
       <field field_ref="aviation__geopot_thickness_500"/>
@@ -253,7 +257,7 @@
     </field_group>    
 
     <!-- Radiation timestep radiation diagnostics -->
-    <field_group operation="instant" freq_op="3h" freq_offset="0ts" prec="4">
+    <field_group operation="instant" freq_op="3h" freq_offset="0ts">
       <field field_ref="radiation__sw_direct_uv_surf_rts"/>
       <field field_ref="radiation__sw_up_uv_surf_rts"/>
       <field field_ref="radiation__sw_down_uv_surf_rts"/>
