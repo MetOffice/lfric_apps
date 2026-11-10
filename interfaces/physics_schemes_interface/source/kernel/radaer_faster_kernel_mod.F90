@@ -1278,7 +1278,8 @@ subroutine radaer_faster_code( nlayers,                                        &
           do k = 1, nlayers
             ii = jj + i - 1
             ukca_dry_diam(i,k,m)= real( drydp_ait_ins(map_wth(1,ii) + k), r_um )
-
+          end do
+        end do
       case('fldname_drydp_acc_ins')
         do i = 1, seg_size
           do k = 1, nlayers
