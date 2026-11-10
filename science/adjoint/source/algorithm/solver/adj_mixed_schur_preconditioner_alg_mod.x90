@@ -2,6 +2,9 @@
 ! (C) Crown copyright 2025 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
+!
+! Some of the content of this file has been produced with the assistance of
+! Met Office GitHub Copilot Enterprise.
 !-----------------------------------------------------------------------------
 !> @brief Adjoint of mixed_schur_preconditioner_alg_mod
 
@@ -33,7 +36,10 @@ module adj_mixed_schur_preconditioner_alg_mod
                                                   get_ptheta2v,     &
                                                   get_p3theta,      &
                                                   get_helm_diag,    &
-                                                  get_Hb_lumped_inv
+                                                  get_Hb_lumped_inv, &
+                                                  get_tau_u_dt_cp,  &
+                                                  get_tau_t_dt,     &
+                                                  get_tau_r_dt
   use solver_constants_mod,                 only: get_normalisation_r_solver
   use fs_continuity_mod,                    only: W2, W3, Wtheta
   use boundaries_config_mod,                only: limited_area
@@ -59,6 +65,7 @@ module adj_mixed_schur_preconditioner_alg_mod
     type(r_solver_field_vector_type)               :: pressure_b
     type(r_solver_field_vector_type)               :: pressure_x
     class(abstract_iterative_solver_type), pointer :: adj_pressure_solver
+    integer(kind=i_def)                            :: stepper
   contains
     procedure, public  :: apply => apply_adj_mixed_schur_preconditioner
     procedure, private :: apply_adj_mixed_schur_preconditioner
@@ -78,7 +85,8 @@ contains
   !> @param [in] p_h                 Horizontal element order for function spaces
   !> @param [in] p_v                 Vertical element order for function spaces
   !> @param [in] adj_pressure_solver Solver object for Helmholtz system
-  function adj_mixed_schur_preconditioner_ctor( mesh, p_h, p_v, adj_pressure_solver ) &
+  !> @param [in] stepper             Timestepper enumerator used to select operators
+  function adj_mixed_schur_preconditioner_ctor( mesh, p_h, p_v, adj_pressure_solver, stepper ) &
     result(self)
   ! Note: name shortened from adj_mixed_schur_preconditioner_constructor as this
   ! causes "error #5462: Global name too long"
@@ -88,6 +96,7 @@ contains
     integer(i_def),                                intent(in) :: p_h, p_v
     type(mesh_type),                       target, intent(in) :: mesh
     class(abstract_iterative_solver_type), target, intent(in) :: adj_pressure_solver
+    integer(i_def),                                intent(in) :: stepper
 
     type(adj_mixed_schur_preconditioner_type) :: self
 
@@ -110,6 +119,7 @@ contains
 
     ! Set pressure solver
     self%adj_pressure_solver => adj_pressure_solver
+    self%stepper = stepper
 
     call log_event( 'done', LOG_LEVEL_DEBUG )
 
@@ -212,7 +222,8 @@ contains
     type(r_solver_operator_type), pointer :: m3_rho_star, ptheta2, p3theta, compound_div
     type(r_solver_field_type),    pointer :: mt_lumped_inv, h_diag, Hb_lumped_inv
     type(r_solver_field_type)             :: rhs_d
-    real(kind=r_solver),        parameter :: minus_one = -1.0_r_solver
+    real(kind=r_solver)                   :: const_r, const_t
+    real(kind=r_solver)                   :: minus_const_r, minus_const_t
     type(r_solver_field_type)             :: rhs_uvw
     integer(kind=i_def)                   :: mesh_id
     type(r_solver_field_type),  pointer   :: rhs_uv, rhs_p, rhs_w, rhs
@@ -249,10 +260,15 @@ contains
     p3theta       => get_p3theta()
     m3_rho_star   => get_m3_rho_star()
     compound_div  => get_compound_div()
-    Hb_lumped_inv => get_Hb_lumped_inv()
+    Hb_lumped_inv => get_Hb_lumped_inv(self%stepper)
+
+    const_r = get_tau_r_dt(self%stepper)
+    const_t = get_tau_t_dt(self%stepper)
+    minus_const_r = -const_r
+    minus_const_t = -const_t
 
     if (normalise) then
-      h_diag => get_helm_diag()
+      h_diag => get_helm_diag(self%stepper)
       call invoke( name="adj_msp1", &
                    inc_X_times_Y( rhs, h_diag ) )
     end if
@@ -274,7 +290,8 @@ contains
                                                             mt_lumped_inv, rhs_d,  &
                                                             compound_div, p3theta, &
                                                             ptheta2, m3_rho_star,  &
-                                                            minus_one, rhs_p ) )
+                                                            minus_const_r,         &
+                                                            minus_const_t, rhs_p ) )
       else
         call log_event( "adj_build_pressure_rhs: element_orders /= 0 not coded", LOG_LEVEL_ERROR )
       end if
@@ -321,6 +338,7 @@ contains
     type(r_solver_operator_type), pointer :: div_star
     type(r_solver_field_type)             :: u_inc
     integer(kind=i_def)                   :: mesh_id
+    real(kind=r_solver)                   :: const_u
 
     type(r_solver_field_type), pointer :: state_uv, state_p, state_w, exner_inc
 
@@ -340,7 +358,10 @@ contains
     call u_inc%initialise(vector_space=self%rhs_u%get_function_space())
     u_normalisation => get_normalisation_r_solver( W2, mesh_id )
     div_star        => get_div_star()
-    Hb_lumped_inv   => get_Hb_lumped_inv()
+    Hb_lumped_inv   => get_Hb_lumped_inv(self%stepper)
+    ! div_star is assembled unscaled; the D*p' reconstruction carries tau_u*dt*cp
+    ! in the forward model, so its adjoint carries the same constant.
+    const_u = get_tau_u_dt_cp(self%stepper)
     ! u' = ru + BC[HB * unorm * D * p']
 
     if (split_w) then
@@ -372,7 +393,7 @@ contains
                  inc_X_plus_Y( self%rhs_u, u_inc ),                               &
                  adj_scaled_matrix_vector_kernel_type( u_inc, exner_inc,          &
                                                        div_star, u_normalisation, &
-                                                       Hb_lumped_inv ),           &
+                                                       Hb_lumped_inv, const_u ),  &
                  setval_c(u_inc, 0.0_r_solver) )
 
     if ( LPROF ) call stop_timing( id, 'adj_schur_precon.back_sub' )
