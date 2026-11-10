@@ -3,31 +3,46 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 ! -----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Claude Code.
+! -----------------------------------------------------------------------------
 !> @brief Calculate aviation diagnostics.
 !>
 module aviation_diags_alg_mod
 
   use aviation_thickness_snow_kernel_mod,                                   &
                                       only: aviation_thickness_snow_kernel_type
+  use cape_cin_mixed_layer_kernel_mod,                                      &
+                                      only: cape_cin_mixed_layer_kernel_type
+  use cape_cin_most_unstable_kernel_mod,                                    &
+                                      only: cape_cin_most_unstable_kernel_type
+  use cape_cin_surface_kernel_mod,    only: cape_cin_surface_kernel_type
+  use config_mod,                     only: config_type
   use constants_mod,                  only: r_def, i_def, l_def, str_long, RMDI
   use dg_matrix_vector_kernel_mod,    only: dg_matrix_vector_kernel_type
   use field_collection_mod,           only: field_collection_type
   use field_mod,                      only: field_type
-  use fs_continuity_mod,              only: W2h, W2v, W3
+  use fs_continuity_mod,              only: W2h, W2v, W3, Wtheta
   use function_space_collection_mod,  only: function_space_collection
   use initialise_diagnostics_mod,     only: init_diag => init_diagnostic_field
   use integer_field_mod,              only: integer_field_type
   use lfric_xios_diag_mod,            only: get_axis_dimension, get_axis_values
   use log_mod,                        only: log_event, log_level_error
   use mesh_mod,                       only: mesh_type
+  use mr_indices_mod,                 only: imr_v
   use operator_mod,                   only: operator_type
-  use planet_config_mod,              only: p_zero, kappa
+  use planet_config_mod,              only: p_zero, kappa, one_over_kappa,  &
+                                            gravity, rd, cp, epsilon
   use psykal_lite_phys_mod,           only: invoke_pres_interp_kernel_type
   use r_tran_operator_mod,            only: r_tran_operator_type
   use sci_geometric_constants_mod,    only: get_face_selector_ew,          &
-                                            get_face_selector_ns
+                                            get_face_selector_ns,          &
+                                            get_height_fv
   use sci_operator_algebra_kernel_mod,                                      &
                                       only: operator_setval_x_kernel_type
+  use section_choice_config_mod,      only: boundary_layer,                &
+                                            boundary_layer_um,             &
+                                            surface, surface_jules
   use split_w2_field_kernel_mod,      only: split_w2_field_kernel_type
   use transport_constants_mod,        only: get_directional_im3_div_r_tran
   use transport_enumerated_types_mod, only: direction_h
@@ -40,23 +55,37 @@ public :: aviation_diags_alg
 contains
 
   !> @brief Calculate aviation diagnostics.
+  !> @param[in]     config             Model configuration
   !> @param[in]     plev_geopot        Geopotential height at pressure levels in m.
   !>                                   including cloud base and top pressures.
   !> @param[in]     wind              3D wind field on W2
   !> @param[in]     exner_w3          Exner pressure on W3
+  !> @param[in]     theta             Potential temperature
+  !> @param[in]     mr                Mixing ratios
+  !> @param[in]     rho               Dry density on W3
+  !> @param[in]     derived_fields    Collection of derived fields
+  !> @param[in]     surface_fields    Collection of surface fields
   !> @param[in]     main_mesh         Primary mesh pointer
   !> @param[in]     element_order_h   Element order in the horizontal
   !> @param[in]     element_order_v   Element order in the vertical
-  subroutine aviation_diags_alg(plev_geopot,                                &
-          wind, exner_w3, main_mesh, element_order_h, element_order_v)
+  subroutine aviation_diags_alg(config, plev_geopot,                        &
+          wind, exner_w3, theta, mr, rho, derived_fields, surface_fields,   &
+          main_mesh, element_order_h, element_order_v)
     implicit none
 
     ! Arguments
-    type(field_type),    intent(in)          :: plev_geopot
-    type(field_type),    intent(in)          :: wind
-    type(field_type),    intent(in)          :: exner_w3
-    type(mesh_type),     intent(in), pointer :: main_mesh
-    integer(kind=i_def), intent(in)          :: element_order_h, element_order_v
+    type(config_type),           intent(in)          :: config
+    type(field_type),            intent(in)          :: plev_geopot
+    type(field_type),            intent(in)          :: wind
+    type(field_type),            intent(in)          :: exner_w3
+    type(field_type),            intent(in)          :: theta
+    type(field_type),            intent(in)          :: mr(:)
+    type(field_type),            intent(in)          :: rho
+    type(field_collection_type), intent(in)          :: derived_fields
+    type(field_collection_type), intent(in)          :: surface_fields
+    type(mesh_type),             intent(in), pointer :: main_mesh
+    integer(kind=i_def),         intent(in)          :: element_order_h
+    integer(kind=i_def),         intent(in)          :: element_order_v
 
     ! Calculate geopotential thickness and snow probbability.
     call from_plev_geopot(plev_geopot)
@@ -64,6 +93,10 @@ contains
     ! Calculate uv wind divergence.
     call write_horizontal_divergence_diagnostic( &
         wind, exner_w3, main_mesh, element_order_h, element_order_v)
+
+    ! Calculate CAPE and CIN of undilute parcel ascents.
+    call write_cape_cin_diagnostics(config, theta, mr, exner_w3, rho,       &
+                                    derived_fields, surface_fields)
 
   end subroutine aviation_diags_alg
 
@@ -267,5 +300,150 @@ contains
     deallocate(plevs)
 
   end subroutine write_horizontal_divergence_diagnostic
+
+  !> @brief Calculate and write CAPE and CIN of undilute parcel ascents.
+  !> @details Parcels are lifted from a 500 m deep mixed layer, from screen
+  !>          level and from each model level below 500 hPa using the state
+  !>          at the end of the timestep. The screen-level temperature and
+  !>          humidity are those kept by the boundary layer scheme earlier in
+  !>          the timestep.
+  !> @param[in] config         Model configuration
+  !> @param[in] theta          Potential temperature
+  !> @param[in] mr             Mixing ratios
+  !> @param[in] exner_w3       Exner pressure on W3
+  !> @param[in] rho            Dry density on W3
+  !> @param[in] derived_fields Collection of derived fields
+  !> @param[in] surface_fields Collection of surface fields
+  subroutine write_cape_cin_diagnostics(config, theta, mr, exner_w3, rho,   &
+                                        derived_fields, surface_fields)
+
+    implicit none
+
+    ! Arguments
+    type(config_type),           intent(in) :: config
+    type(field_type),            intent(in) :: theta
+    type(field_type),            intent(in) :: mr(:)
+    type(field_type),            intent(in) :: exner_w3
+    type(field_type),            intent(in) :: rho
+    type(field_collection_type), intent(in) :: derived_fields
+    type(field_collection_type), intent(in) :: surface_fields
+
+    ! Locals
+    type(field_type) :: ml_cape, ml_cin, ml_equilibrium_height
+    type(field_type) :: sb_cape, sb_cin
+    type(field_type) :: mu_cape, mu_cin, mu_start_height
+    type(field_type) :: mu_equilibrium_height
+    type(field_type) :: inflow_base_height, inflow_top_height
+
+    type(field_type), pointer :: exner_in_wth
+    type(field_type), pointer :: wetrho_in_w3
+    type(field_type), pointer :: height_wth
+    type(field_type), pointer :: height_w3
+    type(field_type), pointer :: t1p5m_for_diags
+    type(field_type), pointer :: q1p5m_for_diags
+    type(mesh_type),  pointer :: mesh
+
+    logical(l_def) :: ml_cape_flag, ml_cin_flag, ml_equilibrium_height_flag
+    logical(l_def) :: sb_cape_flag, sb_cin_flag
+    logical(l_def) :: mu_cape_flag, mu_cin_flag, mu_start_height_flag
+    logical(l_def) :: mu_equilibrium_height_flag
+    logical(l_def) :: inflow_base_height_flag, inflow_top_height_flag
+    logical(l_def) :: surface_flag, most_unstable_flag
+
+    ! Have any of these diagnostics been requested for this timestep?
+    ml_cape_flag = init_diag(ml_cape, 'convection__mixed_layer_cape')
+    ml_cin_flag  = init_diag(ml_cin,  'convection__mixed_layer_cin')
+    ml_equilibrium_height_flag = init_diag(ml_equilibrium_height,           &
+        'convection__mixed_layer_equilibrium_height')
+    sb_cape_flag = init_diag(sb_cape, 'convection__surface_based_cape')
+    sb_cin_flag  = init_diag(sb_cin,  'convection__surface_based_cin')
+    mu_cape_flag = init_diag(mu_cape, 'convection__most_unstable_cape')
+    mu_cin_flag  = init_diag(mu_cin,  'convection__most_unstable_cin')
+    mu_start_height_flag = init_diag(mu_start_height,                       &
+        'convection__most_unstable_start_height')
+    mu_equilibrium_height_flag = init_diag(mu_equilibrium_height,           &
+        'convection__most_unstable_equilibrium_height')
+    inflow_base_height_flag = init_diag(inflow_base_height,                 &
+        'convection__effective_inflow_base_height')
+    inflow_top_height_flag = init_diag(inflow_top_height,                   &
+        'convection__effective_inflow_top_height')
+
+    most_unstable_flag = mu_cape_flag .or. mu_cin_flag .or.                 &
+                         mu_start_height_flag .or.                          &
+                         mu_equilibrium_height_flag .or.                    &
+                         inflow_base_height_flag .or. inflow_top_height_flag
+    surface_flag = sb_cape_flag .or. sb_cin_flag
+
+    if ( .not. ( ml_cape_flag .or. ml_cin_flag .or.                         &
+                 ml_equilibrium_height_flag .or.                            &
+                 surface_flag .or. most_unstable_flag ) ) return
+
+    call derived_fields%get_field('exner_in_wth', exner_in_wth)
+    mesh => theta%get_mesh()
+    height_wth => get_height_fv(config, mesh, Wtheta)
+    height_w3  => get_height_fv(config, mesh, W3)
+
+    ! Parcel from a near-surface mixed layer.
+    if ( ml_cape_flag .or. ml_cin_flag .or. ml_equilibrium_height_flag ) then
+      call derived_fields%get_field('wetrho_in_w3', wetrho_in_w3)
+      call invoke( cape_cin_mixed_layer_kernel_type(                        &
+                       theta, mr(imr_v), exner_in_wth, height_wth,          &
+                       exner_w3, rho, wetrho_in_w3, height_w3,              &
+                       ml_cape, ml_cin, ml_equilibrium_height,              &
+                       gravity, rd, cp, kappa, one_over_kappa, p_zero,      &
+                       epsilon ) )
+      if (ml_cape_flag) call ml_cape%write_field()
+      if (ml_cin_flag)  call ml_cin%write_field()
+      if (ml_equilibrium_height_flag)                                       &
+          call ml_equilibrium_height%write_field()
+    end if
+
+    ! Parcels needing the screen-level temperature and humidity.
+    if ( surface_flag .or. most_unstable_flag ) then
+      if ( boundary_layer /= boundary_layer_um .or.                         &
+           surface /= surface_jules ) then
+        call log_event( 'Surface-based and most unstable CAPE and CIN, '//  &
+                        'and the effective inflow layer, need the '//       &
+                        'screen-level temperature and humidity from the '// &
+                        'UM boundary layer and JULES: remove these '//      &
+                        'convection__ fields from the output request or '// &
+                        'enable both schemes', log_level_error )
+      end if
+      call surface_fields%get_field('t1p5m_for_diags', t1p5m_for_diags)
+      call surface_fields%get_field('q1p5m_for_diags', q1p5m_for_diags)
+    end if
+
+    ! Parcel from screen level.
+    if ( surface_flag ) then
+      call invoke( cape_cin_surface_kernel_type(                            &
+                       theta, mr(imr_v), exner_in_wth, height_wth,          &
+                       height_w3, t1p5m_for_diags, q1p5m_for_diags,         &
+                       sb_cape, sb_cin,                                     &
+                       gravity, rd, cp, kappa, one_over_kappa, p_zero,      &
+                       epsilon ) )
+      if (sb_cape_flag) call sb_cape%write_field()
+      if (sb_cin_flag)  call sb_cin%write_field()
+    end if
+
+    ! Most unstable parcel and effective inflow layer.
+    if ( most_unstable_flag ) then
+      call invoke( cape_cin_most_unstable_kernel_type(                      &
+                       theta, mr(imr_v), exner_in_wth, height_wth,          &
+                       height_w3, t1p5m_for_diags, q1p5m_for_diags,         &
+                       mu_cape, mu_cin, mu_start_height,                    &
+                       mu_equilibrium_height,                               &
+                       inflow_base_height, inflow_top_height,               &
+                       gravity, rd, cp, kappa, one_over_kappa, p_zero,      &
+                       epsilon ) )
+      if (mu_cape_flag) call mu_cape%write_field()
+      if (mu_cin_flag)  call mu_cin%write_field()
+      if (mu_start_height_flag) call mu_start_height%write_field()
+      if (mu_equilibrium_height_flag)                                       &
+          call mu_equilibrium_height%write_field()
+      if (inflow_base_height_flag) call inflow_base_height%write_field()
+      if (inflow_top_height_flag)  call inflow_top_height%write_field()
+    end if
+
+  end subroutine write_cape_cin_diagnostics
 
 end module aviation_diags_alg_mod

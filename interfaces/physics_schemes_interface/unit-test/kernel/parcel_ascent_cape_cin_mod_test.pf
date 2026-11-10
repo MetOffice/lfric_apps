@@ -1,0 +1,244 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Claude Code.
+!-----------------------------------------------------------------------------
+!> @brief Test the parcel start state, lifting condensation level and most
+!>        unstable parcel selection used for CAPE and CIN.
+module parcel_ascent_cape_cin_mod_test
+
+  use funit
+  use constants_mod,              only: i_def, r_def, rmdi
+  use parcel_ascent_cape_cin_mod, only: mixed_layer_parcel_start,           &
+                                        lifting_condensation_level,         &
+                                        highest_start_level,                &
+                                        initialise_most_unstable,           &
+                                        update_most_unstable
+
+  implicit none
+
+  private
+  public :: test_mixed_layer_parcel_start, test_lcl_dry, test_lcl_moist,    &
+            test_highest_start_level, test_initialise_most_unstable,        &
+            test_most_unstable_selection, test_inflow_top_at_highest_level
+
+  real(kind=r_def), parameter :: tolerance = 1.0e-9_r_def
+
+contains
+
+  !> @brief Mixed-layer parcel over a four-layer column with unit densities.
+  !> @details Wtheta levels are at 0, 200, 400, 600 and 800 m and W3 levels
+  !>          at 100, 300, 450 and 700 m. The 500 m mixed layer covers the
+  !>          first two layers and half of the third, so the expected means
+  !>          weight the W3 values by 200, 200 and 100 m. The ascent starts at
+  !>          the 600 m level with 50 m of its layer below 500 m, and the
+  !>          parcel pressure is interpolated to 250 m between the W3 levels at
+  !>          100 and 300 m.
+  @Test
+  subroutine test_mixed_layer_parcel_start()
+
+    implicit none
+
+    integer(kind=i_def), parameter :: nlayers = 4_i_def
+    real(kind=r_def) :: theta(0:nlayers), m_v(0:nlayers)
+    real(kind=r_def) :: height_wth(0:nlayers)
+    real(kind=r_def) :: exner_w3(0:nlayers-1), p_w3(0:nlayers-1)
+    real(kind=r_def) :: rho_dry(0:nlayers-1), rho_wet(0:nlayers-1)
+    real(kind=r_def) :: height_w3(0:nlayers-1)
+    real(kind=r_def) :: t_parcel, mv_parcel, p_parcel, partial_depth
+    integer(kind=i_def) :: k_start
+
+    theta      = (/ 300.0_r_def, 300.0_r_def, 302.0_r_def, 304.0_r_def,     &
+                    306.0_r_def /)
+    m_v        = (/ 0.010_r_def, 0.010_r_def, 0.008_r_def, 0.006_r_def,     &
+                    0.004_r_def /)
+    height_wth = (/ 0.0_r_def, 200.0_r_def, 400.0_r_def, 600.0_r_def,       &
+                    800.0_r_def /)
+    height_w3  = (/ 100.0_r_def, 300.0_r_def, 450.0_r_def, 700.0_r_def /)
+    exner_w3   = (/ 0.99_r_def, 0.97_r_def, 0.95_r_def, 0.93_r_def /)
+    p_w3       = (/ 98000.0_r_def, 96000.0_r_def, 94000.0_r_def,            &
+                    92000.0_r_def /)
+    rho_dry    = 1.0_r_def
+    rho_wet    = 1.0_r_def
+
+    call mixed_layer_parcel_start( nlayers, theta, m_v, height_wth,         &
+                                   exner_w3, p_w3, 99000.0_r_def, rho_dry,  &
+                                   rho_wet, height_w3, t_parcel, mv_parcel, &
+                                   p_parcel, k_start, partial_depth )
+
+    ! Temperatures 297, 291.97 and 287.375 K weighted 2:2:1.
+    @assertEqual( 293.063_r_def, t_parcel, tolerance )
+    ! Mixing ratios 0.010, 0.009 and 0.0075 weighted 2:2:1.
+    @assertEqual( 0.0091_r_def, mv_parcel, tolerance )
+    ! A quarter of the way from 98000 Pa at 100 m to 96000 Pa at 300 m.
+    @assertEqual( 96500.0_r_def, p_parcel, tolerance )
+    @assertEqual( 3_i_def, k_start )
+    @assertEqual( 50.0_r_def, partial_depth, tolerance )
+
+  end subroutine test_mixed_layer_parcel_start
+
+  !> @brief A parcel with no water vapour condenses at its own temperature and
+  !>        pressure.
+  @Test
+  subroutine test_lcl_dry()
+
+    implicit none
+
+    real(kind=r_def) :: t_lcl, p_lcl
+
+    call lifting_condensation_level( 300.0_r_def, 0.0_r_def, 1.0e5_r_def,   &
+                                     3.5_r_def, 0.62198_r_def,              &
+                                     t_lcl, p_lcl )
+
+    @assertEqual( 300.0_r_def, t_lcl, tolerance )
+    @assertEqual( 1.0e5_r_def, p_lcl, tolerance )
+
+  end subroutine test_lcl_dry
+
+  !> @brief Lifting condensation level of a moist parcel against values
+  !>        calculated independently from Bolton (1980), equation 21.
+  @Test
+  subroutine test_lcl_moist()
+
+    implicit none
+
+    real(kind=r_def) :: t_lcl, p_lcl
+
+    call lifting_condensation_level( 300.0_r_def, 0.015_r_def, 1.0e5_r_def, &
+                                     3.5_r_def, 0.62198_r_def,              &
+                                     t_lcl, p_lcl )
+
+    @assertEqual( 291.6830088568936_r_def, t_lcl, 1.0e-8_r_def )
+    @assertEqual( 90628.45326061934_r_def, p_lcl, 1.0e-6_r_def )
+
+  end subroutine test_lcl_moist
+
+  !> @brief Highest starting level below 500 hPa, and none when the first
+  !>        level is already above it.
+  @Test
+  subroutine test_highest_start_level()
+
+    implicit none
+
+    integer(kind=i_def), parameter :: nlayers = 4_i_def
+    real(kind=r_def) :: p_wth(0:nlayers)
+
+    p_wth = (/ 100000.0_r_def, 90000.0_r_def, 60000.0_r_def,                &
+               45000.0_r_def, 30000.0_r_def /)
+    @assertEqual( 2_i_def, highest_start_level( nlayers, p_wth ) )
+
+    p_wth = (/ 52000.0_r_def, 48000.0_r_def, 40000.0_r_def,                 &
+               35000.0_r_def, 30000.0_r_def /)
+    @assertEqual( 0_i_def, highest_start_level( nlayers, p_wth ) )
+
+  end subroutine test_highest_start_level
+
+  !> @brief A buoyant screen-level parcel starts the most unstable parcel and
+  !>        the inflow layer at 1.5 m above the surface; a parcel without
+  !>        significant CAPE leaves them missing.
+  @Test
+  subroutine test_initialise_most_unstable()
+
+    implicit none
+
+    real(kind=r_def) :: mu_cape, mu_cin, mu_start_height, mu_lnb_height
+    real(kind=r_def) :: inflow_base, inflow_top
+
+    call initialise_most_unstable( 150.0_r_def, -50.0_r_def, 9000.0_r_def,  &
+                                   100.0_r_def, mu_cape, mu_cin,            &
+                                   mu_start_height, mu_lnb_height,          &
+                                   inflow_base, inflow_top )
+    @assertEqual( 150.0_r_def, mu_cape, tolerance )
+    @assertEqual( -50.0_r_def, mu_cin, tolerance )
+    @assertEqual( 101.5_r_def, mu_start_height, tolerance )
+    @assertEqual( 9000.0_r_def, mu_lnb_height, tolerance )
+    @assertEqual( 101.5_r_def, inflow_base, tolerance )
+    @assertEqual( rmdi, inflow_top )
+
+    call initialise_most_unstable( 0.5_r_def, -20.0_r_def, 0.0_r_def,       &
+                                   100.0_r_def, mu_cape, mu_cin,            &
+                                   mu_start_height, mu_lnb_height,          &
+                                   inflow_base, inflow_top )
+    @assertEqual( 0.5_r_def, mu_cape, tolerance )
+    @assertEqual( rmdi, mu_start_height )
+    @assertEqual( rmdi, mu_lnb_height )
+    @assertEqual( rmdi, inflow_base )
+    @assertEqual( rmdi, inflow_top )
+
+  end subroutine test_initialise_most_unstable
+
+  !> @brief Ascents from three levels: the second has the largest CAPE and
+  !>        starts the inflow layer, the third has too much CIN and ends it.
+  @Test
+  subroutine test_most_unstable_selection()
+
+    implicit none
+
+    real(kind=r_def) :: mu_cape, mu_cin, mu_start_height, mu_lnb_height
+    real(kind=r_def) :: inflow_base, inflow_top
+
+    call initialise_most_unstable( 0.0_r_def, -20.0_r_def, 0.0_r_def,       &
+                                   0.0_r_def, mu_cape, mu_cin,              &
+                                   mu_start_height, mu_lnb_height,          &
+                                   inflow_base, inflow_top )
+
+    call update_most_unstable( 1_i_def, 3_i_def, 50.0_r_def, -10.0_r_def,   &
+                               5000.0_r_def, 200.0_r_def, 400.0_r_def,      &
+                               mu_cape, mu_cin, mu_start_height,            &
+                               mu_lnb_height, inflow_base, inflow_top )
+    @assertEqual( 50.0_r_def, mu_cape, tolerance )
+    @assertEqual( 200.0_r_def, mu_start_height, tolerance )
+    @assertEqual( rmdi, inflow_base )
+
+    call update_most_unstable( 2_i_def, 3_i_def, 300.0_r_def, -100.0_r_def, &
+                               8000.0_r_def, 400.0_r_def, 600.0_r_def,      &
+                               mu_cape, mu_cin, mu_start_height,            &
+                               mu_lnb_height, inflow_base, inflow_top )
+    call update_most_unstable( 3_i_def, 3_i_def, 200.0_r_def, -300.0_r_def, &
+                               7000.0_r_def, 600.0_r_def, 800.0_r_def,      &
+                               mu_cape, mu_cin, mu_start_height,            &
+                               mu_lnb_height, inflow_base, inflow_top )
+
+    @assertEqual( 300.0_r_def, mu_cape, tolerance )
+    @assertEqual( -100.0_r_def, mu_cin, tolerance )
+    @assertEqual( 400.0_r_def, mu_start_height, tolerance )
+    @assertEqual( 8000.0_r_def, mu_lnb_height, tolerance )
+    @assertEqual( 400.0_r_def, inflow_base, tolerance )
+    @assertEqual( 600.0_r_def, inflow_top, tolerance )
+
+  end subroutine test_most_unstable_selection
+
+  !> @brief An inflow layer still open at the highest starting level ends at
+  !>        the next level up.
+  @Test
+  subroutine test_inflow_top_at_highest_level()
+
+    implicit none
+
+    real(kind=r_def) :: mu_cape, mu_cin, mu_start_height, mu_lnb_height
+    real(kind=r_def) :: inflow_base, inflow_top
+
+    call initialise_most_unstable( 0.0_r_def, -20.0_r_def, 0.0_r_def,       &
+                                   0.0_r_def, mu_cape, mu_cin,              &
+                                   mu_start_height, mu_lnb_height,          &
+                                   inflow_base, inflow_top )
+
+    call update_most_unstable( 1_i_def, 2_i_def, 300.0_r_def, -100.0_r_def, &
+                               8000.0_r_def, 200.0_r_def, 400.0_r_def,      &
+                               mu_cape, mu_cin, mu_start_height,            &
+                               mu_lnb_height, inflow_base, inflow_top )
+    @assertEqual( rmdi, inflow_top )
+
+    call update_most_unstable( 2_i_def, 2_i_def, 250.0_r_def, -150.0_r_def, &
+                               7000.0_r_def, 400.0_r_def, 600.0_r_def,      &
+                               mu_cape, mu_cin, mu_start_height,            &
+                               mu_lnb_height, inflow_base, inflow_top )
+    @assertEqual( 200.0_r_def, inflow_base, tolerance )
+    @assertEqual( 600.0_r_def, inflow_top, tolerance )
+
+  end subroutine test_inflow_top_at_highest_level
+
+end module parcel_ascent_cape_cin_mod_test
