@@ -42,7 +42,7 @@ module wind_relax_alg_mod
 contains
 
   !> @brief Algorithm to calculate Newtonian relaxation of horizontal wind
-  !> @param[in]     config     Application namelist configuration object
+  !> @param[in]     config     Application configuration object
   !> @param[in,out] du_forcing Relaxation increment
   !> @param[in]     u          Horizontal wind field
   !> @param[in]     exner      Exner in original W3 space

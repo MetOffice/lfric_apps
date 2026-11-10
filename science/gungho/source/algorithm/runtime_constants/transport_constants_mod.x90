@@ -990,9 +990,9 @@ contains
 
     implicit none
 
-    type(config_type), intent(in) :: config
-    type(mesh_type),   intent(in) :: mesh
-    integer(i_def),    intent(in) :: space
+    type(config_type),   intent(in) :: config
+    type(mesh_type),     intent(in) :: mesh
+    integer(kind=i_def), intent(in) :: space
 
     logical(kind=l_def)                   :: constant_exists
     type(function_space_type),    pointer :: fs
@@ -1065,9 +1065,9 @@ contains
 
     implicit none
 
-    type(config_type), intent(in) :: config
-    type(mesh_type),   intent(in) :: mesh
-    integer(i_def),    intent(in) :: space
+    type(config_type),   intent(in) :: config
+    type(mesh_type),     intent(in) :: mesh
+    integer(kind=i_def), intent(in) :: space
 
     logical(kind=l_def)                   :: constant_exists
     type(function_space_type),    pointer :: fs
@@ -1144,9 +1144,9 @@ contains
 
     implicit none
 
-    type(config_type), intent(in) :: config
-    type(mesh_type),   intent(in) :: mesh
-    integer(i_def),    intent(in) :: direction
+    type(config_type),   intent(in) :: config
+    type(mesh_type),     intent(in) :: mesh
+    integer(kind=i_def), intent(in) :: direction
 
     integer(kind=i_def)          :: element_order_h, element_order_v
     type(operator_type), pointer :: div_op
@@ -1186,9 +1186,9 @@ contains
                                               direction_3d
     implicit none
 
-    type(config_type), intent(in) :: config
-    type(mesh_type),   intent(in) :: mesh
-    integer(i_def),    intent(in) :: direction
+    type(config_type),   intent(in) :: config
+    type(mesh_type),     intent(in) :: mesh
+    integer(kind=i_def), intent(in) :: direction
 
     type(inventory_by_mesh_type), pointer :: inventory
     character(len=str_def)                :: inventory_name
@@ -1207,9 +1207,9 @@ contains
                                              element_order_v
     integer(tik)                          :: id
 
-    integer(i_def) :: coord_system
-    real(r_def)    :: scaled_radius
-    logical(l_def) :: rehabilitate
+    integer(kind=i_def) :: coord_system
+    real(kind=r_def)    :: scaled_radius
+    logical(kind=l_def) :: rehabilitate
 
     coord_system  = config%finite_element%coord_system()
     scaled_radius = config%planet%scaled_radius()
@@ -1723,8 +1723,8 @@ contains
 
     class(reference_element_type), pointer :: reference_element
 
-    integer(i_def) :: coord_system
-    real(r_def)    :: scaled_radius
+    integer(kind=i_def) :: coord_system
+    real(kind=r_def)    :: scaled_radius
 
     coord_system  = config%finite_element%coord_system()
     scaled_radius = config%planet%scaled_radius()
@@ -2083,8 +2083,8 @@ contains
     class(reference_element_type),   pointer :: reference_element
     integer(tik)                             :: id
 
-    integer(i_def) :: coord_system
-    real(r_def)    :: scaled_radius
+    integer(kind=i_def) :: coord_system
+    real(kind=r_def)    :: scaled_radius
 
     coord_system  = config%finite_element%coord_system()
     scaled_radius = config%planet%scaled_radius()

@@ -48,7 +48,8 @@ module si_operators_alg_mod
   use mixed_solver_config_mod,   only: eliminate_variables, &
                                        eliminate_variables_analytic
   use moist_dyn_mod,             only: num_moist_factors, gas_law, total_mass
-  use dycore_constants_mod,      only: stepper_siqn
+  use dycore_constants_mod,      only: stepper_siqn, stepper_tr, stepper_bdf2, &
+                                       gamma, gamma2
 
   ! Configuration modules
   use base_mesh_config_mod,      only: prime_mesh_name
@@ -211,9 +212,10 @@ contains
   !> @brief Subroutine to create the si operators
   !> @param[in] config  Application configuration object
   !> @param[in] mesh    Mesh object
-  !> @param[in] stepper The time stepper enumerator used to key the inventories
   !> @param[in] clock   Model clock, used to obtain the timestep length
-  subroutine create_si_operators( config, mesh, stepper, clock )
+  !> @param[in] stepper The time stepper enumerator used to key the inventories
+
+  subroutine create_si_operators( config, mesh, clock, stepper )
 
     use fs_continuity_mod,         only: W0, Wtheta
 
@@ -404,13 +406,32 @@ contains
     ! the timestep length obtained from the clock
     dt = real(clock%get_seconds_per_step(), r_def)
     cp = config%planet%cp()
-    tau_u = config%timestepping%tau_u()
-    tau_r = config%timestepping%tau_r()
-    tau_t = config%timestepping%tau_t()
-    tau_u_dt_cp   = real(tau_u*dt*cp, r_solver)
-    tau_t_dt      = real(tau_t*dt, r_solver)
-    tau_r_dt      = real(tau_r*dt, r_solver)
-    tau_tu_dt2_cp = real(tau_t*tau_u*dt**2*cp, r_solver)
+
+    select case (stepper)
+    case (stepper_siqn)
+      tau_u = config%timestepping%tau_u()
+      tau_r = config%timestepping%tau_r()
+      tau_t = config%timestepping%tau_t()
+      tau_u_dt_cp   = real(tau_u*dt*cp, r_solver)
+      tau_t_dt      = real(tau_t*dt, r_solver)
+      tau_r_dt      = real(tau_r*dt, r_solver)
+      tau_tu_dt2_cp = real(tau_t*tau_u*dt**2*cp, r_solver)
+    case (stepper_tr)
+      ! tau_u = gamma, tau_r = 2*gamma, tau_t = 2*gamma
+      tau_u_dt_cp   = real(gamma*dt*cp, r_solver)
+      tau_t_dt      = 2.0_r_solver*real(gamma*dt, r_solver)
+      tau_r_dt      = 2.0_r_solver*real(gamma*dt, r_solver)
+      tau_tu_dt2_cp = 2.0_r_solver*real(gamma**2*dt**2*cp, r_solver)
+    case (stepper_bdf2)
+      ! tau_u = gamma2, tau_r = 1, tau_t = 1
+      tau_u_dt_cp   = real(gamma2*dt*cp, r_solver)
+      tau_t_dt      = real(dt, r_solver)
+      tau_r_dt      = real(dt, r_solver)
+      tau_tu_dt2_cp = real(gamma2*dt**2*cp, r_solver)
+    case default
+      call log_event( "Unknown stepper enumerator in create_si_operators", &
+                      LOG_LEVEL_ERROR )
+    end select
 
     call tau_u_dt_cp_inventory%add_real(tau_u_dt_cp, stepper)
     call tau_t_dt_inventory%add_real(tau_t_dt, stepper)
@@ -670,7 +691,7 @@ contains
                       sample_field_kernel_type(exner_in_wth, multiplicity, exner) )
        end if
 
-       m3_inv => get_inverse_mass_matrix_r_solver(config, mesh, W3)
+       m3_inv => get_inverse_mass_matrix_r_solver( config, mesh, W3 )
        select case(eos_method)
        case(eos_method_sampled)
          call invoke( sample_eos_operators_kernel_type(m3_exner_star(level), m3_rho_star(level), &
@@ -698,7 +719,7 @@ contains
        else
           ! for non MG, at higher order, need computed rmultiplicity
           call ones%initialise( vector_space = w2_fs )
-          w2_rmultiplicity => get_rmultiplicity_fe(config, mesh, W2)
+          w2_rmultiplicity => get_rmultiplicity_fe( config, mesh, W2 )
           call rsol_w2_rmultiplicity%initialise( w2_fs )
           call invoke( real_to_real_x(rsol_w2_rmultiplicity, w2_rmultiplicity), &
                        setval_c(ones,            1.0_r_solver),                 &
@@ -850,9 +871,9 @@ contains
 
     implicit none
 
-    type(config_type),       intent(in)    :: config
-    class(model_clock_type), intent(in)    :: model_clock
-    integer(kind=i_def),     intent(in)    :: stepper
+    type(config_type),        intent(in) :: config
+    class(model_clock_type),  intent(in) :: model_clock
+    integer(kind=i_def),      intent(in) :: stepper
 
     real(kind=r_solver),           pointer :: tau_u_dt_cp
     real(kind=r_solver),           pointer :: tau_t_dt
@@ -936,7 +957,7 @@ contains
        ! mass matrix should include damping layer and lagged-orography terms
        ! if these options are not true, this matrix won't contain the terms
        m2 => get_w2_mass_matrix( config, mesh, w2_lagged_damping_layer_matrix, &
-                                 model_clock )
+                                 stepper, model_clock )
 
        call m2_r_solver%initialise( w2_fs, w2_fs )
        call invoke( operator_setval_x_kernel_type( m2_r_solver, m2 ) )

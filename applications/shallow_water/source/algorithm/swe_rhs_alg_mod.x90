@@ -61,7 +61,7 @@ contains
   !!       shallow water equations.
   !>@details An algorithm to compute the rhs of the wind, geopotential, and
   !!         (if required) buoyancy equations for the shallow water miniapp.
-  !> @param[in]     config   Appliaction cofiguration object
+  !> @param[in]     config   Application configuration object
   !> @param[in,out] rhs      The state vector to compute
   !> @param[in]     alpha_dt The offcentering parameter multiplied by the time step
   !> @param[in]     state    The current model prognostic state

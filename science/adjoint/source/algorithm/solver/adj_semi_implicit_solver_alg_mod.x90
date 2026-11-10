@@ -103,8 +103,7 @@ contains
   !> @param[out] adj_pressure_preconditioner_out Output adjoint (Helmholtz) pressure preconditioner
   !> @param[in]  stepper                         Time stepper enumerator used to select operators
   subroutine create_adj_pressure_preconditioner( config, state, adj_lookup_table_cache, &
-                                                 adj_pressure_operator_out, &
-                                                 adj_pressure_preconditioner_out, &
+                                                 adj_pressure_operator_out, adj_pressure_preconditioner_out, &
                                                  stepper )
 
     use helmholtz_solver_config_mod,   only: helmholtz_preconditioner => preconditioner, &
@@ -293,7 +292,7 @@ contains
 
   !> @brief Initialisation procedure for the adjoint semi-implicit solver
   !> @param[in] config  Application configuration object
-  !> @param[in] state Prognostic state for the solver
+  !> @param[in] state   Prognostic state for the solver
   subroutine initialise( self, config, state, adj_lookup_table_cache, stepper )
 
     implicit none
