@@ -3,8 +3,8 @@
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
 # -----------------------------------------------------------------------------
-# Some of the content of this file has been produced with the assistance of
-# Met Office Claude Code Enterprise.
+# Some content in this file was generated or refactored with assistance from
+# - Met Office Claude Code via AI Foundry (Opus 5); PR #676
 # -----------------------------------------------------------------------------
 '''
 This file lifts optional overrides, where possible, into a localised,
