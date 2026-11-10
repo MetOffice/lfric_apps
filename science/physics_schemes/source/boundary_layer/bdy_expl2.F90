@@ -54,7 +54,7 @@ subroutine bdy_expl2 (                                                         &
  zh,dzh,ntml,ntpar,l_shallow,cumulus,fqw,ftl,rhokh,rhokm,w,etadot,             &
  t1_sd,q1_sd,wtrac_bl,                                                         &
 ! out new variables for message passing
- tau_fd_x, tau_fd_y, f_ngstress,                                               &
+ tau_fd_x, tau_fd_y, f_ngstress, fd_impl_part,                                 &
 ! out Diagnostic not requiring STASH flags :
  zhnl,shallowc,cu_over_orog,                                                   &
  bl_type_1,bl_type_2,bl_type_3,bl_type_4,bl_type_5,bl_type_6,bl_type_7,        &
@@ -387,12 +387,14 @@ type(bl_wtrac_type), intent(in out) :: wtrac_bl(n_wtrac)
 !  Outputs :-
 !  (a) Calculated anyway (use STASH space from higher level) :-
 real(kind=r_bl), intent(out) ::                                                &
- f_ngstress(pdims_s%i_start:pdims_s%i_end,                                     &
-            pdims_s%j_start:pdims_s%j_end,2:bl_levels),                        &
- tau_fd_x(pdims_s%i_start:pdims_s%i_end,pdims_s%j_start:pdims_s%j_end,         &
-          bl_levels),                                                          &
- tau_fd_y(pdims_s%i_start:pdims_s%i_end,pdims_s%j_start:pdims_s%j_end,         &
-          bl_levels),                                                          &
+  f_ngstress(pdims_s%i_start:pdims_s%i_end,                                    &
+             pdims_s%j_start:pdims_s%j_end,2:bl_levels),                       &
+  tau_fd_x(pdims_s%i_start:pdims_s%i_end,pdims_s%j_start:pdims_s%j_end,        &
+           bl_levels),                                                         &
+  tau_fd_y(pdims_s%i_start:pdims_s%i_end,pdims_s%j_start:pdims_s%j_end,        &
+           bl_levels),                                                         &
+  fd_impl_part(pdims_s%i_start:pdims_s%i_end,pdims_s%j_start:pdims_s%j_end,    &
+               bl_levels),                                                     &
   bl_type_1(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end),              &
                                ! out Indicator set to 1.0 if stable
                                  !     b.l. diagnosed, 0.0 otherwise.
@@ -1381,7 +1383,9 @@ if (formdrag ==  explicit_stress) then
         tau_fd_x(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,          &
                  1:bl_levels),                                                 &
         tau_fd_y(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,          &
-                 1:bl_levels)                                                  &
+                 1:bl_levels),                                                 &
+        fd_impl_part(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,      &
+                     1:bl_levels)                                              &
         )
   !------------------------------------------------------------------
   !      Orographic stress diagnostics

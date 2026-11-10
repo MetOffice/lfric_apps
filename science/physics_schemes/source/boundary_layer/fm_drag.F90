@@ -42,7 +42,7 @@ subroutine fm_drag (                                                           &
   u_p, v_p, tl, qw, bt_gb, bq_gb, rho_wet_tq,                                  &
   z_uv, z_tq, z0m, zh, rib_surf, sil_orog_land, sigma_h,                       &
 ! out fields
-  tau_fd_x, tau_fd_y                                                           &
+  tau_fd_x, tau_fd_y, fd_impl_part                                             &
   )
 
 use atm_fields_bounds_mod, only: pdims, tdims
@@ -148,10 +148,15 @@ real(kind=r_bl), intent(in)::                                                  &
 real(kind=r_bl), intent(out)::                                                 &
  tau_fd_x(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                 &
           bl_levels),                                                          &
-                                         ! X-comp of orographic stress
+                                    ! X-comp of orographic stress
  tau_fd_y(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                 &
-          bl_levels) ! Y-comp of orographic stress
-                                         ! (N/m^2)
+          bl_levels),                                                          &
+                                    ! Y-comp of orographic stress (N/m^2)
+ fd_impl_part(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,             &
+              bl_levels)
+                                    ! Beljaars TOFD function to use in 
+                                    ! implicit solver
+              
 
 !     Local and other symbolic constants:
 
@@ -304,7 +309,7 @@ end if
 !$OMP        z_tq,tl,qw,db_surf,rib_surf,bt_gb,grcp,g,z0m,fd_hill_option,      &
 !$OMP        fp_x, rho_wet_tq, sil_orog_land,fp_y,pdims,zh,u_p,bq_gb,          &
 !$OMP        orog_drag_param,land_index_i,land_index_j,sigma_h,zdiv_taux,      &
-!$OMP        zdiv_tauy)
+!$OMP        zdiv_tauy,fd_impl_part)
 
 do k = 1, bl_levels
 !$OMP do SCHEDULE(STATIC)
@@ -312,6 +317,7 @@ do k = 1, bl_levels
     do i = tdims%i_start, tdims%i_end
       tau_fd_x(i,j,k) = zero
       tau_fd_y(i,j,k) = zero
+      fd_impl_part(i,j,k) = zero
     end do
   end do ! land_pts
 !$OMP end do
@@ -555,8 +561,9 @@ if (land_pts > 0) then
 
         ! Compute flux divergence on rho points
         u_mag = sqrt(u_p(i,j,k)**2 + v_p(i,j,k)**2)
-        zdiv_taux(i,j,k) = drag_fac * u_mag * u_p(i,j,k) * I_beljaars
-        zdiv_tauy(i,j,k) = drag_fac * u_mag * v_p(i,j,k) * I_beljaars
+        fd_impl_part(i,j,k) = drag_fac * I_beljaars
+        zdiv_taux(i,j,k) = u_mag * u_p(i,j,k) * fd_impl_part(i,j,k)
+        zdiv_tauy(i,j,k) = u_mag * v_p(i,j,k) * fd_impl_part(i,j,k)
 
       end do ! land_pts
 !$OMP end do
