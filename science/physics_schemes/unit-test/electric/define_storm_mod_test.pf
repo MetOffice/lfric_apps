@@ -1,0 +1,76 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! (c) Crown copyright, Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+module define_storm_mod_test
+
+  use pFUnit
+
+  use atm_fields_bounds_mod, only : atm_fields_bounds_init
+  use constants_mod,         only : i_def, r_um
+  use define_storm_mod,      only : define_storm
+  use electric_inputs_mod,   only : storm_definition, graupel_only, graupel_and_ice
+  use model_domain_mod,      only : model_type, mt_lfric
+
+  implicit none
+
+  private
+  public test_define_storm
+
+contains
+
+  @before
+  subroutine set_up()
+
+    ! Todo: The fields bounds work differently for different model_type
+    !       values. Until that is changed, this test only tests one possible
+    !       code path.
+    !
+    model_type = mt_lfric
+    call atm_fields_bounds_init(
+      offx=1, offy=1, halo_i=2, halo_j=2, row_length=3, rows=3, n_rows=3
+    )
+
+  end subroutine set_up
+
+  @after
+  subroutine tear_down()
+
+    ! There is no opposite to atm_fields_bounds_init. Beware left over data!
+    model_type = imdi
+
+  end subroutine tear_down
+
+  @test
+  subroutine test_define_storm_only()
+
+    real(r_um) :: graupel(1:3, 1:3)
+    real(r_um) :: total_ice(1:3, 1:3)
+    real(r_um) :: storm(1:3, 1:3)
+    integer(i_def) :: storm_points
+
+    graupel = reshape(
+        [3, 3],
+        [7.598, 7.490, 0.571, 8.8198, 5.255, 6.117, 2.625, 2.246, 2.983]
+    )
+    total_ice = reshape(
+        [3, 3],
+        [4.189, 9.280, 2.949, 1.984, 7.070, 6.597, 4.0452, 0.060, 4.972]
+    )
+
+    ! Todo: Clearly values should not be passed by global variable.
+    !
+    storm_definition = graupel_only
+    gwp_thresh = 2.7._r_um
+    tiwp_thresh = 3.3_r_um
+    call define_storm( graupel, total_ice, storm, storm_points )
+    @assertEqual(6, storm_points)
+    @assertEqual(reshape([3, 3], [.true., .true., .false., .true., .true., .true., .false., .false., .true.]), storm)
+    tiwp_thresh = rmdi
+    gwp_thresh = rmdi
+    storm_definition = imdi
+
+  end subroutine test_define_storm
+
+end module define_storm_mod_test
