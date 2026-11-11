@@ -691,7 +691,39 @@ subroutine radaer_faster_code( nlayers,                                        &
   allocate(  aod_ukca_this_mode( nml_segment_size, npd_ukca_aod_wavel ) )
   allocate(  sod_ukca_this_mode( nml_segment_size, npd_ukca_aod_wavel ) )
   allocate( aaod_ukca_this_mode( nml_segment_size, npd_ukca_aod_wavel ) )
-  
+
+  ! -- ukca_comp_vol --
+  n_fields = size(pvol_comp_names)
+  allocate(ukca_comp_vol(n_fields, nml_segment_size, nlayers))
+
+  ! -- ukca_mix_ratio --
+  n_fields = size(comp_names)
+  allocate(ukca_mix_ratio(n_fields, nml_segment_size, nlayers))
+
+  ! -- ukca_modal_nbr --
+  n_fields = size(mode_names)
+  allocate(ukca_modal_nbr(nml_segment_size, nlayers, n_fields))
+
+  ! -- ukca_modal_rho --
+  n_fields = size(rhopar_mode_names)
+  allocate(ukca_modal_rho(nml_segment_size, nlayers, n_fields))
+
+  ! -- ukca_dry_diam --
+  n_fields = size(dry_diam_mode_names)
+  allocate(ukca_dry_diam(nml_segment_size, nlayers, n_fields))
+
+  ! -- ukca_modal_vol --
+  n_fields = size(modal_volume_names)
+  allocate(ukca_modal_vol(nml_segment_size, nlayers, n_fields))
+
+  ! -- ukca_modal_wtv --
+  n_fields = size(modal_wtv_names)
+  allocate(ukca_modal_wtv(nml_segment_size, nlayers, n_fields))
+
+  ! -- ukca_wet_diam --
+  n_fields = size(wet_diam_mode_names)
+  allocate(ukca_wet_diam(nml_segment_size, nlayers, n_fields))
+
   !-----------------------------------------------------------------------
 
   seg_size = nml_segment_size
@@ -811,7 +843,6 @@ subroutine radaer_faster_code( nlayers,                                        &
 
     ! -- ukca_comp_vol --
     n_fields = size(pvol_comp_names)
-    allocate(ukca_comp_vol(n_fields, seg_size, nlayers))
 
     do k = 1, nlayers
       do i = 1, seg_size
@@ -831,6 +862,7 @@ subroutine radaer_faster_code( nlayers,                                        &
                                          r_um )
           end do
         end do
+
       case('fldname_pvol_bc_ait_sol')
         do i = 1, seg_size
           do k = 1, nlayers
@@ -839,6 +871,7 @@ subroutine radaer_faster_code( nlayers,                                        &
                                          r_um )
           end do
         end do
+
       case('fldname_pvol_om_ait_sol')
         do i = 1, seg_size
           do k = 1, nlayers
@@ -966,7 +999,6 @@ subroutine radaer_faster_code( nlayers,                                        &
 
     ! -- ukca_mix_ratio --
     n_fields = size(comp_names)
-    allocate(ukca_mix_ratio(n_fields, seg_size, nlayers))
 
     do k = 1, nlayers
       do i = 1, seg_size
@@ -1106,7 +1138,6 @@ subroutine radaer_faster_code( nlayers,                                        &
 
     ! -- ukca_modal_nbr --
     n_fields = size(mode_names)
-    allocate(ukca_modal_nbr(seg_size, nlayers, n_fields))
 
     do m = 1, n_fields
       do k = 1, nlayers
@@ -1173,7 +1204,6 @@ subroutine radaer_faster_code( nlayers,                                        &
 
     ! -- ukca_modal_rho --
     n_fields = size(rhopar_mode_names)
-    allocate(ukca_modal_rho(seg_size, nlayers, n_fields))
 
     do m = 1, n_fields
       do k = 1, nlayers
@@ -1236,7 +1266,6 @@ subroutine radaer_faster_code( nlayers,                                        &
 
     ! -- ukca_dry_diam --
     n_fields = size(dry_diam_mode_names)
-    allocate(ukca_dry_diam(seg_size, nlayers, n_fields))
 
     do m = 1, n_fields
       do k = 1, nlayers
@@ -1300,7 +1329,6 @@ subroutine radaer_faster_code( nlayers,                                        &
 
     ! -- ukca_modal_vol --
     n_fields = size(modal_volume_names)
-    allocate(ukca_modal_vol(seg_size, nlayers, n_fields))
 
     do m = 1, n_fields
       do k = 1, nlayers
@@ -1616,8 +1644,6 @@ subroutine radaer_faster_code( nlayers,                                        &
 
     ! -- ukca_modal_wtv --
     n_fields = size(modal_wtv_names)
-    allocate(ukca_modal_wtv(seg_size, nlayers, n_fields))
-    ukca_modal_wtv = 0.0_r_um
 
     do m = 1, n_fields
       do k = 1, nlayers
@@ -1686,8 +1712,6 @@ subroutine radaer_faster_code( nlayers,                                        &
 
     ! -- ukca_wet_diam --
     n_fields = size(wet_diam_mode_names)
-    allocate(ukca_wet_diam(seg_size, nlayers, n_fields))
-    ukca_wet_diam = 0.0_r_um
 
     do m = 1, n_fields
       do k = 1, nlayers
@@ -2137,13 +2161,12 @@ subroutine radaer_faster_code( nlayers,                                        &
 
 ! !$OMP end PARALLEL 
 
+  deallocate( ukca_wet_diam )
   deallocate( ukca_modal_wtv )
   deallocate( ukca_modal_vol )
+  deallocate( ukca_dry_diam )
   deallocate( ukca_modal_rho )
   deallocate( ukca_modal_nbr )
-  deallocate( ukca_wet_diam )
-  deallocate( ukca_dry_diam )
-
   deallocate( ukca_mix_ratio )
   deallocate( ukca_comp_vol )
 
