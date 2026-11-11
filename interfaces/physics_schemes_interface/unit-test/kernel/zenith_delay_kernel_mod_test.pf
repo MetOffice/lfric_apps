@@ -4,7 +4,7 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 ! Some content in this file was generated or refactored with assistance from
-! - Met Office Claude Code Enterprise (Claude Fable 5.1).
+! - Met Office Claude Code via AI Foundry (Claude Fable 5.1); PR #768.
 
 !> @brief Test zenith_delay_kernel
 !>
