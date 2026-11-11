@@ -39,6 +39,8 @@ write_minmax_tseries=.false.,
 /
 
 &mixed_solver
+chebyshev_lmax        = 2.5
+chebyshev_lmin        = 1.0
 eliminate_variables   = 'discrete'
 fail_on_non_converged = .true.,
 si_method             = 'gmres',
@@ -167,7 +169,7 @@ dt                 = 0.001
         ! O(500)     for thermal double vortex test case (res 120: 486 s)
 alpha              = 0.5
 outer_iterations   = 2
-inner_iterations   = 2
+inner_iterations_si = 2,2
 runge_kutta_method = 'ssp3'
         ! This runge_kutta_method does not affect the shallow water miniapp
 spinup_alpha       = .false.

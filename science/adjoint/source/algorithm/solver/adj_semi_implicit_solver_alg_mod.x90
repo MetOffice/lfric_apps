@@ -1,12 +1,16 @@
 !-----------------------------------------------------------------------------
-! (C) Crown copyright 2025 Met Office. All rights reserved.
+! (C) Crown copyright Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
+!
+! Some of the content of this file has been produced with the assistance of
+! Met Office GitHub Copilot Enterprise.
 !-----------------------------------------------------------------------------
 !> @brief Adjoint of semi_implicit_solver_alg_mod
 
 module adj_semi_implicit_solver_alg_mod
 
+  use config_mod,                             only: config_type
   use constants_mod,                          only: i_def, r_def, l_def, r_solver
   use log_mod,                                only: log_event, LOG_LEVEL_INFO, LOG_LEVEL_ERROR
   use mixed_solver_config_mod,                only: split_w, mixed_solver_a_tol, &
@@ -64,12 +68,16 @@ module adj_semi_implicit_solver_alg_mod
 
   type, public :: adj_semi_implicit_solver_type
     private
+
+    type(config_type), pointer :: config
+
     type(adj_pressure_operator_type)                   :: adj_pressure_operator
     class(abstract_preconditioner_type),   allocatable :: adj_pressure_preconditioner
     class(abstract_iterative_solver_type), allocatable :: adj_pressure_solver
     class(abstract_preconditioner_type),   allocatable :: adj_mixed_preconditioner
     class(abstract_iterative_solver_type), allocatable :: adj_mixed_solver
     type(adj_mixed_operator_type)                      :: adj_mixed_operator
+    integer(kind=i_def)                                :: stepper
     contains
     procedure, public  :: initialise
     procedure, public  :: step
@@ -88,12 +96,15 @@ contains
   !> @brief Create adjoint operator and preconditioner for (Helmholtz) pressure problem
   !> @details Called by init method of this module, but also by
   !!          adjt_mixed_schur_preconditioner_alg_mod and adjt_mixed_solver_alg_mod
+  !> @param[in]  config                          Application configuration object
   !> @param[in]  state                           Prognostic state for the adjoint pressure preconditioner
   !> @param[in]  adj_lookup_table_cache          The lookup table cache
   !> @param[out] adj_pressure_operator_out       Output adjoint (Helmholtz) pressure operator
   !> @param[out] adj_pressure_preconditioner_out Output adjoint (Helmholtz) pressure preconditioner
-  subroutine create_adj_pressure_preconditioner( state, adj_lookup_table_cache, &
-                                                 adj_pressure_operator_out, adj_pressure_preconditioner_out )
+  !> @param[in]  stepper                         Time stepper enumerator used to select operators
+  subroutine create_adj_pressure_preconditioner( config, state, adj_lookup_table_cache, &
+                                                 adj_pressure_operator_out, adj_pressure_preconditioner_out, &
+                                                 stepper )
 
     use helmholtz_solver_config_mod,   only: helmholtz_preconditioner => preconditioner, &
                                              preconditioner_none,                        &
@@ -101,6 +112,8 @@ contains
                                              preconditioner_multigrid
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Prognostic fields
     type(field_type), dimension(bundle_size), intent(in) :: state
@@ -110,6 +123,9 @@ contains
     type(adj_pressure_operator_type),                 intent(out) :: adj_pressure_operator_out
     class(abstract_preconditioner_type), allocatable, intent(out) :: adj_pressure_preconditioner_out
 
+    ! Timestepper enumerator
+    integer(kind=i_def), intent(in) :: stepper
+
     ! Vertical pressure preconditioner
     type(adj_pressure_preconditioner_type) :: adj_helmholtz_preconditioner
 
@@ -117,7 +133,7 @@ contains
 
     level = 1_i_def
 
-    adj_pressure_operator_out = adj_pressure_operator_type(level, adj_lookup_table_cache)
+    adj_pressure_operator_out = adj_pressure_operator_type(level, stepper, adj_lookup_table_cache)
 
     call log_event( "adj_semi_implicit_solver_type%create_adj_pressure_preconditioner: starting", LOG_LEVEL_INFO )
 
@@ -128,11 +144,11 @@ contains
                   source = null_preconditioner_type() )
       case(PRECONDITIONER_TRIDIAGONAL)
         allocate( adj_pressure_preconditioner_out, &
-                  source = adj_pressure_preconditioner_type(level=1_i_def) )
+                  source = adj_pressure_preconditioner_type(level=1_i_def, stepper=stepper) )
       case(PRECONDITIONER_MULTIGRID)
-        adj_helmholtz_preconditioner = adj_pressure_preconditioner_type(level=1_i_def)
+        adj_helmholtz_preconditioner = adj_pressure_preconditioner_type(level=1_i_def, stepper=stepper)
         allocate( adj_pressure_preconditioner_out, &
-                  source = multigrid_preconditioner_type( state(igh_p)%get_function_space(), &
+                  source = multigrid_preconditioner_type( config, state(igh_p)%get_function_space(), &
                                                           adj_pressure_operator_out,         &
                                                           adj_helmholtz_preconditioner ) )
       case default
@@ -191,7 +207,8 @@ contains
   !> @param[in]  state                        Prognostic state for the adjoint solver
   !> @param[in]  adj_pressure_solver_in       Input adjoint (Helmholtz) pressure solver
   !> @param[out] adj_mixed_preconditioner_out Output adjoint mixed preconditioner
-  subroutine create_adj_mixed_preconditioner( state, adj_pressure_solver_in, adj_mixed_preconditioner_out )
+  !> @param[in]  stepper                      Timestepper enumerator used to select operators
+  subroutine create_adj_mixed_preconditioner( state, adj_pressure_solver_in, adj_mixed_preconditioner_out, stepper )
 
     implicit none
 
@@ -204,6 +221,9 @@ contains
     ! Output adjoint preconditioner for mixed problem
     class(abstract_preconditioner_type), allocatable, intent(out) :: adj_mixed_preconditioner_out
 
+    ! Time stepper enumerator
+    integer(kind=i_def), intent(in) :: stepper
+
     call log_event( "adj_semi_implicit_solver_type%create_adj_mixed_preconditioner: starting", LOG_LEVEL_INFO )
 
     select case(si_preconditioner)
@@ -212,7 +232,8 @@ contains
                    source = adj_mixed_schur_preconditioner_type( state(igh_u)%get_mesh(),            &
                                                                  state(igh_u)%get_element_order_h(), &
                                                                  state(igh_u)%get_element_order_v(), &
-                                                                 adj_pressure_solver_in ) )
+                                                                 adj_pressure_solver_in,             &
+                                                                 stepper ) )
       case(SI_PRECONDITIONER_NONE)
         allocate ( adj_mixed_preconditioner_out, &
                    source = null_preconditioner_type() )
@@ -229,7 +250,8 @@ contains
   !> @param[in]     adj_mixed_preconditioner_in Input adjoint mixed preconditioner
   !> @param[in,out] adj_mixed_operator_out      Output adjoint mixed operator (not explicitly set, so must be inout)
   !> @param[out]    adj_mixed_solver_out        Output adjoint mixed solver
-  subroutine create_adj_mixed_solver( adj_mixed_preconditioner_in, adj_mixed_operator_out, adj_mixed_solver_out )
+  !> @param[in]     stepper                     Time stepper enumerator used to select operators
+  subroutine create_adj_mixed_solver( adj_mixed_preconditioner_in, adj_mixed_operator_out, adj_mixed_solver_out, stepper )
 
     implicit none
 
@@ -240,7 +262,14 @@ contains
     type(adj_mixed_operator_type),                      intent(inout) :: adj_mixed_operator_out
     class(abstract_iterative_solver_type), allocatable, intent(out)   :: adj_mixed_solver_out
 
+    ! Time stepper enumerator
+    integer(kind=i_def), intent(in) :: stepper
+
     call log_event( "adj_semi_implicit_solver_type%create_adj_mixed_solver: starting", LOG_LEVEL_INFO )
+
+    ! Store the stepper enumerator on the adjoint mixed operator so that it can
+    ! obtain the correct operator scaling constants when applied
+    adj_mixed_operator_out = adj_mixed_operator_type( stepper )
 
     select case(si_method)
       case(SI_METHOD_BLOCK_GCR)
@@ -262,23 +291,32 @@ contains
   end subroutine create_adj_mixed_solver
 
   !> @brief Initialisation procedure for the adjoint semi-implicit solver
-  !> @param[in] state Prognostic state for the solver
-  subroutine initialise( self, state, adj_lookup_table_cache )
+  !> @param[in] config  Application configuration object
+  !> @param[in] state   Prognostic state for the solver
+  subroutine initialise( self, config, state, adj_lookup_table_cache, stepper )
 
     implicit none
+
+    type(config_type), intent(in), target :: config
 
     ! Arguments
     class(adj_semi_implicit_solver_type),       intent(inout) :: self
     type(field_type), dimension(bundle_size),   intent(in)    :: state
     type(adj_solver_lookup_cache_type),         intent(in)    :: adj_lookup_table_cache
+    integer(kind=i_def),                        intent(in)    :: stepper
 
-    call create_adj_pressure_preconditioner( state,                      &
+    self%stepper = stepper
+
+    self%config => config
+
+    call create_adj_pressure_preconditioner( config, state,              &
                                              adj_lookup_table_cache,     &
                                              self%adj_pressure_operator, &
-                                             self%adj_pressure_preconditioner )
+                                             self%adj_pressure_preconditioner, &
+                                             stepper )
     call create_adj_pressure_solver( self%adj_pressure_operator, self%adj_pressure_preconditioner, self%adj_pressure_solver )
-    call create_adj_mixed_preconditioner( state, self%adj_pressure_solver, self%adj_mixed_preconditioner )
-    call create_adj_mixed_solver( self%adj_mixed_preconditioner, self%adj_mixed_operator, self%adj_mixed_solver )
+    call create_adj_mixed_preconditioner( state, self%adj_pressure_solver, self%adj_mixed_preconditioner, stepper )
+    call create_adj_mixed_solver( self%adj_mixed_preconditioner, self%adj_mixed_operator, self%adj_mixed_solver, stepper )
 
     call log_event( "adj_semi_implicit_solver_type%initialise: Initialised adjoint semi-implicit solver", LOG_LEVEL_INFO )
 
@@ -309,10 +347,13 @@ contains
   !> @param[in]     first_iteration     Flag for first inner iteration
   subroutine step( self, state, rhs, dry_flux_solver, moist_dyn_gas_law, mr, first_iteration )
 
-    use solver_constants_mod,                only: get_normalisation_r_solver, get_im3_div_r_solver, get_normalisation
+    use solver_constants_mod,                only: get_normalisation_r_solver, &
+                                                   get_im3_div_r_solver, &
+                                                   get_normalisation
     use mr_indices_mod,                      only: nummr
     use si_operators_alg_mod,                only: get_m3_rho_star, get_rho_at_u, &
-                                                   get_p2theta, get_p3theta, get_ptheta2
+                                                   get_p2theta, get_p3theta, get_ptheta2, &
+                                                   get_tau_u_dt_cp, get_tau_t_dt
     use matrix_vector_kernel_mod,            only: matrix_vector_kernel_type
     use adj_matrix_vector_kernel_mod,        only: adj_matrix_vector_kernel_type
     use dg_matrix_vector_kernel_mod,         only: dg_matrix_vector_kernel_type
@@ -347,6 +388,7 @@ contains
                                                          p3theta, p2theta, ptheta2
     type(field_type)                                  :: f_star_rdef
     real(kind=r_solver)                               :: tau_r_dt
+    real(kind=r_solver)                               :: const_u, const_t
     real(kind=r_def)                                  :: tau_r_dt_rdef
     integer(kind=i_def)                               :: mesh_id
     type(integer_field_type), pointer                 :: face_selector_ew, face_selector_ns
@@ -358,11 +400,15 @@ contains
 
     ! Input fields are r_def fields so preliminary work uses field_types
 
-    mesh_id = state(igh_p)%get_mesh_id()
+    mesh_id =  state(igh_p)%get_mesh_id()
+    mesh    => state(igh_p)%get_mesh()
+
+    const_u = get_tau_u_dt_cp(self%stepper)
+    const_t = get_tau_t_dt(self%stepper)
 
     ! Normalise theta & u residual
-    t_normalisation => get_normalisation( Wtheta, mesh_id )
-    u_normalisation => get_normalisation( W2, mesh_id )
+    t_normalisation => get_normalisation(self%config, mesh, Wtheta)
+    u_normalisation => get_normalisation(self%config, mesh, W2)
 
     call rhs_rsol(igh_u)%initialise(rhs(igh_u)%get_function_space())
     call rhs_rsol(igh_t)%initialise(rhs(igh_t)%get_function_space())
@@ -400,12 +446,13 @@ contains
 
     ! Compute theta increment since solver does not provide one
     ptheta2 => get_ptheta2()
-    mt_lumped_inv => get_normalisation_r_solver( Wtheta, mesh_id )
+    mt_lumped_inv => get_normalisation_r_solver(self%config, mesh, Wtheta)
 
     if (eliminate_variables == eliminate_variables_analytic) then
       call log_event( "adj_semi_implicit_solver_type%step: eliminate_variables_analytic not coded", LOG_LEVEL_ERROR )
     else
-      call invoke( inc_X_times_Y(rhs_tmp, mt_lumped_inv) )
+      call invoke( inc_X_times_Y(rhs_tmp, mt_lumped_inv), &
+                   inc_a_times_X(const_t, rhs_tmp) )
     end if
 
     ! Compute theta increment since solver does not provide one
@@ -413,7 +460,7 @@ contains
                  adj_dg_inc_matrix_vector_kernel_type( rhs_tmp, inc_uvw_rsol, ptheta2 ) )
 
     ! Get the theta and rho increments
-    div => get_im3_div_r_solver(mesh_id)
+    div => get_im3_div_r_solver(self%config, mesh)
     rho_at_u => get_rho_at_u()
     tau_r_dt = real(-tau_r * dt, kind=r_solver)
     tau_r_dt_rdef = real(tau_r * dt, kind=r_def)
@@ -467,7 +514,7 @@ contains
     ! Solve the semi-implicit operator
     if ( LPROF ) call start_timing( id_mix, 'adj_solver.mixed_solver' )
     call vector_inc%set_scalar(0.0_r_def)
-    call self%adj_mixed_solver%apply( vector_inc, vector_rhs )
+    call self%adj_mixed_solver%apply( self%config, vector_inc, vector_rhs )
     if ( LPROF ) call stop_timing( id_mix, 'adj_solver.mixed_solver' )
 
     call deconstruct_solver_state( vector_inc, rhs_rsol )
@@ -485,7 +532,7 @@ contains
         call log_event( "adj_semi_implicit_solver_type%step: eliminate_variables_analytic not coded", LOG_LEVEL_ERROR )
       else
         p3theta => get_p3theta()
-        m2_diag => get_normalisation_r_solver( W2, mesh_id )
+        m2_diag => get_normalisation_r_solver(self%config, mesh, W2)
         ! Set rhs_p = rhs_p + P_{3,theta} * rhs_theta
         ! Set rhs_u = rhs_u + M_2^{diag} * P_{2,theta} * rhs_theta
         call rhs_tmp%initialise(vector_space=rhs_rsol(igh_u)%get_function_space())
@@ -493,6 +540,7 @@ contains
         call invoke( name="adj_si_solver_6",                                             &
                      enforce_bc_kernel_type(rhs_rsol(igh_u)),                            &
                      setval_X( rhs_tmp, rhs_rsol(igh_u) ),                               &
+                     inc_a_times_X( const_u, rhs_tmp ),                                  &
                      inc_X_times_Y( rhs_tmp, m2_diag ),                                  &
                      adj_matrix_vector_kernel_type( rhs_tmp, rhs_rsol(igh_t), p2theta ), &
                      adj_dg_inc_matrix_vector_kernel_type( rhs_rsol(igh_p), rhs_rsol(igh_t), p3theta ) )

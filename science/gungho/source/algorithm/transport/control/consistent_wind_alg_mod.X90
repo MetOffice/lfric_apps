@@ -19,6 +19,7 @@ module consistent_wind_alg_mod
                                                get_height_fv,                 &
                                                get_face_selector_ew,          &
                                                get_face_selector_ns
+  use dycore_constants_mod,              only: stepper_siqn, stepper_tr
   use consistent_wind_kernel_mod,        only: consistent_wind_kernel_type
   use fs_continuity_mod,                 only: Wtheta, W2v, W2h
   use model_clock_mod,                   only: model_clock_type
@@ -59,6 +60,7 @@ contains
   !> @param[in]     wind_np1             Wind at the end of the step
   !> @param[in]     model_clock          Model time information
   !> @param[in]     outer                Outer iteration index
+  !> @param[in]     stepper              Enumerator of timestepper
   !> @param[in]     cheap_update_step    Whether a cheap transport update is used
   subroutine consistent_wind_alg(config,               &
                                  transport_controller, &
@@ -67,12 +69,14 @@ contains
                                  wind_np1,             &
                                  model_clock,          &
                                  outer,                &
+                                 stepper,              &
                                  cheap_update_step)
 
     implicit none
 
     type(config_type),       intent(in) :: config
     integer(kind=i_def),     intent(in) :: outer
+    integer(kind=i_def),     intent(in) :: stepper
     logical(kind=l_def),     intent(in) :: cheap_update_step
     class(model_clock_type), intent(in) :: model_clock
     type(field_type),        intent(in) :: rho_d_latest, wind_n, wind_np1
@@ -123,8 +127,14 @@ contains
     call wind_adv%initialise( wind_n%get_function_space() )
     face_selector_ew => get_face_selector_ew( wind_n%get_mesh() )
     face_selector_ns => get_face_selector_ns( wind_n%get_mesh() )
-    call invoke( aX_plus_bY( wind_adv, 0.5_r_def, wind_n, 0.5_r_def, wind_np1 ), &
-                 split_w2_field_kernel_type( wind_h, wind_v, wind_adv,           &
+
+    if (stepper == stepper_siqn .or. stepper == stepper_tr) then
+      call invoke( aX_plus_bY( wind_adv, 0.5_r_def, wind_n,                    &
+                                         0.5_r_def, wind_np1 ) )
+    else
+      call invoke( setval_X( wind_adv, wind_np1) )
+    end if
+    call invoke( split_w2_field_kernel_type( wind_h, wind_v, wind_adv,           &
                                              face_selector_ew,                   &
                                              face_selector_ns ) )
 
@@ -160,7 +170,8 @@ contains
     wind_adv_ptr => wind_adv
     call transport_controller%finalise()
     call transport_controller%initialise(                                      &
-            config, model_clock, rho_d_latest, wind_adv, wind_adv_ptr, outer,  &
+            config, model_clock, stepper,                                      &
+            rho_d_latest, wind_adv, wind_adv_ptr, outer,                       &
             cheap_update_step                                                  &
     )
   end subroutine consistent_wind_alg

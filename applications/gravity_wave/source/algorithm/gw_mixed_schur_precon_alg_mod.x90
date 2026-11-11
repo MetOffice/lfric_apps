@@ -68,6 +68,7 @@
 module gw_mixed_schur_precon_alg_mod
 
   use base_mesh_config_mod,              only: prime_mesh_name
+  use config_mod,                        only: config_type
   use vector_mod,                        only: abstract_vector_type
   use r_solver_field_mod,                only: r_solver_field_type
   use constants_mod,                     only: i_def, r_solver
@@ -181,13 +182,14 @@ contains
   !!          since this matrix is already required for and constructed
   !!          in the pressure operator.
   !>
+  !> @param[in] config          Application configuration object
   !> @param[in] wu_fs           Function space for wind field
   !> @param[in] wp_fs           Function space for pressure field
   !> @param[in] wb_fs           Function space for bouyancy field
   !> @param[in] Hb_lumped_inv   Lumped inverse \f$\tilde{H}_b^{-1}\f$
   !> @param[in] pressure_solver Solver object for Helmholtz system
   !> @return self The constructed preconditioner object
-  function gw_mixed_schur_preconditioner_constructor(wu_fs, wp_fs, wb_fs, &
+  function gw_mixed_schur_preconditioner_constructor(config, wu_fs, wp_fs, wb_fs, &
                                                      Hb_lumped_inv,       &
                                                      pressure_solver)     &
                                                      result(self)
@@ -203,6 +205,8 @@ contains
     use sci_operator_algebra_kernel_mod, only: operator_setval_x_kernel_type
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type(function_space_type), target, intent(in) :: wp_fs, wu_fs, wb_fs
     type(r_solver_field_type),         intent(in) :: Hb_lumped_inv
@@ -253,11 +257,11 @@ contains
     call Mb%initialise( wb, wb )
     select case(b_space)
     case(b_space_w0)
-       mm => get_mass_matrix_fe(W0, mesh%get_id())
+       mm => get_mass_matrix_fe(config, mesh, W0)
     case(b_space_w3)
-       mm => get_mass_matrix_fe(W3, mesh%get_id())
+       mm => get_mass_matrix_fe(config, mesh, W3)
     case(b_space_wtheta)
-       mm => get_mass_matrix_fe(Wtheta, mesh%get_id())
+       mm => get_mass_matrix_fe(config, mesh, Wtheta)
     end select
     call invoke( operator_setval_x_kernel_type( Mb, mm ),       &
                  setval_c( ones,     1.0_r_solver ),            &
@@ -333,16 +337,19 @@ contains
   !!          2. Approximately solve Helmholtz-system
   !!          3. Reconstruct velocity and buoyancy from pressure
   !>
-  !> @param[in,out] self Instance of type gw_mixed_schur_preconditioner_type
-  !> @param[in]     x    Field vector containing the residuals
-  !!                     \f$(\textbf{R}_u,R_p,r_b)\f$
-  !> @param[in,out] y    Field vector containing the solution
-  !!                     \f$(\textbf{U},P,B)\f$ to be calculated
-  subroutine apply_gw_mixed_schur_preconditioner(self, x, y)
+  !> @param[in]     config Application configuration object
+  !> @param[in]     x      Field vector containing the residuals
+  !!                       \f$(\textbf{R}_u,R_p,r_b)\f$
+  !> @param[in,out] y      Field vector containing the solution
+  !!                       \f$(\textbf{U},P,B)\f$ to be calculated
+  subroutine apply_gw_mixed_schur_preconditioner(self, config, x, y)
 
     implicit none
 
     class(gw_mixed_schur_preconditioner_type), intent(inout) :: self
+
+    type(config_type), intent(in) :: config
+
     class(abstract_vector_type),               intent(in)    :: x
     class(abstract_vector_type),               intent(inout) :: y
 
@@ -370,7 +377,7 @@ contains
                      setval_c( y_vec_b, 0.0_r_solver ) )
 
         ! STEP 1: Build RHS for Helmholtz system
-        call self%build_pressure_rhs(x)
+        call self%build_pressure_rhs(config, x)
 
         ! STEP 2: Solve Helmholtz system
         ! Krylov solver to obtain pressure increment
@@ -380,12 +387,12 @@ contains
         ! Copy RHS into 1-component field-vector
         call self%pressure_b%import_field(self%rhs_p,1)
         call log_event('Schur preconditioner pressure solve:', LOG_LEVEL_INFO)
-        call self%gw_pressure_solver%apply(self%pressure_x,self%pressure_b)
+        call self%gw_pressure_solver%apply(config, self%pressure_x,self%pressure_b)
         ! Copy solution out of 1-component field-vector
         call self%pressure_x%export_field(self%p_inc,1)
 
         ! STEP 3: Back substitute to obtain other fields
-        call self%back_substitute(y, x)
+        call self%back_substitute(config, y, x)
       class default
         write(log_scratch_space, '(A)') &
              "gw_mixed_schur_preconditioner_mod: incorrect vector_type argument y"
@@ -410,10 +417,10 @@ contains
   !!          mixed system, build the right hand side \f$R^*_p\f$ for the
   !!          Helmholtz equation.
   !>
-  !> @param[in,out] self Instance of type gw_mixed_schur_preconditioner_type
-  !> @param[in]     rhs0 Initial residuals \f$(\textbf{R}_u,R_p,R_b)\f$ of the
+  !> @param[in]  config  Application configuration object
+  !> @param[in]  rhs0    Initial residuals \f$(\textbf{R}_u,R_p,R_b)\f$ of the
   !!                     mixed system.
-  subroutine build_pressure_rhs(self,rhs0)
+  subroutine build_pressure_rhs(self, config, rhs0)
 
     use matrix_vector_kernel_mod,    only: matrix_vector_kernel_type
     use dg_matrix_vector_kernel_mod, only: dg_matrix_vector_kernel_type
@@ -422,6 +429,7 @@ contains
     implicit none
 
     class(gw_mixed_schur_preconditioner_type), intent(inout) :: self
+    type(config_type),                         intent(in)    :: config
     type(r_solver_field_vector_type),          intent(in)    :: rhs0
 
     type(r_solver_operator_type), pointer :: div => null()
@@ -455,7 +463,7 @@ contains
     endif
 
     ! Compute rhs_p
-    div    => get_im3_div_r_solver(mesh%get_id())
+    div    => get_im3_div_r_solver(config, mesh)
     const2 = -self%alpha*real(dt*cs_square, r_solver)
     call invoke( X_times_Y(self%hb_ru, self%rhs_u, self%Hb_lumped_inv),    &
                  dg_matrix_vector_kernel_type(self%rhs_p,self%hb_ru, div), &
@@ -476,10 +484,10 @@ contains
   !!          equation, reconstruct the velocity \f$\textbf{U}\f$ and
   !!          buoyancy \f$B\f$.
   !>
-  !> @param[in,out] self  Instance of type gw_mixed_schur_preconditioner_type
-  !> @param[in,out] state Solution \f$(\textbf{U},P,B)\f$ of the mixed system
-  !> @param[in]     rhs   Initial right hand side \f$(\textbf{R}_u,R_p,R_b)\f$
-  subroutine back_substitute(self, state, rhs)
+  !> @param[in]     config Application configuration object
+  !> @param[in,out] state  Solution \f$(\textbf{U},P,B)\f$ of the mixed system
+  !> @param[in]     rhs    Initial right hand side \f$(\textbf{R}_u,R_p,R_b)\f$
+  subroutine back_substitute(self, config, state, rhs)
 
     use transpose_matrix_vector_kernel_mod, &
                                       only: transpose_matrix_vector_kernel_type
@@ -488,8 +496,10 @@ contains
     implicit none
 
     class(gw_mixed_schur_preconditioner_type), intent(inout) :: self
-    type(r_solver_field_vector_type),          intent(inout) :: state
-    type(r_solver_field_vector_type),          intent(in)    :: rhs
+
+    type(config_type),                intent(in)    :: config
+    type(r_solver_field_vector_type), intent(inout) :: state
+    type(r_solver_field_vector_type), intent(in)    :: rhs
 
     type(r_solver_field_type),    pointer :: w3_mask => null()
     type(r_solver_field_type),    pointer :: w2_mask => null()
@@ -499,7 +509,7 @@ contains
     real(kind=r_solver)                   :: const1, const2
     integer(kind=i_def)                   :: buoyancy_space
 
-    type(mesh_type),     pointer :: mesh => null()
+    type(mesh_type), pointer :: mesh
 
     mesh => self%u_inc%get_mesh()
 
@@ -528,7 +538,7 @@ contains
     call invoke( setval_c(self%u_inc, 0.0_r_solver), &
                  setval_c(self%b_inc, 0.0_r_solver) )
     ! U increment
-    div_r_def => get_div(mesh%get_id())
+    div_r_def => get_div(config, mesh)
     call div%initialise( div_r_def%get_fs_to(), div_r_def%get_fs_from() )
     const1 = self%alpha*real(dt, r_solver)
     call invoke( operator_setval_x_kernel_type( div, div_r_def ),      &

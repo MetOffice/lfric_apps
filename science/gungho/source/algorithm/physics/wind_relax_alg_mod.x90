@@ -42,7 +42,7 @@ module wind_relax_alg_mod
 contains
 
   !> @brief Algorithm to calculate Newtonian relaxation of horizontal wind
-  !> @param[in]     config     Application namelist configuration object
+  !> @param[in]     config     Application configuration object
   !> @param[in,out] du_forcing Relaxation increment
   !> @param[in]     u          Horizontal wind field
   !> @param[in]     exner      Exner in original W3 space
@@ -133,7 +133,7 @@ contains
   call invoke( setval_c( dw_relax, 0.0_r_def ) )
 
   ! Map the actual w2 wind field to physics components
-  call map_physics_winds( u_in_w3, v_in_w3, w_in_w3, u )
+  call map_physics_winds( config, u_in_w3, v_in_w3, w_in_w3, u )
 
   if ( number_times == 1 ) then
   ! This is what applies for a constant relaxation profile
