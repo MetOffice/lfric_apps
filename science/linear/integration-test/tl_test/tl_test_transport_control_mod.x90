@@ -10,6 +10,7 @@ module tl_test_transport_control_mod
   use sci_assign_field_random_kernel_mod, &
                                       only: assign_field_random_kernel_type
   use constants_mod,                  only: i_def, r_def, str_def
+  use dycore_constants_mod,           only: stepper_siqn
   use field_array_mod,                only: field_array_type
   use field_mod,                      only: field_type
   use sci_field_bundle_builtins_mod,  only: clone_bundle, &
@@ -198,6 +199,7 @@ module tl_test_transport_control_mod
                                       ls_mr,                   &
                                       modeldb%clock,           &
                                       outer,                   &
+                                      stepper_siqn,            &
                                       cheap_update = .false.)
 
     gamma_u = 1._r_def
@@ -241,6 +243,7 @@ module tl_test_transport_control_mod
                                         n_mr_in,                 &
                                         modeldb%clock,           &
                                         outer,                   &
+                                        stepper_siqn,            &
                                         cheap_update = .false. )
 
       call tl_transport_control_alg(modeldb%config,   &
@@ -255,7 +258,8 @@ module tl_test_transport_control_mod
                                     ls_state(igh_u),  &
                                     ls_mr,            &
                                     modeldb%clock,    &
-                                    outer )
+                                    outer,            &
+                                    stepper_siqn )
 
      ! diff = n2_rhs - n1_rhs
       call minus_bundle( n2_rhs, n1_rhs, diff, bundle_size )
