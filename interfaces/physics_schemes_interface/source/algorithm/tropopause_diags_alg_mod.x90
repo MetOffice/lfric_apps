@@ -4,7 +4,7 @@
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
 ! Some content in this file was generated or refactored with assistance from
-! - Met Office Claude Code Enterprise (Claude Opus 4.8).
+! - Met Office Claude Code via AI Foundry (Claude Opus 4.8); PR #715.
 
 !> @brief Compute and output tropopause height, temperature, pressure and
 !>        ICAO height
