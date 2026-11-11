@@ -28,6 +28,8 @@ type :: config
   character(len=fnamelen) :: weights_file_face_centre_to_p_neareststod = 'unset'
   character(len=fnamelen) :: weights_file_face_centre_to_u_bilinear = 'unset'
   character(len=fnamelen) :: weights_file_face_centre_to_v_bilinear = 'unset'
+  character(len=fnamelen) :: weights_file_face_centre_to_p_land_mask_bilinear &
+                             = 'unset'
   integer(kind=int64), allocatable :: stash_list(:)
   integer(kind=int64), allocatable :: lbtim_list(:)
   integer(kind=int64), allocatable :: lbproc_list(:)
@@ -102,6 +104,8 @@ character(len=fnamelen) :: weights_file_face_centre_to_p_bilinear = 'unset'
 character(len=fnamelen) :: weights_file_face_centre_to_p_neareststod = 'unset'
 character(len=fnamelen) :: weights_file_face_centre_to_u_bilinear = 'unset'
 character(len=fnamelen) :: weights_file_face_centre_to_v_bilinear = 'unset'
+character(len=fnamelen) :: weights_file_face_centre_to_p_land_mask_bilinear =  &
+                           'unset'
 integer(kind=int64) :: stash_list(max_stash_list)
 integer(kind=int64) :: lbtim_list(max_stash_list)
 integer(kind=int64) :: lbproc_list(max_stash_list)
@@ -117,6 +121,7 @@ namelist /configure_lfric2um/ output_filename,                                 &
                               weights_file_face_centre_to_p_neareststod,       &
                               weights_file_face_centre_to_u_bilinear,          &
                               weights_file_face_centre_to_v_bilinear,          &
+                              weights_file_face_centre_to_p_land_mask_bilinear,&
                               stash_list, num_snow_layers, num_surface_types,  &
                               lbtim_list,                                      &
                               lbproc_list,                                     &
@@ -209,13 +214,15 @@ self%output_filename = output_filename
 self%target_grid_namelist = target_grid_namelist
 self%stashmaster_file = stashmaster_file
 self%weights_file_face_centre_to_p_bilinear =                                  &
-                                 weights_file_face_centre_to_p_bilinear
+                               weights_file_face_centre_to_p_bilinear
 self%weights_file_face_centre_to_p_neareststod =                               &
-                                 weights_file_face_centre_to_p_neareststod
+                               weights_file_face_centre_to_p_neareststod
 self%weights_file_face_centre_to_u_bilinear =                                  &
-                                 weights_file_face_centre_to_u_bilinear
+                               weights_file_face_centre_to_u_bilinear
 self%weights_file_face_centre_to_v_bilinear =                                  &
-                                 weights_file_face_centre_to_v_bilinear
+                               weights_file_face_centre_to_v_bilinear
+self%weights_file_face_centre_to_p_land_mask_bilinear =                        &
+                               weights_file_face_centre_to_p_land_mask_bilinear
 self%num_snow_layers = num_snow_layers
 self%num_surface_types = num_surface_types
 self%um_version_int = um_version_int

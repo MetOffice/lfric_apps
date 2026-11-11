@@ -19,7 +19,8 @@ type(lfricinp_regrid_weights_type), public, target ::                          &
                                     mesh_face_centre_to_grid_p_bilinear,       &
                                     mesh_face_centre_to_grid_p_neareststod,    &
                                     mesh_face_centre_to_grid_u_bilinear,       &
-                                    mesh_face_centre_to_grid_v_bilinear
+                                    mesh_face_centre_to_grid_v_bilinear,       &
+                                    mesh_face_centre_to_grid_p_land_mask_bilinear
 
 public ::  lfric2um_regrid_weightsfile_ctl, get_weights
 
@@ -58,6 +59,15 @@ call mesh_face_centre_to_grid_v_bilinear % load(                               &
      lfric2um_config%weights_file_face_centre_to_v_bilinear)
 call mesh_face_centre_to_grid_v_bilinear % populate_dst_address_2D(            &
      int(um_grid % num_v_points_x, kind=int32))
+
+! Optional land-masked P points weights, used for land-compressed fields
+if (trim(lfric2um_config%weights_file_face_centre_to_p_land_mask_bilinear)     &
+    /= 'unset') then
+  call mesh_face_centre_to_grid_p_land_mask_bilinear % load(                   &
+       lfric2um_config%weights_file_face_centre_to_p_land_mask_bilinear)
+  call mesh_face_centre_to_grid_p_land_mask_bilinear % populate_dst_address_2D(&
+       int(um_grid % num_p_points_x, kind=int32))
+end if
 
 end subroutine lfric2um_regrid_weightsfile_ctl
 
@@ -127,7 +137,19 @@ case( p_points, ozone_points, land_compressed, p_points_values_over_sea )
   ! Check for specified interpolation method for this stashcode
   ! and the use appropriate weights
   unspecified = .true.
-  if ( nn_fields > 0 ) then
+
+  ! Land-compressed fields take the land-masked weights when available
+  if ( horiz_grid_code == land_compressed .and.                         &
+       allocated(mesh_face_centre_to_grid_p_land_mask_bilinear % remap_matrix) ) then
+    write(log_scratch_space, '((A,I4))')                                &
+       "Will use land-masked interpolation for stashcode: ", stashcode
+    call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
+
+    weights => mesh_face_centre_to_grid_p_land_mask_bilinear
+    unspecified = .false.
+  end if
+
+  if ( unspecified .and. nn_fields > 0 ) then
     do i_stash = 1,nn_fields
       if (stashcode == specify_nearest_neighbour(i_stash)) then
         write(log_scratch_space, '((A,I4))')                            &
