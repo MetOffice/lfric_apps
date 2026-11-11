@@ -154,9 +154,8 @@ real(kind=r_bl), intent(out)::                                                 &
                                     ! Y-comp of orographic stress (N/m^2)
  fd_impl_part(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,             &
               bl_levels)
-                                    ! Beljaars TOFD function to use in 
+                                    ! Beljaars TOFD function to use in
                                     ! implicit solver
-              
 
 !     Local and other symbolic constants:
 
