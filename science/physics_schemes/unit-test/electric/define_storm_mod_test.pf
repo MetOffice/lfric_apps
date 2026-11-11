@@ -5,18 +5,21 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module define_storm_mod_test
 
-  use pFUnit
+  use pFUnit, only : anyExceptions, assertEqual, sourceLocation
 
   use atm_fields_bounds_mod, only : atm_fields_bounds_init
-  use constants_mod,         only : i_def, r_um
+  use constants_mod,         only : i_um, r_um
   use define_storm_mod,      only : define_storm
-  use electric_inputs_mod,   only : storm_definition, graupel_only, graupel_and_ice
+  use electric_inputs_mod,   only : storm_definition,              &
+                                    graupel_only, graupel_and_ice, &
+                                    tiwp_thresh, gwp_thresh
+  use missing_data_mod,      only : imdi, rmdi
   use model_domain_mod,      only : model_type, mt_lfric
 
   implicit none
 
   private
-  public test_define_storm
+  public set_up, tear_down, test_define_storm_and_ice, test_define_storm_only
 
 contains
 
@@ -28,8 +31,8 @@ contains
     !       code path.
     !
     model_type = mt_lfric
-    call atm_fields_bounds_init(
-      offx=1, offy=1, halo_i=2, halo_j=2, row_length=3, rows=3, n_rows=3
+    call atm_fields_bounds_init(                                         &
+      offx=1, offy=1, halo_i=2, halo_j=2, row_length=3, rows=3, n_rows=3 &
     )
 
   end subroutine set_up
@@ -45,32 +48,71 @@ contains
   @test
   subroutine test_define_storm_only()
 
-    real(r_um) :: graupel(1:3, 1:3)
-    real(r_um) :: total_ice(1:3, 1:3)
-    real(r_um) :: storm(1:3, 1:3)
-    integer(i_def) :: storm_points
+    real(r_um)    :: graupel(1:3, 1:3)
+    real(r_um)    :: total_ice(1:3, 1:3)
+    logical       :: storm(1:3, 1:3)
+    integer(i_um) :: storm_points
 
-    graupel = reshape(
-        [3, 3],
-        [7.598, 7.490, 0.571, 8.8198, 5.255, 6.117, 2.625, 2.246, 2.983]
+    graupel = reshape(                                                    &
+        [7.598, 7.490, 0.571, 8.8198, 5.255, 6.117, 2.625, 2.246, 2.983], &
+        [3, 3]                                                            &
     )
-    total_ice = reshape(
-        [3, 3],
-        [4.189, 9.280, 2.949, 1.984, 7.070, 6.597, 4.0452, 0.060, 4.972]
+    total_ice = reshape(                                                  &
+        [4.189, 9.280, 2.949, 1.984, 7.070, 6.597, 4.0452, 0.060, 4.972], &
+        [3, 3]                                                            &
     )
+
+    ! Ensure grid cells without storms are correctly reported:
+    !
+    storm = .true.
 
     ! Todo: Clearly values should not be passed by global variable.
     !
-    storm_definition = graupel_only
-    gwp_thresh = 2.7._r_um
+    gwp_thresh = 2.7_r_um
     tiwp_thresh = 3.3_r_um
+    storm_definition = graupel_only
     call define_storm( graupel, total_ice, storm, storm_points )
     @assertEqual(6, storm_points)
-    @assertEqual(reshape([3, 3], [.true., .true., .false., .true., .true., .true., .false., .false., .true.]), storm)
+    @assertEqual(reshape([.true., .true., .false., .true., .true., .true., .false., .false., .true.], [3, 3]), storm)
     tiwp_thresh = rmdi
     gwp_thresh = rmdi
     storm_definition = imdi
 
-  end subroutine test_define_storm
+  end subroutine test_define_storm_only
+
+  @test
+  subroutine test_define_storm_and_ice()
+
+    real(r_um)    :: graupel(1:3, 1:3)
+    real(r_um)    :: total_ice(1:3, 1:3)
+    logical       :: storm(1:3, 1:3)
+    integer(i_um) :: storm_points
+
+    graupel = reshape(                                                    &
+        [7.598, 7.490, 0.571, 8.8198, 5.255, 6.117, 2.625, 2.246, 2.983], &
+        [3, 3]                                                            &
+    )
+    total_ice = reshape(                                                  &
+        [4.189, 9.280, 2.949, 1.984, 7.070, 6.597, 4.0452, 0.060, 4.972], &
+        [3, 3]                                                            &
+    )
+
+    ! Ensure grid cells without storms are correctly reported:
+    !
+    storm = .true.
+
+    ! Todo: Clearly values should not be passed by global variable.
+    !
+    gwp_thresh = 2.7_r_um
+    tiwp_thresh = 3.3_r_um
+    storm_definition = graupel_and_ice
+    call define_storm( graupel, total_ice, storm, storm_points )
+    @assertEqual(7, storm_points)
+    @assertEqual(reshape([.true., .true., .false., .true., .true., .true., .true., .false., .true.], [3, 3]), storm)
+    tiwp_thresh = rmdi
+    gwp_thresh = rmdi
+    storm_definition = imdi
+
+  end subroutine test_define_storm_and_ice
 
 end module define_storm_mod_test

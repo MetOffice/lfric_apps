@@ -1153,7 +1153,7 @@ contains
     ! Flags for diagnostic output are set here
     call set_convection_output_flags( )
     ! Check the contents of the convection parameters module
-    call check_run_convection()
+    call check_run_convection( llcs_first_outer )
 
     ! ----------------------------------------------------------------
     ! UM convection scheme settings for plume scavenging of UKCA

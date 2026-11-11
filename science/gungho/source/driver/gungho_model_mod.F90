@@ -450,7 +450,11 @@ contains
 
 
 #ifdef UM_PHYSICS
+    use extrusion_config_mod,       only: planet_radius
     use formulation_config_mod,     only: use_physics
+    use orbit_config_mod,           only: spin, spin_user, hour_angle_inc
+    use planet_config_mod,          only: cp, epsilon, gravity, omega, &
+                                          p_zero, recip_epsilon, rd
     use section_choice_config_mod,  only: radiation,          &
                                           radiation_socrates, &
                                           surface,            &
@@ -469,8 +473,12 @@ contains
     integer(i_def) :: ncells
     integer(i_def) :: ncells_ukca
 
+    real(r_def) :: s2r
+
     ! Set derived planet constants and presets
-    call set_planet_constants()
+    call set_planet_constants( planet_radius, gravity, rd, epsilon, &
+                               recip_epsilon, omega, cp, p_zero,    &
+                               hour_angle_inc, spin == spin_user )
 
     ! Initialise UM to run full field
     ncells_ukca = mesh%get_last_edge_cell()

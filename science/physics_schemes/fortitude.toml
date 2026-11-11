@@ -8,6 +8,8 @@
 
 file-extensions= ["f90", "F90", "X90", "x90", "pf"]   #check these file types
 
+extend-exclude = ["ukca_scavenging_mod.F90"]
+
 select = ["E000", "E001", "C001",
 "C071", "C072", "C081", "C091", "C092", "C121",
 "C132", "C141", "OB011", "OB021", "OB051", "OB061", "MOD001", "MOD021",
@@ -22,7 +24,13 @@ select = ["E000", "E001", "C001",
 output-format = "grouped"                #group results by file
 
 [check.per-file-ignores]
+"calc_fit_fsat.F90" = ["C081"]
+"set_levels_list.F90" = ["C071"]
+"set_pseudo_list.F90" = ["C071"]
 "stochastic_physics_run_mod.F90" = ["E001"]
+"ukca_scavenging_mod.F90" = ["E001"]
+"ukca_volcanic_so2.F90" = ["C081"]
+"umprintmgr.f90" = ["C072", "C132"]
 "grow_particles_mod.F90" = ["C081"]
 "mphys_die.F90" = ["C081"]
 "dust_parameters_mod.F90" = ["C031"]

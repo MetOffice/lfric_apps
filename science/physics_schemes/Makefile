@@ -33,7 +33,10 @@ export PROFILE ?= fast-debug
 
 export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 
-export COMPONENT_PREREQUISITES = $(CORE_ROOT_DIR)/infrastructure
+COMPONENT_PREREQUISITES = $(CORE_ROOT_DIR)/infrastructure \
+                          $(CORE_ROOT_DIR)/components/science \
+                          $(APPS_ROOT_DIR)/interfaces/jules_interface \
+                          $(APPS_ROOT_DIR)/science/shared
 
 .PHONY: default
 default: unit-tests
@@ -47,13 +50,25 @@ include $(PROJECT_DIR)/build/import.mk
 #
 unit-tests/%: export ADDITIONAL_EXTRACTION = 
 unit-tests/%: export BIN_DIR ?= $(PROJECT_DIR)/test
-unit-tests/%: export IMPORT_PARTS  = $(CORE_ROOT_DIR)/infrastructure
+unit-tests/%: export IMPORT_PARTS  = $(COMPONENT_PREREQUISITES)
 unit-tests/%: export PROGRAMS = physics_schemes_unit_tests
 unit-tests/%: export PROJECT = $(PROJECT_NAME)
 unit-tests/%: export SOURCE_DIR = source
 unit-tests/%: export TEST_DIR = unit-test
 unit-tests/%: export WORKING_DIR := $(WORKING_DIR)/unit-tests
 unit-tests: unit-tests/run
+
+###############################################################################
+# Integration tests - commented out until we have some
+#
+#integration-tests/%: export ADDITIONAL_EXTRACTION =
+#integration-tests/%: export BIN_DIR      ?= $(PROJECT_DIR)/test
+#integration-tests/%: export IMPORT_PARTS  = 
+#integration-tests/%: export PROJECT       = physics_schemes_integration_tests
+#integration-tests/%: export SOURCE_DIR    = source
+#integration-tests/%: export TEST_DIR      = integration-test
+#integration-tests/%: export WORKING_DIR  := $(WORKING_DIR)/integration-tests
+#integration-tests: integration-tests/run
 
 ###############################################################################
 # Clean

@@ -24,7 +24,13 @@ export EXTRA_ROSE_META = jules
 export META_DIR = $(WORKING_DIR)/../rose-meta
 export ROSE_META_DIRS = $(APPS_ROOT_DIR)/rose-meta $(META_DIR)
 
-# Note - socrates_interface must come before jules_interface as there are dependencies on each other.
+# Note - socrates_interface must come before jules_interface as there are
+#        dependencies on each other.
+#
+# Currently extract_physics is required, but pulls in a lot of code (i.e. UKCA)
+# which standalone Jules does not use. Could be removed if the code is separated
+# to not be dependent on other physics.
+#
 export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
                                $(CORE_ROOT_DIR)/components/driver \
                                $(CORE_ROOT_DIR)/components/science \
@@ -33,6 +39,7 @@ export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
                                $(APPS_ROOT_DIR)/science/shared \
                                $(APPS_ROOT_DIR)/interfaces/socrates_interface \
                                $(APPS_ROOT_DIR)/interfaces/jules_interface \
+                               $(APPS_ROOT_DIR)/science/physics_schemes \
                                $(APPS_ROOT_DIR)/interfaces/physics_schemes_interface
 
 META_VN             ?= HEAD
@@ -91,13 +98,6 @@ build: ALWAYS
 	$(call MESSAGE,========================================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
 	          SOURCE_DIR=$(APPS_ROOT_DIR)/science/gungho/source
-    # Currently extract_physics is required, but pulls in a lot of code (i.e. UKCA)
-    # which standalone Jules does not use. Could be removed if the code is separated
-    # to not be dependent on other physics.
-	$(call MESSAGE,========================================)
-	$(call MESSAGE,Extracting UM physics )
-	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(APPS_ROOT_DIR)/build/extract/extract_physics.mk
 	$(call MESSAGE,========================================)
 	$(call MESSAGE,Extracting $(PROJECT_NAME))
 	$(call MESSAGE,========================================)

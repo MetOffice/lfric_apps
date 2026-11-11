@@ -39,6 +39,11 @@ export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 
 export ROSE_META_DIRS = $(APPS_ROOT_DIR)/rose-meta
 
+PREREQUISITE_COMPONENTS = $(CORE_ROOT_DIR)/infrastructure \
+                          $(CORE_ROOT_DIR)/components/science \
+                          $(APPS_ROOT_DIR)/science/shared \
+                          $(APPS_ROOT_DIR)/science/physics_schemes
+
 .PHONY: all
 all: default
 
@@ -53,6 +58,7 @@ documentation doc docs: document-api
 	$(Q)echo > /dev/null
 
 include $(CORE_ROOT_DIR)/infrastructure/build/lfric.mk
+include $(PREREQUISITE_COMPONENTS:=/build/import.mk)
 
 ##############################################################################
 # Documentation
@@ -72,21 +78,13 @@ document-api: api-documentation
 .PHONY: unit-tests
 unit-tests/%: export ADDITIONAL_EXTRACTION = $(CORE_ROOT_DIR)/components/science/unit-test/support
 unit-tests/%: export BIN_DIR ?= $(PROJECT_DIR)/test
-unit-tests/%: export EXTERNAL_STATIC_LIBRARIES += pfunit
 unit-tests/%: export FFLAG_GROUPS = -D UNIT_TEST
 unit-tests/%: export PRE_PROCESS_INCLUDE_DIRS = \
         $(WORKING_DIR)/atmosphere_service/include \
         $(WORKING_DIR)/boundary_layer/include \
-		$(WORKING_DIR)/free_tracers/include \
+        $(WORKING_DIR)/free_tracers/include \
         $(WORKING_DIR)/large_scale_precipitation/include
-
-unit-tests/%: export PRE_PROCESS_MACROS += UM_PHYSICS LFRIC USSPPREC_32B LSPREC_32B UM_JULES
-unit-tests/%: export IMPORT_PARTS = $(CORE_ROOT_DIR)/infrastructure \
-                                    $(CORE_ROOT_DIR)/components/science \
-                                    $(APPS_ROOT_DIR)/interfaces/jules_interface \
-                                    $(APPS_ROOT_DIR)/science/gungho \
-                                    $(APPS_ROOT_DIR)/interfaces/socrates_interface \
-                                    $(APPS_ROOT_DIR)/interfaces/physics_schemes_interface
+unit-tests/%: export IMPORT_PARTS = $(PREREQUISITE_COMPONENTS)
 unit-tests/%: export META_FILE_DIR = $(PROJECT_DIR)/rose-meta/$(PROJECT_NAME)/$(META_VN)
 unit-tests/%: export PROGRAMS = physics_schemes_interface_unit_tests
 unit-tests/%: export PROJECT = physics_schemes_interface

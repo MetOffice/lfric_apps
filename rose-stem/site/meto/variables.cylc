@@ -16,6 +16,7 @@
                                                "linear_model",
                                                "lfricinputs",
                                                "lfric2lfric",
+                                               "physics_schemes",
                                                "physics_schemes_interface",
                                                "socrates_interface",
                                                "name_transport",

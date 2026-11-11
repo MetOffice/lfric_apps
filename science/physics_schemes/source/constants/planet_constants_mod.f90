@@ -38,9 +38,9 @@ module planet_constants_mod
   !   sclht, omega, two_omega, recip_p_zero,
 
 
-!----------------------------------------------------------------------
-! Primary planet constants
-!----------------------------------------------------------------------
+  !----------------------------------------------------------------------------
+  ! Primary planet constants
+  !----------------------------------------------------------------------------
 
   ! Planet radius in metres
   real(r_um), protected :: planet_radius = real(rmdi, r_um)
@@ -144,16 +144,11 @@ module planet_constants_mod
 
 contains
 
-subroutine set_planet_constants()
-
-  use extrusion_config_mod, only: radius => planet_radius
-  use planet_config_mod, only: gravity, rd, epsilon,                 &
-                               lfric_recip_epsilon => recip_epsilon, &
-                               lfric_omega => omega,                 &
-                               lfric_cp => cp,                       &
-                               lfric_p_zero => p_zero
-
-  use orbit_config_mod, only: spin, spin_user, hour_angle_inc
+subroutine set_planet_constants(                                           &
+  lfric_planet_radius, lfric_gravity, lfric_rd,                            &
+  lfric_epsilon, lfric_recip_epsilon, lfric_omega, lfric_cp, lfric_p_zero, &
+  lfric_hour_angle_inc, lfric_user_spin                                    &
+)
 
   use driver_water_constants_mod, only: latent_heat_h2o_condensation, &
                                         latent_heat_h2o_fusion,       &
@@ -161,15 +156,26 @@ subroutine set_planet_constants()
 
   implicit none
 
+  real(r_def), intent(in) :: lfric_planet_radius
+  real(r_def), intent(in) :: lfric_gravity
+  real(r_def), intent(in) :: lfric_rd
+  real(r_def), intent(in) :: lfric_epsilon
+  real(r_def), intent(in) :: lfric_recip_epsilon
+  real(r_def), intent(in) :: lfric_omega
+  real(r_def), intent(in) :: lfric_cp
+  real(r_def), intent(in) :: lfric_p_zero
+  real(r_def), intent(in) :: lfric_hour_angle_inc
+  logical,     intent(in) :: lfric_user_spin
+
   omega         = real(lfric_omega, r_um)
-  r             = real(rd, r_um)
+  r             = real(lfric_rd, r_um)
   cp            = real(lfric_cp, r_um)
-  g             = real(gravity, r_um)
-  planet_radius = real(radius, r_um)
+  g             = real(lfric_gravity, r_um)
+  planet_radius = real(lfric_planet_radius, r_um)
   pref          = real(lfric_p_zero, r_um)
-  repsilon      = real(epsilon, r_um)
+  repsilon      = real(lfric_epsilon, r_um)
   recip_epsilon = real(lfric_recip_epsilon, r_um)
-  kappa         = real(rd/lfric_cp, r_um)
+  kappa         = real(lfric_rd / lfric_cp, r_um)
 
   ! These variables left in hardwired to earth values as LFRic does not
   ! currently read in any data for these variables.
@@ -181,36 +187,35 @@ subroutine set_planet_constants()
   ! Set derived constants
   two_omega         = 2.0_r_um * omega
 
-  select case (spin)
-  case (spin_user)
-    s2r = hour_angle_inc/rsec_per_day
-  case default
-    s2r = earth_dha/rsec_per_day
-  end select
+  if (lfric_user_spin) then
+    s2r = lfric_hour_angle_inc / rsec_per_day
+  else
+    s2r = earth_dha / rsec_per_day
+  end if
 
   p_zero            = pref
   recip_p_zero      = 1.0_r_um / pref
   recip_kappa       = 1.0_r_um / kappa
-  one_minus_epsilon = real(1.0_r_def - epsilon, r_um )
-  c_virtual         = real(1.0_r_def/epsilon - 1.0_r_def, r_um )
+  one_minus_epsilon = real(1.0_r_def - lfric_epsilon, r_um )
+  c_virtual         = real(1.0_r_def / lfric_epsilon - 1.0_r_def, r_um )
 
-  etar     = real( 1.0_r_def/(1.0_r_def - epsilon), r_um )
-  grcp     = real( gravity/lfric_cp, r_um )
+  etar     = real( 1.0_r_def/(1.0_r_def - lfric_epsilon), r_um )
+  grcp     = real( lfric_gravity / lfric_cp, r_um )
   lcrcp    = real( latent_heat_h2o_condensation / lfric_cp, r_um )
   lfrcp    = real( latent_heat_h2o_fusion / lfric_cp, r_um )
   ls       = real( latent_heat_h2o_condensation + latent_heat_h2o_fusion, r_um )
   lsrcp    = real( (latent_heat_h2o_condensation + latent_heat_h2o_fusion) / &
                    lfric_cp, r_um )
 
-  cv       = real( lfric_cp - rd, r_um )
+  cv       = real( lfric_cp - lfric_rd, r_um )
 
-  recip_a2 = real( 1.0_r_def/(radius**2_i_def), r_um )
-  g_over_r = real( gravity/rd, r_um )
+  recip_a2 = real( 1.0_r_def / (lfric_planet_radius ** 2_i_def), r_um )
+  g_over_r = real( lfric_gravity / lfric_rd, r_um )
 
 
   ! Set 32-bit versions as required, eg in qsat_mod
-  repsilon_32b          = real( epsilon, real32 )
-  one_minus_epsilon_32b = real( 1.0_r_def - epsilon, real32 )
+  repsilon_32b          = real( lfric_epsilon, real32 )
+  one_minus_epsilon_32b = real( 1.0_r_def - lfric_epsilon, real32 )
   r_32b = real(r, real32)
   c_virtual_32b = real(c_virtual, real32)
   etar_32b = real(etar, real32)
@@ -239,7 +244,7 @@ subroutine set_planet_constants()
   lsrcp_def = real(lsrcp, r_def)
   recip_kappa_def = real(recip_kappa, r_def)
   g_over_r_def = real(g_over_r, r_def)
-  
+
 end subroutine set_planet_constants
 
 end module planet_constants_mod
