@@ -4,7 +4,8 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 ! Some content in this file was generated or refactored with assistance from
-! - Met Office Claude Code Enterprise (Claude Sonnet 5, Claude Opus 5).
+! - Met Office Claude Code via AI Foundry (Claude Sonnet 5); PR #808.
+! - Met Office Claude Code via AI Foundry (Claude Opus 5); PR #808.
 
 !> @brief Outputs diagnostics from gungho/lfric_atm
 
