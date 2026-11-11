@@ -1,1 +1,0 @@
-../../../meto-ex1a/psykal/algorithm/conv_gr_alg_mod.py

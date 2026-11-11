@@ -7,7 +7,7 @@
 !> Test the computation of 1d advective coeffs
 module poly1d_advective_coeffs_kernel_mod_test
 
-  use constants_mod, only : i_def, r_def, r_tran, l_def
+  use constants_mod, only : i_def, r_def, r_tran, l_def, pi
   use funit
   implicit none
 
@@ -28,8 +28,8 @@ contains
   subroutine setUp( this )
     use feign_config_mod,          only: feign_base_mesh_config, &
                                          feign_finite_element_config
-    use base_mesh_config_mod,      only: geometry_planar,    &
-                                         topology_fully_periodic
+    use mesh_mod,                  only: geometry_planar, &
+                                         topology_periodic
     use finite_element_config_mod, only: coord_system_xyz, &
                                          cellshape_quadrilateral, &
                                          coord_space_wchi
@@ -38,11 +38,15 @@ contains
     implicit none
     class(poly1d_advective_coeffs_test_type), intent(inout) :: this
 
+    real(r_def), parameter :: geostrophic_north_pole(2) = [0.0_r_def, PI/2.0_r_def]
+    real(r_def), parameter :: null_island(2) = [0.0_r_def, 0.0_r_def]
+    real(r_def), parameter :: equator_latitude = 0.0_r_def
+
     call feign_base_mesh_config( file_prefix='foo',                   &
                                  prime_mesh_name='unit_test',         &
                                  geometry=geometry_planar,            &
                                  prepartitioned=.false.,              &
-                                 topology=topology_fully_periodic,    &
+                                 topology=topology_periodic,          &
                                  fplane=.false., f_lat_deg=0.0_r_def )
 
     call  feign_finite_element_config( cellshape = cellshape_quadrilateral, &
@@ -55,7 +59,14 @@ contains
                                        rehabilitate = .true., &
                                        vorticity_in_w1 = .true. )
 
-    call init_chi_transforms(geometry_planar, topology_fully_periodic)
+    ! Note: Calling 'init_chi_transforms' is only valid for meshes which have a
+    !       spherical geometry and coordinate system. While it may not be relevant
+    !       to this mesh, it is called due to an unknown interaction which changes
+    !       results. If it is not applicable to this mesh, it should be removed once
+    !       this issue is resolved.
+    call init_chi_transforms( geostrophic_north_pole, &
+                              null_island, &
+                              equator_latitude )
 
   end subroutine setUp
 

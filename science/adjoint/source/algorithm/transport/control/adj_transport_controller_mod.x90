@@ -10,6 +10,8 @@ module adj_transport_controller_mod
   use adj_copy_field_mod,            only: adj_copy_field
   use adj_substep_transport_alg_mod, only: adj_substep_transport_alg
   use constants_mod,                 only: i_def, r_tran, l_def
+  use dycore_constants_mod,          only: stepper_siqn, stepper_tr, &
+                                           stepper_bdf2, stepper_rk, gamma
   use field_mod,                     only: field_type
   use log_mod,                       only: log_event, &
                                            LOG_LEVEL_ERROR
@@ -50,10 +52,12 @@ module adj_transport_controller_mod
   !> @brief Adjoint routine for initialisation of pert wind controller.
   !> @param[in,out] transport_controller  The transport controller object
   !> @param[in]     model_clock           The model clock
+  !> @param[in]     stepper               Enumerator for timestepper
   !> @param[in,out] wind_n_rdef           Wind at timestep n
-  !> @param[in,out] wind_np1_rdef           Wind at timestep n plus 1
+  !> @param[in,out] wind_np1_rdef         Wind at timestep n plus 1
   subroutine adj_pert_wind_ls_rho_initialiser( transport_controller, &
                                                model_clock,          &
+                                               stepper,              &
                                                wind_n_rdef,          &
                                                wind_np1_rdef )
 
@@ -68,6 +72,7 @@ module adj_transport_controller_mod
     ! Arguments
     class(transport_controller_type), intent(inout) :: transport_controller
     class(model_clock_type),     target, intent(in) :: model_clock
+    integer(kind=i_def),                 intent(in) :: stepper
     type(field_type),                 intent(inout) :: wind_n_rdef
     type(field_type),       optional, intent(inout) :: wind_np1_rdef
 
@@ -81,7 +86,21 @@ module adj_transport_controller_mod
     type(r_tran_field_type),                pointer :: wind_n_rtran
     type(r_tran_field_type),                pointer :: wind_np1_rtran
 
-    dt_rtran = real(model_clock%get_seconds_per_step(), r_tran)
+    ! Determine time increment for this step, based on the stepper
+    select case (stepper)
+    case (stepper_siqn, stepper_rk)
+      dt_rtran = real(model_clock%get_seconds_per_step(), r_tran)
+    case (stepper_tr)
+      dt_rtran = real(model_clock%get_seconds_per_step(), r_tran)
+      dt_rtran = 2.0_r_tran*real(gamma, r_tran)*dt_rtran
+    case (stepper_bdf2)
+      dt_rtran = real(model_clock%get_seconds_per_step(), r_tran)
+      dt_rtran = (1.0_r_tran - 2.0_r_tran*real(gamma, r_tran))*dt_rtran
+    case default
+      call log_event( "Unknown stepper passed to adj_pert_wind_ls_rho " //     &
+                      "transport controller initialise method", LOG_LEVEL_ERROR )
+    end select
+
     num_substeps = transport_controller%get_num_substeps()
 
     fixed_multiple_substeps = (                                                &

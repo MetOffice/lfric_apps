@@ -14,6 +14,7 @@ use constants_mod,              only : r_def, pi
 use log_mod,                    only : log_event,         &
                                        log_scratch_space, &
                                        LOG_LEVEL_ERROR
+use mesh_mod,                   only : geometry_spherical
 use coord_transform_mod,        only : xyz2llr, central_angle
 use idealised_config_mod,       only : test_gaussian_hill,        &
                                        test_cosine_hill,          &
@@ -34,8 +35,8 @@ use idealised_config_mod,       only : test_gaussian_hill,        &
 use initial_name_field_config_mod, &
                                 only : r1, x1, y1, z1, r2, x2, y2, z2, &
                                        field_max, field_background
-use base_mesh_config_mod,       only : geometry, &
-                                       geometry_spherical
+
+use base_mesh_config_mod,       only : geometry
 use planet_config_mod,          only : p_zero, Rd, kappa, scaled_radius
 use extrusion_config_mod,       only : domain_height
 
