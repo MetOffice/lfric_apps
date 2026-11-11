@@ -72,7 +72,8 @@ module gungho_model_mod
                                          minmax_tseries_final
   use mesh_mod,                   only : mesh_type, &
                                          geometry_planar, &
-                                         geometry_spherical
+                                         geometry_spherical, &
+                                         topology_periodic
   use mesh_collection_mod,        only : mesh_collection
   use clock_mod,                  only : clock_type
   use model_clock_mod,            only : model_clock_type
@@ -90,6 +91,7 @@ module gungho_model_mod
   use rk_alg_timestep_mod,        only : rk_timestep_type
   use semi_implicit_timestep_alg_mod, &
                                   only : semi_implicit_timestep_type
+  use tr_bdf2_timestep_alg_mod,   only : tr_bdf2_timestep_type
   use setup_orography_alg_mod,    only : setup_orography_alg
   use idealised_config_mod,       only : perturb_init, perturb_seed
   use initial_temperature_config_mod, only : perturb, perturb_random
@@ -284,6 +286,7 @@ contains
 #ifdef UM_PHYSICS
     integer(i_def) :: i
 #endif
+    logical :: legacy
 
     DT = clock%get_seconds_per_step()
     call set_variable("DT", DT, tolerant=.true.)
@@ -297,8 +300,12 @@ contains
       to_process_nudging_fields = .false.
     end if
 
+
     call persistor%init(clock)
-    call process_gungho_prognostics(persistor)
+
+    legacy = ( (config%base_mesh%geometry() == geometry_planar) .and. &
+               (config%base_mesh%topology() == topology_periodic) )
+    call process_gungho_prognostics(persistor, legacy)
     ! Add the temperature_correction_rate to the appropriate files
     if(checkpoint_write) then
       if ( encorr_usage /= encorr_usage_none ) then
@@ -423,8 +430,7 @@ contains
       end if
     end if
 
-
-    if (limited_area) call process_lbc_fields(persistor)
+    if (limited_area) call process_lbc_fields(persistor, legacy)
     if (use_physics) then
       call process_physics_prognostics(persistor)
       if (to_process_nudging_fields)   &
@@ -1162,6 +1168,7 @@ contains
     use timestepping_config_mod, only: method,                 &
                                        method_semi_implicit,   &
                                        method_rk,              &
+                                       method_tr_bdf2,         &
                                        method_no_timestepping, &
                                        method_jules
 
@@ -1205,49 +1212,25 @@ contains
 
     if (write_minmax_tseries) then
       call minmax_tseries_init('u')
-      call minmax_tseries(u, 'u', mesh)
+      call minmax_tseries(modeldb%config, mesh, u, 'u')
     end if
 
     select case( method )
       case( method_semi_implicit )  ! Semi-Implicit
         ! Initialise the semi-implicit timestep method
         allocate( timestep_method, source=semi_implicit_timestep_type(modeldb) )
-        ! Add to the model database
-        call modeldb%values%add_key_value('timestep_method', &
-                        timestep_method)
-        ! Output initial conditions
-        if ( write_conservation_diag ) then
-          call conservation_algorithm( modeldb%config, rho, u, theta, &
-                                       mr, exner )
-          if ( use_moisture ) then
-            call moisture_conservation_alg( modeldb%config, rho, mr, &
-                                            'Before timestep' )
-          end if
-        end if
+
+      case( method_tr_bdf2 )         ! TR-BDF2
+        ! Initialise the TR-BDF2 timestep method
+        allocate( timestep_method, source=tr_bdf2_timestep_type(modeldb) )
 
       case( method_rk )             ! RK
         ! Initialise the Runge-Kutta timestep method
         allocate( timestep_method, source=rk_timestep_type(modeldb) )
-        ! Add to the model database
-        call modeldb%values%add_key_value('timestep_method', &
-                        timestep_method)
-
-        ! Output initial conditions
-        if ( write_conservation_diag ) then
-          call conservation_algorithm( modeldb%config, rho, u, theta, &
-                                       mr, exner )
-          if ( use_moisture ) then
-            call moisture_conservation_alg( modeldb%config, rho, mr, &
-                                            'Before timestep' )
-          end if
-        end if
 
       case( method_no_timestepping )
         ! Initialise a null-timestep method
         allocate( timestep_method, source=no_timestep_type() )
-        ! Add to the model database
-        call modeldb%values%add_key_value('timestep_method', &
-                        timestep_method)
         write( log_scratch_space, &
                     '(A, A)' ) 'CAUTION: Running with no timestepping. ' // &
                     ' Prognostic fields not evolved'
@@ -1257,15 +1240,23 @@ contains
       case( method_jules )  ! jules
         ! Initialise the jules timestep method
         allocate( timestep_method, source=jules_timestep_type(modeldb) )
-        ! Add to the model database
-        call modeldb%values%add_key_value('timestep_method', &
-                      timestep_method)
 #endif
 
       case default
         call log_event("Gungho: Incorrect time stepping option chosen, "// &
                         "stopping program! ",LOG_LEVEL_ERROR)
     end select
+
+    ! Add to the model database
+    call modeldb%values%add_key_value('timestep_method', timestep_method)
+
+    ! Output initial conditions
+    if ( write_conservation_diag ) then
+      call conservation_algorithm(modeldb%config, rho, u, theta, mr, exner)
+      if ( use_moisture ) then
+        call moisture_conservation_alg(modeldb%config, rho, mr, 'Before timestep')
+      end if
+    end if
 
   end subroutine initialise_model
 

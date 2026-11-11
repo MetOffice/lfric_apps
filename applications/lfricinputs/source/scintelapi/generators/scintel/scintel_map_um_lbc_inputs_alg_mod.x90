@@ -112,7 +112,7 @@ function scintel_get_height_w3_fv(mesh) result(height)
 
   implicit none
 
-  type(mesh_type), intent(in), pointer :: mesh
+  type(mesh_type), intent(in) :: mesh
 
   type(inventory_by_mesh_type), pointer :: inventory
   type(function_space_type),    pointer :: space

@@ -9,6 +9,7 @@
 !
 module external_forcing_diagnostics_mod
 
+  use config_mod,                 only: config_type
   use field_mod,                  only: field_type
   use log_mod,                    only: log_event, LOG_LEVEL_INFO
   use constants_mod,              only: l_def
@@ -25,11 +26,14 @@ contains
 
   !> @brief Write external forcing increments when requested
   !> @details If any external forcing increments was requested for output then write it
+  !> @param[in]  config           Application configuration object
   !> @param[in]  du_forcing       3D wind increment from external forcing
   !> @param[in]  output_wind_inc  Logical flag to output wind increments
-  subroutine write_forcing_diagnostics(du_forcing, output_wind_inc)
+  subroutine write_forcing_diagnostics(config, du_forcing, output_wind_inc)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type( field_type ),    intent( in ) :: du_forcing
     logical( kind=l_def ), intent( in ) :: output_wind_inc
@@ -79,7 +83,7 @@ contains
         !
         ! Remap from 3D wind increment to individual wind forcing increments
         !
-        call map_physics_winds(du_force, dv_force, dw_force, du_forcing)
+        call map_physics_winds(config, du_force, dv_force, dw_force, du_forcing)
 
         !
         ! Only write requested wind forcing increments
