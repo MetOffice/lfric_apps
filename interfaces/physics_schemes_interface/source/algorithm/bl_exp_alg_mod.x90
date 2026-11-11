@@ -156,7 +156,7 @@ contains
     type( field_type ), pointer :: tauy
     type( field_type ), pointer :: rhokm_bl
     type( field_type ), pointer :: fd_impl_part_bl
-    type( field_type ), pointer :: fd_impl_part_w2,
+    type( field_type ), pointer :: fd_impl_part_w2
     type( integer_field_type ), pointer :: level_ent
     type( integer_field_type ), pointer :: level_ent_dsc
     type( field_type ), pointer :: ent_we_lim
