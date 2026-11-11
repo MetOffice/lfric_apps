@@ -3,8 +3,8 @@
 ! MAIN (PR #483), WHERE THEY MAKE G_OVER_R_DEF AVAILABLE. THEY ARE HERE ONLY
 ! BECAUSE THIS BRANCH IS BASED ON STABLE, WHICH DOES NOT HAVE THEM YET.
 ! DELETE THIS NOTICE BEFORE MERGING MAIN INTO THIS BRANCH.
-! THIS NOTICE WAS ADDED WITH ASSISTANCE FROM CLAUDE CODE (CLAUDE OPUS 5.5),
-! 2026-10-16.
+! THIS NOTICE WAS ADDED WITH ASSISTANCE FROM
+! - MET OFFICE CLAUDE CODE VIA AI FOUNDRY (CLAUDE OPUS 5.5); PR #870.
 ! ==========================================================================
 !----------------------------------------------------------------------------
 ! (c) Crown copyright 2018 Met Office. All rights reserved.

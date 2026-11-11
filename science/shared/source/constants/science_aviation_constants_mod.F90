@@ -3,8 +3,8 @@
 ! (ADDED BY PR #483), UNCHANGED APART FROM THIS NOTICE. IT IS HERE ONLY
 ! BECAUSE THIS BRANCH IS BASED ON STABLE, WHICH DOES NOT HAVE IT YET.
 ! DELETE THIS NOTICE BEFORE MERGING MAIN INTO THIS BRANCH.
-! THIS NOTICE WAS ADDED WITH ASSISTANCE FROM CLAUDE CODE (CLAUDE OPUS 5.5),
-! 2026-10-16.
+! THIS NOTICE WAS ADDED WITH ASSISTANCE FROM
+! - MET OFFICE CLAUDE CODE VIA AI FOUNDRY (CLAUDE OPUS 5.5); PR #870.
 ! ==========================================================================
 ! -----------------------------------------------------------------------------
 ! (C) Crown copyright Met Office. All rights reserved.
