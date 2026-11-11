@@ -45,9 +45,9 @@ type, public, extends(kernel_type) :: radaer_faster_kernel_type
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! rho_in_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! dz_in_wth
        ! trop_level
-       arg_type(GH_FIELD, GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &
+       arg_type(GH_FIELD, GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_1),    &
        ! lit_fraction
-       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &
+       arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1),       &
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! n_ait_sol
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! ait_sol_su
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! ait_sol_bc
@@ -103,43 +103,43 @@ type, public, extends(kernel_type) :: radaer_faster_kernel_type
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_du_acc_ins
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA), & ! pvol_du_cor_ins
        ! aer_mix_ratio
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_2), &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_2),       &
        ! aer_sw_absorption
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_3), &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_3),       &
        ! aer_sw_scattering
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_3), &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_3),       &
        ! aer_sw_asymmetry
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_3), &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_3),       &
        ! aer_lw_absorption
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_4), &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_4),       &
        ! aer_lw_scattering
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_4), &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_4),       &
        ! aer_lw_asymmetry
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_4), &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_4),       &
        ! aod_ukca_ait_sol
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_5), &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_5),       &
        ! aaod_ukca_ait_sol
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_5), &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_5),       &
        ! aod_ukca_acc_sol
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_5), &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_5),       &
        ! aaod_ukca_acc_sol
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_5), &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_5),       &
        ! aod_ukca_cor_sol
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_5), &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_5),       &
        ! aaod_ukca_cor_sol
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_5), &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_5),       &
        ! aod_ukca_ait_ins
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_5), &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_5),       &
        ! aaod_ukca_ait_ins
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_5), &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_5),       &
        ! aod_ukca_acc_ins
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_5), &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_5),       &
        ! aaod_ukca_acc_ins
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_5), &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_5),       &
        ! aod_ukca_cor_ins
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_5), &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_5),       &
        ! aaod_ukca_cor_ins
-       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_5) &
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_5)        &
        /)
   integer :: operates_on = DOMAIN
 contains
@@ -550,15 +550,11 @@ subroutine radaer_faster_code( nlayers,                                        &
                                                           ukca_radaer_presc_ssa
 
   ! Loop counters
-  integer(i_um) :: k, i, i_band, i_mode, i_rmode
+  integer(i_um) :: i, ii, j, jj, k, i_band, i_mode, i_rmode
   integer(i_um) :: mm, m, n_fields, nn_fields
 
   ! Need to pass through argument list
   integer(i_um) :: ncp_max_x_nmodes
-
-
-
-
 
   ! Allocation of arrays
 
@@ -831,7 +827,7 @@ subroutine radaer_faster_code( nlayers,                                        &
         do i = 1, seg_size
           do k = 1, nlayers
             ii = jj + i - 1
-            ukca_comp_vol(m, i, k)=real( pvol_su_ait_sol(map_wth(1,ii) + k), &
+            ukca_comp_vol(m, i, k)=real( pvol_su_ait_sol(map_wth(1,ii) + k),   &
                                          r_um )
           end do
         end do
@@ -839,7 +835,7 @@ subroutine radaer_faster_code( nlayers,                                        &
         do i = 1, seg_size
           do k = 1, nlayers
             ii = jj + i - 1
-            ukca_comp_vol(m, i, k)=real( pvol_bc_ait_sol(map_wth(1,ii) + k), &
+            ukca_comp_vol(m, i, k)=real( pvol_bc_ait_sol(map_wth(1,ii) + k),   &
                                          r_um )
           end do
         end do
@@ -847,7 +843,7 @@ subroutine radaer_faster_code( nlayers,                                        &
         do i = 1, seg_size
           do k = 1, nlayers
             ii = jj + i - 1
-            ukca_comp_vol(m, i, k)=real( pvol_om_ait_sol(map_wth(1,ii) + k), &
+            ukca_comp_vol(m, i, k)=real( pvol_om_ait_sol(map_wth(1,ii) + k),   &
                                          r_um )
           end do
         end do
@@ -855,7 +851,7 @@ subroutine radaer_faster_code( nlayers,                                        &
         do i = 1, seg_size
           do k = 1, nlayers
             ii = jj + i - 1
-            ukca_comp_vol(m, i, k)=real( pvol_su_acc_sol(map_wth(1,ii) + k), &
+            ukca_comp_vol(m, i, k)=real( pvol_su_acc_sol(map_wth(1,ii) + k),   &
                                          r_um )
           end do
         end do
@@ -863,7 +859,7 @@ subroutine radaer_faster_code( nlayers,                                        &
         do i = 1, seg_size
           do k = 1, nlayers
             ii = jj + i - 1
-            ukca_comp_vol(m, i, k)=real( pvol_bc_acc_sol(map_wth(1,ii) + k), &
+            ukca_comp_vol(m, i, k)=real( pvol_bc_acc_sol(map_wth(1,ii) + k),   &
                                          r_um )
           end do
         end do
@@ -871,7 +867,7 @@ subroutine radaer_faster_code( nlayers,                                        &
         do i = 1, seg_size
           do k = 1, nlayers
             ii = jj + i - 1
-            ukca_comp_vol(m, i, k)=real( pvol_om_acc_sol(map_wth(1,ii) + k), &
+            ukca_comp_vol(m, i, k)=real( pvol_om_acc_sol(map_wth(1,ii) + k),   &
                                          r_um )
           end do
         end do
@@ -879,7 +875,7 @@ subroutine radaer_faster_code( nlayers,                                        &
         do i = 1, seg_size
           do k = 1, nlayers
             ii = jj + i - 1
-            ukca_comp_vol(m, i, k)=real( pvol_ss_acc_sol(map_wth(1,ii) + k), &
+            ukca_comp_vol(m, i, k)=real( pvol_ss_acc_sol(map_wth(1,ii) + k),   &
                                          r_um )
           end do
         end do
@@ -894,7 +890,7 @@ subroutine radaer_faster_code( nlayers,                                        &
         do i = 1, seg_size
           do k = 1, nlayers
             ii = jj + i - 1
-            ukca_comp_vol(m, i, k)=real( pvol_su_cor_sol(map_wth(1,ii) + k), &
+            ukca_comp_vol(m, i, k)=real( pvol_su_cor_sol(map_wth(1,ii) + k),   &
                                          r_um )
           end do
         end do
@@ -902,7 +898,7 @@ subroutine radaer_faster_code( nlayers,                                        &
         do i = 1, seg_size
           do k = 1, nlayers
             ii = jj + i - 1
-            ukca_comp_vol(m, i, k)=real( pvol_bc_cor_sol(map_wth(1,ii) + k), &
+            ukca_comp_vol(m, i, k)=real( pvol_bc_cor_sol(map_wth(1,ii) + k),   &
                                          r_um )
           end do
         end do
@@ -910,7 +906,7 @@ subroutine radaer_faster_code( nlayers,                                        &
         do i = 1, seg_size
           do k = 1, nlayers
             ii = jj + i - 1
-            ukca_comp_vol(m, i, k)=real( pvol_om_cor_sol(map_wth(1,ii) + k), &
+            ukca_comp_vol(m, i, k)=real( pvol_om_cor_sol(map_wth(1,ii) + k),   &
                                          r_um )
           end do
         end do
@@ -918,7 +914,7 @@ subroutine radaer_faster_code( nlayers,                                        &
         do i = 1, seg_size
           do k = 1, nlayers
             ii = jj + i - 1
-            ukca_comp_vol(m, i, k)=real( pvol_ss_cor_sol(map_wth(1,ii) + k), &
+            ukca_comp_vol(m, i, k)=real( pvol_ss_cor_sol(map_wth(1,ii) + k),   &
                                          r_um )
           end do
         end do
@@ -933,7 +929,7 @@ subroutine radaer_faster_code( nlayers,                                        &
         do i = 1, seg_size
           do k = 1, nlayers
             ii = jj + i - 1
-            ukca_comp_vol(m, i, k)=real( pvol_bc_ait_ins(map_wth(1,ii) + k), &
+            ukca_comp_vol(m, i, k)=real( pvol_bc_ait_ins(map_wth(1,ii) + k),   &
                                          r_um )
           end do
         end do
@@ -941,7 +937,7 @@ subroutine radaer_faster_code( nlayers,                                        &
         do i = 1, seg_size
           do k = 1, nlayers
             ii = jj + i - 1
-            ukca_comp_vol(m, i, k)=real( pvol_om_ait_ins(map_wth(1,ii) + k), &
+            ukca_comp_vol(m, i, k)=real( pvol_om_ait_ins(map_wth(1,ii) + k),   &
                                          r_um )
           end do
         end do
@@ -949,7 +945,7 @@ subroutine radaer_faster_code( nlayers,                                        &
         do i = 1, seg_size
           do k = 1, nlayers
             ii = jj + i - 1
-            ukca_comp_vol(m, i, k)=real( pvol_du_acc_ins(map_wth(1,ii) + k), &
+            ukca_comp_vol(m, i, k)=real( pvol_du_acc_ins(map_wth(1,ii) + k),   &
                                          r_um )
           end do
         end do
@@ -957,7 +953,7 @@ subroutine radaer_faster_code( nlayers,                                        &
         do i = 1, seg_size
           do k = 1, nlayers
             ii = jj + i - 1
-            ukca_comp_vol(m, i, k)=real( pvol_du_cor_ins(map_wth(1,ii) + k), &
+            ukca_comp_vol(m, i, k)=real( pvol_du_cor_ins(map_wth(1,ii) + k),   &
                                          r_um )
           end do
         end do
@@ -1809,7 +1805,7 @@ subroutine radaer_faster_code( nlayers,                                        &
     ! Testing if the current UKCA RADAER bit compares
     ! Switch back once this is confirmed
     !CALL ukca_radaer_faster_lfric_interface(                                  &
-    CALL ukca_radaer_lfric_interface(                                  &
+    CALL ukca_radaer_lfric_interface(                                          &
       ! Fixed array dimensions (input)
       seg_size,                                                                &
       nlayers,                                                                 &
