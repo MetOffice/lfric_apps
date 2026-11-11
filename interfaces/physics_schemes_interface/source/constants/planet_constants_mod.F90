@@ -4,7 +4,7 @@
 ! BECAUSE THIS BRANCH IS BASED ON STABLE, WHICH DOES NOT HAVE THEM YET.
 ! DELETE THIS NOTICE BEFORE MERGING MAIN INTO THIS BRANCH.
 ! THIS NOTICE WAS ADDED WITH ASSISTANCE FROM
-! - MET OFFICE CLAUDE CODE ENTERPRISE (CLAUDE OPUS 5.5).
+! - MET OFFICE CLAUDE CODE VIA AI FOUNDRY (CLAUDE OPUS 5.5); PR #913.
 ! ==========================================================================
 !----------------------------------------------------------------------------
 ! (c) Crown copyright 2018 Met Office. All rights reserved.

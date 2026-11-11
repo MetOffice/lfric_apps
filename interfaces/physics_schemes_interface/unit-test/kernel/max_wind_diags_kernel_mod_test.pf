@@ -4,7 +4,7 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 ! Some content in this file was generated or refactored with assistance from
-! - Met Office Claude Code Enterprise (Claude Opus 5.5).
+! - Met Office Claude Code via AI Foundry (Claude Opus 5.5); PR #913.
 !> @brief Test the maximum wind diagnostics kernel.
 !> @details The wind blows in a fixed direction, u = 0.6 s and v = 0.8 s,
 !>          with a speed s that is a quadratic in pressure peaking at
