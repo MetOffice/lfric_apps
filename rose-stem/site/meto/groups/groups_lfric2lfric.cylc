@@ -53,6 +53,11 @@
         "lfric2lfric_oasis_C24_to_C12_ex1a_cce_fast-debug-64bit",
         "lfric2lfric_oasis_C12_to_seuk_ex1a_cce_fast-debug-64bit",
     ],
+    "lfric2lfric_ex1a_weekly": [
+        "lfric2lfric_oasis_C224_to_Melbourne_ex1a_cce_fast-debug-64bit",
+        "lfric2lfric_oasis_C896_to_Melbourne_ex1a_cce_fast-debug-64bit",
+        "lfric2lfric_oasis_C896_to_ukv_ex1a_cce_fast-debug-64bit",
+    ],
     "lfric2lfric_ex1a": [
         "lfric2lfric_ex1a_developer",
         "lfric2lfric_ex1a_extra",

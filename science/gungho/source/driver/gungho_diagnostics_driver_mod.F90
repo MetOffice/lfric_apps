@@ -172,12 +172,12 @@ contains
     element_order_v = theta%get_element_order_v()
 
     ! Scalar fields
-    call write_scalar_diagnostic('rho', rho, &
-                                 modeldb%clock, mesh, nodal_output_on_w3)
-    call write_scalar_diagnostic('theta', theta, &
-                                 modeldb%clock, mesh, nodal_output_on_w3)
-    call write_scalar_diagnostic('exner', exner, &
-                                 modeldb%clock, mesh, nodal_output_on_w3)
+    call write_scalar_diagnostic(modeldb%config, mesh, 'rho', rho, &
+                                 modeldb%clock, nodal_output_on_w3)
+    call write_scalar_diagnostic(modeldb%config, mesh, 'theta', theta, &
+                                 modeldb%clock, nodal_output_on_w3)
+    call write_scalar_diagnostic(modeldb%config, mesh, 'exner', exner, &
+                                 modeldb%clock, nodal_output_on_w3)
 
     ! Write out heights of function space DoFs, if requested
     allocate(fs_names(4))
@@ -206,8 +206,9 @@ contains
 
     if (transport_ageofair) then
       call con_tracer_last_outer%get_field('ageofair',ageofair)
-      call write_scalar_diagnostic('ageofair', ageofair, &
-                                   modeldb%clock, mesh, nodal_output_on_w3)
+      call write_scalar_diagnostic(modeldb%config, mesh, &
+                                   'ageofair', ageofair, &
+                                   modeldb%clock, nodal_output_on_w3)
     end if
 
     ! Write out grid_cell area at initialisation only
@@ -250,21 +251,22 @@ contains
         end if
       end if
     else
-      call write_vector_diagnostic('u', u, &
-                                   modeldb%clock, mesh, nodal_output_on_w3)
+      call write_vector_diagnostic(modeldb%config, mesh, 'u', u, &
+                                   modeldb%clock, nodal_output_on_w3)
     end if
-    call write_vorticity_diagnostic( u, exner, modeldb%clock )
+    call write_vorticity_diagnostic( modeldb%config, u, exner, modeldb%clock )
 #ifdef UM_PHYSICS
-    call write_pv_diagnostic( u, theta, rho, exner, modeldb%clock )
+    call write_pv_diagnostic( modeldb%config, u, theta, rho, exner, modeldb%clock )
 #else
-    call write_pv_diagnostic( u, theta, rho, modeldb%clock )
+    call write_pv_diagnostic( modeldb%config, u, theta, rho, modeldb%clock )
 #endif
 
     ! Moisture fields
     if ( moisture_formulation /= moisture_formulation_dry ) then
       do i = 1, nummr
-        call write_scalar_diagnostic( trim(mr_names(i)), mr(i), &
-                                      modeldb%clock, mesh, nodal_output_on_w3 )
+        call write_scalar_diagnostic( modeldb%config, mesh,     &
+                                      trim(mr_names(i)), mr(i), &
+                                      modeldb%clock, nodal_output_on_w3 )
       end do
     end if
 
@@ -279,32 +281,39 @@ contains
         call lbc_fields%get_field('lbc_v_u', v_u)
 
         ! Scalar fields
-        call write_scalar_diagnostic('lbc_rho', lbc_rho, &
-                                     modeldb%clock, mesh, nodal_output_on_w3)
-        call write_scalar_diagnostic('lbc_theta', lbc_theta, &
-                                     modeldb%clock, mesh, nodal_output_on_w3)
-        call write_scalar_diagnostic('lbc_exner', lbc_exner, &
-                                     modeldb%clock, mesh, nodal_output_on_w3)
-        call write_scalar_diagnostic('readlbc_v_u', v_u, &
-                                     modeldb%clock, mesh, nodal_output_on_w3)
+        call write_scalar_diagnostic(modeldb%config, mesh, 'lbc_rho', &
+                                     lbc_rho, modeldb%clock,          &
+                                     nodal_output_on_w3)
+        call write_scalar_diagnostic(modeldb%config, mesh, 'lbc_theta', &
+                                     lbc_theta, modeldb%clock,          &
+                                     nodal_output_on_w3)
+        call write_scalar_diagnostic(modeldb%config, mesh, 'lbc_exner', &
+                                     lbc_exner, modeldb%clock,          &
+                                     nodal_output_on_w3)
+        call write_scalar_diagnostic(modeldb%config, mesh, 'readlbc_v_u', &
+                                     v_u, modeldb%clock,                  &
+                                      nodal_output_on_w3)
 
         if ( moisture_formulation /= moisture_formulation_dry ) then
           call lbc_fields%get_field('lbc_m_v', lbc_m_v)
-          call write_scalar_diagnostic('lbc_m_v', lbc_m_v, &
-                                       modeldb%clock, mesh, nodal_output_on_w3)
+          call write_scalar_diagnostic(modeldb%config, mesh, 'lbc_m_v', &
+                                       lbc_m_v, modeldb%clock,          &
+                                       nodal_output_on_w3)
           call lbc_fields%get_field('lbc_q', lbc_q)
-          call write_scalar_diagnostic('lbc_q', lbc_q, &
-                                       modeldb%clock, mesh, nodal_output_on_w3)
+          call write_scalar_diagnostic(modeldb%config, mesh, 'lbc_q', &
+                                       lbc_q, modeldb%clock,          &
+                                       nodal_output_on_w3)
           call lbc_fields%get_field('lbc_rho_r2', lbc_rho)
-          call write_scalar_diagnostic('lbc_rho_r2', lbc_rho, &
-                                       modeldb%clock, mesh, nodal_output_on_w3)
+          call write_scalar_diagnostic(modeldb%config, mesh, 'lbc_rho_r2', &
+                                       lbc_rho, modeldb%clock,             &
+                                       nodal_output_on_w3)
         end if
 
         ! Vector fields
-        call write_vector_diagnostic('lbc_u', lbc_u, &
-                                     modeldb%clock, mesh, nodal_output_on_w3)
-        call write_vector_diagnostic('readlbc_h_u', h_u, &
-                                     modeldb%clock, mesh, nodal_output_on_w3)
+        call write_vector_diagnostic(modeldb%config, mesh, 'lbc_u', lbc_u, &
+                                     modeldb%clock, nodal_output_on_w3)
+        call write_vector_diagnostic(modeldb%config, mesh, 'readlbc_h_u', h_u, &
+                                     modeldb%clock, nodal_output_on_w3)
       end if
     end if
 
@@ -329,7 +338,7 @@ contains
 
       ! Get w_in_wth for WBig calculation
       call derived_fields%get_field('w_in_wth', w_in_wth)
-      call calc_wbig_diagnostic_alg(w_in_wth, mesh)
+      call calc_wbig_diagnostic_alg(w_in_wth)
 
       ! Pressure diagnostics
       call prognostic_fields%get_field('exner', exner)
@@ -349,8 +358,8 @@ contains
       ! Wet bulb freezing level
       call freeze_lev_alg(modeldb%config,theta, mr, moist_dyn, exner_in_wth)
       ! Aviation diagnostics
-      call aviation_diags_alg(plev_geopot, &
-        u, exner, mesh, element_order_h, element_order_v)
+      call aviation_diags_alg(modeldb%config, mesh, plev_geopot, &
+        u, exner, element_order_h, element_order_v)
 #endif
 
       temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')
@@ -364,8 +373,8 @@ contains
     if (ls_option /= ls_option_file .and. ls_option /= ls_option_analytic) then
       ! Other derived diagnostics with special pre-processing
       ! Don't output for the tangent linear model
-      call write_divergence_diagnostic( u, modeldb%clock, mesh )
-      call write_hydbal_diagnostic( modeldb%config, theta, moist_dyn, exner, mesh )
+      call write_divergence_diagnostic(modeldb%config, mesh, u, modeldb%clock )
+      call write_hydbal_diagnostic(modeldb%config, mesh, theta, moist_dyn, exner )
     end if
     if ( LPROF ) call stop_timing( id, 'gungho_diagnostics_driver' )
   end subroutine gungho_diagnostics_driver

@@ -57,28 +57,21 @@
         "mpi_parts": 768,
     }) %}
 
-{% elif task_ns.conf_name == "um2lfric-aquaplanet_lam"
-    or task_ns.conf_name == "um2lfric-aquaplanet_lbc"
-    or task_ns.conf_name == "um2lfric-falklands_lam"
-    or task_ns.conf_name == "um2lfric-var_seuk_lam" %}
-
-    {% do task_dict.update({
-            "mpi_parts": 126,
-    }) %}
-    {% do task_dict.update({
-            "xios_nodes": 1,
-            "mpi_parts_xios": 1,
-            "task_ranks_per_node": task_dict["mpi_parts"],
-    }) %}
-
 {% endif %}
 
 {% if task_dict %}
     {% if "mpi_parts" not in task_dict %}
         {% do task_dict.update({
-            "mpi_parts": 12,
-            "xproc": 3,
-            "yproc": 4,
+            "mpi_parts": 126,
+            "xproc": 9,
+            "yproc": 14,
+        }) %}
+    {% endif %}
+    {% if task_dict["app_name"] == "um2lfric" and task_ns.conf_name != "um2lfric-nwp_gal9-N320L70_C224L70"%}
+        {% do task_dict.update({
+            "xios_nodes": 1,
+            "mpi_parts_xios": 1,
+            "task_ranks_per_node": task_dict["mpi_parts"],
         }) %}
     {% endif %}
 {% endif %}

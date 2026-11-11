@@ -10,6 +10,7 @@
 module swe_init_fields_alg_mod
 
   ! Constants, Types, Function Space
+  use config_mod,                         only: config_type
   use constants_mod,                      only: r_def, i_def, radians_to_degrees
   use domain_mod,                         only: domain_type
   use field_mod,                          only: field_type
@@ -62,18 +63,19 @@ contains
   !> @brief Initialise the prognostic fields for the shallow water miniapp.
   !> @details An algorithm for initialising prognostic fields (wind, geopotential,
   !!          buoyancy, potential voriticty) for the shallow water miniapp.
+  !> @param[in]     config      Application configuration object
   !> @param[in]     mesh        Mesh to initialise variables on
   !> @param[in]     s_geopot    The surface geopotential
   !> @param[in,out] prognostics The prognostic variables
   !!                            (wind, buoyancy, geopotential, potential vorticity)
-  subroutine swe_init_fields_alg( mesh,     &
-                                  s_geopot, &
-                                  prognostics )
+  subroutine swe_init_fields_alg( config, mesh, s_geopot, prognostics )
 
     implicit none
 
-    ! Mesh, surface geopotential and prognostic fields
-    type( mesh_type ), pointer,    intent(in)    :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
+
+    ! Surface geopotential and prognostic fields
     type( field_type ),            intent(in)    :: s_geopot
     type( field_collection_type ), intent(inout) :: prognostics
 
@@ -151,7 +153,7 @@ contains
                    setval_c( psi, 0.0_r_def ),    &
                    setval_c( r_psi, 0.0_r_def ),  &
                    initial_swe_streamfunc_kernel_type( r_psi, chi, panel_id, qr ) )
-      call mass_matrix_solver_alg( psi, r_psi )
+      call mass_matrix_solver_alg(config, psi, r_psi)
       call invoke( strong_curl_kernel_type( wind, psi ), &
                    enforce_bc_kernel_type( wind ) )
     else
@@ -160,11 +162,11 @@ contains
                    setval_c( wind,     0.0_r_def ), &
                    setval_c( r_u,      0.0_r_def ), &
                    initial_swe_u_kernel_type( r_u, chi, panel_id, domain_size_x, qr ) )
-      call mass_matrix_solver_alg(wind, r_u)
+      call mass_matrix_solver_alg(config, wind, r_u)
     end if
 
     ! Initialise vorticity
-    call swe_init_vorticity_alg( wind, geopot, q )
+    call swe_init_vorticity_alg(config, wind, geopot, q)
 
     ! Set tracer_const to be one
     call invoke( setval_c(tracer_const, 1.0_r_def) )
@@ -185,14 +187,15 @@ contains
   !> @brief Potential vorticity initialisation.
   !> @details An algorithm for initialising the potential vorticity. Used for field
   !!          initialisation and to resynchronise the vorticity during the run.
-  !> @param[in]     wind   The wind field
-  !> @param[in]     geopot The geopotential field
-  !> @param[in,out] q      The potential vorticity field
-  subroutine swe_init_vorticity_alg( wind,   &
-                                     geopot, &
-                                     q )
+  !> @param[in]     config  Application configuration object
+  !> @param[in]     wind    The wind field
+  !> @param[in]     geopot  The geopotential field
+  !> @param[in,out] q       The potential vorticity field
+  subroutine swe_init_vorticity_alg( config, wind, geopot, q )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Prognostic fields
     type( field_type ), intent(in)    :: wind
@@ -234,14 +237,14 @@ contains
     call invoke( name = 'initialise_vorticity_in_v2', &
                  setval_c( r_uq, 0.0_r_def ),         &
                  w2_to_w1_projection_kernel_type( r_uq, wind, qr ) )
-    call mass_matrix_solver_alg( u_in_w1, r_uq, .false. )
+    call mass_matrix_solver_alg(config, u_in_w1, r_uq, .false.)
 
     call invoke( setval_c( r_u, 0.0_r_def ),              &
                  setval_c( r_q, 0.0_r_def ),              &
                  strong_curl_kernel_type( r_u, u_in_w1 ), &
                  initial_vorticity_v2_kernel_type( r_q, r_u, geopot, chi, panel_id, qr ) )
 
-    call mass_matrix_solver_alg( q, r_q )
+    call mass_matrix_solver_alg(config, q, r_q)
 
     nullify( chi, panel_id, w1_fs, q_fs )
 
