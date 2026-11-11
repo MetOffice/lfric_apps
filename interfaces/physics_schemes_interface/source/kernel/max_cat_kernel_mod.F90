@@ -4,7 +4,8 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 ! Some content in this file was generated or refactored with assistance from
-! - Met Office Claude Code Enterprise (Claude Opus 4.8/5.5).
+! - Met Office Claude Code via AI Foundry (Claude Opus 4.8); PR #789.
+! - Met Office Claude Code via AI Foundry (Claude Opus 5.5); PR #789.
 
 !> @brief Maximum of the clear air turbulence predictor over pressure
 !>        levels, and the pressure at which it occurs.

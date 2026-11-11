@@ -4,7 +4,7 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 ! Some content in this file was generated or refactored with assistance from
-! - Met Office Claude Code Enterprise (Claude Opus 5.5).
+! - Met Office Claude Code via AI Foundry (Claude Opus 5.5); PR #789.
 
 !> @brief Find a pressure on a pressure-level axis.
 !> @details This belongs with get_axis_values in lfric_core's
