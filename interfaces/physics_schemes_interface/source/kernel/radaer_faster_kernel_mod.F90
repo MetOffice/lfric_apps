@@ -697,7 +697,7 @@ subroutine radaer_faster_code( nlayers,                                        &
   allocate(ukca_comp_vol(n_fields, nml_segment_size, nlayers))
 
   do k = 1, nlayers
-    do i = 1, seg_size
+    do i = 1, nml_segment_size
       do m = 1, n_fields
         ukca_comp_vol(m, i, k) = 0.0_r_um
       end do
@@ -709,7 +709,7 @@ subroutine radaer_faster_code( nlayers,                                        &
   allocate(ukca_mix_ratio(n_fields, nml_segment_size, nlayers))
 
   do k = 1, nlayers
-    do i = 1, seg_size
+    do i = 1, nml_segment_size
       do m = 1, n_fields
         ukca_mix_ratio(m, i, k) = 0.0_r_um
       end do
@@ -722,7 +722,7 @@ subroutine radaer_faster_code( nlayers,                                        &
 
   do m = 1, n_fields
     do k = 1, nlayers
-      do i = 1, seg_size
+      do i = 1, nml_segment_size
         ukca_modal_nbr(i, k, m) = 0.0_r_um
       end do
     end do
@@ -734,7 +734,7 @@ subroutine radaer_faster_code( nlayers,                                        &
 
   do m = 1, n_fields
     do k = 1, nlayers
-      do i = 1, seg_size
+      do i = 1, nml_segment_size
         ukca_modal_rho(i, k, m) = 0.0_r_um
       end do
     end do
@@ -746,7 +746,7 @@ subroutine radaer_faster_code( nlayers,                                        &
 
   do m = 1, n_fields
     do k = 1, nlayers
-      do i = 1, seg_size
+      do i = 1, nml_segment_size
         ukca_dry_diam(i, k, m) = 0.0_r_um
       end do
     end do
@@ -758,7 +758,7 @@ subroutine radaer_faster_code( nlayers,                                        &
 
   do m = 1, n_fields
     do k = 1, nlayers
-      do i = 1, seg_size
+      do i = 1, nml_segment_size
         ukca_modal_vol(i, k, m) = 0.0_r_um
       end do
     end do
@@ -770,7 +770,7 @@ subroutine radaer_faster_code( nlayers,                                        &
 
   do m = 1, n_fields
     do k = 1, nlayers
-      do i = 1, seg_size
+      do i = 1, nml_segment_size
         ukca_modal_wtv(i, k, m) = 0.0_r_um
       end do
     end do
@@ -782,7 +782,7 @@ subroutine radaer_faster_code( nlayers,                                        &
 
   do m = 1, n_fields
     do k = 1, nlayers
-      do i = 1, seg_size
+      do i = 1, nml_segment_size
         ukca_wet_diam(i, k, m) = 0.0_r_um
       end do
     end do
