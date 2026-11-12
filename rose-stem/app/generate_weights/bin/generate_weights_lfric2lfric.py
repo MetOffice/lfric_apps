@@ -141,19 +141,28 @@ if __name__ == "__main__":
     INT_METHODS = os.environ.get('INT_METHOD')
     SPLIT_INT_METHODS = INT_METHODS.split(",")
 
-    for my_int_method in SPLIT_INT_METHODS:
-        print('int method',my_int_method)
-        split_masked_int_method = my_int_method.split("_")
-        print(split_masked_int_method[0])
+    # Loop over interpolation methods
+    for loop_int_method in SPLIT_INT_METHODS:
+
+        # Derive the weights filename, interpolation method and whether it is
+        # masked
+        split_masked_int_method = loop_int_method.split("_")
         if split_masked_int_method[0].strip() == 'masked':
+            # If loop_int_method is prefixed with 'masked'
             with_mask=True
             my_int_method = split_masked_int_method[1].strip()
             weights_name = (f"regrid_weights_masked_{my_int_method}.nc")
         else:
+            # If loop_int_method is not prefixed with 'masked'
             with_mask=False
             my_int_method = split_masked_int_method[0].strip()
             weights_name = (f"regrid_weights_{my_int_method}.nc")
-        print('weights', weights_name)
+
+        if with_mask:
+            print('Interpolation method ',my_int_method,' with mask')
+        else:
+            print('Interpolation method ',my_int_method,' with NO mask')
+        print('Weights file name ', weights_name)
 
         SRC_GRID = GRID()
         SRC_GRID = get_env_info(SRC_GRID, 'SRC')
@@ -161,6 +170,7 @@ if __name__ == "__main__":
         validate_input(SRC_GRID)
         # end processing source grid
         print('SOURCE grid ')
+
         DST_GRID = GRID()
         DST_GRID = get_env_info(DST_GRID, 'DST')
         DST_GRID = get_data(DST_GRID, with_mask)

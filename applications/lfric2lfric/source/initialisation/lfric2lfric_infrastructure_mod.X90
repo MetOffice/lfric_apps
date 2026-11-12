@@ -242,7 +242,6 @@ contains
     character(str_def) :: stored_twod_names(2)
     character(str_def) :: stored_mesh_names(2)
 
-    character(str_def) :: c_name
     character(str_def), allocatable :: src_name_cpl_list(:)
     character(str_def), allocatable :: dst_name_cpl_list(:)
 
@@ -624,22 +623,19 @@ contains
 #ifdef MCT
         ! Create oasis partitions and coupling variables
         ! Source fields
-         call parse_namcouple(src_name_cpl_list, dst_name_cpl_list)
-         print*,src_name_cpl_list
-        c_name = "coupling"
-        call lfric2lfric_init_coupler_src(src_name_cpl_list, TRIM(c_name), &
+        call parse_namcouple(src_name_cpl_list, dst_name_cpl_list)
+
+        call lfric2lfric_init_coupler_src(src_name_cpl_list, "coupling", &
                                        element_order_h, element_order_v, &
                                        twod_mesh_src, modeldb)
 
         ! Destination fields
-        c_name = "coupling_dst" 
-        call lfric2lfric_init_coupler_dst(dst_name_cpl_list, TRIM(c_name), &
+        call lfric2lfric_init_coupler_dst(dst_name_cpl_list, "coupling_dst", &
                                        element_order_h, element_order_v, &
                                        twod_mesh_dst, modeldb)
 
         ! Finish coupling definition
-        c_name = "coupling" 
-        call lfric2lfric_end_coupler_init(modeldb, TRIM(c_name))
+        call lfric2lfric_end_coupler_init(modeldb, "coupling")
  
 #else
         write(log_scratch_space,'(A)')                          &
@@ -665,10 +661,10 @@ contains
 
       ! Regrid the source orography onto the mesh of the destination orography
       ! ----------------------------------------------------------------------
-      cpl_snd_2d => modeldb%fields%get_field_collection("src_face" // "cpl_snd_2d")
+      cpl_snd_2d => modeldb%fields%get_field_collection("cpl_snd_2d")
       call cpl_snd_2d%get_field("src_face", src_field)
 
-      cpl_rcv_2d => modeldb%fields%get_field_collection("dst_face" // "cpl_rcv_2d")
+      cpl_rcv_2d => modeldb%fields%get_field_collection("cpl_rcv_2d")
       call cpl_rcv_2d%get_field("dst_face", dst_field)
 
       call invoke(setval_x(src_field, surface_altitude_src))
@@ -692,9 +688,6 @@ contains
       call coupler_exchange_2d%set_time(oasis_clock)
       call coupler_exchange_2d%copy_to_lfric(ierror)
       call coupler_exchange_2d%clear()
-
-      ! Done the first coupling - so advance the pseudo-clock
-      is_running = oasis_clock%tick()
 
       ! Copy the horizontally regridded src orography into dst orography mesh
       ! -----------------------------------------------------------

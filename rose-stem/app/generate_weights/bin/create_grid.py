@@ -263,7 +263,8 @@ def get_data(my_grid, with_mask):
 
     my_grid.shape = numpy.asarray(my_grid.dlat.shape[::-1])
 
-    # mask always from file or ignore
+    # If with mask, read the binary mask from the mask file
+    # Else set the mask data to 1 everywhere
     if (with_mask):
         mask_file = Dataset(my_grid.fname_mask, 'r')
         my_grid.dmask, my_grid.umask = get_var(mask_file, my_grid.vname_mask, True)

@@ -50,7 +50,7 @@ contains
   !>               destination mesh into the right place in the destination
   !>               field
   !>            5. For general coupling, the OASIS clock is updated. Otherwise, for
-  !>               special couling, the fields are coupled at the same pseudo time.
+  !>               special coupling, the fields are coupled at the same pseudo time.
   !>
   !>          The update of the OASIS clock (for general coupling) allows
   !>          the definition of a single 2d coupling, rather than defining

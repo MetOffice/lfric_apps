@@ -33,6 +33,11 @@ module lfric2lfric_regrid_mod
   use model_clock_mod,          only: model_clock_type
   use namelist_mod,             only: namelist_type
 
+  use orography_config_mod,     only: orog_init_option,          &
+                                      orog_init_option_analytic, &
+                                      orog_init_option_ancil,    &
+                                      orog_init_option_start_dump
+
   !------------------------------------
   ! lfric2lfric modules
   !------------------------------------
@@ -107,6 +112,7 @@ contains
 
     integer(kind=i_def) :: total_fields
     logical(kind=l_def) :: general
+    logical(kind=l_def) :: is_running
     
     ! Obtain namelist parameters
     mesh_names(dst) = 'dst_'//trim(modeldb%config%lfric2lfric%destination_mesh_name())
@@ -221,7 +227,7 @@ contains
       ! Get the total number of fields to couple (from namcouple)
       call read_nfields(total_fields)
 
-      ! Main loop over fields to be processed
+      ! Loop over 2D fields to be processed
       call iter%initialise(target_fields)
       do
         ! Locate the field to be processed in the field collections
@@ -264,7 +270,20 @@ contains
         end if
       end do
 
-      ! Main loop over fields to be processed
+      if ( orog_init_option == orog_init_option_analytic .or. &
+         orog_init_option == orog_init_option_ancil .or.    &
+         orog_init_option == orog_init_option_start_dump ) then
+
+         ! If orography has already been regridded (using the general
+         ! regridding), need to update the pseudo time. This is applied
+         ! here, rather than immediately after orography regridding,
+         ! as it has to be updated after any 2D fields. 
+
+         is_running = oasis_clock%tick()
+         
+      end if
+
+      ! Loop over 3D fields to be processed
       call iter%initialise(target_fields)
       do 
         ! Locate the field to be processed in the field collections
