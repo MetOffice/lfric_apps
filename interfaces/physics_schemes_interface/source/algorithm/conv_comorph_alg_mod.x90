@@ -3,8 +3,8 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
-! Some of the content of this file has been produced with the assistance of
-! Anthropic Claude Opus 5 (Claude Code).
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code via AI Foundry (Opus 5); PR #692
 !-------------------------------------------------------------------------------
 !> @brief Interface to the Comorph convection scheme
 
