@@ -144,16 +144,8 @@ subroutine write_scalar_diagnostic( config, mesh, field_name, field, &
     call output_field(1)%set_write_behaviour(tmp_write_ptr)
 
     ! Call write on the output field
-
-    ! Check if we need to write an initial field
-    if (clock%is_initialisation()) then
-      if (diagnostic_to_be_sampled(trim('init_'//field_name))) then
-        call output_field(1)%write_field(trim('init_'//field_name))
-      end if
-    else
-      if (diagnostic_to_be_sampled(trim(field_name))) then
-        call output_field(1)%write_field(trim(field_name))
-      end if
+    if (diagnostic_to_be_sampled(trim(field_name))) then
+      call output_field(1)%write_field(trim(field_name))
     end if
 
     nullify(tmp_write_ptr)
@@ -324,49 +316,25 @@ subroutine write_vector_diagnostic( config, mesh, field_name, field, &
       call u1_wind%set_write_behaviour(tmp_write_ptr)
       call u2_wind%set_write_behaviour(tmp_write_ptr)
 
-      if (clock%is_initialisation()) then
-        if (field_name == 'u') then
-          if (diagnostic_to_be_sampled("init_u_in_w2h")) then
-            call u1_wind%write_field("init_u_in_w2h")
-          end if
-          if (diagnostic_to_be_sampled("init_v_in_w2h")) then
-            call u2_wind%write_field("init_v_in_w2h")
-          end if
-          if (diagnostic_to_be_sampled("init_w_in_wth")) then
-            call u3_wind%write_field("init_w_in_wth")
-          end if
-        else
-          if (diagnostic_to_be_sampled(trim(field_name)//"1")) then
-            call u1_wind%write_field("init_"//trim(field_name)//"1")
-          end if
-          if (diagnostic_to_be_sampled(trim(field_name)//"2")) then
-            call u2_wind%write_field("init_"//trim(field_name)//"2")
-          end if
-          if (diagnostic_to_be_sampled(trim(field_name)//"3")) then
-            call u3_wind%write_field("init_"//trim(field_name)//"3")
-          end if
+      if (field_name == 'u') then
+        if (diagnostic_to_be_sampled("u_in_w2h")) then
+          call u1_wind%write_field("u_in_w2h")
+        end if
+        if (diagnostic_to_be_sampled("v_in_w2h")) then
+          call u2_wind%write_field("v_in_w2h")
+        end if
+        if (diagnostic_to_be_sampled("w_in_wth")) then
+          call u3_wind%write_field("w_in_wth")
         end if
       else
-        if (field_name == 'u') then
-          if (diagnostic_to_be_sampled("u_in_w2h")) then
-            call u1_wind%write_field("u_in_w2h")
-          end if
-          if (diagnostic_to_be_sampled("v_in_w2h")) then
-            call u2_wind%write_field("v_in_w2h")
-          end if
-          if (diagnostic_to_be_sampled("w_in_wth")) then
-            call u3_wind%write_field("w_in_wth")
-          end if
-        else
-          if (diagnostic_to_be_sampled(trim(field_name)//"1")) then
-            call u1_wind%write_field(trim(field_name)//"1")
-          end if
-          if (diagnostic_to_be_sampled(trim(field_name)//"2")) then
-             call u2_wind%write_field(trim(field_name)//"2")
-          end if
-          if (diagnostic_to_be_sampled(trim(field_name)//"3")) then
-             call u3_wind%write_field(trim(field_name)//"3")
-          end if
+        if (diagnostic_to_be_sampled(trim(field_name)//"1")) then
+          call u1_wind%write_field(trim(field_name)//"1")
+        end if
+        if (diagnostic_to_be_sampled(trim(field_name)//"2")) then
+            call u2_wind%write_field(trim(field_name)//"2")
+        end if
+        if (diagnostic_to_be_sampled(trim(field_name)//"3")) then
+            call u3_wind%write_field(trim(field_name)//"3")
         end if
       end if
 
@@ -381,13 +349,8 @@ subroutine write_vector_diagnostic( config, mesh, field_name, field, &
         call v_wind%set_write_behaviour(tmp_write_ptr)
         tmp_write_ptr => write_field_generic
         call h_wind%set_write_behaviour(tmp_write_ptr)
-        if (clock%is_initialisation()) then
-          call h_wind%write_field( "init_h_"//trim(field_name) )
-          call v_wind%write_field( "init_v_"//trim(field_name) )
-        else
-          call h_wind%write_field( "h_"//trim(field_name) )
-          call v_wind%write_field( "v_"//trim(field_name) )
-        end if
+        call h_wind%write_field( "h_"//trim(field_name) )
+        call v_wind%write_field( "v_"//trim(field_name) )
 
       end if ! Output fluxes
 

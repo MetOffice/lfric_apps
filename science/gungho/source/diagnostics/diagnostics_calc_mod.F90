@@ -239,13 +239,7 @@ subroutine write_vorticity_diagnostic(config, u_field, exner, clock)
           write(uchar,'(i1)') i
           field_name_new = trim('xi'//uchar)
 
-          ! Check if we need to write an initial field
-          if (clock%is_initialisation()) then
-            call projected_field(i)%write_field(trim('init_'//field_name_new))
-          else
-            call projected_field(i)%write_field(trim(field_name_new))
-          end if
-
+          call projected_field(i)%write_field(trim(field_name_new))
         end do
 
       end if
