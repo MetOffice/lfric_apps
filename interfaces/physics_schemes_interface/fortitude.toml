@@ -8,8 +8,6 @@
 
 file-extensions= ["f90", "F90", "X90", "x90", "pf"]   #check these file types
 
-extend-exclude = ["ukca_scavenging_mod.F90"]
-
 select = ["E000", "C001", "C032",
 "C051", "C071", "C072", "C091", "C092",
 "C132", "C141", "OB011", "OB021", "OB051", "OB061", "MOD001", "MOD021",
@@ -22,11 +20,8 @@ select = ["E000", "C001", "C032",
 output-format = "grouped"                #group results by file
 
 [check.per-file-ignores]
-"set_levels_list.F90" = ["C071"]
-"set_pseudo_list.F90" = ["C071"]
 "photol_kernel_mod.F90" = ["C072"]
 "fastjx_inphot_mod.f90" = ["C072"]
-"umprintmgr.f90" = ["C072", "C132"]
 "ukca_photol_param_mod.f90" = ["C072", "C132"]
 "psykal_lite_phys_mod.F90" = ["C132"]
 

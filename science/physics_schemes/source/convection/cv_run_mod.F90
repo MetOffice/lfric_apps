@@ -834,15 +834,16 @@ character(len=*), parameter, private :: ModuleName='CV_RUN_MOD'
 
 contains
 
-subroutine check_run_convection()
+subroutine check_run_convection( llcs_first_outer )
 
 use chk_opts_mod, only: chk_var, def_src
 use cv_param_mod, only: ccp_off, ccp_prop, ccp_sc
 use ereport_mod,  only: ereport
 use timestep_mod, only: timestep
-use convection_config_mod, only: llcs_first_outer
 
 implicit none
+
+logical, intent(in) :: llcs_first_outer
 
 integer :: icode       ! error code
 integer, parameter :: len_cond = 10  ! length of condition string
