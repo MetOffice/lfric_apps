@@ -195,7 +195,7 @@ contains
 
       ! Add to field_colleciton
       call field_collection%add_field(field)
-    end if
+    endif
 
   end subroutine field_maker
 

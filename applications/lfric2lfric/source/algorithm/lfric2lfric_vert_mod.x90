@@ -60,7 +60,7 @@ contains
     character(len=str_def) :: field_name
     integer(kind=i_def)    :: fs_src, fs_dst
 
-    ! Main loop over fields to be processed
+    ! Main loop over fields to be processed (destination field names)
     call iter%initialise(target_fields)
     do
       ! Locate the field to be processed in the field collections
@@ -70,6 +70,7 @@ contains
 
       call target_fields%get_field(field_name, field_dst)
 
+      ! Regrid if field is also in the source field names
       if ( source_fields%field_exists(trim(field_name)) ) then
         call source_fields%get_field(field_name, field_src)
 

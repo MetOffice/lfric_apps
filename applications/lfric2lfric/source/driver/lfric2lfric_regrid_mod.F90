@@ -7,10 +7,6 @@
 !>
 module lfric2lfric_regrid_mod
 
-  use base_mesh_config_mod,     only: geometry_spherical,      &
-                                      geometry_planar,         &
-                                      topology_fully_periodic, &
-                                      topology_non_periodic
   use constants_mod,            only: str_def, i_def, l_def
   use driver_modeldb_mod,       only: modeldb_type
   use extrusion_mod,            only: TWOD
@@ -32,7 +28,6 @@ module lfric2lfric_regrid_mod
   use mesh_mod,                 only: mesh_type
   use model_clock_mod,          only: model_clock_type
   use namelist_mod,             only: namelist_type
-
   use orography_config_mod,     only: orog_init_option,          &
                                       orog_init_option_analytic, &
                                       orog_init_option_ancil,    &
@@ -98,7 +93,6 @@ contains
     type(function_space_type), pointer :: fs_w3_src, fs_w3_dst
     type(function_space_type), pointer :: fs_wth_src, fs_wth_dst
     type(mesh_type),           pointer :: mesh_dst
-    
     character(len=str_def)   :: mesh_names(2)
     integer(kind=i_def)      :: element_order_h
     integer(kind=i_def)      :: element_order_v

@@ -102,11 +102,7 @@ module lfric2lfric_init_mod
     integer(kind=i_def) :: i
 
     call log_event( 'lfric2lfric: Initialising miniapp ...', log_level_info )
-
-    !--------------------------------------------------------------------------
-    ! Initialise Source Fields
-    !--------------------------------------------------------------------------
-    
+   
     call modeldb%values%get_value("vertical_change", vertical_change)
     call modeldb%values%get_value("horizontal_change", horizontal_change)
 
@@ -120,6 +116,10 @@ module lfric2lfric_init_mod
     ! in iodef.xml
     call get_field_list( num_fields_src, config_list_src, start_dump_filename, prefix )
 
+    !--------------------------------------------------------------------------
+    ! Initialise Source Fields
+    !--------------------------------------------------------------------------
+    
     ! Initialise our field collection
     call modeldb%fields%add_empty_field_collection(origin_collection_name)
     field_collection => modeldb%fields%get_field_collection(origin_collection_name)

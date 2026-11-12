@@ -15,7 +15,7 @@ module lfric2lfric_infrastructure_mod
   use add_mesh_map_mod,            only: add_mesh_map
   use blend_orography_alg_mod,     only: blend_orography
   use constants_mod,               only: str_def, str_max_filename, &
-                                         r_def, i_def, l_def, r_second, str_def
+                                         r_def, i_def, l_def, r_second
   use create_mesh_mod,             only: create_mesh
   use driver_modeldb_mod,          only: modeldb_type
   use driver_fem_mod,              only: init_fem

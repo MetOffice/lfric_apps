@@ -75,26 +75,26 @@ module lfric2lfric_init_coupler_mod
 
     type(coupling_type), pointer         :: coupling_ptr
     character(str_def)                   :: name_cpl
-
     integer :: i
 
     ! Set up collections to hold 2d coupling fields
-    if (.not. modeldb%fields%field_collection_exists( "cpl_snd_2d"))  &
+    if (.not. modeldb%fields%field_collection_exists("cpl_snd_2d"))  &
       call modeldb%fields%add_empty_field_collection("cpl_snd_2d" ,  &
                                                 table_len = 30)
-    if (.not. modeldb%fields%field_collection_exists( "dummy"))  &
-      call modeldb%fields%add_empty_field_collection( "dummy" ,  &
+    if (.not. modeldb%fields%field_collection_exists("dummy"))  &
+      call modeldb%fields%add_empty_field_collection("dummy" ,  &
                                                 table_len = 30)
-    if (.not. modeldb%fields%field_collection_exists( "cpl_snd_0d"))  &
-      call modeldb%fields%add_empty_field_collection( "cpl_snd_0d" ,  &
+    if (.not. modeldb%fields%field_collection_exists("cpl_snd_0d"))  &
+      call modeldb%fields%add_empty_field_collection("cpl_snd_0d" ,  &
                                                 table_len = 30)
 
     cpl_snd_2d => modeldb%fields%get_field_collection("cpl_snd_2d")
     cpl_rcv_2d => modeldb%fields%get_field_collection("dummy")
-    cpl_snd_0d => modeldb%fields%get_field_collection( "cpl_snd_0d")
+    cpl_snd_0d => modeldb%fields%get_field_collection("cpl_snd_0d")
 
     depository => modeldb%fields%get_field_collection("depository")
 
+    ! Loop over names in the coupling list (as defined by the namcouple)
     do i =1, size(name_cpl_list)
 
       name_cpl = name_cpl_list(i)
@@ -120,12 +120,10 @@ module lfric2lfric_init_coupler_mod
 
     ! Extract the coupling object from the modeldb key-value pair collection
     coupling_ptr => get_coupling_from_collection(modeldb%values, trim(coupler))
- 
     call coupling_ptr%define_partitions(modeldb%mpi,mesh)
     call coupling_ptr%define_variables( cpl_snd_2d, &
                                         cpl_rcv_2d, &
                                         cpl_snd_0d )
-     
   end subroutine lfric2lfric_init_coupler_src
 
   !> @details Initialises coupling partitions and variables for the
@@ -152,7 +150,6 @@ module lfric2lfric_init_coupler_mod
     type(mesh_type), pointer,            intent(in)    :: mesh
     type(modeldb_type),                  intent(inout) :: modeldb
 
-    
     ! Coupling fields
     type(field_collection_type), pointer :: cpl_snd_2d => null()
     type(field_collection_type), pointer :: cpl_rcv_2d => null()
@@ -165,23 +162,22 @@ module lfric2lfric_init_coupler_mod
 
     type(coupling_type), pointer         :: coupling_ptr
     character(str_def)                   :: name_cpl
-
     integer :: i
 
     ! Set up collections to hold 2d coupling fields
-    if (.not. modeldb%fields%field_collection_exists( "cpl_rcv_2d"))  &
-      call modeldb%fields%add_empty_field_collection( "cpl_rcv_2d" ,  &
+    if (.not. modeldb%fields%field_collection_exists("cpl_rcv_2d"))  &
+      call modeldb%fields%add_empty_field_collection("cpl_rcv_2d" ,  &
                                                 table_len = 30)
-    if (.not. modeldb%fields%field_collection_exists( "cpl_snd_0d"))  &
-      call modeldb%fields%add_empty_field_collection( "cpl_snd_0d" ,  &
+    if (.not. modeldb%fields%field_collection_exists("cpl_snd_0d"))  &
+      call modeldb%fields%add_empty_field_collection("cpl_snd_0d" ,  &
                                                 table_len = 30)
-    if (.not. modeldb%fields%field_collection_exists( "dummy"))       &
-      call modeldb%fields%add_empty_field_collection( "dummy" ,       &
+    if (.not. modeldb%fields%field_collection_exists("dummy"))       &
+      call modeldb%fields%add_empty_field_collection("dummy" ,       &
                                                 table_len = 30)
 
-    cpl_snd_2d => modeldb%fields%get_field_collection( "dummy")
-    cpl_rcv_2d => modeldb%fields%get_field_collection( "cpl_rcv_2d")
-    cpl_snd_0d => modeldb%fields%get_field_collection( "cpl_snd_0d")
+    cpl_snd_2d => modeldb%fields%get_field_collection("dummy")
+    cpl_rcv_2d => modeldb%fields%get_field_collection("cpl_rcv_2d")
+    cpl_snd_0d => modeldb%fields%get_field_collection("cpl_snd_0d")
 
     depository => modeldb%fields%get_field_collection("depository")
 
@@ -210,12 +206,10 @@ module lfric2lfric_init_coupler_mod
 
     ! Extract the coupling object from the modeldb key-value pair collection
     coupling_ptr => get_coupling_from_collection(modeldb%values, trim(coupler))
- 
     call coupling_ptr%define_partitions(modeldb%mpi,mesh)
     call coupling_ptr%define_variables( cpl_snd_2d, &
                                         cpl_rcv_2d, &
                                         cpl_snd_0d )
- 
   end subroutine lfric2lfric_init_coupler_dst
 
   !> @details Ends the model coupling definition
@@ -227,7 +221,7 @@ module lfric2lfric_init_coupler_mod
 
     type(modeldb_type),       intent(inout)  :: modeldb
     character(*),             intent(in)     :: coupler
-    
+
     ! Coupling fields
     type(field_collection_type), pointer :: cpl_snd_2d => null()
     type(field_collection_type), pointer :: cpl_rcv_2d => null()
@@ -237,9 +231,9 @@ module lfric2lfric_init_coupler_mod
 
 
     ! Get coupling field collections
-    cpl_snd_2d => modeldb%fields%get_field_collection( "cpl_snd_2d")
-    cpl_rcv_2d => modeldb%fields%get_field_collection( "cpl_rcv_2d")
-    cpl_snd_0d => modeldb%fields%get_field_collection( "cpl_snd_0d")
+    cpl_snd_2d => modeldb%fields%get_field_collection("cpl_snd_2d")
+    cpl_rcv_2d => modeldb%fields%get_field_collection("cpl_rcv_2d")
+    cpl_snd_0d => modeldb%fields%get_field_collection("cpl_snd_0d")
 
     ! Extract the coupling object from the modeldb key-value pair collection
     coupling_ptr => get_coupling_from_collection(modeldb%values, trim(coupler))
@@ -306,6 +300,7 @@ module lfric2lfric_init_coupler_mod
     enddo
 
     close(unit)
+
   end subroutine read_nfields
 
   !> @brief   Populate src_name_cpl_list and dst_name_cpl_list
