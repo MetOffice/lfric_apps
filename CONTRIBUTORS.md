@@ -70,3 +70,4 @@
 | HEBaron             | Helen Baron        | UKCEH                            | 2026-10-14 |
 | jerry-liu-jianyu    | Liu Jianyu         | NEA/MSS/CCRS                     | 2026-09-25 |
 | mn416               | Matthew Naylor     | University of Cambridge          | 2026-07-24 |
+| NMannall            | Nathan Mannall     | EPCC, University of Edinburgh    | 2026-11-12 |
