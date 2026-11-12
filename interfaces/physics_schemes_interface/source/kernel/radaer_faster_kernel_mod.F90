@@ -601,7 +601,7 @@ subroutine radaer_faster_code( nlayers,                                        &
   integer(i_um) :: nml_segment_size , num_seg , seg_size
 
   ! Hard coded here, but need to make this a namelist item later
-  integer, parameter :: ukca_radaer_segment_size = 4
+  integer, parameter :: ukca_radaer_segment_size = 1
 
   !-----------------------------------------------------------------------
 
