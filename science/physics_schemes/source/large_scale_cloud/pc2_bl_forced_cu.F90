@@ -129,6 +129,16 @@ character(len=*), parameter :: RoutineName='PC2_BL_FORCED_CU'
 integer(kind=jpim), parameter :: zhook_in  = 0
 integer(kind=jpim), parameter :: zhook_out = 1
 real(kind=jprb)               :: zhook_handle
+
+
+!initialise the variables to avoid Variables used before definition error with CCE 18.0.1
+qcl_forced = 0.0
+cf_forced = 0.0
+dqcl = 0.0
+dcfl = 0.0
+qcl_tol = 0.0
+cf_base = 0.0
+
 !----------------------------------------------------------------------
 if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 !----------------------------------------------------------------------
