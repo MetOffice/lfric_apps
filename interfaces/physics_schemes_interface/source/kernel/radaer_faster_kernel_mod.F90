@@ -601,7 +601,7 @@ subroutine radaer_faster_code( nlayers,                                        &
   integer(i_um) :: nml_segment_size , num_seg , seg_size
 
   ! Hard coded here, but need to make this a namelist item later
-  integer, parameter :: ukca_radaer_segment_size = 1
+  integer, parameter :: ukca_radaer_segment_size = 4
 
   !-----------------------------------------------------------------------
 
@@ -696,33 +696,97 @@ subroutine radaer_faster_code( nlayers,                                        &
   n_fields = size(pvol_comp_names)
   allocate(ukca_comp_vol(n_fields, nml_segment_size, nlayers))
 
+  do k = 1, nlayers
+    do i = 1, seg_size
+      do m = 1, n_fields
+        ukca_comp_vol(m, i, k) = 0.0_r_um
+      end do
+    end do
+  end do
+
   ! -- ukca_mix_ratio --
   n_fields = size(comp_names)
   allocate(ukca_mix_ratio(n_fields, nml_segment_size, nlayers))
+
+  do k = 1, nlayers
+    do i = 1, seg_size
+      do m = 1, n_fields
+        ukca_mix_ratio(m, i, k) = 0.0_r_um
+      end do
+    end do
+  end do
 
   ! -- ukca_modal_nbr --
   n_fields = size(mode_names)
   allocate(ukca_modal_nbr(nml_segment_size, nlayers, n_fields))
 
+  do m = 1, n_fields
+    do k = 1, nlayers
+      do i = 1, seg_size
+        ukca_modal_nbr(i, k, m) = 0.0_r_um
+      end do
+    end do
+  end do
+
   ! -- ukca_modal_rho --
   n_fields = size(rhopar_mode_names)
   allocate(ukca_modal_rho(nml_segment_size, nlayers, n_fields))
+
+  do m = 1, n_fields
+    do k = 1, nlayers
+      do i = 1, seg_size
+        ukca_modal_rho(i, k, m) = 0.0_r_um
+      end do
+    end do
+  end do
 
   ! -- ukca_dry_diam --
   n_fields = size(dry_diam_mode_names)
   allocate(ukca_dry_diam(nml_segment_size, nlayers, n_fields))
 
+  do m = 1, n_fields
+    do k = 1, nlayers
+      do i = 1, seg_size
+        ukca_dry_diam(i, k, m) = 0.0_r_um
+      end do
+    end do
+  end do
+
   ! -- ukca_modal_vol --
   n_fields = size(modal_volume_names)
   allocate(ukca_modal_vol(nml_segment_size, nlayers, n_fields))
+
+  do m = 1, n_fields
+    do k = 1, nlayers
+      do i = 1, seg_size
+        ukca_modal_vol(i, k, m) = 0.0_r_um
+      end do
+    end do
+  end do
 
   ! -- ukca_modal_wtv --
   n_fields = size(modal_wtv_names)
   allocate(ukca_modal_wtv(nml_segment_size, nlayers, n_fields))
 
+  do m = 1, n_fields
+    do k = 1, nlayers
+      do i = 1, seg_size
+        ukca_modal_wtv(i, k, m) = 0.0_r_um
+      end do
+    end do
+  end do
+
   ! -- ukca_wet_diam --
   n_fields = size(wet_diam_mode_names)
   allocate(ukca_wet_diam(nml_segment_size, nlayers, n_fields))
+
+  do m = 1, n_fields
+    do k = 1, nlayers
+      do i = 1, seg_size
+        ukca_wet_diam(i, k, m) = 0.0_r_um
+      end do
+    end do
+  end do
 
   !-----------------------------------------------------------------------
 
@@ -843,14 +907,6 @@ subroutine radaer_faster_code( nlayers,                                        &
 
     ! -- ukca_comp_vol --
     n_fields = size(pvol_comp_names)
-
-    do k = 1, nlayers
-      do i = 1, seg_size
-        do m = 1, n_fields
-          ukca_comp_vol(m, i, k) = 0.0_r_um
-        end do
-      end do
-    end do
 
     do m = 1, n_fields
       select case(trim(pvol_comp_names(m)))
@@ -1000,14 +1056,6 @@ subroutine radaer_faster_code( nlayers,                                        &
     ! -- ukca_mix_ratio --
     n_fields = size(comp_names)
 
-    do k = 1, nlayers
-      do i = 1, seg_size
-        do m = 1, n_fields
-          ukca_mix_ratio(m, i, k) = 0.0_r_um
-        end do
-      end do
-    end do
-
     do m = 1, n_fields
       select case(trim(comp_names(m)))
       case('fldname_ait_sol_su')
@@ -1140,14 +1188,6 @@ subroutine radaer_faster_code( nlayers,                                        &
     n_fields = size(mode_names)
 
     do m = 1, n_fields
-      do k = 1, nlayers
-        do i = 1, seg_size
-          ukca_modal_nbr(i, k, m) = 0.0_r_um
-        end do
-      end do
-    end do
-
-    do m = 1, n_fields
       select case(trim(mode_names(m)))
       case('fldname_n_nuc_sol')
         write( log_scratch_space, '(A,A)' )                                    &
@@ -1206,14 +1246,6 @@ subroutine radaer_faster_code( nlayers,                                        &
     n_fields = size(rhopar_mode_names)
 
     do m = 1, n_fields
-      do k = 1, nlayers
-        do i = 1, seg_size
-          ukca_modal_rho(i, k, m) = 0.0_r_um
-        end do
-      end do
-    end do
-
-    do m = 1, n_fields
       select case(trim(rhopar_mode_names(m)))
       case('fldname_rhopar_ait_sol')
         do i = 1, seg_size
@@ -1266,14 +1298,6 @@ subroutine radaer_faster_code( nlayers,                                        &
 
     ! -- ukca_dry_diam --
     n_fields = size(dry_diam_mode_names)
-
-    do m = 1, n_fields
-      do k = 1, nlayers
-        do i = 1, seg_size
-          ukca_dry_diam(i, k, m) = 0.0_r_um
-        end do
-      end do
-    end do
 
     do m = 1, n_fields
       select case(trim(dry_diam_mode_names(m)))
@@ -1329,14 +1353,6 @@ subroutine radaer_faster_code( nlayers,                                        &
 
     ! -- ukca_modal_vol --
     n_fields = size(modal_volume_names)
-
-    do m = 1, n_fields
-      do k = 1, nlayers
-        do i = 1, seg_size
-          ukca_modal_vol(i, k, m) = 0.0_r_um
-        end do
-      end do
-    end do
 
     do m = 1, n_fields
 
@@ -1646,14 +1662,6 @@ subroutine radaer_faster_code( nlayers,                                        &
     n_fields = size(modal_wtv_names)
 
     do m = 1, n_fields
-      do k = 1, nlayers
-        do i = 1, seg_size
-          ukca_modal_wtv(i, k, m) = 0.0_r_um
-        end do
-      end do
-    end do
-
-    do m = 1, n_fields
       select case(trim(modal_wtv_names(m)))
       case('fldname_pvol_wat_ait_sol')
         do i = 1, seg_size
@@ -1712,14 +1720,6 @@ subroutine radaer_faster_code( nlayers,                                        &
 
     ! -- ukca_wet_diam --
     n_fields = size(wet_diam_mode_names)
-
-    do m = 1, n_fields
-      do k = 1, nlayers
-        do i = 1, seg_size
-          ukca_wet_diam(i, k, m) = 0.0_r_um
-        end do
-      end do
-    end do
 
     do m = 1, n_fields
       select case(trim(wet_diam_mode_names(m)))
