@@ -1,5 +1,5 @@
 !-----------------------------------------------------------------------------
-! (C) Crown copyright 2025 Met Office. All rights reserved.
+! (C) Crown copyright Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
@@ -11,6 +11,7 @@ module adj_pressure_operator_alg_mod
   use vector_mod,                                      only: abstract_vector_type
   use r_solver_field_mod,                              only: r_solver_field_type
   use sci_r_solver_field_vector_mod,                   only: r_solver_field_vector_type
+  use config_mod,                                      only: config_type
   use constants_mod,                                   only: i_def, l_def, r_solver
   use log_mod,                                         only: log_event,         &
                                                              LOG_LEVEL_ERROR,   &
@@ -35,6 +36,7 @@ module adj_pressure_operator_alg_mod
   type, public, extends(abstract_hierarchical_linear_operator_type) :: adj_pressure_operator_type
   private
      integer(kind=i_def)                         :: level
+     integer(kind=i_def)                         :: stepper
      type(adj_solver_lookup_cache_type), pointer :: adj_lookup_table_cache_ptr
      contains
      procedure, public  :: apply => apply_adj_pressure_operator
@@ -54,12 +56,14 @@ contains
 
   !> @brief Construct new instance of type.
   !> @param[in] level                   The mesh level the space is on
+  !> @param[in] stepper                 Timestepper enumerator used to select operators
   !> @param[in] adj_lookup_table_cache  The lookup table cache
-  function adj_pressure_operator_constructor(level, adj_lookup_table_cache) result(self)
+  function adj_pressure_operator_constructor(level, stepper, adj_lookup_table_cache) result(self)
 
     implicit none
 
     integer(kind=i_def),                        intent(in) :: level
+    integer(kind=i_def),                        intent(in) :: stepper
     type(adj_solver_lookup_cache_type), target, intent(in) :: adj_lookup_table_cache
     type(adj_pressure_operator_type)                       :: self
 
@@ -67,6 +71,7 @@ contains
 
     ! Temporaries required in operator application
     self%level = level
+    self%stepper = stepper
     self%adj_lookup_table_cache_ptr => adj_lookup_table_cache
 
     call log_event( 'done', LOG_LEVEL_DEBUG )
@@ -85,20 +90,24 @@ contains
 
     ! Deep copy of the contents of the adj_pressure_operator_type
     dest%level = source%level
+    dest%stepper = source%stepper
     dest%adj_lookup_table_cache_ptr => source%adj_lookup_table_cache_ptr
 
   end subroutine adj_pressure_operator_assign
 
   !> @brief Apply adjoint Helmholtz operator
-  !> @param[in]     x Field to apply operator to
-  !> @param[in,out] y Resulting field
-  subroutine apply_adj_pressure_operator( self, x, y )
+  !> @param[in]     config  Application configuration object
+  !> @param[in]     x       Field to apply operator to
+  !> @param[in,out] y       Resulting field
+  subroutine apply_adj_pressure_operator( self, config, x, y )
 
     implicit none
 
     class(adj_pressure_operator_type), intent(inout) :: self
-    class(abstract_vector_type),       intent(in)    :: x
-    class(abstract_vector_type),       intent(inout) :: y
+
+    type(config_type),           intent(in)    :: config
+    class(abstract_vector_type), intent(in)    :: x
+    class(abstract_vector_type), intent(inout) :: y
 
     type(r_solver_field_type),      pointer :: Helmholtz_operator(:)
     type(r_solver_field_type),      pointer :: x_vec, y_vec
@@ -137,7 +146,7 @@ contains
         end if
 
         if (element_order_h == 0 .and. element_order_v == 0) then
-          Helmholtz_operator => get_helmholtz_operator(self%level)
+          Helmholtz_operator => get_helmholtz_operator(self%stepper, self%level)
           lam_mesh = .false.
           if (limited_area .and. mesh%topology()==topology_non_periodic) then
             lam_mesh=.true.
@@ -178,17 +187,18 @@ contains
   end subroutine apply_adj_pressure_operator
 
   !> @brief Return coarsened operator on next level of multigrid hierarchy
-  !>@param[in]     fs_coarse       Coarse level function space
+  !> @param[in]    config          Application configuration object
   !>@param[in,out] coarse_operator Coarsened version of the operator
-  subroutine coarsen_adj_pressure_operator( self, coarse_operator )
+  subroutine coarsen_adj_pressure_operator( self, config, coarse_operator )
 
     implicit none
 
     class(adj_pressure_operator_type), intent(in) :: self
+    type(config_type),                 intent(in) :: config
     class(abstract_hierarchical_linear_operator_type), allocatable, intent(inout) :: coarse_operator
 
     allocate( coarse_operator, &
-              source = adj_pressure_operator_type(self%level + 1, self%adj_lookup_table_cache_ptr) )
+              source = adj_pressure_operator_type(self%level + 1, self%stepper, self%adj_lookup_table_cache_ptr) )
 
   end subroutine coarsen_adj_pressure_operator
 

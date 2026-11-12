@@ -14,6 +14,7 @@
 !!          corresponding diagonal mass matrix.
 module swe_mixed_diag_precon_alg_mod
 
+  use config_mod,                         only: config_type
   use constants_mod,                      only: i_def
   use field_mod,                          only: field_type
   use field_indices_mod,                  only: isw_u, isw_g, isw_b
@@ -66,28 +67,30 @@ contains
   !>
   !> @details This constructs all required fields and builds operators.
   !>
-  !> @param[in] state Current state (passed as a field-vector)
-  !> @return    self  The constructed preconditioner object
-  function swe_mixed_diag_preconditioner_constructor(state) result(self)
+  !> @param[in] config  Application configuration object
+  !> @param[in] state   Current state (passed as a field-vector)
+  !> @return    self    The constructed preconditioner object
+  function swe_mixed_diag_preconditioner_constructor(config, state) result(self)
 
     use sci_fem_constants_mod, only: get_mass_matrix_diagonal_fe
 
     implicit none
 
+    type(config_type), intent(in) :: config
     type(field_vector_type), intent(in) :: state
     type(swe_mixed_diag_preconditioner_type)  :: self
 
     ! Mesh ID
-    integer(kind=i_def) :: mesh_id
+    type(mesh_type), pointer :: mesh
 
     call log_event('Constructing shallow water mixed diag preconditioner...', &
                    LOG_LEVEL_INFO )
 
-    mesh_id = state%vector(isw_u)%get_mesh_id()
+    mesh => state%vector(isw_u)%get_mesh()
 
-    self%mm_diagonal_u => get_mass_matrix_diagonal_fe(W2, mesh_id)
-    self%mm_diagonal_p => get_mass_matrix_diagonal_fe(w3, mesh_id)
-    self%mm_diagonal_b => get_mass_matrix_diagonal_fe(W3, mesh_id)
+    self%mm_diagonal_u => get_mass_matrix_diagonal_fe(config, mesh, W2)
+    self%mm_diagonal_p => get_mass_matrix_diagonal_fe(config, mesh, W3)
+    self%mm_diagonal_b => get_mass_matrix_diagonal_fe(config, mesh, W3)
 
     call log_event( 'done', LOG_LEVEL_INFO )
 
@@ -99,18 +102,21 @@ contains
   !> @details Apply the preconditioner by dividing each of the fields in the
   !!          field-vector by its associated mass matrix.
   !>
-  !> @param[in,out] self Instance of type swe_mixed_preconditioner_type
-  !> @param[in]     x    Field-vector containing the residuals
-  !!                     \f$(\textbf{R}_u,R_gp,r_b)\f$
-  !> @param[in,out] y    Field-vector containing the solution
-  !!                     \f$(\textbf{U},GP,B)\f$ to be calculated
-  subroutine apply_swe_mixed_diag_preconditioner(self, x, y)
+  !> @param[in,out] self    Instance of type swe_mixed_preconditioner_type
+  !> @param[in]     config  Application configuration object
+  !> @param[in]     x       Field-vector containing the residuals
+  !!                        \f$(\textbf{R}_u,R_gp,r_b)\f$
+  !> @param[in,out] y       Field-vector containing the solution
+  !!                        \f$(\textbf{U},GP,B)\f$ to be calculated
+  subroutine apply_swe_mixed_diag_preconditioner(self, config, x, y)
 
     implicit none
 
     class(swe_mixed_diag_preconditioner_type), intent(inout) :: self
-    class(abstract_vector_type),               intent(in)    :: x
-    class(abstract_vector_type),               intent(inout) :: y
+
+    type(config_type),           intent(in)    :: config
+    class(abstract_vector_type), intent(in)    :: x
+    class(abstract_vector_type), intent(inout) :: y
 
     ! Workaround for PSyclone to get pointers of the correct type for x and y
     type(field_type), pointer :: x_vec_u => null(), &

@@ -2,6 +2,9 @@
 ! (C) Crown copyright 2018 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
+!
+! Some of the content of this file has been produced with the assistance of
+! Met Office GitHub Copilot Enterprise.
 !-----------------------------------------------------------------------------
 
 !> @brief Preconditioner for the Euler equations system.
@@ -91,6 +94,7 @@ module mixed_schur_preconditioner_alg_mod
   use base_mesh_config_mod,            only: prime_mesh_name
   use vector_mod,                      only: abstract_vector_type
   use r_solver_field_mod,              only: r_solver_field_type
+  use config_mod,                      only: config_type
   use constants_mod,                   only: i_def, r_def, r_solver
   use sci_geometric_constants_mod,     only: get_face_selector_ew, &
                                              get_face_selector_ns
@@ -115,13 +119,18 @@ module mixed_schur_preconditioner_alg_mod
                                              get_p3theta, &
                                              get_helm_diag, &
                                              get_Hb_lumped_inv, &
-                                             get_eliminated_q32
+                                             get_eliminated_q32_rho, &
+                                             get_eliminated_q32_theta, &
+                                             get_tau_u_dt_cp, &
+                                             get_tau_t_dt, &
+                                             get_tau_r_dt
   use solver_constants_mod,            only: get_normalisation_r_solver
   use limited_area_constants_mod,      only: get_mask_r_solver
   use fs_continuity_mod,               only: W2, W3, Wtheta
   use boundaries_config_mod,           only: limited_area
   use mixed_solver_config_mod,         only: eliminate_variables,          &
                                              eliminate_variables_analytic
+
   implicit none
 
   private
@@ -144,6 +153,7 @@ module mixed_schur_preconditioner_alg_mod
      !> Pressure (Helmholtz) solver object
      class(abstract_iterative_solver_type), pointer :: &
         pressure_solver
+     integer(kind=i_def) :: stepper
 
      contains
      ! Override the (abstract interface) for application of
@@ -183,10 +193,12 @@ contains
   !> @param [in] element_order_h Horizontal element order for function spaces
   !> @param [in] element_order_v Vertical element order for function spaces
   !> @param [in] pressure_solver Solver object for Helmholtz system
+  !> @param [in] stepper         Timestepper enumerator used to select operators
   !> @return self the constructed preconditioner object
   function mixed_schur_preconditioner_constructor(mesh, element_order_h, &
                                                   element_order_v,       &
-                                                  pressure_solver)       &
+                                                  pressure_solver,       &
+                                                  stepper)               &
                                                   result(self)
 
     use function_space_mod,            only: function_space_type
@@ -199,6 +211,7 @@ contains
     integer(i_def),                                intent(in) :: element_order_v
     type(mesh_type),                       target, intent(in) :: mesh
     class(abstract_iterative_solver_type), target, intent(in) :: pressure_solver
+    integer(i_def),                                intent(in) :: stepper
 
     type(mixed_schur_preconditioner_type)  :: self
 
@@ -225,6 +238,7 @@ contains
 
     ! Set pressure solver
     self%pressure_solver => pressure_solver
+    self%stepper = stepper
 
     call log_event( 'done', LOG_LEVEL_DEBUG )
 
@@ -239,15 +253,18 @@ contains
   !!          3. Reconstruct velocity and buoyancy from pressure
   !>
   !> @param[in,out] self Instance of type mixed_schur_preconditioner_type
-  !> @param[in] x Field vector containing the residuals
-  !!              \f$(\textbf{R}_u, R_t, R_r, R_t)\f$
-  !> @param[in,out] y Field vector containing the solution
-  !!                  \f$(\textbf{U},\theta,\rho,\Pi)\f$ to be calculated
-  subroutine apply_mixed_schur_preconditioner(self, x, y)
+  !> @param[in]     config  Application configuration object
+  !> @param[in]     x       Field vector containing the residuals
+  !!                        \f$(\textbf{R}_u, R_t, R_r, R_t)\f$
+  !> @param[in,out] y       Field vector containing the solution
+  !!                        \f$(\textbf{U},\theta,\rho,\Pi)\f$ to be calculated
+  subroutine apply_mixed_schur_preconditioner(self, config, x, y)
     implicit none
     class(mixed_schur_preconditioner_type), intent(inout) :: self
-    class(abstract_vector_type),            intent(in)    :: x
-    class(abstract_vector_type),            intent(inout) :: y
+
+    type(config_type),           intent(in) :: config
+    class(abstract_vector_type), intent(in)    :: x
+    class(abstract_vector_type), intent(inout) :: y
     integer(tik)                                          :: id_precon, &
                                                              id_solve
 
@@ -258,7 +275,7 @@ contains
        select type(y)
        type is(r_solver_field_vector_type)
          ! STEP 1: Build RHS for Helmholtz system
-         call self%build_pressure_rhs(x)
+         call self%build_pressure_rhs(config, x)
 
          ! STEP 2: Solve Helmholtz system
          ! Krylov solver to obtain pressure increment
@@ -269,12 +286,12 @@ contains
 
          ! Solve pressure system
          call log_event('Schur preconditioner pressure solve:', LOG_LEVEL_DEBUG)
-         call self%pressure_solver%apply(self%pressure_x, self%pressure_b)
+         call self%pressure_solver%apply(config, self%pressure_x, self%pressure_b)
 
          if ( LPROF ) call stop_timing(id_solve, 'schur_precon.pressure_solver')
 
           ! STEP 3: Back substitute to obtain other fields
-          call self%back_substitute(y)
+          call self%back_substitute(config, y)
        class default
           write(log_scratch_space, '(a)') &
                "mixed_schur_preconditioner_mod: incorrect vector_type argument y"
@@ -298,11 +315,13 @@ contains
   !!          for the Helmholtz equation.
   !>
   !> @param[in,out] self Instance of type mixed_schur_preconditioner_type
-  !> @param[in]     rhs0 Initial residuals \f$(\textbf{R}_u,R_t,R_d,R_p)\f$
-  !!                     of the mixed system
-  subroutine build_pressure_rhs(self, rhs0)
+  !> @param[in]     config  Application configuration object
+  !> @param[in]     rhs0    Initial residuals \f$(\textbf{R}_u,R_t,R_d,R_p)\f$
+  !!                        of the mixed system
+  subroutine build_pressure_rhs(self, config, rhs0)
 
-    use dg_matrix_vector_kernel_mod,      only: dg_matrix_vector_kernel_type
+    use apply_analytic_q32_rhs_kernel_mod,                                     &
+                                          only: apply_analytic_q32_rhs_kernel_type
     use apply_variable_hx_kernel_mod,     only: apply_variable_hx_kernel_type
     use opt_apply_variable_hx_kernel_mod, only: opt_apply_variable_hx_kernel_type
     use operator_mod,                     only: r_solver_operator_type
@@ -313,22 +332,27 @@ contains
     implicit none
 
     class( mixed_schur_preconditioner_type ),   intent( inout ) :: self
-    type( r_solver_field_vector_type ), target, intent(in)      :: rhs0
+
+    type(config_type),                          intent(in) :: config
+    type( r_solver_field_vector_type ), target, intent(in) :: rhs0
 
     type( r_solver_operator_type ), pointer :: m3_rho_star,    &
                                                ptheta2,        &
                                                p3theta,        &
                                                compound_div,   &
-                                               q32_op
+                                               q32_rho_op,     &
+                                               q32_theta_op
     type( r_solver_field_type ),    pointer :: mt_lumped_inv,  &
                                                h_diag,         &
                                                Hb_lumped_inv
     type( r_solver_field_type )             :: r_p, rhs_d
-    real( kind=r_solver ),        parameter :: minus_one = -1.0_r_solver
+    real( kind=r_solver )                   :: const_r, const_t
+    real( kind=r_solver )                   :: minus_const_r, minus_const_t
     type( r_solver_field_type )             :: rhs_uvw
     type( r_solver_field_type ),  pointer   :: w2_mask, &
                                                w3_mask
     integer( kind=i_def )                   :: mesh_id
+    type(mesh_type), pointer                :: mesh
     integer( kind=i_def )                   :: element_order_h
     integer( kind=i_def )                   :: element_order_v
     type( r_solver_field_type ),  pointer   :: rhs_uv, &
@@ -347,7 +371,8 @@ contains
     rhs_uv => rhs0%vector(isol_uv)
     rhs_p  => rhs0%vector(isol_p)
 
-    mesh_id = rhs_uv%get_mesh_id()
+    mesh_id =  rhs_uv%get_mesh_id()
+    mesh    => rhs_uv%get_mesh()
 
     element_order_h = rhs_uv%get_element_order_h()
     element_order_v = rhs_uv%get_element_order_v()
@@ -369,7 +394,15 @@ contains
     p3theta       => get_p3theta()
     m3_rho_star   => get_m3_rho_star()
     compound_div  => get_compound_div()
-    Hb_lumped_inv => get_Hb_lumped_inv()
+    Hb_lumped_inv => get_Hb_lumped_inv(self%stepper)
+
+    ! The SI operators are now assembled unscaled; re-apply the tau*dt scalings
+    ! here. The divergence term uses tau_r*dt and the potential temperature term
+    ! uses tau_t*dt.
+    const_r = get_tau_r_dt(self%stepper)
+    const_t = get_tau_t_dt(self%stepper)
+    minus_const_r = -const_r
+    minus_const_t = -const_t
 
     ! Compute rhs_u terms
     call invoke( name = "compute_elim_helmholtz_ru",           &
@@ -382,14 +415,20 @@ contains
     ! Compute H(rhs_u)
     if ( eliminate_variables == eliminate_variables_analytic ) then
       ! r_pi = rhs_pi - Q32*rhs_u
-      q32_op => get_eliminated_q32()
+      ! with the analytic Q32 = tau_r*dt*eliminated_q32_rho
+      !                       + tau_t*dt*eliminated_q32_theta
+      q32_rho_op   => get_eliminated_q32_rho()
+      q32_theta_op => get_eliminated_q32_theta()
       call r_p%initialise( rhs%get_function_space() )
-      call invoke( dg_matrix_vector_kernel_type(r_p, self%rhs_u, q32_op), &
-                   X_minus_Y(rhs, rhs_p, r_p ) )
+      call invoke( apply_analytic_q32_rhs_kernel_type(r_p, self%rhs_u,         &
+                                                      q32_rho_op,              &
+                                                      q32_theta_op,            &
+                                                      const_r, const_t),       &
+                   X_minus_Y(rhs, rhs_p, r_p) )
     else
       ! r_pi = rhs_pi + P03*M0^-1*rhs_t + M3rho*M3^-1*rhs_r
       ! r_rho already contains M3^-1 factor
-      mt_lumped_inv => get_normalisation_r_solver(Wtheta, mesh_id)
+      mt_lumped_inv => get_normalisation_r_solver(config, mesh, Wtheta)
       call rhs_d%initialise( rhs%get_function_space() )
       call invoke( setval_c( rhs_d, 0.0_r_solver ) )
       if ( element_order_h == 0 .and. element_order_v == 0 ) then
@@ -397,12 +436,12 @@ contains
                      opt_apply_variable_hx_kernel_type(                 &
                            rhs, self%rhs_u, mt_lumped_inv, rhs_d,       &
                            compound_div, p3theta, ptheta2, m3_rho_star, &
-                           minus_one, rhs_p) )
+                           minus_const_r, minus_const_t, rhs_p) )
       else
         call invoke( apply_variable_hx_kernel_type(                     &
                            rhs, self%rhs_u, mt_lumped_inv, rhs_d,       &
                            compound_div, p3theta, ptheta2, m3_rho_star, &
-                           minus_one),                                  &
+                           minus_const_r, minus_const_t),               &
                      inc_X_plus_Y(rhs, rhs_p) )
       end if
     end if
@@ -413,7 +452,7 @@ contains
     end if
 
     if ( normalise ) then
-       h_diag => get_helm_diag()
+       h_diag => get_helm_diag(self%stepper)
        call invoke( inc_X_times_Y(rhs, h_diag) )
     end if
 
@@ -428,8 +467,9 @@ contains
   !!          \f$\rho\f$ and potential temperature \f$\theta\f$.
   !>
   !> @param[in,out] self Instance of type mixed_schur_preconditioner_type
-  !> @param[in,out] state Solution \f$(\textbf{U},\theta,\rho,\Pi)\f$ of the mixed system
-  subroutine back_substitute(self, state)
+  !> @param[in]     config  Application configuration object
+  !> @param[in,out] state   Solution \f$(\textbf{U},\theta,\rho,\Pi)\f$ of the mixed system
+  subroutine back_substitute(self, config, state)
 
     use dg_inc_matrix_vector_kernel_mod, only: dg_inc_matrix_vector_kernel_type
     use operator_mod,                    only: r_solver_operator_type
@@ -438,7 +478,11 @@ contains
     use fs_continuity_mod,               only: W2
     use scaled_matrix_vector_kernel_mod, only: scaled_matrix_vector_kernel_type
     use schur_backsub_kernel_mod,        only: schur_backsub_kernel_type
+
     implicit none
+
+    type(config_type), intent(in) :: config
+
     class( mixed_schur_preconditioner_type ), intent( inout ) :: self
     type( r_solver_field_vector_type ),       intent( inout ) :: state
 
@@ -447,7 +491,9 @@ contains
     type( r_solver_operator_type ), pointer :: div_star
     type( r_solver_field_type )             :: u_inc
     type(r_solver_field_type),      pointer :: w2_mask
-    integer( kind=i_def )                   :: mesh_id
+    real( kind=r_solver )                   :: const_u
+
+    type(mesh_type), pointer :: mesh
 
     type(r_solver_field_type), pointer :: state_uv, &
                                           state_p,  &
@@ -461,21 +507,22 @@ contains
     if ( LPROF ) call start_timing( id, 'schur_precon.back_sub' )
 
     exner_inc => self%pressure_x%get_field_from_position(1)
-
-    mesh_id = self%rhs_u%get_mesh_id()
+    mesh => self%rhs_u%get_mesh()
 
     ! Create increment fields
 
     ! u increment
-    u_normalisation => get_normalisation_r_solver(W2, mesh_id)
+    u_normalisation => get_normalisation_r_solver(config, mesh, W2)
     div_star        => get_div_star()
-    Hb_lumped_inv   => get_Hb_lumped_inv()
+    Hb_lumped_inv   => get_Hb_lumped_inv(self%stepper)
+
+    const_u = get_tau_u_dt_cp(self%stepper)
     ! u' = ru + BC[HB * unorm * D * p']
     if ( split_w ) then
       state_uv => state%get_field_from_position( isol_uv )
       state_w  => state%get_field_from_position( isol_w )
       if ( limited_area ) then
-        w2_mask => get_mask_r_solver(W2, mesh_id, prime_mesh_name)
+        w2_mask => get_mask_r_solver(W2, mesh%get_id(), prime_mesh_name)
       else
         call dummy_field%initialise( vector_space = self%rhs_u%get_function_space() )
         w2_mask => dummy_field
@@ -483,6 +530,7 @@ contains
       call uvw_norm%initialise( vector_space = self%rhs_u%get_function_space() )
       call invoke( name = "compute_split_increments",                         &
                    X_times_Y(uvw_norm, u_normalisation, Hb_lumped_inv),       &
+                   inc_a_times_X(const_u, uvw_norm),                          &
                    setval_c(state_uv, 0.0_r_solver),                          &
                    schur_backsub_kernel_type( state_uv, state_w, self%rhs_u,  &
                                               exner_inc, div_star,            &
@@ -492,13 +540,13 @@ contains
       call u_inc%initialise( vector_space = self%rhs_u%get_function_space() )
       call invoke( name = "compute_increments",                                &
                    setval_c(u_inc, 0.0_r_solver),                              &
-                   setval_X(u_inc, self%rhs_u),                                &
                    scaled_matrix_vector_kernel_type(u_inc, exner_inc,          &
                                                     div_star, u_normalisation, &
-                                                    Hb_lumped_inv),            &
+                                                    Hb_lumped_inv, const_u),   &
+                   inc_X_plus_Y(u_inc, self%rhs_u),                            &
                    enforce_bc_kernel_type(u_inc) )
       if ( limited_area ) then
-        w2_mask => get_mask_r_solver(W2, mesh_id, prime_mesh_name)
+        w2_mask => get_mask_r_solver(W2, mesh%get_id(), prime_mesh_name)
         call invoke( inc_X_times_Y(u_inc, w2_mask) )
       end if
 
