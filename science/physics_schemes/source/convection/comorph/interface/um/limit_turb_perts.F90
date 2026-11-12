@@ -26,6 +26,11 @@ subroutine limit_turb_perts( z_theta, z_rho, p_layer_centres, temperature,     &
 
 use atm_fields_bounds_mod, only: tdims, pdims
 use nlsizes_namelist_mod, only: bl_levels
+#if !defined(LFRIC)
+use nlsizes_namelist_mod, only: global_row_length, global_rows
+use um_parcore, only: mype, nproc
+use umprintmgr, only: umprint, ummessage, newline
+#endif
 use qsat_mod, only: qsat_wat_mix
 
 implicit none
@@ -173,6 +178,52 @@ end do  ! k = 1, bl_levels
 !$OMP END DO NOWAIT
 
 !$OMP END PARALLEL
+
+#if !defined(LFRIC)
+if ( l_print_turb_perts_exceeded ) then
+  ! If printing diagnostics of how much the limit has been applied...
+
+  ! Count points where w variance was below the limit
+  n_inc_w_var = 0
+  mean_inc_w_var = 0.0
+  max_inc_w_var = 0.0
+  do k = 1, bl_levels
+    do j = pdims%j_start, pdims%j_end
+      do i = pdims%i_start, pdims%i_end
+        ! If w_var was below the calculated minimum allowed value...
+        if ( w_var_ratio(i,j,k) > 1.0 ) then
+          ! Increment counter for number of points where threshold exceeded
+          n_inc_w_var = n_inc_w_var + 1
+          ! Compute mean and max fractional increase in w_var
+          mean_inc_w_var = mean_inc_w_var + w_var_ratio(i,j,k)
+          max_inc_w_var = max( max_inc_w_var, w_var_ratio(i,j,k) )
+        end if
+      end do
+    end do
+  end do
+
+  ! Sum number of points where threshold exceeded, and mean and max increase
+  ! applied over all processors
+  call gc_isum( 1, nproc, istat, n_inc_w_var )
+  call gc_rsum( 1, nproc, istat, mean_inc_w_var )
+  call gc_rmax( 1, nproc, istat, max_inc_w_var )
+
+  ! Print the info to standard-out
+  if ( mype==0 .and. n_inc_w_var > 0 ) then
+    write( ummessage, "(A,I10,A,I10,A,ES14.6,A,ES14.6)" )                      &
+        "w_var increased to avoid unphysically large perturbations "//newline//&
+        "in the initiating parcel in comorph."                      //newline//&
+        "Number of points: ", n_inc_w_var, " out of ",                         &
+          bl_levels * global_row_length * global_rows,                newline//&
+        "Mean fractional increase at those points: ",                          &
+          mean_inc_w_var / real(n_inc_w_var),                         newline//&
+        "Max fractional increase: ", max_inc_w_var
+    call umPrint(ummessage,src='LIMIT_TURB_PERTS')
+  end if
+
+end if ! l_print_turb_perts_exceeded
+#endif
+
 
 return
 end subroutine limit_turb_perts

@@ -23,6 +23,11 @@ use nlsizes_namelist_mod, only: row_length, rows, bl_levels
 use cloud_inputs_mod, only: i_cld_vn
 use pc2_constants_mod, only: i_cld_pc2
 use ukca_option_mod, only: l_ukca, l_ukca_plume_scav
+#if !defined(LFRIC)
+use nlsizes_namelist_mod, only: tr_vars
+use idealise_run_mod, only: l_shallow
+use horiz_grid_mod, only: cartesian_grid
+#endif
 use model_domain_mod, only: model_type, mt_single_column
 use planet_constants_mod, only: g, r, rv, cp
 use water_constants_mod, only: tm, lc, lf,                                     &
@@ -133,6 +138,13 @@ l_cv_cloudfrac = ( i_cld_vn == i_cld_pc2 )
 ! so set switch to use approximation R/cp = R_dry/cp_dry
 l_approx_dry_adiabat = .true.
 
+#if !defined(LFRIC)
+! If the model is running in spherical coordinates without the
+! shallow atmosphere approximation, set spherical coordinates
+! switch for conservation
+l_spherical_coord = .not. ( cartesian_grid .or. l_shallow )
+#endif
+
 ! Set switch for scavenging of tracers by convective precip production;
 ! currently only implemented for UKCA aerosol and chemistry fields
 l_tracer_scav = l_ukca .and. l_ukca_plume_scav
@@ -215,6 +227,17 @@ allocate( tracer_positive(n_tracers) )
 do i_field = 1, n_tracers
   tracer_positive(i_field) = .true.
 end do
+#if !defined(LFRIC)
+! The one exception is possibly the user-defined free tracers; setting
+! these to negative values might be a legitimate thing to do, so
+! set positive-only flag to false for these
+if ( tr_vars > 0 ) then
+  ! i_tr_vars stores the index of the first free tracer field
+  do i_field = i_tr_vars, i_tr_vars + tr_vars - 1
+    tracer_positive(i_field) = .false.
+  end do
+end if
+#endif
 
 ! Number of downdraughts types
 n_dndraft_types = n_dndraft_types_um
