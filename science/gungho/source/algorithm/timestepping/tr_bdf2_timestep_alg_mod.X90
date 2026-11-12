@@ -93,6 +93,7 @@ module tr_bdf2_timestep_alg_mod
   use cld_alg_mod,                only: cld_alg
   use aerosol_ukca_alg_mod,       only: aerosol_ukca_alg
   use casim_activate_alg_mod,     only: casim_activate_alg
+  use mphys_inputs_mod,           only: casim_iopt_act, fixed_number
   use lsp_precfrac_checks_kernel_mod,                                          &
                                   only: lsp_precfrac_checks_kernel_type
   use stph_main_alg_mod,          only: spt_array_names,                       &
@@ -707,6 +708,8 @@ contains
 
 #ifdef UM_PHYSICS
     type(field_type),     pointer :: precfrac
+    type(field_type),     pointer :: liquid_fraction
+    type(field_type),     pointer :: cf_liq_pre_fast
     integer(kind=i_def)           :: glomap_mode
 #endif
 
@@ -813,6 +816,7 @@ contains
         murk_lbc = self%config%aerosol%murk_lbc()
       end if
     end if
+    microphysics_casim = .false.
     if (lbc_option == lbc_option_um2lfric_file                                 &
         .or. (use_physics .and. cloud == cloud_um)) then
       microphysics_casim = self%config%microphysics%microphysics_casim()
@@ -1293,6 +1297,17 @@ contains
               cloud_fields, dcfl_adv, dcff_adv, dbcf_adv, sec_adv, suffix_adv  &
           )
         end if
+#ifdef UM_PHYSICS
+        ! The CASIM mechanistic droplet activation works out how much liquid
+        ! cloud the fast physics has created or removed, so keep a copy of the
+        ! liquid cloud as it is on entry to the fast physics.
+        if (microphysics_casim .and. casim_iopt_act > fixed_number .and. &
+             outer == outer_iterations) then
+          call cloud_fields%get_field('liquid_fraction', liquid_fraction)
+          call microphysics_fields%get_field('cf_liq_pre_fast', cf_liq_pre_fast)
+          call invoke( setval_X(cf_liq_pre_fast, liquid_fraction) )
+        end if
+#endif
 
         call fast_physics(                                                     &
             self%config, self%du, self%dtheta, mr, self%state_n(igh_t),        &
@@ -1537,8 +1552,10 @@ contains
 
       if (microphysics_casim) then
         call casim_activate_alg(                                               &
-            self%config, self%state(igh_t), mr, derived_fields, cloud_fields,  &
-            microphysics_fields, convection_fields, initialise=.false.         &
+             self%config, self%state(igh_t), mr, self%mr_aft_adv(imr_cl),      &
+             derived_fields, cloud_fields, microphysics_fields,                &
+             convection_fields, aerosol_fields, turbulence_fields,             &
+             initialise=.false.                                                &
         )
       end if ! microphysics_casim
     end if
