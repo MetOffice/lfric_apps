@@ -4,7 +4,7 @@
 {# under which the code may be used. #}
 {# ########################################################################### #}
 {# Some content in this file was generated or refactored with assistance from #}
-{# - Met Office Claude Code Enterprise (Claude Opus 5.5) #}
+{# -  Met Office Github Copilot Enterprise (Claude Opus 5.5) #}
 {% do LOG.debug("Entered site/common/lfricinputs/tasks_lfric2um.cylc") %}
 
 {% if task_ns.conf_name == "lfric2um-aquaplanet-C48L38_N48L38" %}

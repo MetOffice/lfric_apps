@@ -4,7 +4,7 @@
 {# under which the code may be used. #}
 {# ########################################################################### #}
 {# Some content in this file was generated or refactored with assistance from #}
-{# - Met Office Claude Code Enterprise (Claude Opus 5.5) #}
+{# - Met Office Github Copilot Enterprise (Claude Opus 5.5) #}
 {% do LOG.debug("Entered templates/runtime/generate_runtime_gen_weights.cylc") %}
 
 {# Generate Weights tasks are assumed to run on the Scripts Platform - Spice for meto #}

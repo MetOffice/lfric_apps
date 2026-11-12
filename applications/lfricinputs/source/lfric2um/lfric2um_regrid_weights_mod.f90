@@ -3,6 +3,8 @@
 ! For further details please refer to the file LICENCE
 ! which you should have received as part of this distribution.
 ! *****************************COPYRIGHT*******************************
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Github Copilot Enterprise (Claude Opus 5.5)
 module lfric2um_regrid_weights_mod
 
 use lfricinp_regrid_weights_type_mod, only: lfricinp_regrid_weights_type
@@ -60,7 +62,7 @@ call mesh_face_centre_to_grid_v_bilinear % load(                               &
 call mesh_face_centre_to_grid_v_bilinear % populate_dst_address_2D(            &
      int(um_grid % num_v_points_x, kind=int32))
 
-! Optional land-masked P points weights, used for land-compressed fields
+! Optional land-masked P points weights, used for land fields
 if (trim(lfric2um_config%weights_file_face_centre_to_p_land_mask_bilinear)     &
     /= 'unset') then
   call mesh_face_centre_to_grid_p_land_mask_bilinear % load(                   &
@@ -138,7 +140,7 @@ case( p_points, ozone_points, land_compressed, p_points_values_over_sea )
   ! and the use appropriate weights
   unspecified = .true.
 
-  ! Land-compressed fields take the land-masked weights when available
+  ! Land fields take the land-masked weights when available
   if ( horiz_grid_code == land_compressed .and.                         &
        allocated(mesh_face_centre_to_grid_p_land_mask_bilinear % remap_matrix) ) then
     write(log_scratch_space, '((A,I4))')                                &

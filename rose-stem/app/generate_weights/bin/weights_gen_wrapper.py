@@ -5,7 +5,7 @@
 # which you should have received as part of this distribution.
 # *****************************COPYRIGHT*******************************
 # Some content in this file was generated or refactored with assistance from
-# - Met Office Claude Code Enterprise (Claude Opus 5.5)
+# - Met Office Github Copilot Enterprise (Claude Opus 5.5)
 '''
 Wrapper script for a set of commands/script used to create weights files.
 
