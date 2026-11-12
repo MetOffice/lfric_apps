@@ -518,21 +518,38 @@ class vn32_t881(MacroUpgrade):
         self.enable_setting(config, [iau_nml, "iau_outerloop"])
         self.enable_setting(config, [iau_nml, "iau_pc2"])
         self.enable_setting(config, [iau_nml, "iau_tendency_ainc"])
-        self.enable_setting(config, [iau_nml, "iau_use_level_on_temp"])
+        self.enable_setting(config, [iau_nml, "iau_use_level_one_temp"])
         self.enable_setting(config, [iau_nml, "iau_wet_density"])
+        self.enable_setting(config, [iau_nml, "iau_ainc_multifile"])
         self.enable_setting(config, [iau_nml, "iau_use_addinf"])
         self.enable_setting(config, [iau_nml, "iau_use_bcorr"])
+
+        if iau == ".false.":
+            self.ignore_setting(config, [choice_nml, "iau_sst"], state="!!")
+            self.ignore_setting(config, [choice_nml, "iau_surf"], state="!!")
+            self.ignore_setting(config, [iau_nml], state="!!")
+            self.ignore_setting(config, [iau_ainc_nml], state="!!")
+            self.ignore_setting(config, [iau_bcorr_nml], state="!!")
+            self.ignore_setting(config, [iau_bcorr_nml], state="!!")
 
         use_bcorr_io = self.get_setting_value(
             config, [iau_nml, "iau_use_bcorr"]
         )
         if use_bcorr_io == ".false.":
             self.ignore_setting(config, [iau_bcorr_nml], state="!!")
+            self.ignore_setting(config, [iau_nml, "iau_tendency_bcorr"], state="!!")
 
         use_addinf_io = self.get_setting_value(
             config, [iau_nml, "iau_use_addinf"]
         )
         if use_addinf_io == ".false.":
             self.ignore_setting(config, [iau_addinf_nml], state="!!")
+            self.ignore_setting(config, [iau_nml, "iau_tendency_addinf"], state="!!")
+
+        use_ainc_io = self.get_setting_value(
+            config, [iau_nml, "iau_ainc_multifile"]
+        )
+        if use_ainc_io == ".false.":
+            self.ignore_setting(config, [iau_ainc_nml], state="!!")
 
         return config, self.reports
