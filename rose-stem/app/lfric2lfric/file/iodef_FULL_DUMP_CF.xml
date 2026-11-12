@@ -18,15 +18,15 @@
       <file id="lfric_checkpoint_read" name="lfric_checkpoint_read" mode="read" output_freq="1ts" convention="UGRID" cyclic="true" enabled=".TRUE.">
 
         <!-- Atmosphere fields -->
-        <field id="restart_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" domain_ref="checkpoint_Wtheta" operation="once" />
-        <field id="restart_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" domain_ref="checkpoint_W3" operation="once" />
-        <field id="restart_exner" name="exner" long_name="exner_pressure" unit="1" domain_ref="checkpoint_W3" operation="once" />
-        <field id="restart_u" name="u" long_name="U" unit="m s-1" domain_ref="checkpoint_W2" operation="once" />
-        <field id="restart_m_v" name="m_v" long_name="m_v" unit="kg kg-1" domain_ref="checkpoint_Wtheta" operation="once" />
-        <field id="restart_m_cl" name="m_cl" long_name="m_cl" unit="kg kg-1" domain_ref="checkpoint_Wtheta" operation="once" />
-        <field id="restart_m_r" name="m_r" long_name="m_r" unit="kg kg-1" domain_ref="checkpoint_Wtheta" operation="once" />
-        <field id="restart_m_ci" name="m_ci" long_name="m_ci" unit="kg kg-1" domain_ref="checkpoint_Wtheta" operation="once" />
-        <field id="restart_m_s" name="m_s" long_name="m_s" unit="kg kg-1" domain_ref="checkpoint_Wtheta" operation="once" />
+        <field id="restart_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" domain_ref="legacy_Wtheta" operation="once" />
+        <field id="restart_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" domain_ref="legacy_W3" operation="once" />
+        <field id="restart_exner" name="exner" long_name="exner_pressure" unit="1" domain_ref="legacy_W3" operation="once" />
+        <field id="restart_u" name="u" long_name="U" unit="m s-1" domain_ref="legacy_W2" operation="once" />
+        <field id="restart_m_v" name="m_v" long_name="m_v" unit="kg kg-1" domain_ref="legacy_Wtheta" operation="once" />
+        <field id="restart_m_cl" name="m_cl" long_name="m_cl" unit="kg kg-1" domain_ref="legacy_Wtheta" operation="once" />
+        <field id="restart_m_r" name="m_r" long_name="m_r" unit="kg kg-1" domain_ref="legacy_Wtheta" operation="once" />
+        <field id="restart_m_ci" name="m_ci" long_name="m_ci" unit="kg kg-1" domain_ref="legacy_Wtheta" operation="once" />
+        <field id="restart_m_s" name="m_s" long_name="m_s" unit="kg kg-1" domain_ref="legacy_Wtheta" operation="once" />
 
         <!-- Turbulence fields -->
         <field id="restart_zh" name="zh" long_name="boundary_layer_depth" unit="m" prec="8" domain_ref="face" operation="once" />
@@ -89,15 +89,15 @@
       <file id="lfric_checkpoint_write" name="lfric_checkpoint_write" mode="write" output_freq="1ts" convention="CF" enabled=".TRUE.">
 
         <!-- Atmosphere fields -->
-        <field id="checkpoint_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" prec="8" domain_ref="checkpoint_Wtheta" operation="once" />
-        <field id="checkpoint_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" prec="8" domain_ref="checkpoint_W3" operation="once" />
-        <field id="checkpoint_exner" name="exner" long_name="exner_pressure" unit="1" prec="8" domain_ref="checkpoint_W3" operation="once" />
-        <field id="checkpoint_u" name="u" long_name="U" unit="m s-1" prec="8" domain_ref="checkpoint_W2" operation="once" />
-        <field id="checkpoint_m_v" name="m_v" long_name="m_v" unit="kg kg-1" prec="8" domain_ref="checkpoint_Wtheta" operation="once" />
-        <field id="checkpoint_m_cl" name="m_cl" long_name="m_cl" unit="kg kg-1" prec="8" domain_ref="checkpoint_Wtheta" operation="once" />
-        <field id="checkpoint_m_r" name="m_r" long_name="m_r" unit="kg kg-1" prec="8" domain_ref="checkpoint_Wtheta" operation="once" />
-        <field id="checkpoint_m_ci" name="m_ci" long_name="m_ci" unit="kg kg-1" prec="8" domain_ref="checkpoint_Wtheta" operation="once" />
-        <field id="checkpoint_m_s" name="m_s" long_name="m_s" unit="kg kg-1" prec="8" domain_ref="checkpoint_Wtheta" operation="once" />
+        <field id="checkpoint_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" prec="8" domain_ref="legacy_Wtheta" operation="once" />
+        <field id="checkpoint_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" prec="8" domain_ref="legacy_W3" operation="once" />
+        <field id="checkpoint_exner" name="exner" long_name="exner_pressure" unit="1" prec="8" domain_ref="legacy_W3" operation="once" />
+        <field id="checkpoint_u" name="u" long_name="U" unit="m s-1" prec="8" domain_ref="legacy_W2" operation="once" />
+        <field id="checkpoint_m_v" name="m_v" long_name="m_v" unit="kg kg-1" prec="8" domain_ref="legacy_Wtheta" operation="once" />
+        <field id="checkpoint_m_cl" name="m_cl" long_name="m_cl" unit="kg kg-1" prec="8" domain_ref="legacy_Wtheta" operation="once" />
+        <field id="checkpoint_m_r" name="m_r" long_name="m_r" unit="kg kg-1" prec="8" domain_ref="legacy_Wtheta" operation="once" />
+        <field id="checkpoint_m_ci" name="m_ci" long_name="m_ci" unit="kg kg-1" prec="8" domain_ref="legacy_Wtheta" operation="once" />
+        <field id="checkpoint_m_s" name="m_s" long_name="m_s" unit="kg kg-1" prec="8" domain_ref="legacy_Wtheta" operation="once" />
 
         <!-- Turbulence fields -->
         <field id="checkpoint_zh" name="zh" long_name="boundary_layer_depth" unit="m" prec="8" domain_ref="face" operation="once" />
@@ -201,7 +201,7 @@
         <field id="checkpoint_cor_ins_du" name="cor_ins_du" long_name="coarse_insoluble_mode_dust_mmr" unit="kg kg-1" prec="8" grid_ref="full_level_face_grid" operation="once" />
 
         <!-- gungho fields -->
-        <field id="checkpoint_m_g" name="m_g" long_name="m_g" unit="kg kg-1" prec="8" domain_ref="checkpoint_Wtheta" operation="once" />
+        <field id="checkpoint_m_g" name="m_g" long_name="m_g" unit="kg kg-1" prec="8" domain_ref="legacy_Wtheta" operation="once" />
 
         <!-- radiation fields -->
         <field id="checkpoint_horizon_angle" name="horizon_angle" long_name="horizon_zenith_angle" unit="radian" prec="8" domain_ref="face" axis_ref="horizon_angles" operation="once" />
