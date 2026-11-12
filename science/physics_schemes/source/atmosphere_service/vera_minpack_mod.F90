@@ -3,8 +3,6 @@
 ! For further details please refer to the file COPYRIGHT.txt
 ! which you should have received as part of this distribution.
 ! *********************************COPYRIGHT***********************************
-! Some of the content of this file has been produced with the assistance of
-! Anthropic Claude Opus 5 (Claude Code).
 !
 ! Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: atmos_service_vera
