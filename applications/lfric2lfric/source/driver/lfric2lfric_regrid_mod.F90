@@ -136,16 +136,8 @@ contains
 
     ! Get the geometry and topology of the destination mesh
     mesh_dst => mesh_collection%get_mesh(trim(mesh_names(dst)))
-    if (mesh_dst%is_geometry_spherical()) then
-      geometry = geometry_spherical
-    else if (mesh_dst%is_geometry_planar()) then
-      geometry = geometry_planar
-    end if
-    if (mesh_dst%is_topology_periodic()) then
-      topology = topology_fully_periodic
-    else if (mesh_dst%is_topology_non_periodic()) then
-      topology = topology_non_periodic
-    end if
+    geometry = mesh_dst%geometry()
+    topology = mesh_dst%topology()
 
     select case (regrid_method)
     case (regrid_method_map)
@@ -185,15 +177,15 @@ contains
             call interp_w2_to_w3wth_alg(field_src, u_in_w3_src,   &
                                         v_in_w3_src, w_in_wth_src)
  
-            call lfric2lfric_map_regrid(u_in_w3_dst, u_in_w3_src)
-            call lfric2lfric_map_regrid(v_in_w3_dst, v_in_w3_src)
-            call lfric2lfric_map_regrid(w_in_wth_dst, w_in_wth_src)
+            call lfric2lfric_map_regrid(modeldb%config, u_in_w3_dst, u_in_w3_src)
+            call lfric2lfric_map_regrid(modeldb%config, v_in_w3_dst, v_in_w3_src)
+            call lfric2lfric_map_regrid(modeldb%config, w_in_wth_dst, w_in_wth_src)
 
             call interp_w3wth_to_w2_alg(field_dst, u_in_w3_dst,    &
                                       v_in_w3_dst, w_in_wth_dst, &
                                       geometry, topology)
           else
-            call lfric2lfric_map_regrid(field_dst, field_src)
+            call lfric2lfric_map_regrid(modeldb%config, field_dst, field_src)
           end if
         else
           call lfric2lfric_no_regrid(field_dst)

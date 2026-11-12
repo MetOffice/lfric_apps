@@ -1,0 +1,8 @@
+{% do LOG.debug("Entered pawsey/suite_config.cylc") %}
+
+    [[PAWSEY_ORIG]]
+        platform = localhost
+
+{% include 'site/pawsey/common/suite_config_setonix.cylc' %}
+
+{% do LOG.debug("Finished in pawsey/suite_config.cylc") %}

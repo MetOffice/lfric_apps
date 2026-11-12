@@ -14,7 +14,7 @@ module tl_mol_conservative_alg_mod
   use log_mod,                        only: log_event,         &
                                             LOG_LEVEL_ERROR,   &
                                             LOG_LEVEL_INFO
-  use mesh_mod,                       only: mesh_type
+  use mesh_mod,                       only: mesh_type, topology_non_periodic
   use operator_mod,                   only: operator_type
   use timing_mod,                     only: start_timing, stop_timing, &
                                             tik, LPROF
@@ -43,7 +43,7 @@ module tl_mol_conservative_alg_mod
 
   ! Configuration modules
   use boundaries_config_mod, only: limited_area
-  use base_mesh_config_mod,  only: topology, topology_non_periodic
+  use base_mesh_config_mod,  only: topology
   use linear_config_mod,     only: transport_efficiency
   use transport_config_mod,  only: runge_kutta_method, &
                                    dry_field_name,     &
@@ -164,7 +164,7 @@ module tl_mol_conservative_alg_mod
     dt_mol_substep = ls_wind_precomputations%get_dt_mol_substep(               &
             mesh%get_id(), direction, splitting, step                          &
     )
-    div => get_directional_im3_div_r_tran(mesh_id, direction)
+    div => get_directional_im3_div_r_tran(config, mesh, direction)
 
     call get_rk_transport_weights(nstage, rk_weights, runge_kutta_method)
 
@@ -396,13 +396,12 @@ module tl_mol_conservative_alg_mod
           do_advective = .false.
 
         end if
-        call tl_advective_and_flux_alg(config,                                 &
+        call tl_advective_and_flux_alg( config,                                &
                 flux_step_ls_wind, flux_step_pert_wind, adv_inc,               &
                 rhs_field, advecting_wind,                                     &
                 stored_ls_field(ls_substep,ls_stage), ls_advecting_wind,       &
                 direction, transport_metadata, final_rk_stage,                 &
-                dt_mol_substep, do_flux, do_advective                          &
-        )
+                dt_mol_substep, do_flux, do_advective )
 
         if ( do_flux ) then
           call invoke( dg_matrix_vector_kernel_type(rhs, flux_step_ls_wind,    &
@@ -448,11 +447,10 @@ module tl_mol_conservative_alg_mod
     ! over the whole transport step
     ! If this is not the final step, field_np1 already includes the *advective*
     ! increment, and may be adjusted to enforce min value or in blending zone
-    call tl_end_of_conservative_step_alg(                                      &
+    call tl_end_of_conservative_step_alg( config,                              &
             field_np1, field, sum_flux_ls_wind, sum_flux_pert_wind,            &
             ls_wind_flux_precomp, pert_wind_flux_precomp,                      &
-            transport_counter, transport_metadata                              &
-    )
+            transport_counter, transport_metadata )
 
     if ( allocated(rk_field) ) deallocate(rk_field)
     if ( allocated(rk_weights) ) deallocate(rk_weights)

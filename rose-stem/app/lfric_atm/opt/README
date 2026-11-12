@@ -56,13 +56,20 @@ Science settings
 - murk - use single-species aerosol Murk
 - no_aerosol - use no aerosol scheme (fixed cloud drop number)
 - no_dust - don't use interactive dust
-- ral3 - regional configuration
-- ral3_ens - extra config for regional ensembles (including stochastic physics)
-- ral3_scm - single column regional physics (includes convection scheme)
+- ral4 - regional configuration
+- ral4_ens - extra config for regional ensembles (including stochastic physics)
+- ral4_scm - single column regional physics (includes convection scheme)
+- ral_blendshcu - development version of the turbulence blending for shallow
+                  cumulus regimes
 - ral_mixmol_opts - extra options for regional models when using the MoL
                     transport scheme and mixed solver configuration
 - ral_opts - extra options for regional models, including LBC blending weights
 - reynolds - use Reynolds daily SST time-series
+- tr_bdf2 - using the TR-BDF2 timestepper
+- tr_bdf2_big - using the TR-BDF2 timestepper and a larger stencil extent
+- tr_bdf2_big_ral - using the TR-BDF2 timestepper, a larger stencil extent and
+                    an alternative radiation timestep, appropriate to a 2.5 min
+                    overall timestep for regional models
 - ukca - UKCA Glomap aerosol scheme
 - urban2t - 2-tile urban scheme
 - dry_atm - a dry atmosphere

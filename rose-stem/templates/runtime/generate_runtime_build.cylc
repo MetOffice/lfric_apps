@@ -26,13 +26,6 @@
     task_values["tmpsize"],
     ) }}
 
-{# Set the psyclone transformation #}
-{% if task_values["psyclone_transformation"] == "default" %}
-    {% set psyclone_transformation = SITE~"-"~task_ns.platform %}
-{% else %}
-    {% set psyclone_transformation = task_values["psyclone_transformation"] %}
-{% endif %}
-
 {# Check to see if it is a Perftools compile, as we need to change the Makefile target#}
 {%- set BUILD_TARGET  = "build" -%}
 {%  set PAT_BUILD_APP = "" %}
@@ -45,7 +38,8 @@
 
     [[{{task}}]]
         inherit=BUILD_{{task_ns.application|upper}}_{{task_ns.platform|upper}}, {{resource_family|upper}}
-        script = 'if command -v module > /dev/null 2>&1; then module list; fi; rose task-run --app-key=compile'
+        # Forcing script to return true as a workaround for the issue with the Cray compiler returning ftn-2116 during linking stage on Setonix at Pawsey using cce/18.0.1
+        script = 'if command -v module > /dev/null 2>&1; then module list; fi; rose task-run --app-key=compile{% if SITE == "pawsey" %} || true{% endif %}'
         [[[environment]]]
             SOURCE_DIRECTORY        = $SOURCE_ROOT/{{src_path}}
             APPS_ROOT_DIR           = $SOURCE_ROOT/lfric_apps
@@ -59,7 +53,6 @@
             WORKING_DIR             = {{working_dir}}
             TARGET                  = {{BUILD_TARGET}}
             PROFILE                 = {{task_values["optlevel"]}}
-            PSYCLONE_TRANSFORMATION = {{psyclone_transformation}}
             UM_FCM_TARGET_PLATFORM  = {{SITE}}-{{task_ns.platform}}
             LFRIC_TARGET_PLATFORM   = {{SITE}}-{{task_ns.platform}}
             MAKE_THREADS            = {{task_values["build_cpus"]}}
@@ -70,6 +63,14 @@
             R_PHYS_PRECISION        = {{task_values["precision"]["rphys"]}}
             PRE_PROCESS_MACROS      = {{task_values["pre_process_macros"]}}
             PAT_BUILD_PATH          = {{PAT_BUILD_APP}}
+{% if 'vernier' in task_ns.compiler %}
+            USE_VERNIER             = true
+{% else %}
+            USE_LEGACY_TIMER        = true
+{% endif %}
+
+{{ set_psyclone_transformation(task_values["psyclone_transformation"]) }}
+
 {% if task_ns.application == "lfricinputs" %}
             PROGRAMS                = {{task_values["app_name"]}}
 {% endif %}

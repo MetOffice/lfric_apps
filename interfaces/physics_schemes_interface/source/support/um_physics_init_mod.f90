@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code via AI Foundry (Opus 5); #709
+!----------------------------------------------------------------------------
 !> @brief Controls the setting of variables for UM physics schemes, which
 !>         are either fixed in LFRic or derived from LFRic inputs
 
@@ -172,6 +175,7 @@ module um_physics_init_mod
            hetnuc_temp_in            => hetnuc_temp,                           &
            max_cmr_in                => max_cmr,                               &
            min_cmr_in                => min_cmr,                               &
+           min_radius_fac_in         => min_radius_fac,                        &
            n_dndraft_types_in        => n_dndraft_types,                       &
            nconc_cf_in               => nconc_cf,                              &
            nconc_cl_in               => nconc_cl,                              &
@@ -202,6 +206,7 @@ module um_physics_init_mod
            resdep_precipramp_in      => resdep_precipramp,                     &
            tdep_n_cf_in              => tdep_n_cf,                             &
            tdep_n_cl_in              => tdep_n_cl,                             &
+           turb_len_fac_in           => turb_len_fac,                          &
            vent_factor_in            => vent_factor,                           &
            wind_w_buoy_fac_in        => wind_w_buoy_fac,                       &
            wind_w_fac_in             => wind_w_fac
@@ -227,6 +232,9 @@ module um_physics_init_mod
                                         nsigmasf_in => nsigmasf,             &
                                         nscalesf_in => nscalesf,             &
                                         microphysics_casim,                  &
+                                        casim_activation,                    &
+                                        casim_activation_fixed,              &
+                                        casim_activation_arg,                &
                                         ci_input_in => ci_input,             &
                                         cic_input_in => cic_input,           &
                                         c_r_correl_in => c_r_correl,         &
@@ -242,14 +250,17 @@ module um_physics_init_mod
                                         heavy_rain_evap_fac_in =>            &
                                                 heavy_rain_evap_fac
 
-  use mixing_config_mod,         only : smagorinsky,                 &
-                                        mixing_method => method,     &
-                                        method_3d_smag,              &
-                                        method_2d_smag,              &
-                                        method_blend_smag_fa,        &
-                                        method_blend_1dbl_fa,        &
-                                        mix_factor_in => mix_factor, &
-                                        leonard_term
+  use mixing_config_mod, only : smagorinsky,                               &
+                                mixing_method => method,                   &
+                                method_3d_smag,                            &
+                                method_2d_smag,                            &
+                                method_blend_smag_fa,                      &
+                                method_blend_1dbl_fa,                      &
+                                method_blend_cth_shcu_only,                &
+                                cap_blended_ml_in => cap_blended_ml,       &
+                                shallow_cu_maxtop_in => shallow_cu_maxtop, &
+                                mix_factor_in => mix_factor,               &
+                                leonard_term
 
   use radiation_config_mod,      only : topography, topography_horizon
 
@@ -417,6 +428,7 @@ contains
          i_interp_local, i_interp_local_gradients, l_noice_in_turb,        &
          i_interp_local_cf_dbdz, tke_diag_fac, a_ent_2, dec_thres_cloud,   &
          dec_thres_cu, near_neut_z_on_l, blend_gridindep_fa,               &
+         blend_cth_shcu_only, shallow_cu_maxtop, cap_blended_ml,           &
          specified_fluxes_tstar, buoy_integ_low, num_sweeps_bflux,         &
          l_use_sml_dsc_fixes, l_converge_ga, improved_tke_diag
     use cloud_inputs_mod, only: i_cld_vn, forced_cu, i_rhcpt, i_cld_area,  &
@@ -438,13 +450,13 @@ contains
          ass_min_radius, autoc_opt, cf_area_coef, cf_conv_fac, coef_auto,      &
          col_eff_coef, core_ent_fac, drag_coef_cond, drag_coef_par, dx_ref,    &
          ent_coef, hetnuc_temp, l_core_ent_cmr, l_resdep_precipramp,           &
-         max_cmr, min_cmr, n_dndraft_types,                                    &
+         max_cmr, min_cmr, min_radius_fac, n_dndraft_types,                    &
          nconc_cf, nconc_cl, nconc_graup, nconc_rain, nconc_snow,              &
          overlap_power, par_gen_core_fac, par_gen_mass_fac,                    &
          par_gen_pert_fac, par_gen_rhpert, par_radius_evol_method,             &
          par_radius_init_method, par_radius_knob, par_radius_knob_max,         &
          par_radius_ppn_max, rain_area_min, rho_rim, tdep_n_cf, tdep_n_cl,     &
-         vent_factor, wind_w_buoy_fac, wind_w_fac,                             &
+         turb_len_fac, vent_factor, wind_w_buoy_fac, wind_w_fac,               &
          ! Namelis checking subroutine
          check_run_comorph,                                                    &
          ! Allowed values for multi-option switches
@@ -515,6 +527,7 @@ contains
         a_ratio_fac, l_droplet_tpr, qclrime, l_shape_rime, ndrop_surf,       &
         z_surf, l_fsd_generator, mp_dz_scal, l_subgrid_qcl_mp, aut_qc,       &
         l_mphys_nonshallow, casim_iopt_act, casim_iopt_inuc,                 &
+        abdul_razzak_ghan,                                                   &
         casim_aerosol_couple_choice,l_casim,                                 &
         casim_aerosol_process_level,casim_moments_choice,                    &
         casim_aerosol_option,                                                &
@@ -537,7 +550,8 @@ contains
                               irs, ire, jrs, jre, krs, kre,              &
                               casim_moments_option, n_casim_tracers,     &
                               l_casim_warm_only,                         &
-                              l_ukca_aerosol, no_aerosol_modes
+                              l_ukca_aerosol, no_aerosol_modes,          &
+                              soluble_insoluble_modes
     use casim_stph, only: l_rp2_casim
     use casim_set_dependent_switches_mod, only:                                &
           casim_set_dependent_switches,                                        &
@@ -965,6 +979,8 @@ contains
         l_resdep_precipramp    = resdep_precipramp_in
         dx_ref                 = real( dx_ref_in,                 r_um )
         ass_min_radius         = real( ass_min_radius_in,         r_um )
+        min_radius_fac         = real( min_radius_fac_in,         r_um )
+        turb_len_fac           = real( turb_len_fac_in,           r_um )
 
         ! Plume model
         ent_coef               = real( ent_coef_in,               r_um )
@@ -1179,7 +1195,7 @@ contains
 
       if ( moisture_formulation == moisture_formulation_dry ) then
         write( log_scratch_space, '(A)' )                                   &
-            'moisture_formulation /= ''dry'' is required for UM cloud'
+            "moisture_formulation /= 'dry' is required for UM cloud"
         call log_event( log_scratch_space, LOG_LEVEL_ERROR )
       end if
 
@@ -1474,14 +1490,45 @@ contains
 
 
         casim_moments_option = 22222   ! all double moment
-        casim_iopt_act = 0_i_um     ! 'fixed number'
         casim_aerosol_option = 0_i_um   ! no soluble or insoluble aerosol modes
         casim_aerosol_process_level = 0_i_um
         casim_aerosol_couple_choice = 0_i_um
         l_ukca_aerosol = .false.
 
+        select case (casim_activation)
+
+          case (casim_activation_fixed)
+            casim_iopt_act = fixed_number
+
+          case (casim_activation_arg)
+            ! Mechanistic activation following Abdul-Razzak and Ghan, driven by
+            ! the GLOMAP modal aerosol, which must therefore be available.
+            if ( glomap_mode /= glomap_mode_ukca ) then
+              write( log_scratch_space, '(A)' )                                &
+                 'CASIM Abdul-Razzak and Ghan activation requires the UKCA '// &
+                 'GLOMAP aerosol, stopping'
+              call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+            end if
+            casim_iopt_act = abdul_razzak_ghan
+
+          case default
+            write( log_scratch_space, '(A,I0)' )                               &
+               'Invalid CASIM activation option, stopping', casim_activation
+            call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+
+        end select
+
         casim_moments_choice = 1_i_um
         CALL casim_set_dependent_switches
+
+        if (casim_iopt_act == abdul_razzak_ghan) then
+          ! casim_set_dependent_switches only asks for the insoluble modes when
+          ! the ice nucleation scheme needs them, but LFRic always supplies the
+          ! full set of soluble and insoluble GLOMAP modes to CASIM. This is
+          ! safe here because the aerosol option is not passed on to CASIM until
+          ! the call to set_mphys_switches below.
+          casim_aerosol_option = soluble_insoluble_modes
+        end if
 
         ! Tell CASIM that its parent model is the UM. This allows for any UM-specific
         ! operations to take place within CASIM.
@@ -1700,6 +1747,9 @@ contains
       mix_factor = real(mix_factor_in, r_um)
       turb_startlev_vert  = 2
       turb_endlev_vert    = bl_levels
+      if (mixing_method /= method_3d_smag) then
+        cap_blended_ml = cap_blended_ml_in
+      end if
 
       ! Options which are bespoke to the choice of scheme
       select case ( mixing_method )
@@ -1722,6 +1772,11 @@ contains
         l_subfilter_horiz = .true.
         l_subfilter_vert  = .true.
         blending_option   = blend_gridindep_fa
+      case( method_blend_cth_shcu_only )
+        l_subfilter_horiz = .true.
+        l_subfilter_vert  = .true.
+        blending_option   = blend_cth_shcu_only
+        shallow_cu_maxtop = real(shallow_cu_maxtop_in, r_bl)
       end select
 
     else ! not Smagorinsky

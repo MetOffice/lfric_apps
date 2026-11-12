@@ -43,7 +43,7 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine setUp( this )
 
-    use base_mesh_config_mod,      only : geometry_spherical,                  &
+    use mesh_mod,                  only : geometry_spherical,                  &
                                           topology_non_periodic
     use extrusion_config_mod,      only : method_uniform,                      &
                                           stretching_method_linear
@@ -61,6 +61,10 @@ contains
     implicit none
 
     class(compute_vert_coriolis_matrix_test_type), intent(inout) :: this
+
+    real(r_def), parameter :: geostrophic_north_pole(2) = [0.0_r_def, PI/2.0_r_def]
+    real(r_def), parameter :: null_island(2) = [0.0_r_def, 0.0_r_def]
+    real(r_def), parameter :: equator_latitude = 0.0_r_def
 
     call feign_base_mesh_config(                                               &
             file_prefix='foo',                                                 &
@@ -124,7 +128,14 @@ contains
             scaling_factor=1.0_r_def                                           &
     )
 
-    call init_chi_transforms(geometry_spherical, topology_non_periodic)
+    ! Note: Calling 'init_chi_transforms' is only valid for meshes which have a
+    !       spherical geometry and coordinate system. While it may not be relevant
+    !       to this mesh, it is called due to an unknown interaction which changes
+    !       results. If it is not applicable to this mesh, it should be removed once
+    !       this issue is resolved.
+    call init_chi_transforms( geostrophic_north_pole, &
+                              null_island, &
+                              equator_latitude )
 
   end subroutine setUp
 

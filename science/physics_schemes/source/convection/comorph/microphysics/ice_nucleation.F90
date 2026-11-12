@@ -24,14 +24,15 @@ contains
 subroutine ice_nucleation( n_points,                                           &
                            nc_liq, index_ic_liq,                               &
                            nc_ice, index_ic_ice,                               &
-                           delta_t, ref_temp, q_liq, q_ice,                    &
+                           ref_temp, q_liq, q_ice,                             &
                            temperature, cp_tot,                                &
                            dq_frz_tot, l_diags,                                &
                            i_liq, i_ice, moist_proc_diags,                     &
                            n_points_diag, n_diags, diags_super )
 
 use comorph_constants_mod, only: real_cvprec, zero,                            &
-                                 homnuc_temp, hetnuc_temp, coef_hetnuc
+                                 homnuc_temp, hetnuc_temp,                     &
+                                 q_activate
 use moist_proc_diags_type_mod, only: moist_proc_diags_type
 
 use lat_heat_mod, only: lat_heat_incr, i_phase_change_frz
@@ -52,9 +53,6 @@ integer, intent(in out) :: nc_ice
 integer, intent(in out) :: index_ic_ice(n_points)
 ! (this list get altered if new ice is formed at a point where
 !  there wasn't any before)
-
-! Time interval
-real(kind=real_cvprec), intent(in) :: delta_t(n_points)
 
 ! Reference temperature used freezing threshold check
 real(kind=real_cvprec), intent(in) :: ref_temp(n_points)
@@ -91,7 +89,7 @@ real(kind=real_cvprec), intent(in out) :: diags_super                          &
                                          ( n_points_diag, n_diags )
 
 ! Amount of mixing ratio to be frozen by this routine
-real(kind=real_cvprec) :: dq_frz(nc_liq)
+real(kind=real_cvprec) :: dq_frz(n_points)
 
 ! Number of points (and their indices) where freezing occurs
 integer :: nc_frz
@@ -100,7 +98,7 @@ integer :: index_ic_frz(n_points)
 ! Flag for whether all liquid has been frozen at any points
 logical :: l_full_frz
 ! Flag for whether new ice added where none yet exists
-logical :: l_added_where_none
+logical :: l_frz_where_no_ice
 ! Temporary store for number of points when rejigging list
 integer :: nc_tmp
 
@@ -108,129 +106,127 @@ integer :: nc_tmp
 integer :: ic, ic2, i_super
 
 
-! Find points where freezing will occur (any where liquid
-! exists below the heterogeneous freezing threshold)
+! Initialise flag for fully removing liquid from any grid-points
+l_full_frz = .false.
+! Initialise flag for adding ice at new grid-points
+l_frz_where_no_ice = .false.
+
+! First, do homogeneous freezing...
+
+! Find points where reference temperature below homogeneous freezing threshold
 nc_frz = 0
 do ic2 = 1, nc_liq
   ic = index_ic_liq(ic2)
-  if ( ref_temp(ic) <= hetnuc_temp ) then
+  ! Initialise freezing increment to zero at all liquid points
+  dq_frz(ic) = zero
+  if ( ref_temp(ic) < homnuc_temp ) then
     nc_frz = nc_frz + 1
     index_ic_frz(nc_frz) = ic
+    ! Set flag where about to add ice at a grid-point that doesn't have any
+    if ( .not. q_ice(ic) > zero )  l_frz_where_no_ice = .true.
   end if
 end do
 
-! If any points...
 if ( nc_frz > 0 ) then
+  ! If any points below homnuc_temp...
 
   do ic2 = 1, nc_frz
     ic = index_ic_frz(ic2)
-    ! Calculate heterogeneous nucleation rate
-    dq_frz(ic2) = coef_hetnuc * q_liq(ic)                                      &
-                  * delta_t(ic)  ! convert to increment
-  end do
-
-  ! Overwrite with increment to remove all liquid at points
-  ! where below the homogeneous freezing threshold, and
-  ! also check that the heterogeneous nucleation formula hasn't
-  ! removed more liquid than exists
-  l_full_frz = .false.
-  do ic2 = 1, nc_frz
-    ic = index_ic_frz(ic2)
-    if ( ref_temp(ic) <= homnuc_temp                                           &
-         .or. dq_frz(ic2) >= q_liq(ic) ) then
-      dq_frz(ic2) = q_liq(ic)
-      ! Set flag if all the liquid has been frozen at any points
-      l_full_frz = .true.
-    end if
-  end do
-
-  ! Check whether new ice is being added where none yet exists
-  l_added_where_none = .false.
-  over_nc_frz: do ic2 = 1, nc_frz
-    ic = index_ic_frz(ic2)
-    if ( .not. q_ice(ic) > zero ) then
-      l_added_where_none = .true.
-      exit over_nc_frz
-    end if
-  end do over_nc_frz
-
-  do ic2 = 1, nc_frz
-    ic = index_ic_frz(ic2)
-
-    ! Transfer water from liquid to ice
-    q_liq(ic) = q_liq(ic) - dq_frz(ic2)
-    q_ice(ic) = q_ice(ic) + dq_frz(ic2)
-
-    ! Increment total rate of freezing onto the ice
-    dq_frz_tot(ic) = dq_frz_tot(ic) + dq_frz(ic2)
+    ! Store increment, and transfer all liquid to ice
+    dq_frz(ic) = q_liq(ic)
+    q_ice(ic) = q_ice(ic) + dq_frz(ic)
+    q_liq(ic) = zero
+    ! Set flag to indicate total removal of liquid
+    l_full_frz = .true.
+    ! Increment total rate if freezing onto the ice
+    dq_frz_tot(ic) = dq_frz_tot(ic) + dq_frz(ic)
   end do
 
   ! Increment air temperature and heat capacity
   ! with latent heat of fusion
   call lat_heat_incr( n_points, nc_frz, i_phase_change_frz,                    &
                       cp_tot, temperature,                                     &
-                      index_ic=index_ic_frz, dq_cmpr=dq_frz )
+                      index_ic=index_ic_frz, dq=dq_frz )
 
-  ! If full freezing was done, need to regenerate the list of
-  ! points containing liquid to exclude fully-frozen points
-  if ( l_full_frz ) then
-    nc_tmp = nc_liq
-    nc_liq = 0
-    do ic2 = 1, nc_tmp
-      ic = index_ic_liq(ic2)
-      if ( q_liq(ic) > zero ) then
-        nc_liq = nc_liq + 1
-        index_ic_liq(nc_liq) = ic
-      end if
-    end do
+end if  ! ( nc_frz > 0 )
+
+
+! Now do heterogeneous nucleation...
+
+! Wherever we have liquid present below the heterogeneous nucleation
+! threshold, force q_ice to be nonzero.  Note that this nucleation value
+! q_activate is set to be the smallest possible floating point number
+! using TINY; there is no point adjusting T, q, qcl as the increment
+! will be far smaller than the floating point precision.  It is only
+! there to add nucleating points to the ice compression list so that
+! the ice subsequently grows via other processes
+! (vapour deposition, riming, etc)
+do ic2 = 1, nc_liq
+  ic = index_ic_liq(ic2)
+  if ( ref_temp(ic) <= hetnuc_temp .and.                                       &
+       ( .not. q_ice(ic) > zero ) ) then
+    q_ice(ic) = q_activate
+    dq_frz(ic) = q_activate
+    l_frz_where_no_ice = .true.
   end if
+end do
 
-  ! If new ice added where none yet existed, need to regenerate
-  ! the list of points containing ice to include new points
-  if ( l_added_where_none ) then
-    nc_ice = 0
-    do ic = 1, n_points
-      if ( q_ice(ic) > zero ) then
-        nc_ice = nc_ice + 1
-        index_ic_ice(nc_ice) = ic
-      end if
-    end do
-  end if
 
-  ! Store diagnostics, if requested...
-  if ( l_diags ) then
+! Store diagnostics, if requested...
+if ( l_diags ) then
+  if ( nc_frz > 0 .or. l_frz_where_no_ice ) then
+    ! If any freezing was done...
 
     ! Diagnostic of freezing/melting increment to q_liq
-    if ( moist_proc_diags % diags_cond(i_liq)%pt                               &
-         % dq_frzmlt % flag ) then
+    if ( moist_proc_diags % diags_cond(i_liq)%pt % dq_frzmlt % flag ) then
       ! Extract super-array address
-      i_super = moist_proc_diags % diags_cond(i_liq)%pt                        &
-         % dq_frzmlt % i_super
+      i_super = moist_proc_diags % diags_cond(i_liq)%pt % dq_frzmlt % i_super
       ! Increment the diagnostic
-      do ic2 = 1, nc_frz
-        ic = index_ic_frz(ic2)
-        diags_super(ic,i_super) = diags_super(ic,i_super)                      &
-                                - dq_frz(ic2)
+      do ic2 = 1, nc_liq
+        ic = index_ic_liq(ic2)
+        diags_super(ic,i_super) = diags_super(ic,i_super) - dq_frz(ic)
       end do
     end if
 
     ! Diagnostic of freezing/melting increment to q_ice
-    if ( moist_proc_diags % diags_cond(i_ice)%pt                               &
-         % dq_frzmlt % flag ) then
+    if ( moist_proc_diags % diags_cond(i_ice)%pt % dq_frzmlt % flag ) then
       ! Extract super-array address
-      i_super = moist_proc_diags % diags_cond(i_ice)%pt                        &
-                % dq_frzmlt % i_super
+      i_super = moist_proc_diags % diags_cond(i_ice)%pt % dq_frzmlt % i_super
       ! Increment the diagnostic
-      do ic2 = 1, nc_frz
-        ic = index_ic_frz(ic2)
-        diags_super(ic,i_super) = diags_super(ic,i_super)                      &
-                                + dq_frz(ic2)
+      do ic2 = 1, nc_liq
+        ic = index_ic_liq(ic2)
+        diags_super(ic,i_super) = diags_super(ic,i_super) + dq_frz(ic)
       end do
     end if
 
-  end if  ! ( l_diags )
+  end if  ! ( nc_frz > 0 )
+end if  ! ( l_diags )
 
-end if  ! ( nc_frz > 0 )
+! If full freezing was done, need to regenerate the list of
+! points containing liquid to exclude fully-frozen points
+if ( l_full_frz ) then
+  nc_tmp = nc_liq
+  nc_liq = 0
+  do ic2 = 1, nc_tmp
+    ic = index_ic_liq(ic2)
+    if ( q_liq(ic) > zero ) then
+      nc_liq = nc_liq + 1
+      index_ic_liq(nc_liq) = ic
+    end if
+  end do
+end if
+
+! If new ice added where none yet existed, need to regenerate
+! the list of points containing ice to include new points
+if ( l_frz_where_no_ice ) then
+  nc_ice = 0
+  do ic = 1, n_points
+    if ( q_ice(ic) > zero ) then
+      nc_ice = nc_ice + 1
+      index_ic_ice(nc_ice) = ic
+    end if
+  end do
+end if
 
 
 return
