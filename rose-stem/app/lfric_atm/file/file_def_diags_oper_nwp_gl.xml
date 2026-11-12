@@ -152,6 +152,10 @@
       <field field_ref="aviation__geopot_thickness_500"/>
       <field field_ref="convection__conv_cloud_base_icao_height"/>
       <field field_ref="convection__conv_cloud_top_icao_height"/>
+      <field field_ref="aviation__trop_pressure"/>
+      <field field_ref="aviation__trop_temperature"/>
+      <field field_ref="aviation__trop_height"/>
+      <field field_ref="aviation__trop_icao_height"/>
       <field field_ref="aviation__uv_wind_divergence"/>
     </field_group>
 

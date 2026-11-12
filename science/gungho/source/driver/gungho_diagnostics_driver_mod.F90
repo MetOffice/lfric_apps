@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code via AI Foundry (Claude Opus 4.8); PR #715.
+! - Met Office Claude Code via AI Foundry (Claude Opus 5.5); PR #715.
 
 !> @brief Outputs diagnostics from gungho/lfric_atm
 
@@ -358,8 +361,8 @@ contains
       ! Wet bulb freezing level
       call freeze_lev_alg(modeldb%config,theta, mr, moist_dyn, exner_in_wth)
       ! Aviation diagnostics
-      call aviation_diags_alg(modeldb%config, mesh, plev_geopot, &
-        u, exner, element_order_h, element_order_v)
+      call aviation_diags_alg(modeldb%config, mesh, theta, exner_in_wth, &
+        plev_geopot, u, exner, element_order_h, element_order_v)
 #endif
 
       temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')
