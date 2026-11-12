@@ -152,6 +152,8 @@
       <field field_ref="aviation__geopot_thickness_500"/>
       <field field_ref="convection__conv_cloud_base_icao_height"/>
       <field field_ref="convection__conv_cloud_top_icao_height"/>
+      <field field_ref="convection__lowest_conv_cloud_base_icao_height"/>
+      <field field_ref="convection__lowest_conv_cloud_top_icao_height"/>
       <field field_ref="aviation__uv_wind_divergence"/>
     </field_group>
 
@@ -253,7 +255,7 @@
     </field_group>    
 
     <!-- Radiation timestep radiation diagnostics -->
-    <field_group operation="instant" freq_op="3h" freq_offset="0ts" prec="4">
+    <field_group operation="instant" freq_op="3h" freq_offset="0ts">
       <field field_ref="radiation__sw_direct_uv_surf_rts"/>
       <field field_ref="radiation__sw_up_uv_surf_rts"/>
       <field field_ref="radiation__sw_down_uv_surf_rts"/>
