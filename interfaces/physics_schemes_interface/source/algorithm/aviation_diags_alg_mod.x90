@@ -56,11 +56,10 @@ contains
   !> @param[in] plev_geopot      Geopotential height at pressure levels in m.
   !> @param[in] wind             3D wind field on W2
   !> @param[in] exner_w3         Exner pressure on W3
-  !> @param[in] main_mesh        Primary mesh pointer
   !> @param[in] element_order_h  Element order in the horizontal
   !> @param[in] element_order_v  Element order in the vertical
-  subroutine aviation_diags_alg(config, mesh, theta, exner_in_wth, plev_geopot,&
-                                wind, exner_w3, main_mesh,                 &
+  subroutine aviation_diags_alg(config, mesh, theta, exner_in_wth,             &
+                                plev_geopot, wind, exner_w3,                   &
                                 element_order_h, element_order_v)
 
     implicit none
