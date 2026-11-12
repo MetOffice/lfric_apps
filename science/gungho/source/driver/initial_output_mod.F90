@@ -50,16 +50,7 @@ contains
     class(modeldb_type),      intent(inout) :: modeldb
     type(mesh_type), pointer, intent(in)    :: mesh
     type(mesh_type), pointer, intent(in)    :: twod_mesh
-    character(*),             intent(in)    :: io_context_name
     logical(l_def),           intent(in)    :: nodal_output_on_w3
-#ifdef USE_XIOS
-    type(lfric_xios_context_type), pointer :: io_context
-    ! Call clock initial step before initial conditions output
-    if (modeldb%clock%is_initialisation() .and. use_xios_io) then
-      call modeldb%io_contexts%get_io_context(io_context_name, io_context)
-      call advance(io_context, modeldb%clock)
-    end if
-#endif
 
     if (write_initial) then
       if (modeldb%clock%is_initialisation() .and. write_diag) then
