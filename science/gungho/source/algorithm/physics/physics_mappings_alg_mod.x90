@@ -45,10 +45,7 @@ module physics_mappings_alg_mod
                                         only: nodal_xyz_coordinates_kernel_type
   use sci_field_minmax_alg_mod,         only: log_field_minmax
 
-  ! Configuration modules
-  use finite_element_config_mod, only: coord_system, &
-                                       coord_system_native
-  use planet_config_mod,         only: scaled_radius
+  use finite_element_config_mod, only: coord_system_native
 
   implicit none
 
@@ -236,22 +233,25 @@ contains
 
   !> @details Splits a 3D wind field into Horizontal (on W2H) and Vertical (on W2V)
   !>          fields after projecting to physical space using the Piola transform
+  !> @param[in] config       Application configuration object
+  !> @param[in] mesh         Mesh
   !> @param[in,out] u1_wind  Meridional wind component
   !> @param[in,out] u2_wind  Zonal wind component
   !> @param[in,out] u3_wind  Vertical wind component
   !> @param[in] wind         3D wind field
-  !> @param[in] mesh         Mesh
-  subroutine split_wind_alg(u1_wind, u2_wind, u3_wind, &
-                            wind, mesh)
+  subroutine split_wind_alg(config, mesh, u1_wind, u2_wind, u3_wind, wind)
 
     use sci_extract_w_kernel_mod,  only: extract_w_kernel_type
     use sci_extract_uv_kernel_mod, only: extract_uv_kernel_type
 
     implicit none
 
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
+
     type(field_type), intent(inout)  :: u1_wind, u2_wind, u3_wind
     type(field_type), intent(in)     :: wind
-    type(mesh_type),  intent(in)     :: mesh
+
 
     type(field_type), pointer    :: chi(:)
     type(field_type), pointer    :: panel_id
@@ -263,6 +263,12 @@ contains
 
     integer(i_def)               :: i, fs_id
     logical(l_def)               :: optimised_conversion
+
+    integer(i_def) :: coord_system
+    real(r_def)    :: scaled_radius
+
+    coord_system  = config%finite_element%coord_system()
+    scaled_radius = config%planet%scaled_radius()
 
     ! get chi field
     chi      => get_coordinates(mesh)

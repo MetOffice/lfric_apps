@@ -116,8 +116,7 @@ contains
     call derived_fields%get_field('u_in_w2h', u_in_w2h)
     call derived_fields%get_field('v_in_w2h', v_in_w2h)
     call derived_fields%get_field('w_in_wth', w_in_wth)
-    call split_wind_alg(u_in_w2h, v_in_w2h, w_in_wth, &
-                        u, mesh)
+    call split_wind_alg(config, mesh, u_in_w2h, v_in_w2h, w_in_wth, u)
 
     call derived_fields%get_field('u_physics', u_physics)
     call derived_fields%get_field('velocity_w2v', velocity_w2v)

@@ -16,7 +16,6 @@ module tl_si_timestep_alg_mod
                                          LOG_LEVEL_ERROR
   use model_clock_mod,             only: model_clock_type
   use driver_modeldb_mod,          only: modeldb_type
-  use model_clock_mod,             only: model_clock_type
   use reference_element_mod,       only: T
 
 
