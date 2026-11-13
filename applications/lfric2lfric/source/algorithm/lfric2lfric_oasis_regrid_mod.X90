@@ -93,7 +93,7 @@ contains
     type(field_collection_type), pointer   :: cpl_snd_2d => null()
     type(field_collection_type), pointer   :: cpl_rcv_2d => null()
     integer(i_def), pointer                :: local_index(:)
-    character(len=str_def)                 :: coupling_field_src_name,
+    character(len=str_def)                 :: coupling_field_src_name
     character(len=str_def)                 :: coupling_field_dst_name
     character(len=str_def)                 :: field_name
     character(len=str_def)                 :: k_string, format_string
