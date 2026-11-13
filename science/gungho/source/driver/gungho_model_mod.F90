@@ -72,7 +72,8 @@ module gungho_model_mod
                                          minmax_tseries_final
   use mesh_mod,                   only : mesh_type, &
                                          geometry_planar, &
-                                         geometry_spherical
+                                         geometry_spherical, &
+                                         topology_periodic
   use mesh_collection_mod,        only : mesh_collection
   use clock_mod,                  only : clock_type
   use model_clock_mod,            only : model_clock_type
@@ -285,6 +286,7 @@ contains
 #ifdef UM_PHYSICS
     integer(i_def) :: i
 #endif
+    logical :: legacy
 
     DT = clock%get_seconds_per_step()
     call set_variable("DT", DT, tolerant=.true.)
@@ -298,8 +300,12 @@ contains
       to_process_nudging_fields = .false.
     end if
 
+
     call persistor%init(clock)
-    call process_gungho_prognostics(persistor)
+
+    legacy = ( (config%base_mesh%geometry() == geometry_planar) .and. &
+               (config%base_mesh%topology() == topology_periodic) )
+    call process_gungho_prognostics(persistor, legacy)
     ! Add the temperature_correction_rate to the appropriate files
     if(checkpoint_write) then
       if ( encorr_usage /= encorr_usage_none ) then
@@ -424,8 +430,7 @@ contains
       end if
     end if
 
-
-    if (limited_area) call process_lbc_fields(persistor)
+    if (limited_area) call process_lbc_fields(persistor, legacy)
     if (use_physics) then
       call process_physics_prognostics(persistor)
       if (to_process_nudging_fields)   &
@@ -1207,7 +1212,7 @@ contains
 
     if (write_minmax_tseries) then
       call minmax_tseries_init('u')
-      call minmax_tseries(u, 'u', mesh)
+      call minmax_tseries(modeldb%config, mesh, u, 'u')
     end if
 
     select case( method )

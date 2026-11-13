@@ -54,7 +54,7 @@ module init_from_controller_alg_mod
     implicit none
 
     ! Arguments
-    type(mesh_type),                              pointer, intent(in) :: mesh
+    type(mesh_type),                                       intent(in) :: mesh
     integer(kind=i_def),                                   intent(in) :: num_steps
     type(r_tran_field_type), dimension(:), allocatable, intent(inout) :: flux_inp
     type(transport_controller_type),                    intent(inout) :: transport_controller
@@ -102,7 +102,7 @@ module init_from_controller_alg_mod
     implicit none
 
     ! Arguments
-    type(mesh_type),                              pointer, intent(in) :: mesh
+    type(mesh_type),                                       intent(in) :: mesh
     integer(kind=i_def),                                   intent(in) :: mesh_idx
     type(r_tran_field_type), dimension(:), allocatable, intent(inout) :: flux_pc_ref_flux_inp
     type(r_tran_field_type), dimension(:), allocatable, intent(inout) :: flux_pc_ref_field_inp
@@ -185,7 +185,7 @@ module init_from_controller_alg_mod
     implicit none
 
     ! Arguments
-    type(mesh_type),                              pointer, intent(in) :: mesh
+    type(mesh_type),                                    intent(in)    :: mesh
     type(field_type),                                   intent(inout) :: counter_field_n_inp
     type(r_tran_field_type), dimension(:), allocatable, intent(inout) :: counter_flux_inp
     type(transport_controller_type),                    intent(inout) :: transport_controller
@@ -246,7 +246,7 @@ module init_from_controller_alg_mod
     implicit none
 
     ! Arguments
-    type(mesh_type),           pointer, intent(in) :: mesh
+    type(mesh_type),                    intent(in) :: mesh
     type(field_type),                intent(inout) :: wind_pc_inp
     integer(kind=i_def),                intent(in) :: direction
     type(transport_controller_type), intent(inout) :: transport_controller

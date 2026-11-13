@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code via AI Foundry (Opus 5); #709
+!-------------------------------------------------------------------------------
 !> @brief create physics prognostics
 !> @details Creates the physics prognostic fields
 module create_physics_prognostics_mod
@@ -134,7 +137,7 @@ module create_physics_prognostics_mod
                                              l_conv_prog_dq,                    &
                                              adv_conv_prog_dtheta,              &
                                              adv_conv_prog_dq
-  use mphys_inputs_mod, only: casim_iopt_act, l_mcr_precfrac
+  use mphys_inputs_mod, only: casim_iopt_act, l_mcr_precfrac, fixed_number
   use bl_option_mod, only: l_calc_tau_at_p
   use cloud_inputs_mod, only: l_pc2_homog_conv_pressure
   use io_config_mod,                  only : checkpoint_read, checkpoint_write
@@ -172,6 +175,7 @@ contains
     logical(l_def) :: is_rad ! Flag for chemistry fields
                              ! that are radiatively active
     logical(l_def) :: sst_pert_flag
+    logical(l_def) :: casim_mechanistic_activation
     character(len=str_def) :: mesh_name
 #endif
 
@@ -550,7 +554,7 @@ contains
     advection_flag = microphysics_casim
 
     call processor%apply(make_spec('nl_mphys', main%microphysics,              &
-        adv_coll=if_adv((advection_flag .and. casim_iopt_act /= 0_i_def),      &
+        adv_coll=if_adv((advection_flag .and. casim_iopt_act > fixed_number),  &
         adv%last_adv), ckp=checkpoint_flag, empty = (.not. microphysics_casim)))
     call processor%apply(make_spec('nr_mphys', main%microphysics,              &
         adv_coll=if_adv(advection_flag, adv%last_adv), ckp=checkpoint_flag,    &
@@ -564,6 +568,16 @@ contains
     call processor%apply(make_spec('ng_mphys', main%microphysics,              &
         adv_coll=if_adv(advection_flag, adv%last_adv), ckp=checkpoint_flag,    &
         empty = (.not. microphysics_casim) ))
+
+    ! Copy of the liquid cloud taken immediately before the fast physics is
+    ! called. The CASIM mechanistic activation uses this to work out how much
+    ! liquid cloud the fast physics has created or removed. It is rewritten
+    ! every timestep before it is read, so doesn't need checkpointing or
+    ! advecting.
+    casim_mechanistic_activation = ( microphysics_casim .and.                  &
+                                     casim_iopt_act > fixed_number )
+    call processor%apply(make_spec('cf_liq_pre_fast', main%microphysics,       &
+        Wtheta, empty = (.not. casim_mechanistic_activation) ))
 
     ! 2D fields, don't need checkpointing
     call processor%apply(make_spec('ls_rain', main%microphysics, W3, twod=.true.))

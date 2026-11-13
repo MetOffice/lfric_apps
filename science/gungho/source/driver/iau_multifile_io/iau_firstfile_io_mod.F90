@@ -18,7 +18,7 @@ module iau_firstfile_io_mod
   use lfric_string_mod,          only: split_string
   use lfric_xios_context_mod,    only: lfric_xios_context_type
   use lfric_xios_file_mod,       only: lfric_xios_file_type, &
-                                       OPERATION_ONCE
+                                       OPERATION_ONCE, CONVENTION_UGRID
   use linked_list_mod,           only: linked_list_type
   use mesh_collection_mod,       only: mesh_collection
   use mesh_mod,                  only: mesh_type
@@ -82,8 +82,6 @@ contains
     prime_mesh_name = modeldb%config%base_mesh%prime_mesh_name()
     use_xios_io     = modeldb%config%io%use_xios_io()
 
-    geometry      = modeldb%config%base_mesh%geometry()
-    topology      = modeldb%config%base_mesh%topology()
     coord_system  = modeldb%config%finite_element%coord_system()
     scaled_radius = modeldb%config%planet%scaled_radius()
 
@@ -112,12 +110,16 @@ contains
            io_mode=FILE_MODE_READ, &
            freq=1, &
            operation=OPERATION_ONCE, &
+           file_convention=CONVENTION_UGRID, &
            fields_in_file=multifile_fields))
 
     end if ! use_xios_io
 
     ! Initialise XIOS context
     mesh => mesh_collection%get_mesh(prime_mesh_name)
+    geometry = mesh%geometry()
+    topology = mesh%topology()
+
     call chi_inventory%get_field_array(mesh, chi)
     call panel_id_inventory%get_field(mesh, panel_id)
 

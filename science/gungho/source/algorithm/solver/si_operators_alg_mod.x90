@@ -210,20 +210,21 @@ module si_operators_alg_mod
 contains
 
   !> @brief Subroutine to create the si operators
-  !> @param[in] mesh    The mesh
-  !> @param[in] stepper The time stepper enumerator used to key the inventories
-  !> @param[in] config  Application namelist configuration object
+  !> @param[in] config  Application configuration object
+  !> @param[in] mesh    Mesh object
   !> @param[in] clock   Model clock, used to obtain the timestep length
-  subroutine create_si_operators( mesh, stepper, config, clock )
+  !> @param[in] stepper The time stepper enumerator used to key the inventories
+
+  subroutine create_si_operators( config, mesh, clock, stepper )
 
     use fs_continuity_mod,         only: W0, Wtheta
 
     implicit none
 
-    type(mesh_type), pointer, intent(in) :: mesh
-    integer(kind=i_def),      intent(in) :: stepper
-    type(config_type),        intent(in) :: config
-    class(model_clock_type),  intent(in) :: clock
+    type(config_type),       intent(in) :: config
+    type(mesh_type),         intent(in) :: mesh
+    integer(kind=i_def),     intent(in) :: stepper
+    class(model_clock_type), intent(in) :: clock
 
     integer(kind=i_def) :: i, j
     type(function_space_type), pointer     :: w2_fs => null()
@@ -667,7 +668,7 @@ contains
        chi      => get_coordinates(mesh)
        panel_id => get_panel_id(mesh)
 
-       u_normalisation => get_normalisation_r_solver(W2, mesh%get_id())
+       u_normalisation => get_normalisation_r_solver(config, mesh, W2)
 
        ! Set reference theta_v, by multiply theta by moisture factor
        call theta_v%initialise( vector_space = theta%get_function_space(),     &
@@ -690,7 +691,7 @@ contains
                       sample_field_kernel_type(exner_in_wth, multiplicity, exner) )
        end if
 
-       m3_inv => get_inverse_mass_matrix_r_solver( W3, mesh%get_id() )
+       m3_inv => get_inverse_mass_matrix_r_solver( config, mesh, W3 )
        select case(eos_method)
        case(eos_method_sampled)
          call invoke( sample_eos_operators_kernel_type(m3_exner_star(level), m3_rho_star(level), &
@@ -734,7 +735,7 @@ contains
                                  element_order_v+2, quadrature_rule)
 
        ! Cell kernels
-       div => get_im3_div_r_solver(mesh%get_id())
+       div => get_im3_div_r_solver(config, mesh)
 
        if ( p2theta_vert ) then
          ! The projection operators are restricted to use the vertical only
@@ -851,7 +852,7 @@ contains
   !!          called first.
   !> @param[in] model_clock Time in the model
   !> @param[in] stepper     Timestepper enumerator
-  subroutine compute_helmholtz_operators(model_clock, stepper)
+  subroutine compute_helmholtz_operators(config, model_clock, stepper)
 
     use fs_continuity_mod,                    only: W2, W3, Wtheta
     use dycore_constants_mod,                 only: get_w2_mass_matrix, &
@@ -869,8 +870,9 @@ contains
 
     implicit none
 
-    class(model_clock_type),  intent(in)    :: model_clock
-    integer(kind=i_def),      intent(in)    :: stepper
+    type(config_type),        intent(in) :: config
+    class(model_clock_type),  intent(in) :: model_clock
+    integer(kind=i_def),      intent(in) :: stepper
 
     real(kind=r_solver),           pointer :: tau_u_dt_cp
     real(kind=r_solver),           pointer :: tau_t_dt
@@ -953,14 +955,13 @@ contains
        ! Compute Hb_lumped_inv field
        ! mass matrix should include damping layer and lagged-orography terms
        ! if these options are not true, this matrix won't contain the terms
-       m2 => get_w2_mass_matrix(                                               &
-          w2_lagged_damping_layer_matrix, stepper, mesh%get_id(), model_clock  &
-      )
+       m2 => get_w2_mass_matrix( config, mesh, w2_lagged_damping_layer_matrix, &
+                                 stepper, model_clock )
 
        call m2_r_solver%initialise( w2_fs, w2_fs )
        call invoke( operator_setval_x_kernel_type( m2_r_solver, m2 ) )
-       u_normalisation => get_normalisation_r_solver(W2, mesh%get_id())
-       t_normalisation => get_normalisation_r_solver(Wtheta, mesh%get_id())
+       u_normalisation => get_normalisation_r_solver(config, mesh, W2)
+       t_normalisation => get_normalisation_r_solver(config, mesh, Wtheta)
 
        call m2_u%initialise( vector_space = w2_fs )
        call ones%initialise( vector_space = w2_fs )
