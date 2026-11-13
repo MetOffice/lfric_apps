@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code via AI Foundry (Claude Opus 4.8); PR #715.
+! - Met Office Claude Code via AI Foundry (Claude Opus 5.5); PR #715.
 
 !> @brief Outputs diagnostics from gungho/lfric_atm
 
@@ -89,7 +92,7 @@ contains
     logical,             intent(in)             :: nodal_output_on_w3
 
     type(field_collection_type), pointer :: prognostic_fields
-    type(field_collection_type), pointer :: con_tracer_last_outer
+    type(field_collection_type), pointer :: pos_tracer_last_outer
     type(field_collection_type), pointer :: lbc_fields
     type(field_collection_type), pointer :: moisture_fields
     type(field_type),            pointer :: mr(:)
@@ -158,7 +161,7 @@ contains
     moist_dyn => moist_dyn_array%bundle
     derived_fields => modeldb%fields%get_field_collection("derived_fields")
     panel_id => get_panel_id(mesh)
-    con_tracer_last_outer =>  modeldb%fields%get_field_collection("con_tracer_last_outer")
+    pos_tracer_last_outer =>  modeldb%fields%get_field_collection("pos_tracer_last_outer")
 
     ! Can't just iterate through the prognostic/diagnostic collections as
     ! some fields are scalars and some fields are vectors, so explicitly
@@ -205,7 +208,7 @@ contains
     deallocate(fs_ids)
 
     if (transport_ageofair) then
-      call con_tracer_last_outer%get_field('ageofair',ageofair)
+      call pos_tracer_last_outer%get_field('ageofair',ageofair)
       call write_scalar_diagnostic(modeldb%config, mesh, &
                                    'ageofair', ageofair, &
                                    modeldb%clock, nodal_output_on_w3)
@@ -358,8 +361,8 @@ contains
       ! Wet bulb freezing level
       call freeze_lev_alg(modeldb%config,theta, mr, moist_dyn, exner_in_wth)
       ! Aviation diagnostics
-      call aviation_diags_alg(modeldb%config, mesh, plev_geopot, &
-        u, exner, element_order_h, element_order_v)
+      call aviation_diags_alg(modeldb%config, mesh, theta, exner_in_wth, &
+        plev_geopot, u, exner, element_order_h, element_order_v)
 #endif
 
       temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')
