@@ -559,7 +559,7 @@ contains
 
     call processor%apply(make_spec('nl_mphys', main%microphysics,              &
         adv_coll=if_adv((advection_flag .and. casim_iopt_act /= 0_i_def),      &
-        adv%last_adv), ckp=checkpoint_flag, empty = (.not. microphysics_casim)))
+        adv%last_pos), ckp=checkpoint_flag, empty = (.not. microphysics_casim)))
     call processor%apply(make_spec('nr_mphys', main%microphysics,              &
         adv_coll=if_adv(advection_flag, adv%last_pos), ckp=checkpoint_flag,    &
         empty = (.not. microphysics_casim) ))

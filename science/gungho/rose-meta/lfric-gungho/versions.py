@@ -590,7 +590,6 @@ class vn32_t714(MacroUpgrade):
         self.add_setting(
             config, ["namelist:timestepping", "inner_iterations_bdf2"], "1,1"
         )
-
         return config, self.reports
 
 
@@ -605,10 +604,9 @@ class vn32_t709(MacroUpgrade):
         self.add_setting(
             config, ["namelist:microphysics", "casim_activation"], "'fixed'"
         )
-
         return config, self.reports
 
-     
+
 class vn32_t46(MacroUpgrade):
     """Upgrade macro for ticket #46 by Shusuke Nishimoto."""
 
@@ -616,6 +614,50 @@ class vn32_t46(MacroUpgrade):
     AFTER_TAG = "vn3.2_t46"
 
     def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-boundary_layer
+        mixing_method = self.get_setting_value(
+            config, ["namelist:mixing", "method"]
+        )
+        self.add_setting(config, ["namelist:blayer", "bl_scheme"], "'Kprof'")
+        self.add_setting(
+            config, ["namelist:blayer", "blending_kprof"], mixing_method
+        )
+        self.add_setting(
+            config, ["namelist:blayer", "cap_blended_ml"], ".false."
+        )
+        self.add_setting(
+            config, ["namelist:blayer", "shallow_cu_maxtop"], "3000.0"
+        )
+        self.add_setting(
+            config, ["namelist:blayer", "blending_hoc"], "'3dte_mk1'"
+        )
+        self.add_setting(
+            config, ["namelist:blayer", "adv_turb_field"], ".true."
+        )
+        self.add_setting(config, ["namelist:blayer", "bdy_tke"], "'my3'")
+        self.add_setting(
+            config, ["namelist:blayer", "local_above_tkelvs"], ".true."
+        )
+        self.add_setting(config, ["namelist:blayer", "my_condense"], ".true.")
+        self.add_setting(
+            config, ["namelist:blayer", "my_force_initialise"], ".false."
+        )
+        self.add_setting(
+            config, ["namelist:blayer", "my_ini_dbdz_min"], "1.0e-5"
+        )
+        self.add_setting(
+            config, ["namelist:blayer", "my_lowest_pd_surf"], "'bh91'"
+        )
+        self.add_setting(config, ["namelist:blayer", "my_prod_adj"], ".true.")
+        self.add_setting(
+            config, ["namelist:blayer", "my_simeq_solver"], "'gauss'"
+        )
+        self.add_setting(config, ["namelist:blayer", "shcu_buoy"], ".false.")
+        self.add_setting(config, ["namelist:blayer", "shcu_levels"], "-1")
+        self.add_setting(config, ["namelist:blayer", "tke_levels"], "-1")
+        self.add_setting(config, ["namelist:blayer", "use_l_sq"], ".true.")
+
+        # Commands From: rose-meta/lfric-gungho
         self.remove_setting(config, ["namelist:mixing", "method"])
         self.remove_setting(config, ["namelist:mixing", "cap_blended_ml"])
         self.remove_setting(config, ["namelist:mixing", "shallow_cu_maxtop"])
@@ -668,3 +710,5 @@ class vn32_t46(MacroUpgrade):
             self.change_setting_value(
                 config, ["namelist:transport", conf], ",".join(conf_hash[conf])
             )
+
+        return config, self.reports

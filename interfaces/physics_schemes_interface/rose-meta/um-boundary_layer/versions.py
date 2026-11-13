@@ -1,3 +1,4 @@
+import re
 import sys
 
 from metomi.rose.upgrade import MacroUpgrade  # noqa: F401
@@ -20,17 +21,15 @@ class UpgradeError(Exception):
 
 """
 Copy this template and complete to add your macro
-
 class vnXX_txxx(MacroUpgrade):
     # Upgrade macro for <TICKET> by <Author>
-
     BEFORE_TAG = "vnX.X"
     AFTER_TAG = "vnX.X_txxx"
-
     def upgrade(self, config, meta_config=None):
         # Add settings
         return config, self.reports
 """
+
 
 class vn32_t46(MacroUpgrade):
     """Upgrade macro for ticket #46 by Shusuke Nishimoto."""
@@ -39,6 +38,7 @@ class vn32_t46(MacroUpgrade):
     AFTER_TAG = "vn3.2_t46"
 
     def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/um-boundary_layer
         mixing_method = self.get_setting_value(
             config, ["namelist:mixing", "method"]
         )
