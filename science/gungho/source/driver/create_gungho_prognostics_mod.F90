@@ -57,16 +57,17 @@ contains
   !> These two operations have to be separate because they have to happen
   !> at different times. The enabling of checkpoint fields has to happen
   !> before the io context closes, and this is too early for field creation.
-  !> @param  proc Processor to be applied to selected field specifiers
-  subroutine process_gungho_prognostics(proc)
+  !> @param  proc   Processor to be applied to selected field specifiers
+  !> @param  legacy Logical flag to enable/disable legacy checkpointing
+  subroutine process_gungho_prognostics(proc, legacy)
     use field_spec_mod,            only : main => main_coll_dict, &
                                           adv => adv_coll_dict
     implicit none
 
     class(processor_type) :: proc
+    logical(l_def), intent(in) :: legacy
     class(clock_type), pointer :: clock
     integer(i_def) :: imr, reference_reset_freq, ord_h, ord_v
-    logical(l_def) :: legacy
     logical(l_def) :: checkpoint_flag
     logical(l_def) :: is_empty
     real(r_def)    :: dt
@@ -76,9 +77,6 @@ contains
     ! Get the horizontal and vertical order of the function spaces
     ord_h = element_order_h
     ord_v = element_order_v
-
-    ! enable/disable legacy checkpointing
-    legacy = .true.
 
     call proc%apply(make_spec('theta', main%none, Wtheta, order_h=ord_h, &
                               order_v=ord_v, ckp=.true., legacy=legacy))
@@ -177,12 +175,15 @@ contains
     class( clock_type ), intent(in)           :: clock
 
     type( field_maker_type ) :: creator
+    logical(l_def) :: legacy
 
     call log_event( 'GungHo: Creating prognostics...', LOG_LEVEL_INFO )
 
     call creator%init(mesh, twod_mesh, mapper, clock)
 
-    call process_gungho_prognostics(creator)
+    legacy = (mesh%is_geometry_planar() .and. mesh%is_topology_periodic())
+
+    call process_gungho_prognostics(creator, legacy)
 
   end subroutine create_gungho_prognostics
 

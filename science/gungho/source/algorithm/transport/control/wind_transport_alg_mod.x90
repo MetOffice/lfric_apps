@@ -7,6 +7,7 @@
 
 module wind_transport_alg_mod
 
+  use config_mod,                     only: config_type
   use constants_mod,                  only: i_def, r_def, l_def
   use sci_dg_convert_hdiv_field_kernel_mod,                                    &
                                       only: dg_convert_hdiv_field_kernel_type
@@ -132,11 +133,14 @@ contains
     logical(kind=l_def)                 :: geometry_is_spherical,    &
                                            topology_is_fully_periodic
 
+    type(config_type), pointer :: config
 
     if ( LPROF ) call start_timing( id, 'transport.wind' )
 
     k_h = get_element_order_h_transport()
     k_v = get_element_order_v_transport()
+
+    config => transport_controller%get_config()
 
     ! ------------------------------------------------------------------------ !
     ! Semi-implicit formulation
@@ -229,7 +233,7 @@ contains
 
           call u_w2_inc%initialise( w2_fs, halo_depth=2 )
           call u_w2_inc_with_metrics%initialise( w2_fs )
-          mm_w2 => get_mass_matrix_fv(W2, mesh%get_id())
+          mm_w2 => get_mass_matrix_fv(config, mesh, W2)
           geometry_is_spherical = ( geometry == geometry_spherical )
           topology_is_fully_periodic = (topology == topology_fully_periodic )
           call invoke( name="combine_ws_to_w2_winds",                           &
@@ -317,12 +321,12 @@ contains
             w2_fs => function_space_collection%get_fs( mesh, k_h, k_v, W2 )
             w2b_fs => function_space_collection%get_fs( mesh, k_h, k_v, W2broken )
             if (k_h == 0 .and. k_v == 0) then
-              mm_w2 => get_mass_matrix_fv(W2, mesh%get_id())
-              mm_w2b_inv => get_inverse_mass_matrix_fv(W2broken, mesh%get_id())
+              mm_w2 => get_mass_matrix_fv(config, mesh, W2)
+              mm_w2b_inv => get_inverse_mass_matrix_fv(config, mesh, W2broken)
               rmultiplicity_w2 => get_rmultiplicity_fv(W2, mesh%get_id())
             else
-              mm_w2 => get_mass_matrix_fe(W2, mesh%get_id())
-              mm_w2b_inv => get_inverse_mass_matrix_fe(W2broken, mesh%get_id())
+              mm_w2 => get_mass_matrix_fe(config, mesh, W2)
+              mm_w2b_inv => get_inverse_mass_matrix_fe(config, mesh, W2broken)
               rmultiplicity_w2 => get_rmultiplicity_fe(W2, mesh%get_id())
             end if
 

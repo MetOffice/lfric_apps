@@ -164,13 +164,14 @@ contains
 
     call compute_si_operators_common( modeldb%config, ls_theta, ls_rho, ls_exner, &
                                       ls_moist_dyn )
-    call compute_helmholtz_operators( model_clock, stepper_siqn )
+    call compute_helmholtz_operators( modeldb%config, model_clock, stepper_siqn )
 
-    call create_pressure_preconditioner( rhs, pressure_operator, pressure_preconditioner, stepper_siqn )
+    call create_pressure_preconditioner( modeldb%config, rhs, pressure_operator, &
+                                         pressure_preconditioner, stepper_siqn )
     call create_pressure_solver( pressure_operator, pressure_preconditioner, pressure_solver )
     call create_mixed_preconditioner( rhs, pressure_solver, mixed_preconditioner, stepper_siqn )
 
-    call create_adj_pressure_preconditioner( rhs, adj_lookup_table_cache, &
+    call create_adj_pressure_preconditioner( modeldb%config, rhs, adj_lookup_table_cache, &
                                              adj_pressure_operator, adj_pressure_preconditioner, &
                                              stepper_siqn )
     call create_adj_pressure_solver( adj_pressure_operator, adj_pressure_preconditioner, adj_pressure_solver )
@@ -187,7 +188,7 @@ contains
     ! Apply the preconditioner (i.e., forward code)
     ! --------------------------------------------------------------------------
 
-    call mixed_preconditioner%apply( vector_x, vector_mx )
+    call mixed_preconditioner%apply( modeldb%config, vector_x, vector_mx )
 
     ! --------------------------------------------------------------------------
     ! Compute <Mx,Mx>
@@ -223,7 +224,7 @@ contains
     ! Adjoint code
     ! --------------------------------------------------------------------------
 
-    call adj_mixed_preconditioner%apply( vector_mx, vector_amx )
+    call adj_mixed_preconditioner%apply( modeldb%config, vector_mx, vector_amx )
 
     ! --------------------------------------------------------------------------
     ! Compute <AMx,x>

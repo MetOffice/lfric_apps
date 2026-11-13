@@ -8,6 +8,7 @@
 
 module jedi_lfric_mesh_interface_mod
 
+  use config_mod,                  only: config_type
   use mesh_mod,                    only: mesh_type
   use local_mesh_mod,              only: local_mesh_type
   use mesh_collection_mod,         only: mesh_collection
@@ -177,14 +178,15 @@ contains
   !> @brief Get the volumes of each cell in W3.
   !>
   !> @return  Cell volume field pointer.
-  function get_cell_volumes(mesh) result(cell_volumes)
+  function get_cell_volumes(config, mesh) result(cell_volumes)
     implicit none
 
-    type(mesh_type), intent(in) :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
 
     type(field_type), pointer :: cell_volumes
 
-    cell_volumes => get_detj_at_w3_fv(mesh)
+    cell_volumes => get_detj_at_w3_fv(config, mesh)
 
   end function get_cell_volumes
 
