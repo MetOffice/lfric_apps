@@ -43,36 +43,40 @@ contains
     type(field_type),         target  :: base_pressure, top_pressure
     type(field_type),         pointer :: u_in_w3, v_in_w3
     type(field_type),         pointer :: base_pressure_ptr, top_pressure_ptr
-    logical(kind=l_def) :: u_flag, v_flag, pressure_flag, icao_flag
-    logical(kind=l_def) :: base_flag, top_flag
+    logical(kind=l_def) :: max_wind_u_flag, max_wind_v_flag
+    logical(kind=l_def) :: max_wind_pressure_flag, max_wind_icao_flag
+    logical(kind=l_def) :: base_icao_flag, top_icao_flag
 
     nullify(u_in_w3, v_in_w3, base_pressure_ptr, top_pressure_ptr)
 
-    u_flag = init_diag(max_wind_u, 'aviation__max_wind_u')
-    v_flag = init_diag(max_wind_v, 'aviation__max_wind_v')
+    max_wind_u_flag = init_diag(max_wind_u, 'aviation__max_wind_u')
+    max_wind_v_flag = init_diag(max_wind_v, 'aviation__max_wind_v')
     ! The ICAO height is computed from the pressure, so requesting it
     ! activates the pressure
-    icao_flag = init_diag(max_wind_icao, 'aviation__max_wind_icao_height')
-    pressure_flag = init_diag(max_wind_pressure,                           &
-                              'aviation__max_wind_pressure',               &
-                              activate=icao_flag)
-    base_flag = init_diag(base_icao, 'aviation__max_wind_base_icao_height')
-    top_flag = init_diag(top_icao, 'aviation__max_wind_top_icao_height')
+    max_wind_icao_flag = init_diag(max_wind_icao,                          &
+                                   'aviation__max_wind_icao_height')
+    max_wind_pressure_flag = init_diag(max_wind_pressure,                  &
+                                       'aviation__max_wind_pressure',      &
+                                       activate=max_wind_icao_flag)
+    base_icao_flag = init_diag(base_icao,                                  &
+                               'aviation__max_wind_base_icao_height')
+    top_icao_flag = init_diag(top_icao, 'aviation__max_wind_top_icao_height')
 
-    if ( .not. (u_flag .or. v_flag .or. pressure_flag .or. icao_flag       &
-                .or. base_flag .or. top_flag) ) return
+    if ( .not. (max_wind_u_flag .or. max_wind_v_flag                       &
+                .or. max_wind_pressure_flag .or. max_wind_icao_flag        &
+                .or. base_icao_flag .or. top_icao_flag) ) return
 
     ! The base and top pressures are not diagnostics, so they are held in
     ! local fields. When an ICAO height is not requested its empty field
     ! takes the place of the pressure, and the kernel skips that output.
-    if ( base_flag ) then
+    if ( base_icao_flag ) then
       call base_icao%copy_field_properties(base_pressure,                  &
                                            name='max_wind_base_pressure')
       base_pressure_ptr => base_pressure
     else
       base_pressure_ptr => base_icao
     end if
-    if ( top_flag ) then
+    if ( top_icao_flag ) then
       call top_icao%copy_field_properties(top_pressure,                    &
                                           name='max_wind_top_pressure')
       top_pressure_ptr => top_pressure
@@ -90,26 +94,26 @@ contains
                                             exner, p_zero,                 &
                                             recip_kappa_def) )
 
-    if ( icao_flag ) then
+    if ( max_wind_icao_flag ) then
       call invoke( icao_heights_kernel_type(max_wind_icao,                 &
                                             max_wind_pressure,             &
                                             g_over_r_def) )
       call max_wind_icao%write_field()
     end if
-    if ( base_flag ) then
+    if ( base_icao_flag ) then
       call invoke( icao_heights_kernel_type(base_icao, base_pressure,      &
                                             g_over_r_def) )
       call base_icao%write_field()
     end if
-    if ( top_flag ) then
+    if ( top_icao_flag ) then
       call invoke( icao_heights_kernel_type(top_icao, top_pressure,        &
                                             g_over_r_def) )
       call top_icao%write_field()
     end if
 
-    if ( u_flag ) call max_wind_u%write_field()
-    if ( v_flag ) call max_wind_v%write_field()
-    if ( pressure_flag ) call max_wind_pressure%write_field()
+    if ( max_wind_u_flag ) call max_wind_u%write_field()
+    if ( max_wind_v_flag ) call max_wind_v%write_field()
+    if ( max_wind_pressure_flag ) call max_wind_pressure%write_field()
 
   end subroutine max_wind_diags_alg
 
