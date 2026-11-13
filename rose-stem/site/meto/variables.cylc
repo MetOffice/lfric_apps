@@ -70,12 +70,9 @@
     {% do site_vars.update({"host_ex": "excd"}) %}
 {% else %}
     {# randomly choose either ab or cd #}
-    {% from "random" import randint %}
-    {% if randint(1,2) < 2 %}
-        {% do site_vars.update({"host_ex": "exab"}) %}
-    {% else %}
-        {% do site_vars.update({"host_ex": "excd"}) %}
-    {% endif %}
+  
+    {% do site_vars.update({"host_ex": "exab"}) %}
+    
 {% endif %}
 {% do LOG.info("Host EX: " + site_vars.host_ex) %}
 
