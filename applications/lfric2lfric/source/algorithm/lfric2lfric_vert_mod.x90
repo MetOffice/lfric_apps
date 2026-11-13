@@ -22,6 +22,9 @@ module lfric2lfric_vert_mod
                                       log_level_info, &
                                       log_scratch_space
 
+  use lfric2lfric_no_regrid_mod, &
+                                only: lfric2lfric_no_regrid
+
   implicit none
 
   private
@@ -57,36 +60,42 @@ contains
     character(len=str_def) :: field_name
     integer(kind=i_def)    :: fs_src, fs_dst
 
-    ! Main loop over fields to be processed
-    call iter%initialise(source_fields)
+    ! Main loop over fields to be processed (destination field names)
+    call iter%initialise(target_fields)
     do
       ! Locate the field to be processed in the field collections
       if ( .not.iter%has_next() ) exit
       field => iter%next()
       field_name = field%get_name()
 
-      call source_fields%get_field(field_name, field_src)
       call target_fields%get_field(field_name, field_dst)
 
-      write(log_scratch_space, '(A,A)') "Processing lfric field ", &
-                                        trim(field_name)
-      call log_event(log_scratch_space, log_level_info)
+      ! Regrid if field is also in the source field names
+      if ( source_fields%field_exists(trim(field_name)) ) then
+        call source_fields%get_field(field_name, field_src)
 
-      mesh_src => field_src%get_mesh()
-      mesh_dst => field_dst%get_mesh()
-      fs_src = field_src%which_function_space()
-      fs_dst = field_dst%which_function_space()
+        write(log_scratch_space, '(A,A)') "Processing lfric field ", &
+                                          trim(field_name)
+        call log_event(log_scratch_space, log_level_info)
 
-      ! Get the associated heights, ready for vertical interpolation kernels
-      height_src => get_height_fv(modeldb%config, mesh_src, fs_src)
-      height_dst => get_height_fv(modeldb%config, mesh_dst, fs_dst)
+        mesh_src => field_src%get_mesh()
+        mesh_dst => field_dst%get_mesh()
+        fs_src = field_src%which_function_space()
+        fs_dst = field_dst%which_function_space()
 
-      ! Dummy initialisation - just writing out the heights
-      ! TODO Replaced the dummy initialisation with actual
-      ! vertical regridding from #253. i.e.
-      ! call invoke( lfric2lfric_vert_lin_interp_lin_extrap_code_r_single( &
-      !              field_dst, field_src, height_dst, height_src))
-      call invoke(setval_X(field_dst, height_dst))
+        ! Get the associated heights, ready for vertical interpolation kernels
+        height_src => get_height_fv(modeldb%config, mesh_src, fs_src)
+        height_dst => get_height_fv(modeldb%config, mesh_dst, fs_dst)
+
+        ! Dummy initialisation - just writing out the heights
+        ! TODO Replaced the dummy initialisation with actual
+        ! vertical regridding from #253. i.e.
+        ! call invoke( lfric2lfric_vert_lin_interp_lin_extrap_code_r_single( &
+        !              field_dst, field_src, height_dst, height_src))
+        call invoke(setval_X(field_dst, height_dst))
+     else
+       call lfric2lfric_no_regrid(field_dst)
+     end if
    enddo
 
   end subroutine lfric2lfric_vert

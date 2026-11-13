@@ -14,6 +14,7 @@ source_meshfile_prefix  = 'C12_dynamics',
 source_mesh_name        = 'dynamics',
 source_topology         = 'fully_periodic',
 target_domain           = 'global',
+target_example_filename = 'mesh_C12_MG_dump',
 /
 !==============================================================================
 &base_mesh

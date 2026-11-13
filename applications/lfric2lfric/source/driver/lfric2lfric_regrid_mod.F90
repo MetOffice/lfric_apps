@@ -7,8 +7,9 @@
 !>
 module lfric2lfric_regrid_mod
 
-  use constants_mod,            only: str_def, i_def
+  use constants_mod,            only: str_def, i_def, l_def
   use driver_modeldb_mod,       only: modeldb_type
+  use extrusion_mod,            only: TWOD
   use field_parent_mod,         only: field_parent_type
   use field_mod,                only: field_type
   use field_collection_mod,     only: field_collection_type
@@ -19,13 +20,18 @@ module lfric2lfric_regrid_mod
   use function_space_mod,       only: function_space_type
   use interpolation_alg_mod,    only: interp_w2_to_w3wth_alg, &
                                       interp_w3wth_to_w2_alg
-  use log_mod,                  only: log_event, &
-                                      log_level_info, &
+  use log_mod,                  only: log_event,       &
+                                      log_level_info,  &
+                                      log_level_error, &
                                       log_scratch_space
   use mesh_collection_mod,      only: mesh_collection
   use mesh_mod,                 only: mesh_type
   use model_clock_mod,          only: model_clock_type
   use namelist_mod,             only: namelist_type
+  use orography_config_mod,     only: orog_init_option,          &
+                                      orog_init_option_analytic, &
+                                      orog_init_option_ancil,    &
+                                      orog_init_option_start_dump
 
   !------------------------------------
   ! lfric2lfric modules
@@ -36,6 +42,7 @@ module lfric2lfric_regrid_mod
   use lfric2lfric_map_regrid_mod,     only: lfric2lfric_map_regrid
   use lfric2lfric_no_regrid_mod,      only: lfric2lfric_no_regrid
   use lfric2lfric_oasis_regrid_mod,   only: lfric2lfric_oasis_regrid
+  use lfric2lfric_init_coupler_mod,   only: read_nfields
 
   implicit none
 
@@ -86,7 +93,6 @@ contains
     type(function_space_type), pointer :: fs_w3_src, fs_w3_dst
     type(function_space_type), pointer :: fs_wth_src, fs_wth_dst
     type(mesh_type),           pointer :: mesh_dst
-
     character(len=str_def)   :: mesh_names(2)
     integer(kind=i_def)      :: element_order_h
     integer(kind=i_def)      :: element_order_v
@@ -98,7 +104,10 @@ contains
     integer(kind=i_def), parameter :: dst = 1
     integer(kind=i_def), parameter :: src = 2
 
-
+    integer(kind=i_def) :: total_fields
+    logical(kind=l_def) :: general
+    logical(kind=l_def) :: is_running
+    
     ! Obtain namelist parameters
     mesh_names(dst) = 'dst_'//trim(modeldb%config%lfric2lfric%destination_mesh_name())
     mesh_names(src) = 'src_'//trim(modeldb%config%lfric2lfric%source_mesh_name())
@@ -124,82 +133,207 @@ contains
     geometry = mesh_dst%geometry()
     topology = mesh_dst%topology()
 
-    ! Main loop over fields to be processed
-    call iter%initialise(source_fields)
-    do
-      ! Locate the field to be processed in the field collections
-      if ( .not.iter%has_next() ) exit
-      field => iter%next()
-      field_name = field%get_name()
+    select case (regrid_method)
+    case (regrid_method_map)
+      ! Main loop over fields to be processed
+      call iter%initialise(target_fields)
+      do
+        ! Locate the field to be processed in the field collections
+        if ( .not.iter%has_next() ) exit
+        field => iter%next()
+        field_name = field%get_name()
 
-      call source_fields%get_field(field_name, field_src)
-      call target_fields%get_field(field_name, field_dst)
+        call target_fields%get_field(field_name, field_dst)
 
-      write(log_scratch_space, '(A,A)') "Processing lfric field ", &
+        write(log_scratch_space, '(A,A)') "Processing lfric field ", &
                                            trim(field_name)
-      call log_event(log_scratch_space, log_level_info)
+        call log_event(log_scratch_space, log_level_info)
 
-      ! Convert W2 fields to a set of W3 and Wtheta fields
-      fs_id = field_src%which_function_space()
-      if (fs_id == W2) then
-        call u_in_w3_src%initialise(vector_space=fs_w3_src,   &
-                                    name="u_in_w3_src")
-        call v_in_w3_src%initialise(vector_space=fs_w3_src,   &
-                                    name="v_in_w3_src")
-        call w_in_wth_src%initialise(vector_space=fs_wth_src, &
-                                    name="w_in_wth_src")
-        call u_in_w3_dst%initialise(vector_space=fs_w3_dst,   &
-                                    name="u_in_w3_dst")
-        call v_in_w3_dst%initialise(vector_space=fs_w3_dst,   &
-                                    name="v_in_w3_dst")
-        call w_in_wth_dst%initialise(vector_space=fs_wth_dst, &
-                                    name="w_in_wth_dst")
+        if ( source_fields%field_exists(trim(field_name)) ) then
+          call source_fields%get_field(field_name, field_src)
 
-        call interp_w2_to_w3wth_alg(field_src, u_in_w3_src,   &
-                                    v_in_w3_src, w_in_wth_src)
-      end if
-
-      ! Regrid source field depending on regrid method
-      select case (regrid_method)
-        case (regrid_method_map)
+          ! Convert W2 fields to a set of W3 and Wtheta fields
+          fs_id = field_src%which_function_space()
           if (fs_id == W2) then
+            call u_in_w3_src%initialise(vector_space=fs_w3_src,   &
+                                        name="u_in_w3_src")
+            call v_in_w3_src%initialise(vector_space=fs_w3_src,   &
+                                        name="v_in_w3_src")
+            call w_in_wth_src%initialise(vector_space=fs_wth_src, &
+                                        name="w_in_wth_src")
+            call u_in_w3_dst%initialise(vector_space=fs_w3_dst,   &
+                                        name="u_in_w3_dst")
+            call v_in_w3_dst%initialise(vector_space=fs_w3_dst,   &
+                                        name="v_in_w3_dst")
+            call w_in_wth_dst%initialise(vector_space=fs_wth_dst, &
+                                        name="w_in_wth_dst")
+
+            call interp_w2_to_w3wth_alg(field_src, u_in_w3_src,   &
+                                        v_in_w3_src, w_in_wth_src)
+ 
             call lfric2lfric_map_regrid(modeldb%config, u_in_w3_dst, u_in_w3_src)
             call lfric2lfric_map_regrid(modeldb%config, v_in_w3_dst, v_in_w3_src)
             call lfric2lfric_map_regrid(modeldb%config, w_in_wth_dst, w_in_wth_src)
+
+            call interp_w3wth_to_w2_alg(field_dst, u_in_w3_dst,    &
+                                      v_in_w3_dst, w_in_wth_dst, &
+                                      geometry, topology)
           else
             call lfric2lfric_map_regrid(modeldb%config, field_dst, field_src)
           end if
-
-        case (regrid_method_lfric2lfric)
-          write(log_scratch_space, '(A)') &
-                              'Regrid method lfric2lfric not implemented yet'
-          call log_event(log_scratch_space, log_level_info)
-
+        else
           call lfric2lfric_no_regrid(field_dst)
+        end if
+      end do
+       
+    case (regrid_method_lfric2lfric)
+      ! Main loop over fields to be processed
+      call iter%initialise(source_fields)
+      do
+        ! Locate the field to be processed in the field collections
+        if ( .not.iter%has_next() ) exit
+        field => iter%next()
+        field_name = field%get_name()
 
-        case (regrid_method_oasis)
+        call target_fields%get_field(field_name, field_dst)
+
+        write(log_scratch_space, '(A,A)') "Processing lfric field ", &
+                                           trim(field_name)
+        call log_event(log_scratch_space, log_level_info)
+        write(log_scratch_space, '(A)') &
+              'Regrid method lfric2lfric not implemented yet'
+        call log_event(log_scratch_space, log_level_info)
+        call lfric2lfric_no_regrid(field_dst)
+      end do
+      
+    case (regrid_method_oasis)
+
 #ifdef MCT
-          if (fs_id == W2) then
-            call lfric2lfric_oasis_regrid(modeldb, oasis_clock, &
-                                  u_in_w3_dst, u_in_w3_src)
-            call lfric2lfric_oasis_regrid(modeldb, oasis_clock, &
-                                  v_in_w3_dst, v_in_w3_src)
-            call lfric2lfric_oasis_regrid(modeldb, oasis_clock, &
-                                  w_in_wth_dst, w_in_wth_src)
-          else
-            call lfric2lfric_oasis_regrid(modeldb, oasis_clock, &
-                                          field_dst, field_src)
-          end if
-#endif
-      end select
 
-      ! Rebuild the W2 fields from a set of W3 and Wtheta fields
-      if (fs_id == W2) then
-        call interp_w3wth_to_w2_alg(field_dst, u_in_w3_dst,    &
-                                    v_in_w3_dst, w_in_wth_dst, &
-                                    geometry, topology)
+      ! Get the total number of fields to couple (from namcouple)
+      call read_nfields(total_fields)
+
+      ! Loop over 2D fields to be processed
+      call iter%initialise(target_fields)
+      do
+        ! Locate the field to be processed in the field collections
+        if ( .not.iter%has_next() ) exit
+        field => iter%next()
+        field_name = field%get_name()
+
+        call target_fields%get_field(field_name, field_dst)
+
+        mesh_dst => field_dst%get_mesh()
+        if ( mesh_dst%get_extrusion_id() == TWOD ) then
+
+          if ( source_fields%field_exists(trim(field_name)) ) then
+            call source_fields%get_field(field_name, field_src)
+
+            write(log_scratch_space, '(A,A)') "Processing 2D lfric field ", &
+                                             trim(field_name)
+            call log_event(log_scratch_space, log_level_info)
+
+            if ( total_fields == 1 ) then
+              ! If only 1 entry in namcouple, use the standard 3D method for
+              ! all 2D fields
+              general = .true. 
+              call lfric2lfric_oasis_regrid(modeldb, oasis_clock, &
+                   field_dst, field_src, general)
+
+            else if (total_fields > 1) then
+              ! else use special regridding for each 2D field, as defined
+              ! by the namcouple
+              general = .false.
+              call lfric2lfric_oasis_regrid(modeldb, oasis_clock, &
+                   field_dst, field_src, general)
+
+            else
+              call log_event( 'Error in total_fields', LOG_LEVEL_ERROR )  
+            end if
+          else
+            call lfric2lfric_no_regrid(field_dst)
+          end if
+        end if
+      end do
+
+      if ( orog_init_option == orog_init_option_analytic .or. &
+         orog_init_option == orog_init_option_ancil .or.    &
+         orog_init_option == orog_init_option_start_dump ) then
+
+         ! If orography has already been regridded (using the general
+         ! regridding), need to update the pseudo time. This is applied
+         ! here, rather than immediately after orography regridding,
+         ! as it has to be updated after any 2D fields. 
+
+         is_running = oasis_clock%tick()
+         
       end if
-    end do
+
+      ! Loop over 3D fields to be processed
+      call iter%initialise(target_fields)
+      do 
+        ! Locate the field to be processed in the field collections
+        if ( .not.iter%has_next() ) exit
+        field => iter%next()
+        field_name = field%get_name()
+
+        call target_fields%get_field(field_name, field_dst)
+
+        mesh_dst => field_dst%get_mesh()
+        if ( mesh_dst%get_extrusion_id() /= TWOD ) then
+
+          if ( source_fields%field_exists(trim(field_name)) ) then
+            call source_fields%get_field(field_name, field_src)
+
+            write(log_scratch_space, '(A,A)') "Processing 3D lfric field ", &
+                                             trim(field_name)
+            call log_event(log_scratch_space, log_level_info)
+ 
+            ! Convert W2 fields to a set of W3 and Wtheta fields
+            fs_id = field_src%which_function_space()
+            if (fs_id == W2) then
+              call u_in_w3_src%initialise(vector_space=fs_w3_src,   &
+                                          name="u_in_w3_src")
+              call v_in_w3_src%initialise(vector_space=fs_w3_src,   &
+                                          name="v_in_w3_src")
+              call w_in_wth_src%initialise(vector_space=fs_wth_src, &
+                                          name="w_in_wth_src")
+              call u_in_w3_dst%initialise(vector_space=fs_w3_dst,   &
+                                          name="u_in_w3_dst")
+              call v_in_w3_dst%initialise(vector_space=fs_w3_dst,   &
+                                          name="v_in_w3_dst")
+              call w_in_wth_dst%initialise(vector_space=fs_wth_dst, &
+                                        name="w_in_wth_dst")
+
+              call interp_w2_to_w3wth_alg(field_src, u_in_w3_src,   &
+                                          v_in_w3_src, w_in_wth_src)
+
+              general = .true.
+              call lfric2lfric_oasis_regrid(modeldb, oasis_clock, &
+                                        u_in_w3_dst, u_in_w3_src, general)
+              call lfric2lfric_oasis_regrid(modeldb, oasis_clock, &
+                                        v_in_w3_dst, v_in_w3_src, general)
+              call lfric2lfric_oasis_regrid(modeldb, oasis_clock, &
+                                        w_in_wth_dst, w_in_wth_src, general)
+
+              call interp_w3wth_to_w2_alg(field_dst, u_in_w3_dst,    &
+                                          v_in_w3_dst, w_in_wth_dst, &
+                                          geometry, topology)
+          
+            else
+
+              general = .true.
+              call lfric2lfric_oasis_regrid(modeldb, oasis_clock, &
+                   field_dst, field_src, general)
+            end if
+          else
+            call lfric2lfric_no_regrid(field_dst)
+          end if
+        end if
+      end do
+#endif
+    end select
+
 
   end subroutine lfric2lfric_regrid
 

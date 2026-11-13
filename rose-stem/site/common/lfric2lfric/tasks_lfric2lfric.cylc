@@ -11,12 +11,17 @@
     {% do task_dict.update({
         "opt_confs": ["src_seuk_L70","dst_seuk-coarse"],
         "resolution": "seuk_MG",
+        "int_method": "",
         "dst_mesh": "",
         "dst_name": "",
         "dst_type": "",
+        "dst_mask_path": "",
+        "dst_mask_name": "",
         "src_mesh": "",
         "src_name": "",
         "src_type": "",
+        "src_mask_path": "",
+        "src_mask_name": "",	
         "mpi_parts": 4,
         "xios_min_buffer_size": 2097152,
     }) %}
@@ -26,12 +31,17 @@
     {% do task_dict.update({
         "opt_confs": ["oasis","src_seuk_L70","dst_seuk-coarse"],
         "resolution": "seuk_MG",
+        "int_method": "conserve",
         "dst_mesh": "seuk_MG",
         "dst_name": "multigrid_l1",
         "dst_type": "regional",
+        "dst_mask_path": "",
+        "dst_mask_name": "",
         "src_mesh": "seuk_MG",
         "src_name": "dynamics",
         "src_type": "regional",
+        "src_mask_path": "",
+        "src_mask_name": "",
         "mpi_parts": 4,
         "xios_min_buffer_size": 2097152,
     }) %}
@@ -41,12 +51,17 @@
     {% do task_dict.update({
         "opt_confs": ["ral3","ral3_seuk"],
         "resolution": "ral3_seuk",
+        "int_method": "",
         "dst_mesh": "",
         "dst_name": "",
         "dst_type": "",
+        "dst_mask_path": "",
+        "dst_mask_name": "",
         "src_mesh": "",
         "src_name": "",
         "src_type": "",
+        "src_mask_path": "",
+        "src_mask_name": "",
         "xios_min_buffer_size": 2097152,
     }) %}
 
@@ -55,12 +70,17 @@
     {% do task_dict.update({
         "opt_confs": ["src_C12_L70","dst_C24"],
         "resolution": "C24_C12",
+        "int_method": "",
         "dst_mesh": "",
         "dst_name": "",
         "dst_type": "",
+        "dst_mask_path": "",
+        "dst_mask_name": "",
         "src_mesh": "",
         "src_name": "",
         "src_type": "",
+        "src_mask_path": "",
+        "src_mask_name": "",
         "mpi_parts": 6,
     }) %}
 
@@ -69,12 +89,17 @@
     {% do task_dict.update({
         "opt_confs": ["src_C12_L70","dst_C24"],
         "resolution": "C24_C12",
+        "int_method": "",
         "dst_mesh": "",
         "dst_name": "",
         "dst_type": "",
+        "dst_mask_path": "",
+        "dst_mask_name": "",
         "src_mesh": "",
         "src_name": "",
         "src_type": "",
+        "src_mask_path": "",
+        "src_mask_name": "",
     }) %}
 
 {% elif task_ns.conf_name == "oasis_C12L70_to_seukL38" %}
@@ -82,12 +107,17 @@
     {% do task_dict.update({
         "opt_confs": ["oasis","src_C12_L70","dst_seuk","src_L70_80km","dst_L38_40km"],
         "resolution": ["C24_C12", "seuk_MG"],
+        "int_method": "conserve",
         "dst_mesh": "seuk_MG",
         "dst_name": "dynamics",
         "dst_type": "regional",
+        "dst_mask_path": "",
+        "dst_mask_name": "",
         "src_mesh": "C24_C12",
         "src_name": "C12",
         "src_type": "global",
+        "src_mask_path": "",
+        "src_mask_name": "",
     }) %}
 
 {% elif task_ns.conf_name == "oasis_C12L70_to_C12L38" %}
@@ -95,12 +125,17 @@
     {% do task_dict.update({
         "opt_confs": ["oasis","src_C12_L70","dst_C12","src_L70_80km","dst_L38_40km"],
         "resolution": ["C24_C12", "C12"],
+        "int_method": "conserve",
         "dst_mesh": "C12",
         "dst_name": "dynamics",
         "dst_type": "global",
+        "dst_mask_path": "",
+        "dst_mask_name": "",
         "src_mesh": "C24_C12",
         "src_name": "C12",
         "src_type": "global",
+        "src_mask_path": "",
+        "src_mask_name": "",
     }) %}
 
 {% elif task_ns.conf_name == "oasis_C24_to_C12" %}
@@ -108,12 +143,17 @@
     {% do task_dict.update({
         "opt_confs": ["oasis","src_C12_L70","dst_C24"],
         "resolution": "C24_C12",
+        "int_method": "conserve",
         "dst_mesh": "C24_C12",
         "dst_name": "C24",
         "dst_type": "global",
+        "dst_mask_path": "",
+        "dst_mask_name": "",
         "src_mesh": "C24_C12",
         "src_name": "C12",
         "src_type": "global",
+        "src_mask_path": "",
+        "src_mask_name": "",
         "mpi_parts": 6,
     }) %}
 
@@ -122,12 +162,38 @@
     {% do task_dict.update({
         "opt_confs": ["oasis","src_C12_L70","dst_seuk"],
         "resolution": ["C24_C12", "seuk_MG"],
+        "int_method": "conserve",
         "dst_mesh": "seuk_MG",
         "dst_name": "dynamics",
         "dst_type": "regional",
+	"dst_mask_path": "",
+	"dst_mask_name": "",
         "src_mesh": "C24_C12",
         "src_name": "C12",
         "src_type": "global",
+	"src_mask_path": "",
+	"src_mask_name": "",
+	"log_level": "debug",
+        "xios_min_buffer_size": 2097152,
+    }) %}
+
+{% elif task_ns.conf_name == "oasis_C12_L70_seuk_masked" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["oasis_masked","src_C12_L70_alt","dst_seuk"],
+        "resolution": ["C24_C12", "seuk_MG"],
+        "int_method": "conserve2nd, neareststod, masked_conserve2nd, masked_neareststod",
+        "dst_mesh": "seuk_MG",
+        "dst_name": "dynamics",
+        "dst_type": "regional",
+	"dst_mask_path": "$BIG_DATA_DIR/ancils/proto-ral/Ticket3510/seuk/land_sea_mask/qrparm.mask.ugrid.fixed",
+	"dst_mask_name": "land_binary_mask",
+        "src_mesh": "C24_C12",
+        "src_name": "C12",
+        "src_type": "global",
+	"src_mask_path": "$BIG_DATA_DIR/ancils/basic-gal/yak/C12/land_sea_mask/etop01/qrparm.mask",
+	"src_mask_name": "land_binary_mask",
+	"log_level": "debug",
         "xios_min_buffer_size": 2097152,
     }) %}
 
@@ -136,12 +202,17 @@
     {% do task_dict.update({
         "opt_confs": [ "oasis","src_C12_L70","dst_seuk","multi-cpu"],
         "resolution": ["C24_C12", "seuk_MG"],
+        "int_method": "conserve",
         "dst_mesh": "seuk_MG",
         "dst_name": "dynamics",
         "dst_type": "regional",
+        "dst_mask_path": "",
+        "dst_mask_name": "",
         "src_mesh": "C24_C12",
         "src_name": "C12",
         "src_type": "global",
+        "src_mask_path": "",
+        "src_mask_name": "",
         "mpi_parts": 4,
         "xios_min_buffer_size": 2097152,
     }) %}
@@ -151,12 +222,17 @@
     {% do task_dict.update({
         "opt_confs": ["oasis","src_C12_L70","dst_seuk","lbc","multi-cpu"],
         "resolution": ["C24_C12", "seuk_MG"],
+        "int_method": "conserve",
         "dst_mesh": "seuk_MG",
         "dst_name": "dynamics-lbc",
         "dst_type": "regional",
+        "dst_mask_path": "",
+        "dst_mask_name": "",
         "src_mesh": "C24_C12",
         "src_name": "C12",
         "src_type": "global",
+        "src_mask_path": "",
+        "src_mask_name": "",
         "mpi_parts": 4,
         "xios_min_buffer_size": 2097152,
     }) %}

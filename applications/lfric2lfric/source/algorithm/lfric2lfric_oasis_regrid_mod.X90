@@ -4,32 +4,10 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 !> @brief Algorithm to perform regridding using a weight file with OASIS
-!> @details OASIS can only perform 2D interpolation, so the steps
-!>          that need to take place are:
-!>            1. Extract one vertical level and multi-data entry from a
-!>               field in the source mesh
-!>            2. Send the extracted data with OASIS, which performs
-!>               the regridding of the 2d data to the destination mesh
-!>            3. Receive the 2d field in the destination mesh with OASIS
-!>            4. Insert vertical level and multi-data entry in the
-!>               destination mesh into the right place in the destination
-!>               field
-!>            5. The OASIS clock is updated
-!>
-!>          This process is repeated until all full destination fields
-!>          have been constructed. The update of the OASIS clock allows
-!>          the definition of a single 2d coupling, rather than defining
-!>          a 2d coupling field for each vertical level, multi-data
-!>          entry, and field that has to be processed, and performing a
-!>          single coupling time step.
-!>
-!>          Fields in the W2 function space are not processed and are
-!>          filled with zeroes in the output. This happens because there
-!>          is not a definitive format for the W2 function space yet.
 module lfric2lfric_oasis_regrid_mod
 
   ! lfric modules
-  use constants_mod,        only: i_def, r_def, l_def
+  use constants_mod,        only: i_def, r_def, l_def, str_def
   use fs_continuity_mod,    only: W3, Wtheta
   use driver_modeldb_mod,   only: modeldb_type
   use model_clock_mod,      only: model_clock_type
@@ -39,6 +17,8 @@ module lfric2lfric_oasis_regrid_mod
   use coupler_exchange_2d_mod,  &
                             only: coupler_exchange_2d_type
 #endif
+  use extrusion_mod,        only: TWOD
+  use mesh_mod,             only: mesh_type
   use field_mod,            only: field_type
   use field_collection_mod, only: field_collection_type
   use function_space_mod,   only: function_space_type
@@ -50,7 +30,6 @@ module lfric2lfric_oasis_regrid_mod
                                 level_insert_kernel_type
   use sci_level_extract_kernel_mod, only:                           &
                                 level_extract_kernel_type
-
   implicit none
 
   private
@@ -58,16 +37,40 @@ module lfric2lfric_oasis_regrid_mod
 
 contains
 
-  !> @brief Perform regridding of a field collection using weight files
-  !>        and OASIS
+  !> @brief Perform regridding of a field using OASIS.
+  !> @details OASIS can only perform 2D interpolation, so the steps
+  !>          that need to take place are:
+  !>            1. Extract one vertical level and multi-data entry from a
+  !>               field in the source mesh
+  !>            2. Send the extracted data with OASIS, which performs
+  !>               the regridding of the 2d data to the destination mesh
+  !>            3. Receive the 2d field in the destination mesh with OASIS
+  !>            4. Insert vertical level and multi-data entry in the
+  !>               destination mesh into the right place in the destination
+  !>               field
+  !>            5. For general coupling, the OASIS clock is updated.
+  !>               Otherwise, for special coupling, the fields are
+  !>               coupled at the same pseudo time.
+  !>
+  !>          The update of the OASIS clock (for general coupling) allows
+  !>          the definition of a single 2d coupling, rather than defining
+  !>          a 2d coupling field for each vertical level, multi-data
+  !>          entry, and field that has to be processed, and performing a
+  !>          single coupling time step. This allows the same coupling names
+  !>          to be reused.
   !> @param[inout] modeldb         The structure that holds model state
   !> @param[inout] clock           Clock for oasis time
   !> @param[out]   field_dst       Field in the destination mesh obtained
   !>                               after regridding the field in the
   !>                               source mesh
   !> @param[in]    field_src       Field in the source mesh
-  subroutine lfric2lfric_oasis_regrid(modeldb, clock, field_dst, field_src)
-
+  !> @param[in]    general         If general coupling, use standard entry
+  !>                               in namcouple and increment pseudotime.
+  !>                               Otherwise use special entries in
+  !>                               namcouple and couple at the same pseudo
+  !>                               time. Special coupling is for 2D fields
+  !>                               only.
+  subroutine lfric2lfric_oasis_regrid(modeldb, clock, field_dst, field_src, general)
 
     implicit none
 
@@ -75,12 +78,14 @@ contains
     type(model_clock_type), intent(inout) :: clock
     type(field_type),       intent(inout) :: field_dst
     type(field_type),       intent(in)    :: field_src
+    logical(l_def),         intent(in)    :: general
 
 #ifdef MCT
     ! Local variables
     integer(i_def)    :: l, k, nlayers, ndf, fs
     integer(i_def)    :: ndata, ierror
     type(function_space_type),  pointer    :: vector_space => null()
+    type(mesh_type), pointer               :: mesh_src
     type(field_type), pointer              :: src_field => null()
     type(field_type), pointer              :: dst_field => null()
     type(coupler_exchange_2d_type)         :: coupler_exchange_2d
@@ -88,9 +93,12 @@ contains
     type(field_collection_type), pointer   :: cpl_snd_2d => null()
     type(field_collection_type), pointer   :: cpl_rcv_2d => null()
     integer(i_def), pointer                :: local_index(:)
+    character(len=str_def)                 :: coupling_field_src_name
+    character(len=str_def)                 :: coupling_field_dst_name
+    character(len=str_def)                 :: field_name
+    character(len=str_def)                 :: k_string, format_string
     logical(l_def)                         :: is_running
 #endif
-
 
     call invoke(setval_c(field_dst, 0.0_r_def))
 
@@ -105,18 +113,48 @@ contains
       ndf = vector_space%get_ndf()
 
       nlayers = nlayers + ndf - 1
+      
       ndata = vector_space%get_ndata()
 
-      ! Get the 2D fields where to store layer and field level data
-      cpl_snd_2d => modeldb%fields%get_field_collection("cpl_snd_2d")
-      call cpl_snd_2d%get_field("src_face", src_field)
-
-      cpl_rcv_2d => modeldb%fields%get_field_collection("cpl_rcv_2d")
-      call cpl_rcv_2d%get_field("dst_face", dst_field)
+      field_name = field_src%get_name()
+      mesh_src => field_src%get_mesh()
 
       ! Extract data layer by layer, regrid it, and place in the destination field
       do l = 0, nlayers - 1
         do k = 0, ndata - 1
+
+          if ( general ) then
+            ! Use standard entry in namcouple file   
+            coupling_field_src_name = "src_face"
+            coupling_field_dst_name = "dst_face"
+
+          else
+            ! Use special entries in namcouple file  
+            if ( mesh_src%get_extrusion_id() /= TWOD ) then
+              write(log_scratch_space, '(A)') "Only 2D fields " // &
+                         "can be processed with special coupling"
+              call log_event(log_scratch_space, log_level_error)
+            end if
+
+            if (k+1 < 10) then
+              format_string = "(I1)"
+            else
+              format_string = "(I2)"
+            end if
+            write(k_string, format_string) k+1
+ 
+            ! Define coupling names for each individual field and multidata level
+            coupling_field_src_name = 'src_' // trim(field_name) // '_level_' // trim(k_string)
+            coupling_field_dst_name = 'dst_' // trim(field_name) // '_level_' // trim(k_string)
+          end if
+         
+          ! Get the 2D fields where to store layer and field level data
+          cpl_snd_2d => modeldb%fields%get_field_collection( "cpl_snd_2d")
+          call cpl_snd_2d%get_field(TRIM(coupling_field_src_name), src_field)
+
+          cpl_rcv_2d => modeldb%fields%get_field_collection( "cpl_rcv_2d")
+          call cpl_rcv_2d%get_field(TRIM(coupling_field_dst_name), dst_field)
+
           ! Extract one layer and one set of data
           call invoke(name = "extract_layer",                       &
                               level_extract_kernel_type(src_field,  &
@@ -143,12 +181,20 @@ contains
           ! write the received layer information in the destination field
           call invoke(name = "insert_layer",                       &
                               level_insert_kernel_type(field_dst,  &
-                                                dst_field, l, k))
+                              dst_field, l, k))
 
-          ! Update the coupling time
-          is_running = clock%tick()
+          if ( general ) then
+            ! Update the coupling time.
+            ! This means that a different field and level is coupled at each pseudo time.
+            ! The clock is not updated for 2D fields as they are coupled at the same
+            ! pseudo time.
 
+            is_running = clock%tick()
+
+          end if
+         
         end do
+
       end do
 
     else

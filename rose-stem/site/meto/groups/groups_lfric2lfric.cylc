@@ -8,6 +8,7 @@
 {# Azspice Groups #}
 {% do site_groups.update({
     "lfric2lfric_azspice_developer": [
+        "lfric2lfric_oasis_C12_L70_seuk_masked_azspice_gnu_fast-debug-64bit",
         "lfric2lfric_map_seuk_fine_to_coarse_ral_azspice_gnu_fast-debug-64bit",
         "lfric2lfric_oasis_seuk_fine_to_coarse_ral_azspice_gnu_fast-debug-64bit",
         "lfric2lfric_map_C24_to_C12_1cpu_azspice_gnu_fast-debug-64bit",
@@ -42,6 +43,7 @@
 {# EX1A Groups #}
 {% do site_groups.update({
     "lfric2lfric_ex1a_developer": [
+        "lfric2lfric_oasis_C12_L70_seuk_masked_ex1a_cce_fast-debug-64bit",
         "lfric2lfric_map_seuk_fine_to_coarse_ral_ex1a_cce_fast-debug-64bit",
         "lfric2lfric_oasis_seuk_fine_to_coarse_ral_ex1a_cce_fast-debug-64bit",
         "lfric2lfric_map_C24_to_C12_1cpu_ex1a_cce_fast-debug-64bit",

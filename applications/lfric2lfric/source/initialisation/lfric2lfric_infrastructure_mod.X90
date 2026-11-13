@@ -65,7 +65,8 @@ module lfric2lfric_infrastructure_mod
   use lfric2lfric_init_mod,        only: init_lfric2lfric
   use lfric2lfric_init_coupler_mod,only: lfric2lfric_init_coupler_src, &
                                          lfric2lfric_init_coupler_dst, &
-                                         lfric2lfric_end_coupler_init
+                                         lfric2lfric_end_coupler_init, &
+                                         parse_namcouple
   use lfric2lfric_field_init_mod,  only: field_maker
   use netcdf,                      only: nf90_max_name
 #ifdef MCT
@@ -178,7 +179,7 @@ contains
     character(len=str_def)                 :: mesh_names(2)
     character(len=str_def),    allocatable :: mesh_names_dst_ext(:)
 
-    character(len=str_max_filename) :: start_dump_filename
+    character(len=str_max_filename) :: start_dump_filename, target_example_filename
     character(len=str_max_filename) :: source_file_lbc
 
     ! lfric2lfric namelist parameters
@@ -245,6 +246,9 @@ contains
     character(str_def) :: stored_twod_names(2)
     character(str_def) :: stored_mesh_names(2)
 
+    character(str_def), allocatable :: src_name_cpl_list(:)
+    character(str_def), allocatable :: dst_name_cpl_list(:)
+
     ! -------------------------------
     ! Extract namelist variables
     ! -------------------------------
@@ -276,7 +280,8 @@ contains
     source_geometry     = modeldb%config%lfric2lfric%source_geometry()
     source_topology     = modeldb%config%lfric2lfric%source_topology()
     start_dump_filename = modeldb%config%files%start_dump_filename()
-
+    target_example_filename = modeldb%config%lfric2lfric%target_example_filename()
+    
     coord_system    = modeldb%config%finite_element%coord_system()
     element_order_h = modeldb%config%finite_element%element_order_h()
     element_order_v = modeldb%config%finite_element%element_order_v()
@@ -618,13 +623,13 @@ contains
     !=======================================================================
     if (mode == mode_ics) then
       call init_lfric2lfric( modeldb, context_src, context_dst,                  &
-                             start_dump_filename, mode,                          &
+                             start_dump_filename, target_example_filename, mode, &
                              source_collection_name, mesh_src,    twod_mesh_src, &
                              interm_collection_name, mesh_interm, twod_mesh_dst, &
                              target_collection_name, mesh_dst,    twod_mesh_dst )
     else if (mode == mode_lbc) then
       call init_lfric2lfric( modeldb, context_src, context_dst,                  &
-                             source_file_lbc, mode,                              &
+                             source_file_lbc, target_example_filename, mode,     &
                              source_collection_name, mesh_src,    twod_mesh_src, &
                              interm_collection_name, mesh_interm, twod_mesh_dst, &
                              target_collection_name, mesh_dst,    twod_mesh_dst )
@@ -648,16 +653,20 @@ contains
 #ifdef MCT
         ! Create oasis partitions and coupling variables
         ! Source fields
-        call lfric2lfric_init_coupler_src(twod_mesh_src, "coupling",     &
+        call parse_namcouple(src_name_cpl_list, dst_name_cpl_list)
+
+        call lfric2lfric_init_coupler_src(src_name_cpl_list, "coupling", &
                                        element_order_h, element_order_v, &
-                                       modeldb)
+                                       twod_mesh_src, modeldb)
+
         ! Destination fields
-        call lfric2lfric_init_coupler_dst(twod_mesh_dst, "coupling_dst", &
+        call lfric2lfric_init_coupler_dst(dst_name_cpl_list, "coupling_dst", &
                                        element_order_h, element_order_v, &
-                                       modeldb)
+                                       twod_mesh_dst, modeldb)
 
         ! Finish coupling definition
         call lfric2lfric_end_coupler_init(modeldb, "coupling")
+ 
 #else
         write(log_scratch_space,'(A)')                          &
             'ERROR: selected regrid_method=oasis, but OASIS libraries '// &
@@ -709,9 +718,6 @@ contains
       call coupler_exchange_2d%set_time(oasis_clock)
       call coupler_exchange_2d%copy_to_lfric(ierror)
       call coupler_exchange_2d%clear()
-
-      ! Done the first coupling - so advance the pseudo-clock
-      is_running = oasis_clock%tick()
 
       ! Copy the horizontally regridded src orography into dst orography mesh
       ! -----------------------------------------------------------
