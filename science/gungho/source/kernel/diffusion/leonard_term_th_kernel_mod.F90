@@ -17,7 +17,6 @@ module leonard_term_th_kernel_mod
   use constants_mod,         only : r_def, i_def
   use fs_continuity_mod,     only : Wtheta, W3
   use kernel_mod,            only : kernel_type
-  use mixing_config_mod,     only : leonard_kl
 
   implicit none
 
