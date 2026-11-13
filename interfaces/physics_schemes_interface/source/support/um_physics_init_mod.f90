@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code via AI Foundry (Opus 5); #709
+!----------------------------------------------------------------------------
 !> @brief Controls the setting of variables for UM physics schemes, which
 !>         are either fixed in LFRic or derived from LFRic inputs
 
@@ -29,7 +32,35 @@ module um_physics_init_mod
                                         horiz_d_in => horiz_d,                 &
                                         us_am_in => us_am
 
-  use blayer_config_mod,         only : a_ent_shr, a_ent_2_in => a_ent_2,      &
+  use blayer_config_mod,         only : bl_scheme, bl_scheme_Kprof,            &
+                                        bl_scheme_HoC,                         &
+                                        blending_Kprof,                        &
+                                        blending_Kprof_3d_smag,                &
+                                        blending_Kprof_2d_smag,                &
+                                        blending_Kprof_blend_smag_fa,          &
+                                        blending_Kprof_blend_1dbl_fa,          &
+                                        blending_Kprof_blend_cth_shcu_only,    &
+                                        blending_HoC, blending_HoC_3d_smag,    &
+                                        blending_HoC_3dte_mk1,                 &
+                                        tke_levels_in => tke_levels,           &
+                                        bdy_tke_in => bdy_tke, bdy_tke_my3,    &
+                                        bdy_tke_my25, bdy_tke_deardorff,       &
+                                        adv_turb_field, my_condense,           &
+                                        shcu_buoy,                             &
+                                        shcu_levels_in => shcu_levels,         &
+                                    my_lowest_pd_surf_in => my_lowest_pd_surf, &
+                                        my_lowest_pd_surf_off,                 &
+                                        my_lowest_pd_surf_businger,            &
+                                        my_lowest_pd_surf_bh91,                &
+                                        my_prod_adj,                           &
+                                        local_above_tkelvs,                    &
+                                        my_force_initialise,                   &
+                                        my_ini_dbdz_min_in => my_ini_dbdz_min, &
+                                        use_l_sq,                              &
+                                        my_simeq_solver,                       &
+                                        my_simeq_solver_bicgstab,              &
+                                        my_simeq_solver_gauss,                 &
+                                        a_ent_shr, a_ent_2_in => a_ent_2,      &
                                         cbl_opt, cbl_opt_conventional,         &
                                         cbl_opt_standard, cbl_opt_adjustable,  &
                                         cbl_mix_fac,                           &
@@ -84,7 +115,9 @@ module um_physics_init_mod
                                 improved_tke_diag_in   => improved_tke_diag,   &
                                 l_use_sml_dsc_fixes_in => l_use_sml_dsc_fixes, &
                                 l_converge_ga_in       => l_converge_ga,       &
-                                num_sweeps_bflux_in    => num_sweeps_bflux
+                                num_sweeps_bflux_in    => num_sweeps_bflux,    &
+                                cap_blended_ml_in      => cap_blended_ml,      &
+                                shallow_cu_maxtop_in   => shallow_cu_maxtop
 
   use cloud_config_mod,          only : scheme, scheme_smith, scheme_pc2,      &
                                         scheme_bimodal,                        &
@@ -229,6 +262,9 @@ module um_physics_init_mod
                                         nsigmasf_in => nsigmasf,             &
                                         nscalesf_in => nscalesf,             &
                                         microphysics_casim,                  &
+                                        casim_activation,                    &
+                                        casim_activation_fixed,              &
+                                        casim_activation_arg,                &
                                         ci_input_in => ci_input,             &
                                         cic_input_in => cic_input,           &
                                         c_r_correl_in => c_r_correl,         &
@@ -244,17 +280,10 @@ module um_physics_init_mod
                                         heavy_rain_evap_fac_in =>            &
                                                 heavy_rain_evap_fac
 
-  use mixing_config_mod, only : smagorinsky,                               &
-                                mixing_method => method,                   &
-                                method_3d_smag,                            &
-                                method_2d_smag,                            &
-                                method_blend_smag_fa,                      &
-                                method_blend_1dbl_fa,                      &
-                                method_blend_cth_shcu_only,                &
-                                cap_blended_ml_in => cap_blended_ml,       &
-                                shallow_cu_maxtop_in => shallow_cu_maxtop, &
-                                mix_factor_in => mix_factor,               &
-                                leonard_term
+  use mixing_config_mod,         only : smagorinsky,                   &
+                                        mix_factor_in => mix_factor,   &
+                                        leonard_term,                  &
+                                        leonard_tke
 
   use radiation_config_mod,      only : topography, topography_horizon
 
@@ -345,6 +374,11 @@ module um_physics_init_mod
                                          include_moisture_moist,    &
                                          include_moisture_dry
 
+  use io_config_mod, only: checkpoint_read
+
+  use initialization_config_mod, only: init_option, init_option_checkpoint_dump
+  use timestepping_config_mod, only: timestepping_method => method, &
+                                     method_no_timestepping, method_jules
 
   ! Other LFRic modules used
   use constants_mod,        only: i_def, l_def, r_um, i_um, r_def, r_bl
@@ -353,6 +387,7 @@ module um_physics_init_mod
   use log_mod,              only : log_event,         &
                                    log_scratch_space, &
                                    LOG_LEVEL_ERROR,   &
+                                   LOG_LEVEL_WARNING, &
                                    LOG_LEVEL_INFO
 
   use mr_indices_mod,       only : nummr_to_transport
@@ -410,7 +445,7 @@ contains
          sc_diag_opt, sc_diag_orig, sc_diag_cu_relax, sc_diag_cu_rh_max,   &
          sc_diag_all_rh_max,                                               &
          bl_res_inv, cosine_inv_flux, target_inv_profile, blending_option, &
-         a_ent_shr_nml, alpha_cd, puns, pstb, kprof_cu,                    &
+         a_ent_shr_nml, alpha_cd, puns, pstb, kprof_cu, ishear_bl,         &
          non_local_bl, flux_bc_opt, i_bl_vn_9c, sharp_sea_mes_land,        &
          lem_conven, to_sharp_across_1km, off, on, DynDiag_Ribased,        &
          DynDiag_ZL_corrn, blend_allpoints, ng_stress,                     &
@@ -424,7 +459,14 @@ contains
          dec_thres_cu, near_neut_z_on_l, blend_gridindep_fa,               &
          blend_cth_shcu_only, shallow_cu_maxtop, cap_blended_ml,           &
          specified_fluxes_tstar, buoy_integ_low, num_sweeps_bflux,         &
-         l_use_sml_dsc_fixes, l_converge_ga, improved_tke_diag
+         l_use_sml_dsc_fixes, l_converge_ga, improved_tke_diag, i_bl_vn_1a
+    use mym_option_mod, only: bdy_tke, deardorff, mymodel25, mymodel3,     &
+         l_3dtke, tke_levels, l_local_above_tkelvs, l_my_initialize,       &
+         my_ini_dbdz_min, l_adv_turb_field, l_my_condense, l_shcu_buoy,    &
+         shcu_levels, wb_ng_max, my_lowest_pd_surf, no_pd_surf, businger,  &
+         bh1991, l_my_prod_adj, my_z_limit_elb, tke_cm_mx, tke_cm_fa,      &
+         tke_dlen, ddf_length, l_use_l_sq, l_leonard_tke,                  &
+         simeq_solver, bicgstab, gauss
     use cloud_inputs_mod, only: i_cld_vn, forced_cu, i_rhcpt, i_cld_area,  &
          rhcrit, ice_fraction_method,falliceshear_method, cff_spread_rate, &
          l_subgrid_qv, ice_width, min_liq_overlap, i_eacf, not_mixph,      &
@@ -521,6 +563,7 @@ contains
         a_ratio_fac, l_droplet_tpr, qclrime, l_shape_rime, ndrop_surf,       &
         z_surf, l_fsd_generator, mp_dz_scal, l_subgrid_qcl_mp, aut_qc,       &
         l_mphys_nonshallow, casim_iopt_act, casim_iopt_inuc,                 &
+        abdul_razzak_ghan,                                                   &
         casim_aerosol_couple_choice,l_casim,                                 &
         casim_aerosol_process_level,casim_moments_choice,                    &
         casim_aerosol_option,                                                &
@@ -543,7 +586,8 @@ contains
                               irs, ire, jrs, jre, krs, kre,              &
                               casim_moments_option, n_casim_tracers,     &
                               l_casim_warm_only,                         &
-                              l_ukca_aerosol, no_aerosol_modes
+                              l_ukca_aerosol, no_aerosol_modes,          &
+                              soluble_insoluble_modes
     use casim_stph, only: l_rp2_casim
     use casim_set_dependent_switches_mod, only:                                &
           casim_set_dependent_switches,                                        &
@@ -710,8 +754,6 @@ contains
         call log_event( log_scratch_space, LOG_LEVEL_ERROR )
       end if
 
-      a_ent_shr_nml = real(a_ent_shr, r_bl)
-      a_ent_2       = real(a_ent_2_in, r_bl)
       bl_levels     = bl_levels_in
       if(allocated(alpha_cd))deallocate(alpha_cd)
       allocate(alpha_cd(bl_levels))
@@ -725,25 +767,6 @@ contains
           cbl_op = lem_std
         case(cbl_opt_adjustable)
           cbl_op = lem_adjust
-      end select
-
-      dec_thres_cloud = real(dec_thres_cloud_in, r_bl)
-      dec_thres_cu = real(dec_thres_cu_in, r_bl)
-
-      select case ( entr_smooth_dec_in )
-      case ( entr_smooth_dec_off )
-        entr_smooth_dec = off
-      case ( entr_smooth_dec_on )
-        entr_smooth_dec = on
-      case ( entr_smooth_dec_taper_zh )
-        entr_smooth_dec = entr_taper_zh
-      end select
-
-      select case ( dzrad_disc_opt_in )
-      case ( dzrad_disc_opt_level_ntm1 )
-        dzrad_disc_opt = dzrad_ntm1
-      case ( dzrad_disc_opt_smooth_1p5 )
-        dzrad_disc_opt = dzrad_1p5dz
       end select
 
       select case (flux_bc_opt_in)
@@ -763,60 +786,7 @@ contains
         fric_heating = off
       end if
 
-      i_bl_vn = i_bl_vn_9c
-
-      select case (dyn_diag)
-        case(dyn_diag_zi_l_sea)
-          idyndiag = DynDiag_ZL_corrn
-        case(dyn_diag_zi_l_cu)
-          idyndiag = DynDiag_ZL_CuOnly
-        case(dyn_diag_ri_based)
-          idyndiag = DynDiag_Ribased
-      end select
-      near_neut_z_on_l = real(near_neut_z_on_l_in, r_bl)
-
-      ! Interpolate the vertical gradients of sl,qw and calculate
-      ! stability dbdz and Kh on theta-levels
-      select case (interp_local)
-        case(interp_local_gradients)
-          i_interp_local = i_interp_local_gradients
-        case(interp_local_cf_dbdz)
-          i_interp_local = i_interp_local_cf_dbdz
-        end select
-
-      select case (reduce_fa_mix)
-        case(reduce_fa_mix_inv_and_cu_lcl)
-          keep_ri_fa = on
-        case(reduce_fa_mix_inv_only)
-          keep_ri_fa = except_disc_inv
-      end select
-
-      select case(kprof_cu_in)
-        case(kprof_cu_buoy_integ)
-          kprof_cu = buoy_integ
-        case(kprof_cu_buoy_integ_low)
-          kprof_cu = buoy_integ_low
-      end select
-
-      select case(bl_res_inv_in)
-        case(bl_res_inv_off)
-          bl_res_inv = off
-        case(bl_res_inv_cosine_inv_flux)
-          bl_res_inv = cosine_inv_flux
-        case(bl_res_inv_target_inv_profile)
-          bl_res_inv = target_inv_profile
-      end select
-
-      select case(ng_stress_in)
-        case(ng_stress_BG97_limited)
-          ng_stress = BrownGrant97_limited
-        case(ng_stress_BG97_original)
-          ng_stress = BrownGrant97_original
-      end select
-
       l_noice_in_turb = noice_in_turb
-      l_new_kcloudtop   = new_kcloudtop
-      l_reset_dec_thres = .true.
       lambda_min_nml    = 40.0_r_um
 
       select case (free_atm_mix)
@@ -832,17 +802,6 @@ contains
 
       pstb = 2.0_r_um
       puns = real(p_unstable, r_um)
-
-      select case ( sc_diag_opt_in )
-      case ( sc_diag_opt_orig )
-        sc_diag_opt = sc_diag_orig
-      case ( sc_diag_opt_cu_relax )
-        sc_diag_opt = sc_diag_cu_relax
-      case ( sc_diag_opt_cu_rh_max )
-        sc_diag_opt = sc_diag_cu_rh_max
-      case ( sc_diag_opt_all_rh_max )
-        sc_diag_opt = sc_diag_all_rh_max
-      end select
 
       ritrans = 0.1_r_bl
 
@@ -862,20 +821,198 @@ contains
           sg_orog_mixing = sg_shear_enh_lambda
       end select
 
-      ! TKE scaling parameter
-      tke_diag_fac  = 1.0_r_bl
-      zhloc_depth_fac = real(zhloc_depth_fac_in, r_bl)
-
       if (topography == topography_horizon) then
         ! Set control logical for use of skyview factor in JULES
         l_skyview = .true.
       end if
 
-      improved_tke_diag   = improved_tke_diag_in
-      l_use_sml_dsc_fixes = l_use_sml_dsc_fixes_in
-      l_converge_ga       = l_converge_ga_in
-      num_sweeps_bflux    = num_sweeps_bflux_in
+      select case (bl_scheme)
+      case (bl_scheme_Kprof)
+        i_bl_vn = i_bl_vn_9c
 
+        a_ent_shr_nml = real(a_ent_shr, r_bl)
+        a_ent_2       = real(a_ent_2_in, r_bl)
+
+        dec_thres_cloud = real(dec_thres_cloud_in, r_bl)
+        dec_thres_cu = real(dec_thres_cu_in, r_bl)
+
+        select case ( entr_smooth_dec_in )
+        case ( entr_smooth_dec_off )
+          entr_smooth_dec = off
+        case ( entr_smooth_dec_on )
+          entr_smooth_dec = on
+        case ( entr_smooth_dec_taper_zh )
+          entr_smooth_dec = entr_taper_zh
+        end select
+
+        select case ( dzrad_disc_opt_in )
+        case ( dzrad_disc_opt_level_ntm1 )
+          dzrad_disc_opt = dzrad_ntm1
+        case ( dzrad_disc_opt_smooth_1p5 )
+          dzrad_disc_opt = dzrad_1p5dz
+        end select
+
+        select case (dyn_diag)
+          case(dyn_diag_zi_l_sea)
+            idyndiag = DynDiag_ZL_corrn
+          case(dyn_diag_zi_l_cu)
+            idyndiag = DynDiag_ZL_CuOnly
+          case(dyn_diag_ri_based)
+            idyndiag = DynDiag_Ribased
+        end select
+        near_neut_z_on_l = real(near_neut_z_on_l_in, r_bl)
+
+        ! Interpolate the vertical gradients of sl,qw and calculate
+        ! stability dbdz and Kh on theta-levels
+        select case (interp_local)
+          case(interp_local_gradients)
+            i_interp_local = i_interp_local_gradients
+          case(interp_local_cf_dbdz)
+            i_interp_local = i_interp_local_cf_dbdz
+        end select
+
+        select case (reduce_fa_mix)
+          case(reduce_fa_mix_inv_and_cu_lcl)
+            keep_ri_fa = on
+          case(reduce_fa_mix_inv_only)
+            keep_ri_fa = except_disc_inv
+        end select
+
+        select case(kprof_cu_in)
+          case(kprof_cu_buoy_integ)
+            kprof_cu = buoy_integ
+          case(kprof_cu_buoy_integ_low)
+            kprof_cu = buoy_integ_low
+        end select
+
+        select case(bl_res_inv_in)
+          case(bl_res_inv_off)
+            bl_res_inv = off
+          case(bl_res_inv_cosine_inv_flux)
+            bl_res_inv = cosine_inv_flux
+          case(bl_res_inv_target_inv_profile)
+            bl_res_inv = target_inv_profile
+        end select
+
+        select case(ng_stress_in)
+          case(ng_stress_BG97_limited)
+            ng_stress = BrownGrant97_limited
+          case(ng_stress_BG97_original)
+            ng_stress = BrownGrant97_original
+        end select
+
+        l_new_kcloudtop   = new_kcloudtop
+        l_reset_dec_thres = .true.
+
+        select case ( sc_diag_opt_in )
+        case ( sc_diag_opt_orig )
+          sc_diag_opt = sc_diag_orig
+        case ( sc_diag_opt_cu_relax )
+          sc_diag_opt = sc_diag_cu_relax
+        case ( sc_diag_opt_cu_rh_max )
+          sc_diag_opt = sc_diag_cu_rh_max
+        case ( sc_diag_opt_all_rh_max )
+          sc_diag_opt = sc_diag_all_rh_max
+        end select
+
+        ! TKE scaling parameter
+        tke_diag_fac  = 1.0_r_bl
+        zhloc_depth_fac = real(zhloc_depth_fac_in, r_bl)
+
+        improved_tke_diag   = improved_tke_diag_in
+        l_use_sml_dsc_fixes = l_use_sml_dsc_fixes_in
+        l_converge_ga       = l_converge_ga_in
+        num_sweeps_bflux    = num_sweeps_bflux_in
+
+      case (bl_scheme_HoC)
+        i_bl_vn = i_bl_vn_1a
+
+        ishear_bl = off
+
+        select case (bdy_tke_in)
+          case(bdy_tke_my3)
+            bdy_tke = mymodel3
+          case(bdy_tke_my25)
+            bdy_tke = mymodel25
+          case(bdy_tke_deardorff)
+            bdy_tke = deardorff
+        end select
+
+        ! A negative value for tke_levels means it should default to bl_levels.
+        if (tke_levels_in < 0 .or. tke_levels_in > bl_levels) then
+          tke_levels = bl_levels
+          write( log_scratch_space, '(A)' )                                    &
+            'The value of tke_levels has been reset to bl_levels'
+          call log_event( log_scratch_space, LOG_LEVEL_WARNING )
+        else
+          tke_levels = tke_levels_in
+        end if
+
+        ! A negative value for shcu_levels means it should default to tke_levels.
+        if (shcu_levels_in < 0 .or. shcu_levels_in > tke_levels) then
+          shcu_levels = tke_levels
+          write( log_scratch_space, '(A)' )                                    &
+            'The value of shcu_levels has been reset to tke_levels'
+          call log_event( log_scratch_space, LOG_LEVEL_WARNING )
+        else
+          shcu_levels = shcu_levels_in
+        end if
+
+        l_local_above_tkelvs = local_above_tkelvs
+        if (checkpoint_read) then
+          ! In the continuation run, initial fields of prognostic variables
+          ! are always initialised from checkpoint file.
+          l_my_initialize = .false.
+        else
+          if (init_option == init_option_checkpoint_dump) then
+            ! If initialised from LFRic, initial fields are read or diagnosed,
+            ! depending on the switch
+            l_my_initialize = my_force_initialise
+          else
+            ! It is currently unavailable to read initial fields from file
+            ! for other init options, so always diagnosed.
+            l_my_initialize = .true.
+          end if
+        end if
+        my_ini_dbdz_min = my_ini_dbdz_min_in
+        l_adv_turb_field = adv_turb_field
+        l_my_condense = my_condense
+        l_shcu_buoy = shcu_buoy
+        wb_ng_max = 0.05_r_bl
+
+        select case (my_lowest_pd_surf_in)
+          case (my_lowest_pd_surf_off)
+            my_lowest_pd_surf = no_pd_surf
+          case (my_lowest_pd_surf_businger)
+            my_lowest_pd_surf = businger
+          case (my_lowest_pd_surf_bh91)
+            my_lowest_pd_surf = bh1991
+        end select
+
+        if (bdy_tke_in == bdy_tke_my3) then
+          l_my_prod_adj = my_prod_adj
+          select case (my_simeq_solver)
+            case (my_simeq_solver_bicgstab)
+              simeq_solver = bicgstab
+            case (my_simeq_solver_gauss)
+              simeq_solver = gauss
+          end select
+        end if
+
+        my_z_limit_elb = 1.0e10_r_bl
+        tke_cm_mx = 0.1_r_bl
+        tke_cm_fa = 0.1_r_bl
+        tke_dlen = ddf_length
+
+      case default
+        if ( timestepping_method /= method_no_timestepping .and.               &
+             timestepping_method /= method_jules ) then
+          write( log_scratch_space, '(A)' )                                    &
+            'An unexpected boundary layer scheme is being used.'
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
+
+      end select
     end if
 
     ! ----------------------------------------------------------------
@@ -1482,14 +1619,45 @@ contains
 
 
         casim_moments_option = 22222   ! all double moment
-        casim_iopt_act = 0_i_um     ! 'fixed number'
         casim_aerosol_option = 0_i_um   ! no soluble or insoluble aerosol modes
         casim_aerosol_process_level = 0_i_um
         casim_aerosol_couple_choice = 0_i_um
         l_ukca_aerosol = .false.
 
+        select case (casim_activation)
+
+          case (casim_activation_fixed)
+            casim_iopt_act = fixed_number
+
+          case (casim_activation_arg)
+            ! Mechanistic activation following Abdul-Razzak and Ghan, driven by
+            ! the GLOMAP modal aerosol, which must therefore be available.
+            if ( glomap_mode /= glomap_mode_ukca ) then
+              write( log_scratch_space, '(A)' )                                &
+                 'CASIM Abdul-Razzak and Ghan activation requires the UKCA '// &
+                 'GLOMAP aerosol, stopping'
+              call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+            end if
+            casim_iopt_act = abdul_razzak_ghan
+
+          case default
+            write( log_scratch_space, '(A,I0)' )                               &
+               'Invalid CASIM activation option, stopping', casim_activation
+            call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+
+        end select
+
         casim_moments_choice = 1_i_um
         CALL casim_set_dependent_switches
+
+        if (casim_iopt_act == abdul_razzak_ghan) then
+          ! casim_set_dependent_switches only asks for the insoluble modes when
+          ! the ice nucleation scheme needs them, but LFRic always supplies the
+          ! full set of soluble and insoluble GLOMAP modes to CASIM. This is
+          ! safe here because the aerosol option is not passed on to CASIM until
+          ! the call to set_mphys_switches below.
+          casim_aerosol_option = soluble_insoluble_modes
+        end if
 
         ! Tell CASIM that its parent model is the UM. This allows for any UM-specific
         ! operations to take place within CASIM.
@@ -1708,39 +1876,77 @@ contains
       mix_factor = real(mix_factor_in, r_um)
       turb_startlev_vert  = 2
       turb_endlev_vert    = bl_levels
-      if (mixing_method /= method_3d_smag) then
-        cap_blended_ml = cap_blended_ml_in
-      end if
 
-      ! Options which are bespoke to the choice of scheme
-      select case ( mixing_method )
+      select case ( bl_scheme )
+      case ( bl_scheme_Kprof )
 
-      case( method_3d_smag )
-        l_subfilter_horiz = .true.
-        l_subfilter_vert  = .true.
-        blending_option   = off
-        non_local_bl      = off
-        ng_stress         = off
-      case( method_2d_smag )
-        l_subfilter_horiz = .true.
-        l_subfilter_vert  = .false.
-        blending_option   = off
-      case( method_blend_smag_fa )
-        l_subfilter_horiz = .true.
-        l_subfilter_vert  = .true.
-        blending_option   = blend_allpoints
-      case( method_blend_1dbl_fa )
-        l_subfilter_horiz = .true.
-        l_subfilter_vert  = .true.
-        blending_option   = blend_gridindep_fa
-      case( method_blend_cth_shcu_only )
-        l_subfilter_horiz = .true.
-        l_subfilter_vert  = .true.
-        blending_option   = blend_cth_shcu_only
-        shallow_cu_maxtop = real(shallow_cu_maxtop_in, r_bl)
+        if (blending_Kprof /= blending_Kprof_3d_smag) then
+          cap_blended_ml = cap_blended_ml_in
+        end if
+
+        ! Options which are bespoke to the choice of scheme
+        select case ( blending_Kprof )
+
+        case( blending_Kprof_3d_smag )
+          l_subfilter_horiz = .true.
+          l_subfilter_vert  = .true.
+          blending_option   = off
+          non_local_bl      = off
+          ng_stress         = off
+        case( blending_Kprof_2d_smag )
+          l_subfilter_horiz = .true.
+          l_subfilter_vert  = .false.
+          blending_option   = off
+        case( blending_Kprof_blend_smag_fa )
+          l_subfilter_horiz = .true.
+          l_subfilter_vert  = .true.
+          blending_option   = blend_allpoints
+        case( blending_Kprof_blend_1dbl_fa )
+          l_subfilter_horiz = .true.
+          l_subfilter_vert  = .true.
+          blending_option   = blend_gridindep_fa
+        case( blending_Kprof_blend_cth_shcu_only )
+          l_subfilter_horiz = .true.
+          l_subfilter_vert  = .true.
+          blending_option   = blend_cth_shcu_only
+          shallow_cu_maxtop = real(shallow_cu_maxtop_in, r_bl)
+        end select
+
+      case ( bl_scheme_HoC )
+
+        select case ( blending_HoC )
+
+        case( blending_HoC_3d_smag )
+          l_3dtke           = .false.
+          l_subfilter_horiz = .true.
+          l_subfilter_vert  = .true.
+          blending_option   = off
+        case( blending_HoC_3dte_mk1 )
+          l_3dtke           = .true.
+          l_subfilter_horiz = .true.
+          l_subfilter_vert  = .false.
+
+          ! This option may be useful to determine mixing strength
+          ! between tke_levels and bl_levels, however, hardwire
+          ! this option off for now.
+          blending_option   = off
+
+          l_use_l_sq        = use_l_sq
+        end select
+
+      case default
+        if ( timestepping_method /= method_no_timestepping .and.               &
+             timestepping_method /= method_jules ) then
+          write( log_scratch_space, '(A)' )                                    &
+            'An unexpected boundary layer scheme is being used.'
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
+
       end select
 
     else ! not Smagorinsky
+
+      l_3dtke           = .false.
 
       ! Switches for Smagorinsky being off
       blending_option   = off
@@ -1753,6 +1959,7 @@ contains
     ! Leonard terms on or off
     !-----------------------------------------------------------------------
     l_leonard_term = leonard_term
+    l_leonard_tke = leonard_tke
 
     !-----------------------------------------------------------------------
     ! UM Random Parameter scheme settings

@@ -34,6 +34,7 @@ use lfricinp_stashmaster_mod,          only: get_stashmaster_item, levelt,     &
                                              theta_levels
 use lfricinp_um_grid_mod,              only: um_grid
 use lfricinp_um_level_codes_mod,       only: lfricinp_get_num_levels,          &
+                                             lfricinp_get_first_level_num,     &
                                              lfricinp_get_num_pseudo_levels
 
 ! lfric modules
@@ -57,7 +58,13 @@ subroutine lfric2um_main_loop()
 implicit none
 
 integer(kind=int64) :: i_stash, level, i_field
-integer(kind=int64) :: stashcode, num_levels, lfric_field_kind
+integer(kind=int64) :: stashcode, lfric_field_kind
+! Number of levels in UM field
+integer(kind=int64) :: n_um_levels
+integer(kind=int64) :: um_first_level
+integer(kind=int64) :: um_level_type
+! Set to identify fields where first LFRic level is ignored
+integer(kind=int64) :: lfric_level_offset
 character(len=*), parameter :: routinename='lfric2um_main_loop'
 type(field_type), pointer :: lfric_field
 type(lfricinp_regrid_weights_type), pointer :: weights
@@ -83,6 +90,17 @@ do i_stash = 1, lfric2um_config%num_fields
   write(log_scratch_space, '(A,I0)') "Processing stashcode ", stashcode
   call log_event(log_scratch_space, LOG_LEVEL_INFO)
 
+  um_first_level = lfricinp_get_first_level_num(stashcode)
+  um_level_type = get_stashmaster_item(stashcode, levelt)
+  lfric_level_offset = 0
+  if (um_level_type == 2 .and. um_first_level == 1) then
+    ! UM data will be on theta levels, but without a value at the first level
+    ! Therefore, first LFRic layer needs to be ignored
+    lfric_level_offset = 1
+    write(log_scratch_space,'(A)')'First LFRic level ignored for this stashcode'
+    call log_event(log_scratch_space, log_level_info)
+  end if
+
   !---------------------------------------------------------------------------
   ! Identify if field uses pseudo levels
   !---------------------------------------------------------------------------
@@ -93,7 +111,7 @@ do i_stash = 1, lfric2um_config%num_fields
     ! Stashcodes that map to W2h (i.e. winds), W3/rho, Wtheta
     !---------------------------------------------------------------------------
     case(w2h_field,w3_field,wtheta_field)
-      num_levels = lfricinp_get_num_levels(um_output_file, stashcode)
+      n_um_levels = lfricinp_get_num_levels(um_output_file, stashcode)
 
     !---------------------------------------------------------------------------
     ! Stashcodes that need 2D mesh, inc non-soil_levels pseudo levels
@@ -101,17 +119,17 @@ do i_stash = 1, lfric2um_config%num_fields
     case(w3_field_2d)
       if ( get_stashmaster_item(stashcode, pseudt) == 0 ) then
         ! Field has no pseudo levels
-        num_levels = lfricinp_get_num_levels(um_output_file, stashcode)
+        n_um_levels = lfricinp_get_num_levels(um_output_file, stashcode)
       else
         ! Get number of pseudo levels
-        num_levels = lfricinp_get_num_pseudo_levels(um_grid, stashcode)
+        n_um_levels = lfricinp_get_num_pseudo_levels(um_grid, stashcode)
       end if
 
     !---------------------------------------------------------------------------
     ! Stashcodes that are soil fields
     !---------------------------------------------------------------------------
     case(w3_soil_field)
-      num_levels = lfricinp_get_num_levels(um_output_file, stashcode)
+      n_um_levels = lfricinp_get_num_levels(um_output_file, stashcode)
 
     case DEFAULT
       write(log_scratch_space, '(A,I0,A)')                                     &
@@ -146,14 +164,14 @@ do i_stash = 1, lfric2um_config%num_fields
   !---------------------------------------------------------------------------
   ! Loop over number of levels in field
   !---------------------------------------------------------------------------
-  do level = 1, num_levels
+  do level = 1, n_um_levels
     global_field_array(:) = 0.0_real64
 
     !---------------------------------------------------------------------------
     ! Gather local lfric fields into global array on base rank
     !---------------------------------------------------------------------------
     call lfricinp_gather_lfric_field( lfric_field, global_field_array, comm, &
-         num_levels, level, twod_mesh )
+         level + lfric_level_offset, twod_mesh )
     if (local_rank == 0 ) then
 
       !-------------------------------------------------------------------------
@@ -180,19 +198,19 @@ do i_stash = 1, lfric2um_config%num_fields
       ! Copy the pointers for the top-level fields needed to compute the
       ! Exner pressure at the half level immediately above the model top
       !-------------------------------------------------------------------------
-      if (stashcode == stashcode_q .and. level == num_levels) then
+      if (stashcode == stashcode_q .and. level == n_um_levels) then
         call log_event("Creating q top buffer", LOG_LEVEL_INFO)
         q_top_buffer(:,:) = um_output_file%fields(i_field)%rdata(:,:)
         l_q_top_buffer = .true.
-      else if (stashcode == stashcode_theta .and. level == num_levels) then
+      else if (stashcode == stashcode_theta .and. level == n_um_levels) then
         call log_event("Creating theta top buffer", LOG_LEVEL_INFO)
         theta_top_buffer(:,:) = um_output_file%fields(i_field)%rdata(:,:)
         l_theta_top_buffer = .true.
-      else if (stashcode == stashcode_exner .and. level == num_levels) then
+      else if (stashcode == stashcode_exner .and. level == n_um_levels) then
         call log_event("Creating exner top buffer", LOG_LEVEL_INFO)
         exner_top_buffer(:,:) = um_output_file%fields(i_field)%rdata(:,:)
         l_conv_p_exner = .false.
-      else if (stashcode == stashcode_p .and. level == num_levels) then
+      else if (stashcode == stashcode_p .and. level == n_um_levels) then
         call log_event("Creating p top buffer", LOG_LEVEL_INFO)
         p_top_buffer(:,:) = um_output_file%fields(i_field)%rdata(:,:)
         l_conv_p_exner = .true.
@@ -216,9 +234,8 @@ do i_stash = 1, lfric2um_config%num_fields
   ! Add the additional upper level for the Exner pressure
   !---------------------------------------------------------------------------
   if (stashcode == stashcode_exner .or. stashcode == stashcode_p) then
-
     call log_event("Adding additional upper level for exner pressure", LOG_LEVEL_INFO)
-    level = num_levels + 1
+    level = n_um_levels + 1
     if (local_rank == 0) then
       call lfricinp_add_um_field_to_file(um_output_file, stashcode, &
            level, um_grid, lfric2um_config%lbtim_list(i_stash),     &
