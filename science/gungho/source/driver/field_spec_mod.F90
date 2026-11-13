@@ -69,23 +69,23 @@ module field_spec_mod
   !> @brief Dictionary of advected field collections
   type :: adv_coll_dict_type
     integer(i_def) :: none       ! Not advected
-    integer(i_def) :: all_adv    ! Adv_fields_all_outer
-    integer(i_def) :: last_adv   ! Adv_fields_last_outer
-    integer(i_def) :: all_con    ! Con_fields_all_outer
-    integer(i_def) :: last_con   ! Con_fields_last_outer
+    integer(i_def) :: all_gen    ! Gen_fields_all_outer
+    integer(i_def) :: last_gen   ! Gen_fields_last_outer
+    integer(i_def) :: all_pos    ! Pos_fields_all_outer
+    integer(i_def) :: last_pos   ! Pos_fields_last_outer
   end type adv_coll_dict_type
 
   integer(i_def), parameter :: enum_adv_none = 387
-  integer(i_def), parameter :: enum_all_adv = 391
-  integer(i_def), parameter :: enum_last_adv = 395
-  integer(i_def), parameter :: enum_all_con = 399
-  integer(i_def), parameter :: enum_last_con = 412
+  integer(i_def), parameter :: enum_all_gen = 391
+  integer(i_def), parameter :: enum_last_gen = 395
+  integer(i_def), parameter :: enum_all_pos = 399
+  integer(i_def), parameter :: enum_last_pos = 412
 
   !> @brief Map advected field enumerators to collections.
   type(adv_coll_dict_type), parameter :: adv_coll_dict &
-    = adv_coll_dict_type( enum_adv_none, enum_all_adv, &
-                          enum_last_adv, enum_all_con, &
-                          enum_last_con )
+    = adv_coll_dict_type( enum_adv_none, enum_all_gen, &
+                          enum_last_gen, enum_all_pos, &
+                          enum_last_pos )
 
   !> @brief Dictionary of moisture field arrays
   type :: moist_arr_dict_type
