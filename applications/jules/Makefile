@@ -114,6 +114,11 @@ build: ALWAYS
 	          SOURCE_DIR=$(APPS_ROOT_DIR)/science/gungho/source \
 	          META_FILE_DIR=$(META_FILE_DIR)
 	$(call MESSAGE,========================================)
+	$(call MESSAGE,Preprocessing $(PROJECT_NAME))
+	$(call MESSAGE,========================================)
+	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/pre_process.mk \
+						SOURCE_DIR=source
+	$(call MESSAGE,========================================)
 	$(call MESSAGE,PSycloning interface components)
 	$(call MESSAGE,========================================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone_psykal.mk \
