@@ -123,7 +123,7 @@ contains
     mesh     => rhs%vector(isw_g)%get_mesh()
     chi      => get_coordinates(mesh)
     div      => get_div(config, mesh)
-    coriolis => get_coriolis(mesh%get_id())
+    coriolis => get_coriolis(config, mesh)
     panel_id => get_panel_id(mesh)
 
     ! Quadrature set up

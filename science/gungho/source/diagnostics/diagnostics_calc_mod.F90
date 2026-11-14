@@ -119,7 +119,6 @@ end subroutine write_divergence_diagnostic
 !> @param[in] theta_field      The theta field
 !> @param[in] moist_dyn_field  The moist dynamics factors
 !> @param[in] exner_field      The exner field
-
 !-------------------------------------------------------------------------------
 subroutine write_hydbal_diagnostic( config, mesh, theta_field, &
                                     moist_dyn_field, exner_field )

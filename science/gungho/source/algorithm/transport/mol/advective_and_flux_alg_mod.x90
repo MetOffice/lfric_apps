@@ -136,7 +136,7 @@ contains
                                                           ndata_first = .false. )
             call reconstruction_field%initialise( vector_space=recon_fs )
             if (use_fe) then
-              rmultiplicity_rdef => get_rmultiplicity_fe(recon_space, mesh%get_id())
+              rmultiplicity_rdef => get_rmultiplicity_fe(config, mesh, recon_space)
             else
               rmultiplicity_rdef => get_rmultiplicity_fv(recon_space, mesh%get_id())
             end if

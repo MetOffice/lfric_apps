@@ -14,9 +14,10 @@ module tl_si_timestep_alg_mod
                                          log_scratch_space, &
                                          LOG_LEVEL_INFO,    &
                                          LOG_LEVEL_ERROR
-  use driver_modeldb_mod,          only: modeldb_type
   use model_clock_mod,             only: model_clock_type
+  use driver_modeldb_mod,          only: modeldb_type
   use reference_element_mod,       only: T
+
 
   ! Configuration options
   use formulation_config_mod,      only: dlayer_on,                            &
@@ -424,7 +425,7 @@ contains
 
     call log_event( "Tangent linear: semi implicit timestep", LOG_LEVEL_INFO )
 
-    qr => get_qr_fe()
+    qr => get_qr_fe(modeldb%config)
 
     mm_wt  => get_mass_matrix_fe(modeldb%config, mesh, Wtheta)
     mm_vel => get_mass_matrix_fe(modeldb%config, mesh, W2)

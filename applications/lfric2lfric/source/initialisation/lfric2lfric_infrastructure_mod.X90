@@ -239,7 +239,6 @@ contains
 
     integer(i_def) :: geometry(2)
     integer(i_def) :: topology(2)
-    integer(i_def) :: coord_system
     real(r_def)    :: scaled_radius
 
     character(str_def) :: stored_twod_names(2)
@@ -277,7 +276,6 @@ contains
     source_topology     = modeldb%config%lfric2lfric%source_topology()
     start_dump_filename = modeldb%config%files%start_dump_filename()
 
-    coord_system    = modeldb%config%finite_element%coord_system()
     element_order_h = modeldb%config%finite_element%element_order_h()
     element_order_v = modeldb%config%finite_element%element_order_v()
 

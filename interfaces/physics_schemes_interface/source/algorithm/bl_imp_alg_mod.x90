@@ -294,7 +294,7 @@ contains
     height_w2  => get_height_fv(config, mesh, W2)
     height_w3  => get_height_fv(config, mesh, W3)
 
-    dA         => get_da_at_w2(mesh)
+    dA         => get_da_at_w2(config, mesh)
     rdz        => get_rdz_fd1(config, mesh%get_id())
     dtrdz      => get_dtrdz_fd2(config, mesh%get_id(), model_clock)
     rdz_w3     => get_rdz_w3(config, mesh%get_id())

@@ -719,7 +719,7 @@ contains
        else
           ! for non MG, at higher order, need computed rmultiplicity
           call ones%initialise( vector_space = w2_fs )
-          w2_rmultiplicity => get_rmultiplicity_fe( W2, mesh%get_id() )
+          w2_rmultiplicity => get_rmultiplicity_fe( config, mesh, W2 )
           call rsol_w2_rmultiplicity%initialise( w2_fs )
           call invoke( real_to_real_x(rsol_w2_rmultiplicity, w2_rmultiplicity), &
                        setval_c(ones,            1.0_r_solver),                 &
@@ -779,7 +779,7 @@ contains
          ! Add the contribution to q32 from eliminating theta into seperate operator
          select case(eos_method)
          case(eos_method_sampled)
-           detj_at_w3 => get_detj_at_w3_r_solver( mesh%get_id() )
+           detj_at_w3 => get_detj_at_w3_r_solver( config, mesh )
            call invoke( sample_eliminated_theta_q32_kernel_type(eliminated_q32_theta(level), theta, detj_at_w3 ) )
          case(eos_method_projected)
            call invoke( project_eliminated_theta_q32_kernel_type(eliminated_q32_theta(level), theta,    &
@@ -850,6 +850,7 @@ contains
   !!          given stepper, and storing the results in the per-stepper
   !!          inventories. Requires compute_si_operators_common to have been
   !!          called first.
+  !> @param[in] config      Application configuration object
   !> @param[in] model_clock Time in the model
   !> @param[in] stepper     Timestepper enumerator
   subroutine compute_helmholtz_operators(config, model_clock, stepper)

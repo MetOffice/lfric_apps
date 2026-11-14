@@ -79,7 +79,7 @@ contains
                                                element_order_v, W3 )
     chi      => get_coordinates(mesh)
     panel_id => get_panel_id(mesh)
-    qr => get_qr_fe()
+    qr => get_qr_fe(config)
 
     ! Get domain from mesh
     domain = mesh%get_domain()

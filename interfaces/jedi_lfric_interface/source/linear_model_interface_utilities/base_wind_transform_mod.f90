@@ -10,6 +10,7 @@
 
 module base_wind_transform_mod
 
+  use config_mod,           only: config_type
   use field_collection_mod, only: field_collection_type
 
   implicit none
@@ -61,27 +62,31 @@ module base_wind_transform_mod
       type(field_collection_type),     intent(in)    :: fields
     end subroutine adj_process_interface
 
-    subroutine scalar_to_vector_interface( self, fields )
-      import base_wind_transform_type, field_collection_type
+    subroutine scalar_to_vector_interface( self, config, fields )
+      import base_wind_transform_type, config_type, field_collection_type
       class(base_wind_transform_type), intent(inout) :: self
+      type(config_type),               intent(in)    :: config
       type(field_collection_type),     intent(in)    :: fields
     end subroutine scalar_to_vector_interface
 
-    subroutine adj_scalar_to_vector_interface( self, fields )
-      import base_wind_transform_type, field_collection_type
+    subroutine adj_scalar_to_vector_interface( self, config, fields )
+      import base_wind_transform_type, config_type, field_collection_type
       class(base_wind_transform_type), intent(inout) :: self
+      type(config_type),               intent(in)    :: config
       type(field_collection_type),     intent(in)    :: fields
     end subroutine adj_scalar_to_vector_interface
 
-    subroutine vector_to_scalar_interface( self, fields )
-      import base_wind_transform_type, field_collection_type
+    subroutine vector_to_scalar_interface( self, config, fields )
+      import base_wind_transform_type, config_type, field_collection_type
       class(base_wind_transform_type), intent(inout) :: self
+      type(config_type),               intent(in)    :: config
       type(field_collection_type),     intent(in)    :: fields
     end subroutine vector_to_scalar_interface
 
-    subroutine adj_vector_to_scalar_interface( self, fields )
-      import base_wind_transform_type, field_collection_type
+    subroutine adj_vector_to_scalar_interface( self, config, fields )
+      import base_wind_transform_type, config_type, field_collection_type
       class(base_wind_transform_type), intent(inout) :: self
+      type(config_type),               intent(in)    :: config
       type(field_collection_type),     intent(in)    :: fields
     end subroutine adj_vector_to_scalar_interface
 

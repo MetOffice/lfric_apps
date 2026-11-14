@@ -92,7 +92,7 @@ module process_recv_fields_2d_mod
    call depository%get_field("ocn_cpl_point",ocn_cpl_point_ptr)
 
    mesh => theta_ptr%get_mesh()
-   dA => get_da_at_w2(mesh)
+   dA => get_da_at_w2(config, mesh)
    call u_w3_ptr%copy_field_properties(sea_u_w3)
    call u_w3_ptr%copy_field_properties(sea_v_w3)
    call theta_ptr%copy_field_properties(sea_w_wth)
