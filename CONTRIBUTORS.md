@@ -69,3 +69,4 @@
 | doucla              | Douglas Clark      | UKCEH                            | 2026-10-13 |
 | jerry-liu-jianyu    | Liu Jianyu         | NEA/MSS/CCRS                     | 2026-09-25 |
 | mn416               | Matthew Naylor     | University of Cambridge          | 2026-07-24 |
+| mo-arthurargles     | Arthur Argles      | Met Office                       | 2026-11-09 |
