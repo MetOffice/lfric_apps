@@ -12,5 +12,6 @@ Developer Guide
    :maxdepth: 2
 
    local_builds
+   local_running
    lfric_apps_rose_stem/index
    psyclone/index
