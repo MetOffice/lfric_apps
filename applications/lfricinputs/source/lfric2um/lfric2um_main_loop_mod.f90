@@ -3,6 +3,8 @@
 ! For further details please refer to the file LICENCE
 ! which you should have received as part of this distribution.
 ! *****************************COPYRIGHT*******************************
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Github Copilot Enterprise (Claude Opus 5.5)
 module lfric2um_main_loop_mod
 
 ! Intrinsic modules
@@ -13,6 +15,7 @@ use lfric2um_conv_exner_mod,        only: lfric2um_conv_p_exner,            &
                                           lfric2um_conv_exner_p
 use lfric2um_exner_above_top_mod,   only: lfric2um_exner_above_top
 use lfric2um_initialise_um_mod,     only: um_output_file
+use lfric2um_land_sea_mask_mod,     only: lfric2um_apply_land_sea_mask
 use lfric2um_namelists_mod,         only: lfric2um_config
 use lfric2um_regrid_weights_mod,    only: get_weights
 
@@ -190,6 +193,12 @@ do i_stash = 1, lfric2um_config%num_fields
       ! Perform the regridding from lfric to um
       !-------------------------------------------------------------------------
       call weights%regrid_src_1d_dst_2d(global_field_array(:), &
+           um_output_file%fields(i_field)%rdata(:,:))
+
+      !-------------------------------------------------------------------------
+      ! Apply the UM land-sea mask to the output data if appropriate
+      !-------------------------------------------------------------------------
+      call lfric2um_apply_land_sea_mask(stashcode, &
            um_output_file%fields(i_field)%rdata(:,:))
 
       !-------------------------------------------------------------------------
