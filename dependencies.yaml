@@ -30,8 +30,8 @@ lfric_apps:
     ref:
 
 lfric_core:
-    source: git@github.com:mo-rickywong/lfric_core.git
-    ref: ClearFeigners_2
+    source: git@github.com:MetOffice/lfric_core.git
+    ref: 10c46a577b5c3d226121c2c9d55581f3683f3963
 
 moci:
     source: git@github.com:MetOffice/moci.git
