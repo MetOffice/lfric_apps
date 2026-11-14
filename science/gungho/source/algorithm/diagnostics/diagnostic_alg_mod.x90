@@ -639,7 +639,7 @@ contains
     use extrusion_config_mod,               only: planet_radius
     use sci_geometric_constants_mod,        only: get_height_fe, get_height_fv
     use io_config_mod,                      only: write_diag, use_xios_io
-    use mr_indices_mod,                     only: nummr, mr_names
+    use mr_indices_mod,                     only: nummr, mr_names, imr_v
     use function_space_mod,                 only: function_space_type
     use physics_mappings_alg_mod,           only: map_physics_scalars
     use planet_config_mod,                  only: cv, gravity
@@ -675,6 +675,8 @@ contains
     type( field_type ) :: tot_col_pot_energy_gr     ! dry column potential energy per unit area from planet centre
     type( field_type ) :: tot_col_uv_kinetic_energy ! column kinetic energy per unit area for U and V (horizontal)
     type( field_type ) :: tot_col_w_kinetic_energy  ! column kinetic energy per unit area for W (vertical)
+    type( field_type ) :: tot_col_uq                ! dry mass weighted column integral of u*q per unit area
+    type( field_type ) :: tot_col_vq                ! dry mass weighted column integral of v*q per unit area
     type( field_type ) :: tot_col_encorr            ! energy correction per unit area
     type( field_type ) :: geopotential              ! geopotential from the planet centre
 
@@ -693,6 +695,7 @@ contains
     type(function_space_type), pointer :: w3_fs
 
     logical :: dry_mass_flag, wet_mass_flag, encorr_flag, ignore, X_mass_flag
+    logical :: uq_flag, vq_flag
 
     if ( rho_field%get_element_order_h() > 0 .or. &
          rho_field%get_element_order_v() > 0 ) then
@@ -856,6 +859,38 @@ contains
                                                  height_wth, tot_col_w_kinetic_energy, &
                                                  planet_radius) )
       call tot_col_w_kinetic_energy%write_field(tot_col_w_kinetic_energy%get_name())
+
+    end if
+
+    ! dry mass weighted column integrals of eastward (u*q)
+    ! and northward (v*q) water vapour flux
+    uq_flag = init_diag(tot_col_uq,'processed__tot_col_uq')
+    vq_flag = init_diag(tot_col_vq,'processed__tot_col_vq')
+
+    if ((uq_flag .or. vq_flag) .and. use_xios_io) then
+
+      call derived_fields%get_field( 'u_in_w3', u_in_w3 )
+      call derived_fields%get_field( 'v_in_w3', v_in_w3 )
+
+      ! Get water vapour mixing ratio on w3 and convert to dry mass per unit volume
+      call map_physics_scalars(config, mr_w3, mr(imr_v))
+      call invoke( X_times_Y(rho_moist_X, rho_field, mr_w3) )
+
+      if (uq_flag) then
+        call invoke( X_times_Y(energy_field, rho_moist_X, u_in_w3),               &
+                     compute_column_integral_kernel_type(energy_field, height_w3, &
+                                                   height_wth, tot_col_uq,       &
+                                                   planet_radius) )
+        call tot_col_uq%write_field()
+      end if
+
+      if (vq_flag) then
+        call invoke( X_times_Y(energy_field, rho_moist_X, v_in_w3),               &
+                     compute_column_integral_kernel_type(energy_field, height_w3, &
+                                                   height_wth, tot_col_vq,       &
+                                                   planet_radius) )
+        call tot_col_vq%write_field()
+      end if
 
     end if
 

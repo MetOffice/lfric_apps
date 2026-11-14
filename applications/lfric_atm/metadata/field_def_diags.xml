@@ -989,6 +989,8 @@
   <field id="processed__tot_col_w_kinetic_energy" name="tot_col_w_kinetic_energy" long_name="atmosphere_vertical_kinetic_energy_content" unit="J m-2" domain_ref="face" />
   <field id="processed__tot_col_kinetic_energy" name="tot_col_kinetic_energy" long_name="atmosphere_kinetic_energy_content" unit="J m-2" domain_ref="face"> processed__tot_col_uv_kinetic_energy + processed__tot_col_w_kinetic_energy </field>
   <field id="processed__tot_col_encorr" name="tot_col_encorr" long_name="energy_correction_rate" unit="W m-2" domain_ref="face" />
+  <field id="processed__tot_col_uq" name="tot_col_uq" long_name="integral_of_eastward_water_vapor_flux_wrt_height" standard_name="integral_of_eastward_water_vapor_flux_wrt_height" unit="kg m-1 s-1" domain_ref="face" />
+  <field id="processed__tot_col_vq" name="tot_col_vq" long_name="integral_of_northward_water_vapor_flux_wrt_height" standard_name="integral_of_northward_water_vapor_flux_wrt_height" unit="kg m-1 s-1" domain_ref="face" />
   <field id="processed__m_tot" name="m_tot" long_name="total_moisture" unit="kg kg-1" grid_ref="full_level_face_grid"> m_v + m_cl + m_ci + m_r + m_s + m_g </field>
   <field id="processed__qv" name="qv" long_name="specific_humidity" standard_name="specific_humidity" unit="kg kg-1" grid_ref="full_level_face_grid"> m_v / (1+processed__m_tot) </field>
   <field id="processed__qcl" name="qcl" long_name="specific_cloud_liquid_water" standard_name="mass_fraction_of_cloud_liquid_water_in_air" unit="kg kg-1" grid_ref="full_level_face_grid"> m_cl / (1+processed__m_tot) </field>
