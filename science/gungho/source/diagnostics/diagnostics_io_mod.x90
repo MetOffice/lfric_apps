@@ -242,7 +242,7 @@ subroutine write_vector_diagnostic( config, mesh, field_name, field, &
                         timestep,             &
                         ".m"))
 
-    call vector_nodal_diagnostic_alg( output_field, output_dim, &
+    call vector_nodal_diagnostic_alg( config, output_field, output_dim, &
                                       nodal_coordinates, level, &
                                       field_name, temp_field )
 
@@ -314,8 +314,8 @@ subroutine write_vector_diagnostic( config, mesh, field_name, field, &
                function_space_collection%get_fs(mesh,element_order_h, &
                element_order_v, Wtheta) )
 
-      call split_wind_alg( u1_wind, u2_wind, u3_wind, &
-                           temp_field, mesh )
+      call split_wind_alg( config, mesh, u1_wind, u2_wind, u3_wind, &
+                           temp_field )
 
       ! Set up I/O handler as these are derived fields
       tmp_write_ptr => write_field_generic

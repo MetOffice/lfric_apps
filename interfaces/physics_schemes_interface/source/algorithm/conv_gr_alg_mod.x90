@@ -463,7 +463,7 @@ contains
 
     height_wth => get_height_fv(config, mesh, Wtheta)
     height_w3  => get_height_fv(config, mesh, W3)
-    delta      => get_delta_at_wtheta(mesh)
+    delta      => get_delta_at_wtheta(config, mesh)
 
     ! Initialise the convection diagnostics
     call initialise_diags_for_conv(rho,                    &
