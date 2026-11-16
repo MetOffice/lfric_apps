@@ -5,10 +5,11 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module define_storm_mod_test
 
-  use pFUnit, only : anyExceptions, assertEqual, sourceLocation
+  use pFUnit, only : AbstractTestParameter, ParameterizedTestCase, &
+                     anyExceptions, assertEqual, sourceLocation
 
   use atm_fields_bounds_mod, only : atm_fields_bounds_init
-  use constants_mod,         only : i_um, r_um
+  use constants_mod,         only : i_um, r_um, str_long
   use define_storm_mod,      only : define_storm
   use electric_inputs_mod,   only : storm_definition,              &
                                     graupel_only, graupel_and_ice, &
@@ -19,12 +20,95 @@ module define_storm_mod_test
   implicit none
 
   private
-  public set_up, tear_down, test_define_storm_and_ice, test_define_storm_only
+  public get_parameters, test_define_storm, test_storm_constructor
+
+  @testParameter
+  type, public, extends(AbstractTestParameter) :: parameter_type
+    logical :: storm
+    integer :: definition
+    logical :: expected(9)
+  contains
+    procedure :: toString
+  end type parameter_type
+
+  @TestCase(testParameters={get_parameters()}, constructor=test_storm_constructor)
+  type, public, extends(ParameterizedTestCase) :: test_storm_type
+    private
+    logical :: storm
+    integer :: definition
+    logical :: expected(9)
+  contains
+    procedure setUp
+    procedure tearDown
+  end type test_storm_type
 
 contains
 
-  @before
-  subroutine set_up()
+  !!!! Parameter to string !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  function toString( this ) result( string )
+
+    implicit none
+
+    class(parameter_type), intent(in) :: this
+    character(:), allocatable :: string
+
+    character(str_long) :: buffer
+
+    write(buffer,                                                           &
+          '("storm is ", L1, ", definition is ", I0, ", expecting ", 9L5)') &
+        this%storm, this%definition, this%expected
+    string = trim( buffer )
+
+  end function toString
+
+  !!!! Test case constructor !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  function test_storm_constructor( parameters ) result( new_test )
+
+    implicit none
+
+    type(parameter_type), intent(in) :: parameters
+    type(test_storm_type) :: new_test
+
+    new_test%storm = parameters%storm
+    new_test%definition = parameters%definition
+    new_test%expected = parameters%expected
+
+  end function test_storm_constructor
+
+  !!!! Define the test parameters !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  function get_parameters() result(parameters)
+
+    implicit none
+
+    type(parameter_type) :: parameters(4)
+
+    parameters = (/parameter_type(.false., graupel_only,       &
+                                  [.true., .true., .false.,    &
+                                   .true., .true., .true.,     &
+                                   .false., .false., .true.]), &
+                   parameter_type(.false., graupel_and_ice,    &
+                                  [.true., .true., .false.,    &
+                                   .true., .true., .true.,     &
+                                   .true., .false., .true.]),  &
+                   parameter_type(.true., graupel_only,        &
+                                  [.true., .true., .false.,    &
+                                   .true., .true., .true.,     &
+                                   .false., .false., .true.]), &
+                   parameter_type(.true., graupel_and_ice,     &
+                                  [.true., .true., .false.,    &
+                                   .true., .true., .true.,     &
+                                   .true., .false., .true.])/)
+
+  end function get_parameters
+
+  !!!! Test case fixture set up !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  subroutine setUp( this )
+
+    class(test_storm_type), intent(inout) :: this
 
     ! Todo: The fields bounds work differently for different model_type
     !       values. Until that is changed, this test only tests one possible
@@ -35,18 +119,24 @@ contains
       offx=1, offy=1, halo_i=2, halo_j=2, row_length=3, rows=3, n_rows=3 &
     )
 
-  end subroutine set_up
+  end subroutine setUp
 
-  @after
-  subroutine tear_down()
+  !!!! Test case fixture tear down !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  subroutine tearDown( this )
+
+    class(test_storm_type), intent(inout) :: this
 
     ! There is no opposite to atm_fields_bounds_init. Beware left over data!
     model_type = imdi
 
-  end subroutine tear_down
+  end subroutine tearDown
 
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   @test
-  subroutine test_define_storm_only()
+  subroutine test_define_storm( fixture )
+
+    class(test_storm_type), intent(inout) :: fixture
 
     real(r_um)    :: graupel(1:3, 1:3)
     real(r_um)    :: total_ice(1:3, 1:3)
@@ -62,57 +152,22 @@ contains
         [3, 3]                                                            &
     )
 
-    ! Ensure grid cells without storms are correctly reported:
+    ! Block set
     !
-    storm = .true.
+    storm = fixture%storm
 
     ! Todo: Clearly values should not be passed by global variable.
     !
     gwp_thresh = 2.7_r_um
     tiwp_thresh = 3.3_r_um
-    storm_definition = graupel_only
+    storm_definition = fixture%definition
     call define_storm( graupel, total_ice, storm, storm_points )
-    @assertEqual(6, storm_points)
-    @assertEqual(reshape([.true., .true., .false., .true., .true., .true., .false., .false., .true.], [3, 3]), storm)
+    @assertEqual(reshape(fixture%expected, [3, 3]), storm)
+    @assertEqual(count(fixture%expected), storm_points)
     tiwp_thresh = rmdi
     gwp_thresh = rmdi
     storm_definition = imdi
 
-  end subroutine test_define_storm_only
-
-  @test
-  subroutine test_define_storm_and_ice()
-
-    real(r_um)    :: graupel(1:3, 1:3)
-    real(r_um)    :: total_ice(1:3, 1:3)
-    logical       :: storm(1:3, 1:3)
-    integer(i_um) :: storm_points
-
-    graupel = reshape(                                                    &
-        [7.598, 7.490, 0.571, 8.8198, 5.255, 6.117, 2.625, 2.246, 2.983], &
-        [3, 3]                                                            &
-    )
-    total_ice = reshape(                                                  &
-        [4.189, 9.280, 2.949, 1.984, 7.070, 6.597, 4.0452, 0.060, 4.972], &
-        [3, 3]                                                            &
-    )
-
-    ! Ensure grid cells without storms are correctly reported:
-    !
-    storm = .true.
-
-    ! Todo: Clearly values should not be passed by global variable.
-    !
-    gwp_thresh = 2.7_r_um
-    tiwp_thresh = 3.3_r_um
-    storm_definition = graupel_and_ice
-    call define_storm( graupel, total_ice, storm, storm_points )
-    @assertEqual(7, storm_points)
-    @assertEqual(reshape([.true., .true., .false., .true., .true., .true., .true., .false., .true.], [3, 3]), storm)
-    tiwp_thresh = rmdi
-    gwp_thresh = rmdi
-    storm_definition = imdi
-
-  end subroutine test_define_storm_and_ice
+  end subroutine test_define_storm
 
 end module define_storm_mod_test
