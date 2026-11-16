@@ -1,36 +1,38 @@
-# PR Summary
+*Replace with one-line Summary*
 
-**One-line Summary**
+Sci/Tech Reviewer: <!-- SR id, filled by author when ready for review -->  
+Code Reviewer: <!-- CR id, filled by SSD/CCD -->
+<!-- IAO/IAM: include-if-required -->
 
-Sci/Tech Reviewer: <!-- SR id, filled by author when ready for review (e.g. @octocat) -->  
-Code Reviewer: <!-- CR id, filled by SSD/CCD (e.g. @octocat) -->
+---
 
-<!-- To be completed by the developer -->
-
+## Description <!-- To be completed by the developer -->
 <!-- Provide a brief description of the changes in this PR, including any notes
      useful for reviewers -->
 
-<!-- List any linked PRs here
-- linked MetOffice/<REPO-NAME>#<pr-number>
+### :link: Related Issues/PRs <!-- delete this section for standalone PRs -->
+<!-- List any related PRs here
+- issue/prs from the same repository can be added by #Number
+- issues/prs from other repositories can be included as Org/Repo#Number
 -->
 
-<!-- List any blocking PRs or issues to be closed here
-- is blocked-by #pr-number
-- blocks #pr-number
 - closes #issue-number (auto-closes the issue)
 - fixes #issue-number (auto-closes the issue)
-- is related to #issue-number
--->
+- is related to #issue-number, #pr-number
+- linked #pr-number
+- blocked-by #pr-number
+- blocks #pr-number
 
-## :memo: Code Quality Checklist
+### :memo: Contributor Checklist
 
 - [ ] I have performed a self-review of my own code.
+- [ ] All commits in this PR are signed and show as verified.
 - [ ] My code follows the project's [style guidelines](https://metoffice.github.io/lfric_core/how_to_contribute/index.html#how-to-contribute-index).
 - [ ] Comments have been included that aid understanding and enhance the readability of the code.
+- [ ] Where appropriate I have updated documentation related to this change and confirmed that it builds correctly.
 - [ ] My changes generate no new warnings.
-- [ ] All automated checks in the CI pipeline have completed successfully.
 
-## :test_tube: Testing
+### :test_tube: Testing
 
 - [ ] I have tested this change locally, using the LFRic Apps rose-stem suite.
 - [ ] If any tests fail (rose-stem or CI) the reason is understood and acceptable (e.g., KGO changes).
@@ -39,23 +41,23 @@ Code Reviewer: <!-- CR id, filled by SSD/CCD (e.g. @octocat) -->
 
 <!-- Describe other testing performed (if applicable) -->
 
-### trac.log
+#### trac.log
 
 <!-- Paste your trac.log from testing output here -->
 
-## :shield: Security Considerations
+### :shield: Security Considerations
 
 - [ ] I have reviewed my changes for potential security issues.
 - [ ] Sensitive data is properly handled (if applicable).
 - [ ] Authentication and authorisation are properly implemented (if applicable).
 
-## :zap: Performance Impact
+### :zap: Performance Impact
 
-- [ ] Performance of the code has been considered and, if applicable, suitable performance measurements have been conducted.
+- [ ] Performance of the code has been considered and, if applicable, suitable performance measurements have been conducted.  
 
-## :robot: Generative AI Declaration
+### :robot: Generative AI Declaration
 
-**Did you use any Generative AI tools (e.g., GitHub Copilot, ChatGPT) to assist in writing, refactoring, or optimising code for this PR?**
+**Any Generative AI tools (e.g., GitHub Copilot, Calude Code, ChatGPT) to assist in writing, refactoring, or optimising code for this PR?**
 
 - [ ] **No.** This code was written entirely manually.
 - [ ] **Yes.** (If yes, please complete the verification items below).
@@ -63,49 +65,39 @@ Code Reviewer: <!-- CR id, filled by SSD/CCD (e.g. @octocat) -->
 <details>
 <summary><b>Click here to expand the AI Usage Verification Checklist</b></summary>
 
-### AI Usage Verification
+#### AI Usage Verification
 
 *Only check the boxes below if they are true. If any box cannot be checked, your PR will be automatically rejected.*
 
-- [ ] **Indemnified Tool:** The tool used is an approved, enterprise/institutional tier model that provides IPR indemnity (e.g., *Met Office GitHub Copilot Enterprise*). 
+- [ ] **Approved Tool:** The AI tool used is an approved enterprise/institutional tier model that provides IPR indemnity. An exception may be made with IAO/IAM approval, subject to appropriate scrutiny of the generated code.  
+`Assisted-by: [Institution Name] [Tool / Agent Context] ([Model Version]).`  
+See [AI attribution requirements](https://metoffice.github.io/simulation-systems/FurtherDetails/ai.html#attribution-requirements).
 - [ ] **No Free/Personal Tiers:** I confirm that **no** free or personal tier AI tools (which lack legal protection and IPR indemnity) were used.
-- [ ] **In-File Attribution:** I have added the required `# Some of the content of this file...` comment block following the [Simulation Systems AI policy](https://metoffice.github.io/simulation-systems/FurtherDetails/ai.html).
-- [ ] **Commit Attribution:** I have explicitly noted the tool's usage within my git commit messages.
+- [ ] **In-File Attribution:** I have added the required `! Some content in this file was generated...` comment block following the [Simulation Systems AI policy](https://metoffice.github.io/simulation-systems/FurtherDetails/ai.html).
+Commit-message attribution is encouraged for traceability, but is optional. It does not replace the required attribution in the PR description and source file headers.
 - [ ] **Code Responsibility:** I have personally reviewed, tested, and understood all AI-assisted sections, and I take full responsibility for its logic, security, and IPR compliance.
 
-**Specific Tool(s) Used:**
-
-*(e.g., Met Office GitHub Copilot Enterprise, [Institution Name] GitHub Copilot Enterprise, etc.)*
-> 
 </details>
 
-## :book: Documentation
+### :white_check_mark: Specialist Approval
 
-- [ ] Where appropriate I have updated documentation related to this change and confirmed that it builds correctly.
+- [ ] If this PR includes optimisation work or is expected to affect performance, I have obtained approval from `@MetOffice/HPC-opt` team.
+- [ ] If this PR includes PSyclone-related changes (e.g. PSyKAl-lite, Kernel interface, optimisation scripts, LFRic data structure code), I have obtained approval from `@christophermaynard`.
+- [ ] If this PR includes XIOS-related changes, I have obtained approval from `@MetOffice/ToolsCollabDev` team.
 
-## :cyclone: PSyclone Approval
-
-- [ ] If you have edited any PSyclone-related code (e.g. PSyKAl-lite, Kernel interface, optimisation scripts, LFRic data structure code) then please contact the [TCD Team](mailto:ToolsCollabDevTeam@metoffice.gov.uk).
-
-## :microscope: Sci/Tech Review
-
-<!-- To be completed by the Sci/Tech Reviewer -->
+## :microscope: Sci/Tech Review <!-- To be completed by the Sci/Tech Reviewer -->
 <!-- May be skipped for trivial tickets -->
 
-- [ ] I understand this area of code and the changes being added.
-- [ ] The proposed changes correspond to the pull request description.
-- [ ] Documentation is sufficient (do documentation papers need updating).
-- [ ] Sufficient testing has been completed.
+- [ ] I have reviewed the scientific approach and its implementation described in the PR and consider them appropriate.
+- [ ] I have identified whether scientific documentation or papers need updating.
 
 (_Please alert the code reviewer via a tag when you have approved the SR_)
 
-## :computer: Code Review
-
-<!-- To be completed by the Code Reviewer -->
+## :computer: Code Review <!-- To be completed by the Code Reviewer -->
 
 - [ ] All dependencies have been resolved.
+- [ ] All relevant CODEOWNERS have approved the PR, where applicable.
 - [ ] Related Issues have been properly linked and addressed.
-- [ ] CLA compliance has been confirmed.
 - [ ] Code quality standards have been met.
 - [ ] Tests are adequate and have passed.
 - [ ] Documentation is complete and accurate.
