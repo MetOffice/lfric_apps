@@ -56,7 +56,7 @@ logical, intent(in) ::                                                         &
  l_correct
 
 real(kind=r_bl), intent(in) ::                                                 &
- rdz_charney_grid(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,         &
+ rdz_charney_grid(tdims%i_start:tdims%i_end,                                   &
                   bl_levels),                                                  &
                                  ! in RDZ(,1) is the reciprocal of the
                                  ! height of level 1, i.e. of the
@@ -64,22 +64,21 @@ real(kind=r_bl), intent(in) ::                                                 &
                                  ! RDZ(,K) is the reciprocal
                                  ! of the vertical distance
                                  ! from level K-1 to level K.
- r_rho_levels(tdims_l%i_start:tdims_l%i_end,tdims_l%j_start:tdims_l%j_end,     &
+ r_rho_levels(tdims_l%i_start:tdims_l%i_end,                                   &
               1:bl_levels),                                                    &
                                  ! in height of rho levels
- dtrdz_charney_grid(tdims%i_start:tdims%i_end,                                 &
-                    tdims%j_start:tdims%j_end,bl_levels),                      &
- gamma1(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),                  &
- gamma2(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end),                  &
+ dtrdz_charney_grid(tdims%i_start:tdims%i_end,bl_levels),                      &
+ gamma1(tdims%i_start:tdims%i_end),                                            &
+ gamma2(tdims%i_start:tdims%i_end),                                            &
                                  ! in new scheme weights.
- ct_ctq(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
+ ct_ctq(tdims%i_start:tdims%i_end,                                             &
         bl_levels),                                                            &
                                  ! in Coefficient in T and q
                                  !       tri-diagonal implicit matrix
- dqw_nt(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
+ dqw_nt(tdims%i_start:tdims%i_end,                                             &
         bl_levels),                                                            &
                                       ! in NT incr to qw
- dtl_nt(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                   &
+ dtl_nt(tdims%i_start:tdims%i_end,                                             &
         bl_levels)
                                       ! in NT incr to TL
 
@@ -88,46 +87,46 @@ real(kind=r_bl), intent(in) ::                                                 &
 type (strnewbldiag), intent(in) :: BL_diag
 
 real(kind=r_bl), intent(in out) ::                                             &
- rhokh(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                    &
+ rhokh(pdims%i_start:pdims%i_end,                                              &
        bl_levels),                                                             &
                                  ! INOUT Exchange coeffs for moisture.
                                  ! shouldnt change but is scaled by
                                  ! r_sq then back
- qw(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),            &
+ qw(tdims%i_start:tdims%i_end,bl_levels),                                      &
                                  ! INOUT Total water content, but
                                  !       replaced by specific
                                  !       humidity in LS_CLD.
- tl(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),            &
+ tl(tdims%i_start:tdims%i_end,bl_levels),                                      &
                                  ! INOUT Ice/liquid water temperature,
                                  !       but replaced by T in LS_CLD.
- fqw(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),           &
+ fqw(tdims%i_start:tdims%i_end,bl_levels),                                     &
                                  ! INOUT Moisture flux between layers
                                  !       (kg per square metre per sec)
                                  !       FQW(,1) is total water flux
                                  !       from surface, 'E'.
- ftl(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),           &
+ ftl(tdims%i_start:tdims%i_end,bl_levels),                                     &
                                  ! INOUT FTL(,K) contains net
                                  !       turbulent sensible heat flux
                                  !       into layer K from below; so
                                  !       FTL(,1) is the surface
                                  !       sensible heat, H. (W/m2)
                                    ! INOUT temp arrays for diags
-   fqw_star(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,               &
+   fqw_star(tdims%i_start:tdims%i_end,                                         &
             bl_levels),                                                        &
-   ftl_star(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,               &
+   ftl_star(tdims%i_start:tdims%i_end,                                         &
             bl_levels),                                                        &
-   dqw(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels),         &
+   dqw(tdims%i_start:tdims%i_end,bl_levels),                                   &
                                    ! INOUT BL increment to q field
-   dtl(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,bl_levels)
+   dtl(tdims%i_start:tdims%i_end,bl_levels)
                                    ! INOUT BL increment to T field
 
 ! out fields
 real(kind=real_umphys), intent(out) ::                                         &
- q_latest(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                 &
+ q_latest(tdims%i_start:tdims%i_end,                                           &
           bl_levels),                                                          &
       ! out specific humidity
       ! But at this stage it is qT = qv+qcl+qcf
- t_latest(tdims%i_start:tdims%i_end,tdims%j_start:tdims%j_end,                 &
+ t_latest(tdims%i_start:tdims%i_end,                                           &
           bl_levels)
       ! out temperature
       ! But at this stage it is tL = t - lcrcp*qcl - lsrcp*qcf
@@ -153,8 +152,6 @@ integer ::                                                                     &
              ! omp segment length
  max_threads ! store the no of threads
 
-integer, parameter :: j = 1 ! Array bound, LFRic Parameter
-
 integer(kind=jpim), parameter :: zhook_in  = 0
 integer(kind=jpim), parameter :: zhook_out = 1
 real(kind=jprb)               :: zhook_handle
@@ -168,7 +165,7 @@ max_threads = 1
 tdims_omp_block  = ceiling(real(tdims%i_len)/max_threads)
 tdims_seg_block = min(tdims_omp_block, tdims%i_len)
 
-!$OMP  PARALLEL DEFAULT(SHARED) private(i,k,ii,at,rbt,gamma1_uv,             &
+!$OMP  PARALLEL DEFAULT(SHARED) private(i,k,ii,at,rbt,gamma1_uv,               &
 !$OMP  gamma2_uv,r_sq)
 if ( .not. l_correct ) then
   !  1st stage: predictor
@@ -184,26 +181,26 @@ if ( .not. l_correct ) then
 
 !$OMP do SCHEDULE(STATIC)
   do i = tdims%i_start, tdims%i_end
-    r_sq = r_rho_levels(i,j,1)*r_rho_levels(i,j,1)
-    rhokh(i,j,2) = r_sq * rhokh(i,j,2)
-    fqw(i,j,1)   = r_sq * fqw(i,j,1)
-    ftl(i,j,1)   = r_sq * ftl(i,j,1)
-    fqw(i,j,2)   = r_sq * fqw(i,j,2)
-    ftl(i,j,2)   = r_sq * ftl(i,j,2)
-    dqw(i,j,1) = gamma2(i,j) * ( -dtrdz_charney_grid(i,j,1) *                  &
-        ( fqw(i,j,2) - fqw(i,j,1) ) + dqw_nt(i,j,1) )
-    dtl(i,j,1) = gamma2(i,j) * ( -dtrdz_charney_grid(i,j,1) *                  &
-        ( ftl(i,j,2) - ftl(i,j,1) ) + dtl_nt(i,j,1) )
-    at = -dtrdz_charney_grid(i,j,1) *                                          &
-              gamma1(i,j)*rhokh(i,j,2)*rdz_charney_grid(i,j,2)
-    rbt = 1.0_r_bl / ( 1.0_r_bl - at*( 1.0_r_bl + ct_ctq(i,j,2) ) )
-    dqw(i,j,1) = rbt*(dqw(i,j,1) - at*dqw(i,j,2) )
-    dtl(i,j,1) = rbt*(dtl(i,j,1) - at*dtl(i,j,2) )
-    rhokh(i,j,2) = rhokh(i,j,2)/r_sq
-    fqw(i,j,1) = fqw(i,j,1)/r_sq
-    ftl(i,j,1) = ftl(i,j,1)/r_sq
-    fqw(i,j,2) = fqw(i,j,2)/r_sq
-    ftl(i,j,2) = ftl(i,j,2)/r_sq
+  r_sq = r_rho_levels(i,1)*r_rho_levels(i,1)
+  rhokh(i,2) = r_sq * rhokh(i,2)
+  fqw(i,1)   = r_sq * fqw(i,1)
+  ftl(i,1)   = r_sq * ftl(i,1)
+  fqw(i,2)   = r_sq * fqw(i,2)
+  ftl(i,2)   = r_sq * ftl(i,2)
+  dqw(i,1) = gamma2(i) * ( -dtrdz_charney_grid(i,1) *                          &
+    ( fqw(i,2) - fqw(i,1) ) + dqw_nt(i,1) )
+  dtl(i,1) = gamma2(i) * ( -dtrdz_charney_grid(i,1) *                          &
+    ( ftl(i,2) - ftl(i,1) ) + dtl_nt(i,1) )
+  at = -dtrdz_charney_grid(i,1) *                                              &
+        gamma1(i)*rhokh(i,2)*rdz_charney_grid(i,2)
+  rbt = 1.0_r_bl / ( 1.0_r_bl - at*( 1.0_r_bl + ct_ctq(i,2) ) )
+  dqw(i,1) = rbt*(dqw(i,1) - at*dqw(i,2) )
+  dtl(i,1) = rbt*(dtl(i,1) - at*dtl(i,2) )
+  rhokh(i,2) = rhokh(i,2)/r_sq
+  fqw(i,1) = fqw(i,1)/r_sq
+  ftl(i,1) = ftl(i,1)/r_sq
+  fqw(i,2) = fqw(i,2)/r_sq
+  ftl(i,2) = ftl(i,2)/r_sq
   end do
 !$OMP end do
 
@@ -215,19 +212,19 @@ end if
 ! Update TL, QW and their increments
 !$OMP do SCHEDULE(STATIC)
 do i = tdims%i_start, tdims%i_end
-  tl(i,j,1) = tl(i,j,1) + dtl(i,j,1)
-  qw(i,j,1) = qw(i,j,1) + dqw(i,j,1)
+  tl(i,1) = tl(i,1) + dtl(i,1)
+  qw(i,1) = qw(i,1) + dqw(i,1)
 end do
 !$OMP end do
 
 !$OMP do SCHEDULE(STATIC)
-do ii = tdims%j_start, tdims%i_end, tdims_seg_block
+ do ii = tdims%i_start, tdims%i_end, tdims_seg_block
   do k = 2, bl_levels
     do i = ii, min(ii+tdims_seg_block-1,tdims%i_end)
-      dtl(i,j,k) = dtl(i,j,k) - ct_ctq(i,j,k)*dtl(i,j,k-1)
-      tl(i,j,k) = tl(i,j,k) + dtl(i,j,k)
-      dqw(i,j,k) = dqw(i,j,k) - ct_ctq(i,j,k)*dqw(i,j,k-1)
-      qw(i,j,k) = qw(i,j,k) + dqw(i,j,k)
+      dtl(i,k) = dtl(i,k) - ct_ctq(i,k)*dtl(i,k-1)
+      tl(i,k) = tl(i,k) + dtl(i,k)
+      dqw(i,k) = dqw(i,k) - ct_ctq(i,k)*dqw(i,k-1)
+      qw(i,k) = qw(i,k) + dqw(i,k)
     end do
   end do !bl_levels
 end do
@@ -242,9 +239,9 @@ if ( BL_diag%l_ftl ) then
 !$OMP do SCHEDULE(STATIC)
     do k = 2, bl_levels
       do i = tdims%i_start, tdims%i_end
-        ftl_star(i,j,k) = gamma2(i,j)*ftl(i,j,k)                               &
-              - gamma1(i,j)*rhokh(i,j,k)*rdz_charney_grid(i,j,k)               &
-                          * (dtl(i,j,k)-dtl(i,j,k-1))
+        ftl_star(i,k) = gamma2(i)*ftl(i,k)                                     &
+              - gamma1(i)*rhokh(i,k)*rdz_charney_grid(i,k)                     &
+                          * (dtl(i,k)-dtl(i,k-1))
       end do
     end do
 !$OMP end do NOWAIT
@@ -253,9 +250,9 @@ if ( BL_diag%l_ftl ) then
 !$OMP do SCHEDULE(STATIC)
     do k = 2, bl_levels
       do i = tdims%i_start, tdims%i_end
-        ftl(i,j,k) = ftl_star(i,j,k)+gamma2(i,j)*ftl(i,j,k)                    &
-              - gamma1(i,j)*rhokh(i,j,k)*rdz_charney_grid(i,j,k)               &
-                          * (dtl(i,j,k)-dtl(i,j,k-1))
+        ftl(i,k) = ftl_star(i,k)+gamma2(i)*ftl(i,k)                            &
+              - gamma1(i)*rhokh(i,k)*rdz_charney_grid(i,k)                     &
+                          * (dtl(i,k)-dtl(i,k-1))
       end do
     end do
 !$OMP end do NOWAIT
@@ -270,9 +267,9 @@ if ( BL_diag%l_fqw ) then
 !$OMP do SCHEDULE(STATIC)
     do k = 2, bl_levels
       do i = tdims%i_start, tdims%i_end
-        fqw_star(i,j,k) = gamma2(i,j)*fqw(i,j,k)                               &
-              - gamma1(i,j)*rhokh(i,j,k)*rdz_charney_grid(i,j,k)               &
-              * (dqw(i,j,k)-dqw(i,j,k-1))
+        fqw_star(i,k) = gamma2(i)*fqw(i,k)                                     &
+              - gamma1(i)*rhokh(i,k)*rdz_charney_grid(i,k)                     &
+              * (dqw(i,k)-dqw(i,k-1))
       end do
     end do ! bl_levels
 !$OMP end do NOWAIT
@@ -282,9 +279,9 @@ if ( BL_diag%l_fqw ) then
 !$OMP do SCHEDULE(STATIC)
     do k = 2, bl_levels
       do i = tdims%i_start, tdims%i_end
-        fqw(i,j,k) = fqw_star(i,j,k)+gamma2(i,j)*fqw(i,j,k)                    &
-              - gamma1(i,j)*rhokh(i,j,k)*rdz_charney_grid(i,j,k)               &
-                * (dqw(i,j,k)-dqw(i,j,k-1))
+        fqw(i,k) = fqw_star(i,k)+gamma2(i)*fqw(i,k)                            &
+              - gamma1(i)*rhokh(i,k)*rdz_charney_grid(i,k)                     &
+                * (dqw(i,k)-dqw(i,k-1))
       end do
     end do ! bl_levels
 !$OMP end do NOWAIT
@@ -303,7 +300,7 @@ if ( l_correct ) then
 !$OMP do SCHEDULE(STATIC)
   do k = 2, bl_levels
     do i = tdims%i_start, tdims%i_end
-      ftl(i,j,k) = ftl(i,j,k)*cp
+      ftl(i,k) = ftl(i,k)*cp
     end do
   end do
 !$OMP end do NOWAIT
@@ -313,8 +310,8 @@ if ( l_correct ) then
 !$OMP do SCHEDULE(STATIC)
   do k = 1, bl_levels
     do i = tdims%i_start, tdims%i_end
-      t_latest(i,j,k)=tl(i,j,k)
-      q_latest(i,j,k)=qw(i,j,k)
+      t_latest(i,k)=tl(i,k)
+      q_latest(i,k)=qw(i,k)
     end do
   end do
 !$OMP end do NOWAIT

@@ -18,7 +18,7 @@ module iau_firstfile_io_mod
   use lfric_string_mod,          only: split_string
   use lfric_xios_context_mod,    only: lfric_xios_context_type
   use lfric_xios_file_mod,       only: lfric_xios_file_type, &
-                                       OPERATION_ONCE
+                                       OPERATION_ONCE, CONVENTION_UGRID
   use linked_list_mod,           only: linked_list_type
   use mesh_collection_mod,       only: mesh_collection
   use mesh_mod,                  only: mesh_type
@@ -67,11 +67,6 @@ contains
     character(:), allocatable :: split_filename(:)
     character(str_def)        :: short_filename
 
-    integer(i_def) :: geometry
-    integer(i_def) :: topology
-    integer(i_def) :: coord_system
-    real(r_def)    :: scaled_radius
-
     logical(l_def) :: use_xios_io
 
     chi_inventory => get_chi_inventory()
@@ -81,11 +76,6 @@ contains
     time_start      = modeldb%config%time%calendar_start()
     prime_mesh_name = modeldb%config%base_mesh%prime_mesh_name()
     use_xios_io     = modeldb%config%io%use_xios_io()
-
-    geometry      = modeldb%config%base_mesh%geometry()
-    topology      = modeldb%config%base_mesh%topology()
-    coord_system  = modeldb%config%finite_element%coord_system()
-    scaled_radius = modeldb%config%planet%scaled_radius()
 
     split_filename = split_string( trim(iau_incs_path), '/' )
     short_filename = trim(split_filename(size(split_filename)))
@@ -112,24 +102,24 @@ contains
            io_mode=FILE_MODE_READ, &
            freq=1, &
            operation=OPERATION_ONCE, &
+           file_convention=CONVENTION_UGRID, &
            fields_in_file=multifile_fields))
 
     end if ! use_xios_io
 
     ! Initialise XIOS context
     mesh => mesh_collection%get_mesh(prime_mesh_name)
+
     call chi_inventory%get_field_array(mesh, chi)
     call panel_id_inventory%get_field(mesh, panel_id)
 
     allocate(tmp_calendar, source=step_calendar_type(time_origin, time_start))
 
-    call io_context%initialise_xios_context( modeldb%mpi%get_comm(), &
+    call io_context%initialise_xios_context( modeldb%config,         &
+                                             modeldb%mpi%get_comm(), &
                                              chi, panel_id,          &
                                              modeldb%clock,          &
                                              tmp_calendar,           &
-                                             geometry, topology,     &
-                                             coord_system,           &
-                                             scaled_radius,          &
                                              start_at_zero=.true. )
     call io_context%close_context_definition()
 

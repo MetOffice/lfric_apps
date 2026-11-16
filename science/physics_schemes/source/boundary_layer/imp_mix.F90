@@ -44,12 +44,12 @@ integer, intent(in) ::                                                         &
                                !    which boundary layer fluxes are
                                !    calculated.
 real(kind=real_umphys), intent(in) ::                                          &
- r_theta_levels(r_dims%i_start:r_dims%i_end,r_dims%j_start:r_dims%j_end,       &
+ r_theta_levels(r_dims%i_start:r_dims%i_end,                                   &
                  0:bl_levels),                                                 &
- r_rho_levels(r_dims%i_start:r_dims%i_end,r_dims%j_start:r_dims%j_end,         &
+ r_rho_levels(r_dims%i_start:r_dims%i_end,                                     &
                bl_levels),                                                     &
                                ! in height of model rho and theta levels
- dtrdz(pdims%i_start:,pdims%j_start:,:)
+ dtrdz(pdims%i_start:,:)
                                ! in  dt/(rho*r*r*dz) for scalar
                                !     flux divergence
 
@@ -57,30 +57,30 @@ real(kind=real_umphys), intent(in) ::                                          &
 !  fluxes.
 
 real(kind=real_umphys), intent(in out) ::                                      &
- gamma_rhokh_rdz(pdims%i_start:,pdims%j_start:,2:),                            &
+ gamma_rhokh_rdz(pdims%i_start:,2:),                                           &
                                ! INOUT Turbulent mixing coefs. above
                                !    surface, =gamma(K)*RHOKH(,K)
                                !    *RDZ(K) for K>=2 (from KMKH).
- gamma_rhok_dep(pdims%i_start:,pdims%j_start:),                                &
+ gamma_rhok_dep(pdims%i_start:),                                               &
                                ! INOUT Surface exchange coefficient
                                !    for surface deposition*gamma(1)
- f_field(pdims%i_start:,pdims%j_start:,:),                                     &
+ f_field(pdims%i_start:,:),                                                    &
                                        ! INOUT Flux of tracer
- surf_dep_flux(pdims%i_start:,pdims%j_start:),                                 &
+ surf_dep_flux(pdims%i_start:),                                                &
                                        ! INOUT surface deposition
                                        !       flux
- field(pdims%i_start:,pdims%j_start:,:)
+ field(pdims%i_start:,:)
                                        ! INOUT Amount of tracer
 
 !    Local and other symbolic constants :-
 !   Workspace :-
 !   4*BL_LEVELS + 4 blocks of real workspace are required.
 real(kind=real_umphys) ::                                                      &
- af(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,bl_levels),            &
+ af(pdims%i_start:pdims%i_end,bl_levels),                                      &
                                        ! Elements in rows in matrix
                                ! equation (modified during
                                ! Gaussian elimination calculations).
- d_field(pdims%i_start:pdims%i_end,pdims%j_start:pdims%j_end,                  &
+ d_field(pdims%i_start:pdims%i_end,                                            &
          bl_levels)
                                        ! Delta FIELD (tracer field)
                                ! elements of vector on RHS, then
@@ -101,8 +101,6 @@ integer ::                                                                     &
             ! BL_LEVELS minus 1.
  i,                                                                            &
             ! Loop counter (horizontal field index).
- j,                                                                            &
-            ! Offset version of I.
  k,                                                                            &
             ! Loop counter (vertical index).
  km1,                                                                          &
@@ -132,10 +130,10 @@ max_threads = 1
 pdims_omp_block = ceiling(real(pdims%i_end)/max_threads)
 pdims_seg_block = min(pdims_omp_block, pdims%i_len)
 
-!$OMP PARALLEL DEFAULT(none) SHARED(pdims_seg_block, f_field, dtrdz, field, pdims,   &
-!$OMP  gamma_rhokh_rdz, r_rho_levels, surf_dep_flux, d_field, af,              &
+!$OMP PARALLEL DEFAULT(none) SHARED(pdims_seg_block, f_field, dtrdz, field,    &
+!$OMP  pdims, gamma_rhokh_rdz, r_rho_levels, surf_dep_flux, d_field, af,       &
 !$OMP  r_theta_levels, gamma_rhok_dep, bl_levels, blm1)                        &
-!$OMP  private(r_sq, cf, rbf, kp1, km1, ii, k, j, i, rr_sq)
+!$OMP  private(r_sq, cf, rbf, kp1, km1, ii, k, i, rr_sq)
 
 ! ----------------------------------------------------------------------
 !  (A) Calculations on P-grid.
@@ -146,23 +144,20 @@ pdims_seg_block = min(pdims_omp_block, pdims%i_len)
 
 !$OMP do SCHEDULE(STATIC)
 do k = 2, bl_levels
-  do j = pdims%j_start, pdims%j_end
-    do i = pdims%i_start, pdims%i_end
-      r_sq = r_rho_levels(i,j,k)*r_rho_levels(i,j,k)
-      gamma_rhokh_rdz(i,j,k) = r_sq * gamma_rhokh_rdz(i,j,k)
-      f_field(i,j,k)         = r_sq * f_field(i,j,k)
-    end do
+  do i = pdims%i_start, pdims%i_end
+    r_sq = r_rho_levels(i,k)*r_rho_levels(i,k)
+    gamma_rhokh_rdz(i,k) = r_sq * gamma_rhokh_rdz(i,k)
+    f_field(i,k)         = r_sq * f_field(i,k)
   end do
 end do
 !$OMP end do
 
 !$OMP do SCHEDULE(STATIC)
-do j = pdims%j_start, pdims%j_end
-  do i = pdims%i_start, pdims%i_end
-    r_sq = r_theta_levels(i,j,0)*r_theta_levels(i,j,0)
-    gamma_rhok_dep(i,j) = r_sq * gamma_rhok_dep(i,j)
-    f_field(i,j,1)      = r_sq * f_field(i,j,1)
-    surf_dep_flux(i,j)  = r_sq * surf_dep_flux(i,j)
+do i = pdims%i_start, pdims%i_end
+  r_sq = r_theta_levels(i,0)*r_theta_levels(i,0)
+  gamma_rhok_dep(i) = r_sq * gamma_rhok_dep(i)
+  f_field(i,1)      = r_sq * f_field(i,1)
+  surf_dep_flux(i)  = r_sq * surf_dep_flux(i)
 
     ! ----------------------------------------------------------------------
     !  4.  Calculate those matrix and vector elements on the LHS of eqn
@@ -175,16 +170,15 @@ do j = pdims%j_start, pdims%j_end
         !  4.2 Lowest atmospheric layer FIELD row of matrix.
         !-----------------------------------------------------------------------
                   ! "Explicit" increment to FIELD(1)
-    d_field(i,j,1) = -dtrdz(i,j,1) *                                           &
-                   ( f_field(i,j,2) - f_field(i,j,1)                           &
-                                  - surf_dep_flux(i,j) )
+  d_field(i,1) = -dtrdz(i,1) *                                                 &
+                 ( f_field(i,2) - f_field(i,1)                                 &
+                                - surf_dep_flux(i) )
 
-    cf = -dtrdz(i,j,1) * gamma_rhok_dep(i,j)
-    af(i,j,1) = -dtrdz(i,j,1) * gamma_rhokh_rdz(i,j,2)
-    rbf = 1.0 / ( 1.0 - af(i,j,1) - cf )
-    d_field(i,j,1) = rbf * d_field(i,j,1)
-    af(i,j,1) = rbf * af(i,j,1)
-  end do
+  cf = -dtrdz(i,1) * gamma_rhok_dep(i)
+  af(i,1) = -dtrdz(i,1) * gamma_rhokh_rdz(i,2)
+  rbf = 1.0 / ( 1.0 - af(i,1) - cf )
+  d_field(i,1) = rbf * d_field(i,1)
+  af(i,1) = rbf * af(i,1)
 end do
 !$OMP end do
 
@@ -199,22 +193,20 @@ do ii = pdims%i_start, pdims%i_end, pdims_seg_block
   do k = 2, blm1
     kp1 = k+1
     km1 = k-1
-    do j = pdims%j_start, pdims%j_end
-      do i = ii, min(ii+pdims_seg_block-1, pdims%i_end)
+    do i = ii, min(ii+pdims_seg_block-1, pdims%i_end)
 
         !   "Explicit" flux divergence across layer giving explicit FIELD
         !   increment due to mixing
 
-        d_field(i,j,k) = -dtrdz(i,j,k) *                                       &
-                       (f_field(i,j,kp1) - f_field(i,j,k))
-        af(i,j,k) = -dtrdz(i,j,k) * gamma_rhokh_rdz(i,j,kp1)
-        cf = -dtrdz(i,j,k) * gamma_rhokh_rdz(i,j,k)
-        rbf = 1.0 / ( 1.0 - af(i,j,k)                                          &
-                          - cf * ( 1.0 + af(i,j,km1) ) )
-        d_field(i,j,k) = rbf * ( d_field(i,j,k)                                &
-                                  - cf*d_field(i,j,km1) )
-        af(i,j,k) = rbf * af(i,j,k)
-      end do
+      d_field(i,k) = -dtrdz(i,k) *                                             &
+                     (f_field(i,kp1) - f_field(i,k))
+      af(i,k) = -dtrdz(i,k) * gamma_rhokh_rdz(i,kp1)
+      cf = -dtrdz(i,k) * gamma_rhokh_rdz(i,k)
+      rbf = 1.0 / ( 1.0 - af(i,k)                                              &
+                        - cf * ( 1.0 + af(i,km1) ) )
+      d_field(i,k) = rbf * ( d_field(i,k)                                      &
+                                - cf*d_field(i,km1) )
+      af(i,k) = rbf * af(i,k)
     end do
   end do
 end do
@@ -226,18 +218,16 @@ end do
 !-----------------------------------------------------------------------
 
 !$OMP do SCHEDULE(STATIC)
-do j = pdims%j_start, pdims%j_end
-  do i = pdims%i_start, pdims%i_end
-    d_field(i,j,bl_levels) = dtrdz(i,j,bl_levels) *                            &
-                             f_field(i,j,bl_levels)
+do i = pdims%i_start, pdims%i_end
+  d_field(i,bl_levels) = dtrdz(i,bl_levels) *                                  &
+                           f_field(i,bl_levels)
 
-    cf = -dtrdz(i,j,bl_levels) * gamma_rhokh_rdz(i,j,bl_levels)
-    rbf = 1.0 / ( 1.0 - cf*( 1.0 + af(i,j,blm1) ) )
-    d_field(i,j,bl_levels) = rbf * ( d_field(i,j,bl_levels)                    &
-                                        - cf*d_field(i,j,blm1) )
-    field(i,j,bl_levels) = field(i,j,bl_levels) +                              &
-                           d_field(i,j,bl_levels)
-  end do
+  cf = -dtrdz(i,bl_levels) * gamma_rhokh_rdz(i,bl_levels)
+  rbf = 1.0 / ( 1.0 - cf*( 1.0 + af(i,blm1) ) )
+  d_field(i,bl_levels) = rbf * ( d_field(i,bl_levels)                          &
+                                      - cf*d_field(i,blm1) )
+  field(i,bl_levels) = field(i,bl_levels) +                                    &
+                         d_field(i,bl_levels)
 end do
 !$OMP end do
 
@@ -251,12 +241,10 @@ end do
 !$OMP do SCHEDULE(STATIC)
 do ii = pdims%i_start, pdims%i_end, pdims_seg_block
   do k = blm1, 1, -1
-    do j = pdims%j_start, pdims%j_end
-      do i = ii, min(ii+pdims_seg_block-1,pdims%i_end)
-        d_field(i,j,k) = d_field(i,j,k) -                                      &
-                       af(i,j,k)*d_field(i,j,k+1)
-        field(i,j,k) = field(i,j,k) + d_field(i,j,k)
-      end do
+    do i = ii, min(ii+pdims_seg_block-1,pdims%i_end)
+      d_field(i,k) = d_field(i,k) -                                            &
+                     af(i,k)*d_field(i,k+1)
+      field(i,k) = field(i,k) + d_field(i,k)
     end do
   end do
 end do
@@ -275,31 +263,27 @@ do k = 1, bl_levels
     !  6.1 Fluxes at layer interfaces above the surface.
     !-----------------------------------------------------------------------
     km1 = k-1
-    do j = pdims%j_start, pdims%j_end
-      do i = pdims%i_start, pdims%i_end
-        rr_sq = 1.0 / ( r_rho_levels(i,j,k)*r_rho_levels(i,j,k) )
-        gamma_rhokh_rdz(i,j,k) = rr_sq * gamma_rhokh_rdz(i,j,k)
-        f_field(i,j,k)         = rr_sq * f_field(i,j,k)
-        !  Calculate and store implicit fluxes due to local mixing.
+    do i = pdims%i_start, pdims%i_end
+      rr_sq = 1.0 / ( r_rho_levels(i,k)*r_rho_levels(i,k) )
+      gamma_rhokh_rdz(i,k) = rr_sq * gamma_rhokh_rdz(i,k)
+      f_field(i,k)         = rr_sq * f_field(i,k)
+      !  Calculate and store implicit fluxes due to local mixing.
 
-        f_field(i,j,k) = f_field(i,j,k) - gamma_rhokh_rdz(i,j,k)               &
-                         * ( d_field(i,j,k) - d_field(i,j,km1) )
-      end do
+      f_field(i,k) = f_field(i,k) - gamma_rhokh_rdz(i,k)                       &
+                       * ( d_field(i,k) - d_field(i,km1) )
     end do
   else
     !-----------------------------------------------------------------------
     !  6.2 Surface fluxes.
     !-----------------------------------------------------------------------
-    do j = pdims%j_start, pdims%j_end
-      do i = pdims%i_start, pdims%i_end
-        rr_sq = 1.0 / ( r_theta_levels(i,j,0)*r_theta_levels(i,j,0) )
-        gamma_rhok_dep(i,j) = rr_sq * gamma_rhok_dep(i,j)
-        f_field(i,j,1)      = rr_sq * f_field(i,j,1)
-        surf_dep_flux(i,j)  = rr_sq * surf_dep_flux(i,j)
+    do i = pdims%i_start, pdims%i_end
+      rr_sq = 1.0 / ( r_theta_levels(i,0)*r_theta_levels(i,0) )
+      gamma_rhok_dep(i) = rr_sq * gamma_rhok_dep(i)
+      f_field(i,1)      = rr_sq * f_field(i,1)
+      surf_dep_flux(i)  = rr_sq * surf_dep_flux(i)
 
-        surf_dep_flux(i,j) = surf_dep_flux(i,j)                                &
-                            - gamma_rhok_dep(i,j) * d_field(i,j,1)
-      end do
+      surf_dep_flux(i) = surf_dep_flux(i)                                      &
+                          - gamma_rhok_dep(i) * d_field(i,1)
     end do
   end if
 end do

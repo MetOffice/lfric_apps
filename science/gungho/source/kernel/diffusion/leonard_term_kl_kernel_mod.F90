@@ -12,6 +12,7 @@ module leonard_term_kl_kernel_mod
   use argument_mod,          only : arg_type,                     &
                                     GH_FIELD, GH_SCALAR, GH_REAL, &
                                     GH_READ, GH_WRITE,            &
+                                    GH_READWRITE,                 &
                                     CELL_COLUMN, STENCIL, CROSS,  &
                                     GH_INTEGER
   use constants_mod,         only : r_def, i_def
@@ -30,11 +31,10 @@ module leonard_term_kl_kernel_mod
 
   type, public, extends(kernel_type) :: leonard_term_kl_kernel_type
     private
-    type(arg_type) :: meta_args(6) = (/                                    &
-         arg_type(GH_FIELD,  GH_REAL, GH_WRITE, W3),                       &
+    type(arg_type) :: meta_args(5) = (/                                    &
+         arg_type(GH_FIELD,  GH_REAL, GH_READWRITE, W3),                   &
          arg_type(GH_FIELD,  GH_REAL, GH_READ,  Wtheta, STENCIL(CROSS)),   &
          arg_type(GH_FIELD,  GH_REAL, GH_READ,  Wtheta),                   &
-         arg_type(GH_SCALAR, GH_REAL, GH_READ),                            &
          arg_type(GH_SCALAR, GH_REAL, GH_READ),                            &
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ)                          &
          /)
@@ -59,7 +59,6 @@ contains
 !! @param[in] map_wt_stencil  Array holding the dofmap for the stencil at the
 !!                            base of the column for Wtheta
 !! @param[in] height_wth  Height of wth space levels above the surface
-!! @param[in] leonard_kl  The user-specified Leonard term parameter
 !! @param[in] dt  The model timestep length
 !! @param[in] bl_levels   The number of boundary-layer levels
 !! @param[in] ndf_w3  Number of degrees of freedom per cell for w3 space
@@ -73,7 +72,6 @@ subroutine leonard_term_kl_code( nlayers,                               &
                                  velocity_w2v,                          &
                                  map_wt_stencil_size, map_wt_stencil,   &
                                  height_wth,                            &
-                                 leonard_kl,                            &
                                  dt, bl_levels,                         &
                                  ndf_w3, undf_w3, map_w3,               &
                                  ndf_wt, undf_wt, map_wt                &
@@ -90,7 +88,6 @@ subroutine leonard_term_kl_code( nlayers,                               &
   integer(kind=i_def), dimension(ndf_wt),  intent(in)  :: map_wt
   integer(kind=i_def), dimension(ndf_w3),  intent(in)  :: map_w3
 
-  real(kind=r_def), intent(in)    :: leonard_kl
   real(kind=r_def), intent(in)    :: dt
   real(kind=r_def), dimension(undf_w3),  intent(inout) :: kl
   real(kind=r_def), dimension(undf_wt),  intent(in)    :: height_wth
@@ -102,13 +99,10 @@ subroutine leonard_term_kl_code( nlayers,                               &
   ! If the full stencil isn't available, we must be at the domain edge.
   ! Simply set the increment to 0 for now, and exit the routine.
   if (map_wt_stencil_size < 5_i_def) then
-    do k = 0, bl_levels
-      kl(map_w3(1) + k) = leonard_kl
-    end do
     return
   end if
 
-  ! Leonard term parameter is the min of the input leonard_kl
+  ! Leonard term parameter is the min of the input kl
   ! and the max stable value   6 * dz / ( dt * dw )
   ! For dw we use the maximum horizontal finite difference that
   ! contributes to the flux at each w3 point.
@@ -119,7 +113,7 @@ subroutine leonard_term_kl_code( nlayers,                               &
 
   do k = 1, bl_levels - 1
     kp = k + 1
-    kl(map_w3(1) + k) = MIN( leonard_kl,                                 &
+    kl(map_w3(1) + k) = MIN( kl(map_w3(1) + k),                          &
                         6.0_r_def * ( height_wth(map_wt(1) + kp) -       &
                                       height_wth(map_wt(1) + k) )        &
                         / (dt * MAX(                                     &
@@ -141,7 +135,7 @@ subroutine leonard_term_kl_code( nlayers,                               &
                              velocity_w2v(map_wt_stencil(1,1) + k) ),    &
                         ABS( velocity_w2v(map_wt_stencil(1,5) + k) -     &
                              velocity_w2v(map_wt_stencil(1,1) + k) ),    &
-                        EPSILON( leonard_kl )                            &
+                        EPSILON( kl(map_w3(1) + k) )                     &
                         ) ) )
   end do
 

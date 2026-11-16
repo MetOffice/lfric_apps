@@ -145,9 +145,9 @@ subroutine load_namelist(self)
   do i_stash = 1, max_stash_list
     if (stash_list(i_stash) == um_imdi) then
       exit
-    else
-      self%num_fields = self%num_fields + 1
     end if
+
+    self%num_fields = self%num_fields + 1
   end do
 
   if (self%num_fields <= 0) then

@@ -54,6 +54,9 @@ module lfric2lfric_init_mesh_mod
   use mesh_mod,                    only: mesh_type
   use global_mesh_mod,             only: global_mesh_type
   use local_mesh_mod,              only: local_mesh_type
+  use ugrid_2d_mod,                only: ugrid_2d_type
+  use ugrid_file_mod,              only: ugrid_file_type
+  use ncdf_quad_mod,               only: ncdf_quad_type
 
   ! Lfric2lfric modules
   use lfric2lfric_config_mod,      only: regrid_method_map,                   &
@@ -142,7 +145,6 @@ subroutine init_mesh( config,                  &
   ! Local variables
   integer(kind=i_def)             :: i
   character(len=str_max_filename) :: mesh_file(2)
-  character(str_max_filename)     :: mesh_input_file
   integer(kind=i_def)             :: stencil_depths(2)
 
   character(str_def) :: stored_mesh_names(2)
@@ -164,6 +166,11 @@ subroutine init_mesh( config,                  &
 
   logical(l_def) :: enforce_constraints
   integer(i_def) :: mapping_factors(2)
+
+  type(ugrid_2d_type) :: ugrid_2d_src
+  class(ugrid_file_type), allocatable :: file_handler_src
+  type(ugrid_2d_type) :: ugrid_2d_dst
+  class(ugrid_file_type), allocatable :: file_handler_dst
 
   nullify( src_global_mesh, src_mesh, partitioner_src)
   nullify( dst_global_mesh, dst_mesh, partitioner_dst)
@@ -275,14 +282,21 @@ subroutine init_mesh( config,                  &
         trim(meshfile_prefix(src)) // '_', local_rank, '-',  &
                                            total_ranks, '.nc'
 
+    ! Open files
+    allocate( ncdf_quad_type :: file_handler_src )
+    call ugrid_2d_src%set_file_handler( file_handler_src )
+    call ugrid_2d_src%file_handler_open(mesh_file(src))
+    allocate( ncdf_quad_type :: file_handler_dst )
+    call ugrid_2d_dst%set_file_handler( file_handler_dst )
+    call ugrid_2d_dst%file_handler_open(mesh_file(dst))
+
     ! Read in all local mesh data for this rank and
     ! initialise local mesh objects from them.
     !===========================================================
     ! Each partitioned mesh file will contain meshes of the
     ! same name as all other partitions.
-
-    call load_local_mesh( mesh_file(src), mesh_names(src))
-    call load_local_mesh( mesh_file(dst), mesh_names(dst))
+    call load_local_mesh( mesh_file(src), mesh_names(src), ugrid_2d_src)
+    call load_local_mesh( mesh_file(dst), mesh_names(dst), ugrid_2d_dst)
 
     ! Apply configuration related checks to ensure that these
     ! meshes are suitable for the supplied application
@@ -301,8 +315,8 @@ subroutine init_mesh( config,                  &
       ! Intergrid mesh maps should be in the mesh input file,
       ! i.e. the source and destination file should be the same.
       if (trim(mesh_file(dst)) == trim(mesh_file(src))) then
-         mesh_input_file = mesh_file(src)
-         call load_local_mesh_maps( mesh_input_file, mesh_names )
+         call load_local_mesh_maps( mesh_file(src), mesh_names, ugrid_2d_src)
+
       else
          call log_event( "Inter-grid maps/meshes should be "// &
                          "sourced from the same input files)", &
@@ -355,59 +369,122 @@ subroutine init_mesh( config,                  &
                                    decomposition_dst,    &
                                    partitioner_dst )
 
-    ! Read in all global meshes from input file
-    !===========================================================
-    call load_global_mesh( mesh_file(src), mesh_names(src), &
-                           rename_to=stored_mesh_names(src) )
+    ! Open files
+    allocate( ncdf_quad_type :: file_handler_src )
+    call ugrid_2d_src%set_file_handler( file_handler_src )
+    call ugrid_2d_src%file_handler_open(mesh_file(src))
+    allocate( ncdf_quad_type :: file_handler_dst )
+    call ugrid_2d_dst%set_file_handler( file_handler_dst )
+    call ugrid_2d_dst%file_handler_open(mesh_file(dst))
 
-    call load_global_mesh( mesh_file(dst), mesh_names(dst), &
-                           rename_to=stored_mesh_names(dst) )
-
-    ! Partition the global meshes
-    !===========================================================
-    enforce_constraints = .false.
-
-    src_global_mesh => global_mesh_collection%get_global_mesh(stored_mesh_names(src))
-    dst_global_mesh => global_mesh_collection%get_global_mesh(stored_mesh_names(dst))
-
-    mapping_factors = 1
     if (regrid_method == regrid_method_map) then
+
+      call load_global_mesh( mesh_file(src), mesh_names(src), &
+                             ugrid_2d_src,                    &
+                             rename_to=stored_mesh_names(src) )
+
+      call load_global_mesh( mesh_file(dst), mesh_names(dst), &
+                             ugrid_2d_dst,                    &
+                             rename_to=stored_mesh_names(dst) )
+
+      src_global_mesh => global_mesh_collection%get_global_mesh(stored_mesh_names(src))
+
+      dst_global_mesh => global_mesh_collection%get_global_mesh(stored_mesh_names(dst))
+
+      ! Create the mapping_factors
+      !===========================================================
+
+      mapping_factors = 1
       mapping_factors(src) = calc_mapping_factor( src_global_mesh, &
                                                   dst_global_mesh )
       mapping_factors(dst) = calc_mapping_factor( dst_global_mesh, &
                                                   src_global_mesh )
-    end if
 
-    call create_local_mesh( stored_mesh_names(dst:dst), &
-                            local_rank, total_ranks,    &
-                            decomposition_dst,          &
-                            stencil_depths,             &
-                            generate_inner_halos(dst),  &
-                            partitioner_dst,            &
-                            mapping_factors(dst:dst),   &
-                            enforce_constraints )
+      enforce_constraints = .false.
 
-    call create_local_mesh( stored_mesh_names(src:src), &
-                            local_rank, total_ranks,    &
-                            decomposition_src,          &
-                            stencil_depths,             &
-                            generate_inner_halos(src),  &
-                            partitioner_src,            &
-                            mapping_factors(src:src),   &
-                            enforce_constraints )
+      call create_local_mesh( stored_mesh_names(src:src), &
+                              local_rank, total_ranks,    &
+                              decomposition_src,          &
+                              stencil_depths,             &
+                              generate_inner_halos(src),  &
+                              partitioner_src,            &
+                              mapping_factors(src:src),   &
+                              enforce_constraints )
 
-    ! Read in the global intergrid mesh mappings,
-    ! then create the associated local mesh maps
-    !===========================================================
-    if (regrid_method == regrid_method_map) then
+      call create_local_mesh( stored_mesh_names(dst:dst), &
+                              local_rank, total_ranks,    &
+                              decomposition_dst,          &
+                              stencil_depths,             &
+                              generate_inner_halos(dst),  &
+                              partitioner_dst,            &
+                              mapping_factors(dst:dst),   &
+                              enforce_constraints )
+
+      ! Create the associated local mesh maps
+      !===========================================================
+
       src_local_mesh => local_mesh_collection%get_local_mesh(stored_mesh_names(src))
       dst_local_mesh => local_mesh_collection%get_local_mesh(stored_mesh_names(dst))
 
       call create_local_mesh_maps( src_local_mesh )
       call create_local_mesh_maps( dst_local_mesh )
+
+      call global_mesh_collection%clear()
+
+    else
+
+      mapping_factors = 1
+      enforce_constraints = .false.
+
+      ! Source mesh: read global meshes from input file and partition
+      !===========================================================
+
+      call load_global_mesh( mesh_file(src), mesh_names(src), &
+                             ugrid_2d_src,                    &
+                             rename_to=stored_mesh_names(src) )
+
+      src_global_mesh => global_mesh_collection%get_global_mesh(stored_mesh_names(src))
+
+      call create_local_mesh( stored_mesh_names(src:src), &
+                              local_rank, total_ranks,    &
+                              decomposition_src,          &
+                              stencil_depths,             &
+                              generate_inner_halos(src),  &
+                              partitioner_src,            &
+                              mapping_factors(src:src),   &
+                              enforce_constraints )
+
+      call global_mesh_collection%clear()
+
+      ! Destination mesh: read global meshes from input file and partition
+      !===========================================================
+
+      call load_global_mesh( mesh_file(dst), mesh_names(dst), &
+                             ugrid_2d_dst,                    &
+                             rename_to=stored_mesh_names(dst) )
+
+      dst_global_mesh => global_mesh_collection%get_global_mesh(stored_mesh_names(dst))
+
+      call create_local_mesh( stored_mesh_names(dst:dst), &
+                              local_rank, total_ranks,    &
+                              decomposition_dst,          &
+                              stencil_depths,             &
+                              generate_inner_halos(dst),  &
+                              partitioner_dst,            &
+                              mapping_factors(dst:dst),   &
+                              enforce_constraints )
+
+      call global_mesh_collection%clear()
+
     end if
 
   end if  ! prepartitioned
+
+  ! Close open files
+  call ugrid_2d_src%file_handler_close()
+  if (allocated(file_handler_src)) deallocate( file_handler_src )
+  call ugrid_2d_dst%file_handler_close()
+  if (allocated(file_handler_dst)) deallocate( file_handler_dst )
 
   !============================================================================
   ! Extrude the specified meshes from local mesh objects into

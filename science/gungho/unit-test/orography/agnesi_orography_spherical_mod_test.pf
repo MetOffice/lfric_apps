@@ -13,6 +13,9 @@ module agnesi_orography_spherical_mod_test
   use global_mesh_mod,            only : global_mesh_type
   use analytic_orography_mod,     only : orography_profile
   use ugrid_mesh_data_mod,        only : ugrid_mesh_data_type
+  use ugrid_2d_mod,               only : ugrid_2d_type
+  use ugrid_file_mod,             only : ugrid_file_type
+  use ncdf_quad_mod,              only : ncdf_quad_type
 
   use funit
 
@@ -167,13 +170,21 @@ contains
     type(partition_type)                         :: partition
     procedure(partitioner_interface), pointer    :: partitioner_ptr => null()
     type(local_mesh_type)                        :: local_mesh
+    type(ugrid_2d_type)                          :: ugrid_2d
+    class(ugrid_file_type), allocatable          :: file_handler
+    character(str_max_filename)                  :: filename
     ! Test parameters
     real(r_def), parameter :: tol = 1.0e-3_r_def
     real(r_def)            :: vertex_coords_2d(3), chi_surf, chi_test
     integer(i_def)         :: itest
 
     ! Create global mesh
-    call ugrid_mesh_data%read_from_file(trim(file_prefix)//'.nc', mesh_name)
+    filename = trim(file_prefix)//'.nc'
+    allocate( ncdf_quad_type :: file_handler )
+    call ugrid_2d%set_file_handler( file_handler )
+    call ugrid_2d%file_handler_open(trim(filename))
+
+    call ugrid_mesh_data%read_from_file(filename, mesh_name, ugrid_2d)
     global_mesh = global_mesh_type( ugrid_mesh_data )
     call ugrid_mesh_data%clear()
     global_mesh_ptr => global_mesh

@@ -69,6 +69,7 @@
 !!
 module swe_mixed_schur_precon_alg_mod
 
+  use config_mod,                         only: config_type
   use constants_mod,                      only: i_def, r_def
   use sci_fem_constants_mod,              only: get_mass_matrix_fe,         &
                                                 get_inverse_mass_matrix_fe, &
@@ -81,6 +82,7 @@ module swe_mixed_schur_precon_alg_mod
                                                 LOG_LEVEL_INFO,  &
                                                 LOG_LEVEL_DEBUG, &
                                                 log_scratch_space
+  use mesh_mod,                           only: mesh_type
   use operator_mod,                       only: operator_type
   use sci_field_vector_mod,               only: field_vector_type
   use sci_iterative_solver_mod,           only: abstract_iterative_solver_type
@@ -165,11 +167,12 @@ contains
   !!          since this matrix is already required for and constructed in the
   !!          geopotential operator.
   !>
+  !> @param[in] config        Application configuration object
   !> @param[in] state         Current state (passed as a field-vector)
   !> @param[in] Hb_lumped_inv Lumped inverse \f$\tilde{H}_b^{-1}\f$
   !> @param[in] geopot_solver Solver object for Helmholtz system
   !> @return    self          The constructed preconditioner object
-  function swe_mixed_schur_preconditioner_constructor( state,          &
+  function swe_mixed_schur_preconditioner_constructor( config, state,  &
                                                        Hb_lumped_inv,  &
                                                        geopot_solver ) &
                                                        result(self)
@@ -181,6 +184,7 @@ contains
 
     implicit none
 
+    type(config_type), intent(in) :: config
     type(field_vector_type), intent(in) :: state
     type(field_type), intent(in) :: Hb_lumped_inv
     class(abstract_iterative_solver_type), target, intent(in) :: &
@@ -191,12 +195,13 @@ contains
                                                   wb => null()
     type(field_type)                           :: ones, M_lumped
     type(operator_type), pointer               :: Mb => null()
-    integer(kind=i_def)                        :: mesh_id
+
+    type(mesh_type), pointer :: mesh
 
     call log_event( 'Constructing shallow water mixed preconditioner...', &
                     LOG_LEVEL_INFO )
 
-    mesh_id = state%vector(isw_u)%get_mesh_id()
+    mesh => state%vector(isw_u)%get_mesh()
 
     self%alpha = 0.5_r_def
 
@@ -226,7 +231,7 @@ contains
     call ones%initialise(vector_space = wb)
     call M_lumped%initialise(vector_space = wb)
     call self%Mb_lumped_inv%initialise(vector_space = wb)
-    Mb => get_mass_matrix_fe(W3, mesh_id)
+    Mb => get_mass_matrix_fe(config, mesh, W3)
 
     call invoke( setval_c( ones, 1.0_r_def ),                     &
                  setval_c( M_lumped, 0.0_r_def ),                 &
@@ -251,18 +256,21 @@ contains
   !!          2. Approximately solve Helmholtz-system
   !!          3. Reconstruct velocity and buoyancy from geopotential
   !>
-  !> @param[in,out] self Instance of type swe_mixed_schur_preconditioner_type
-  !> @param[in]     x    Field-vector containing the residuals
-  !!                     \f$(\textbf{R}_u,R_p,r_b)\f$
-  !> @param[in,out] y    Field-vector containing the solution
-  !!                     \f$(\textbf{U},P,B)\f$ to be calculated
-  subroutine apply_swe_mixed_schur_preconditioner(self, x, y)
+  !> @param[in,out] self   Instance of type swe_mixed_schur_preconditioner_type
+  !> @param[in]     config Application configuration object
+  !> @param[in]     x      Field-vector containing the residuals
+  !!                       \f$(\textbf{R}_u,R_p,r_b)\f$
+  !> @param[in,out] y      Field-vector containing the solution
+  !!                       \f$(\textbf{U},P,B)\f$ to be calculated
+  subroutine apply_swe_mixed_schur_preconditioner(self, config, x, y)
 
     implicit none
 
     class(swe_mixed_schur_preconditioner_type), intent(inout) :: self
-    class(abstract_vector_type),                intent(in)    :: x
-    class(abstract_vector_type),                intent(inout) :: y
+
+    type(config_type),           intent(in)    :: config
+    class(abstract_vector_type), intent(in)    :: x
+    class(abstract_vector_type), intent(inout) :: y
 
     ! Workaround for PSyclone to get pointers of the correct type for y
     type(field_type), pointer :: y_vec_u => null(), &
@@ -287,7 +295,7 @@ contains
                      setval_c( y_vec_b, 0.0_r_def ) )
 
         ! STEP 1: Build RHS for Helmholtz system
-        call self%build_geopot_rhs(x)
+        call self%build_geopot_rhs(config, x)
 
         ! STEP 2: Solve Helmholtz system
         ! Krylov solver to obtain geopotential increment
@@ -297,12 +305,12 @@ contains
         ! Copy RHS into 1-component field-vector
         call self%geopot_b%import_field(self%rhs_p,1)
         call log_event('Schur preconditioner geopotential solve:', LOG_LEVEL_INFO)
-        call self%swe_geopot_solver%apply(self%geopot_x,self%geopot_b)
+        call self%swe_geopot_solver%apply(config, self%geopot_x,self%geopot_b)
         ! Copy solution out of 1-component field-vector
         call self%geopot_x%export_field(self%p_inc,1)
 
         ! STEP 3: Back substitute to obtain other fields
-        call self%back_substitute(y, x)
+        call self%back_substitute(config, y, x)
       class default
         write(log_scratch_space, '(A)') &
               "swe_mixed_schur_preconditioner_mod: incorrect vector_type argument y"
@@ -328,9 +336,10 @@ contains
   !!          Helmholtz equation.
   !>
   !> @param[in,out] self Instance of type swe_mixed_schur_preconditioner_type
-  !> @param[in]     rhs0 Initial residuals \f$(\textbf{R}_u,R_p,R_b)\f$ of the
+  !> @param[in]  config  Application configuration object
+  !> @param[in]  rhs0    Initial residuals \f$(\textbf{R}_u,R_p,R_b)\f$ of the
   !!                     mixed system
-  subroutine build_geopot_rhs(self,rhs0)
+  subroutine build_geopot_rhs(self, config, rhs0)
 
     use matrix_vector_kernel_mod,    only: matrix_vector_kernel_type
     use dg_matrix_vector_kernel_mod, only: dg_matrix_vector_kernel_type
@@ -341,13 +350,14 @@ contains
     implicit none
 
     class(swe_mixed_schur_preconditioner_type), intent(inout) :: self
-    type(field_vector_type),                    intent(in)    :: rhs0
+
+    type(config_type),       intent(in) :: config
+    type(field_vector_type), intent(in) :: rhs0
 
     type(operator_type), pointer :: div => null(), M3_inv => null()
     real(kind=r_def) :: const1, const2
 
-    ! Mesh ID
-    integer(kind=i_def) :: mesh_id
+    type(mesh_type), pointer :: mesh
 
     ! Thermal shallow water case
     ! rhs_u = R_u + alpha * dt * ref_gp/2 * D^T * Mb^-1 * R_b
@@ -355,10 +365,9 @@ contains
     ! Non-thermal shallow water case
     ! rhs_u = R_u
     ! rhs_p = R_p - alpha * dt * ref_gp * M3^-1 * D * HB^-1 * rhs_u
+    mesh => rhs0%vector(isw_u)%get_mesh()
 
-    mesh_id = rhs0%vector(isw_u)%get_mesh_id()
-
-    div => get_div(mesh_id)
+    div => get_div(config, mesh)
 
     ! Compute rhs_u and enforce boundary conditions
     if ( thermal_swe ) then
@@ -375,7 +384,7 @@ contains
     end if
 
     ! Compute rhs_p
-    M3_inv => get_inverse_mass_matrix_fe(W3, mesh_id)
+    M3_inv => get_inverse_mass_matrix_fe(config, mesh, W3)
     const2 = -self%alpha*dt*ref_gp
     call invoke( X_times_Y( self%hb_ru, self%rhs_u, self%Hb_lumped_inv ),          &
                  dg_matrix_vector_kernel_type( self%rhs_p_tmp,self%hb_ru, div ),   &
@@ -392,16 +401,18 @@ contains
   !!          Helmholtz equation, reconstruct the velocity \f$\textbf{U}\f$
   !!          and buoyancy \f$B\f$.
   !>
-  !> @param[in,out] self  instance of type swe_mixed_schur_preconditioner_type
-  !> @param[in,out] state Solution \f$(\textbf{U},P,B)\f$ of the mixed system
-  !> @param[in]     rhs   Initial right hand side \f$(\textbf{R}_u,R_p,R_b)\f$
-  subroutine back_substitute(self, state, rhs)
+  !> @param[in]     config Application configuration object
+  !> @param[in,out] state  Solution \f$(\textbf{U},P,B)\f$ of the mixed system
+  !> @param[in]     rhs    Initial right hand side \f$(\textbf{R}_u,R_p,R_b)\f$
+  subroutine back_substitute(self, config, state, rhs)
 
     use transpose_matrix_vector_kernel_mod, &
                                    only: transpose_matrix_vector_kernel_type
     use sci_enforce_bc_kernel_mod, only: enforce_bc_kernel_type
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     class(swe_mixed_schur_preconditioner_type), intent(inout) :: self
     type(field_vector_type),                    intent(inout) :: state
@@ -410,12 +421,11 @@ contains
     type(operator_type), pointer :: div => null()
     real(kind=r_def) :: const1
 
-    ! Mesh ID
-    integer(kind=i_def) :: mesh_id
+    type(mesh_type), pointer :: mesh
 
     ! U increment
-    mesh_id = rhs%vector(isw_u)%get_mesh_id()
-    div => get_div(mesh_id)
+    mesh => rhs%vector(isw_u)%get_mesh()
+    div => get_div(config, mesh)
     const1 = self%alpha*dt
     call invoke( setval_c(self%u_inc, 0.0_r_def),                &
                  transpose_matrix_vector_kernel_type(self%u_inc, &

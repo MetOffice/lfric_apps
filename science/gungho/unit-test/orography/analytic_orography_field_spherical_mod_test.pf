@@ -15,6 +15,9 @@ module analytic_orography_field_spherical_mod_test
   use ugrid_mesh_data_mod,        only : ugrid_mesh_data_type
   use extrusion_config_mod,       only : method_uniform, &
                                          stretching_method_linear
+  use ugrid_2d_mod,               only : ugrid_2d_type
+  use ugrid_file_mod,             only : ugrid_file_type
+  use ncdf_quad_mod,              only : ncdf_quad_type
 
   use mesh_mod, only: mesh_type, geometry_spherical, topology_periodic
 
@@ -204,6 +207,9 @@ contains
     type(local_mesh_type),            pointer    :: local_mesh_ptr
     type(local_mesh_type),            target     :: local_mesh
     type(uniform_extrusion_type)                 :: extrusion
+    type(ugrid_2d_type)                          :: ugrid_2d
+    class(ugrid_file_type), allocatable          :: file_handler
+    character(str_max_filename)                  :: filename
     ! Test parameters
     integer(i_def), parameter :: ndf = 1, undf = nlayers*ndf
     integer(i_def)            :: itest, i, map(1)
@@ -218,7 +224,12 @@ contains
     real(r_def)               :: vertex_coords_2d(3,1), chi_surf, chi_test
 
     ! Add global mesh
-    call ugrid_mesh_data%read_from_file(trim(file_prefix)//'.nc', mesh_name)
+    filename = trim(file_prefix)//'.nc'
+    allocate( ncdf_quad_type :: file_handler )
+    call ugrid_2d%set_file_handler( file_handler )
+    call ugrid_2d%file_handler_open(trim(filename))
+
+    call ugrid_mesh_data%read_from_file(filename, mesh_name, ugrid_2d)
     global_mesh = global_mesh_type( ugrid_mesh_data )
     call ugrid_mesh_data%clear()
     global_mesh_ptr => global_mesh
