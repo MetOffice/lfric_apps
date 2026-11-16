@@ -1,4 +1,4 @@
-<field_definition prec="8">
+<field_definition prec="4">
 
   <!-- Initial conditions diagnostic group -->
   <field_group id="initial_fields" freq_op="1ts" operation="once" enabled=".TRUE." >

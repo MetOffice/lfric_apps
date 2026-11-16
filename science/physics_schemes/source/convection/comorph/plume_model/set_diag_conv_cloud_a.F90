@@ -28,9 +28,11 @@ subroutine set_diag_conv_cloud_a( n_points, n_points_env, n_points_res,        &
 
 use comorph_constants_mod, only: real_cvprec, zero, half,                      &
                                  gravity, cf_conv_fac,                         &
+                                 n_cond_species, cond_params,                  &
+                                 i_sg_frac_liq, i_sg_frac_ice,                 &
                                  wind_w_buoy_fac, w_min, l_cv_cloudfrac
-use fields_type_mod, only: n_fields, i_temperature,                            &
-                           i_q_vap, i_q_cl, i_q_cf, i_cf_liq, i_cf_bulk
+use fields_type_mod, only: n_fields, i_temperature, i_q_vap,                   &
+                           i_qc_first, i_qc_last, i_cf_liq, i_cf_bulk
 use cloudfracs_type_mod, only: n_convcloud, i_frac_liq, i_frac_bulk
 use sublevs_mod, only: max_sublevs, n_sublev_vars, i_prev,                     &
                        j_height, j_mean_buoy
@@ -130,7 +132,7 @@ real(kind=real_cvprec) :: sat_height(n_points)
 real(kind=real_cvprec) :: convcloud_step ( n_points, n_convcloud )
 
 ! Loop counter
-integer :: ic, i_lev, i_field
+integer :: ic, i_lev, i_field, i_cond
 
 
 ! Calculate the convective fraction irrespective of whether
@@ -195,12 +197,34 @@ do ic = 1, n_points
                  * next_radius(ic), w_min*w_min ) ) )
 end do
 
-! Compute grid-mean convective liquid and ice mixing ratios
+! Sum total parcel liquid and ice cloud mixing-ratios over species
 do ic = 1, n_points
-  prev_q_cl_conv(ic) = prev_cf_conv(ic)*par_prev_mean(ic,i_q_cl)
-  prev_q_cf_conv(ic) = prev_cf_conv(ic)*par_prev_mean(ic,i_q_cf)
-  next_q_cl_conv(ic) = next_cf_conv(ic)*par_next_mean(ic,i_q_cl)
-  next_q_cf_conv(ic) = next_cf_conv(ic)*par_next_mean(ic,i_q_cf)
+  prev_q_cl_conv(ic) = zero
+  prev_q_cf_conv(ic) = zero
+  next_q_cl_conv(ic) = zero
+  next_q_cf_conv(ic) = zero
+end do
+do i_cond = 1, n_cond_species
+  i_field = i_qc_first - 1 + i_cond
+  if ( cond_params(i_cond)%pt % i_sg == i_sg_frac_liq ) then
+    do ic = 1, n_points
+      prev_q_cl_conv(ic) = prev_q_cl_conv(ic) + par_prev_mean(ic,i_field)
+      next_q_cl_conv(ic) = next_q_cl_conv(ic) + par_next_mean(ic,i_field)
+    end do
+  end if
+  if ( cond_params(i_cond)%pt % i_sg == i_sg_frac_ice ) then
+    do ic = 1, n_points
+      prev_q_cf_conv(ic) = prev_q_cf_conv(ic) + par_prev_mean(ic,i_field)
+      next_q_cf_conv(ic) = next_q_cf_conv(ic) + par_next_mean(ic,i_field)
+    end do
+  end if
+end do
+! Scale by convective fraction to convert to grid-means
+do ic = 1, n_points
+  prev_q_cl_conv(ic) = prev_q_cl_conv(ic) * prev_cf_conv(ic)
+  prev_q_cf_conv(ic) = prev_q_cf_conv(ic) * prev_cf_conv(ic)
+  next_q_cl_conv(ic) = next_q_cl_conv(ic) * next_cf_conv(ic)
+  next_q_cf_conv(ic) = next_q_cf_conv(ic) * next_cf_conv(ic)
 end do
 
 ! Inflate the fraction without inflating the grid-mean
@@ -256,11 +280,11 @@ else
   allocate( par_next_cloudfracs( n_points, i_frac_liq:i_frac_bulk ) )
 
   ! Call routine to diagnose in-parcel cloud-fractions based on q_cl, q_cf
-  call set_par_cloudfrac( n_points, n_points,                                  &
-                          par_prev_mean(:,i_q_cl), par_prev_mean(:,i_q_cf),    &
+  call set_par_cloudfrac( n_points, n_points, n_points,                        &
+                          par_prev_mean(:,i_qc_first:i_qc_last),               &
                           par_prev_cloudfracs )
-  call set_par_cloudfrac( n_points, n_points,                                  &
-                          par_next_mean(:,i_q_cl), par_next_mean(:,i_q_cf),    &
+  call set_par_cloudfrac( n_points, n_points, n_points,                        &
+                          par_next_mean(:,i_qc_first:i_qc_last),               &
                           par_next_cloudfracs )
 
   ! Use diagnosed in-parcel cloud-fractions to interpolate to full-level

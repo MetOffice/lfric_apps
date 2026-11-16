@@ -67,6 +67,10 @@ contains
     real(r_solver), dimension(undf_w3)  :: p, Lp
     real(r_solver), dimension(undf_wt)  :: t
 
+    real(r_solver), parameter :: const_u = 1.0_r_solver
+    real(r_solver), parameter :: const_t = 1.0_r_solver
+    real(r_solver), parameter :: const_r = 1.0_r_solver
+
     integer(i_def) :: df
     real(r_solver) :: answer
 
@@ -117,6 +121,7 @@ contains
                                    ncell, M3p,                 &
                                    ncell, Q32,                 &
                                    ncell, P3t,                 &
+                                   const_u, const_t, const_r,  &
                                    ndf_w2h, undf_w2h, map_w2h, &
                                    ndf_w2v, undf_w2v, map_w2v, &
                                    ndf_w3, undf_w3, map_w3,    &

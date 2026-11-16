@@ -3,13 +3,18 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code via AI Foundry (Opus 5); PR #658
+!-------------------------------------------------------------------------------
 !> @brief Processes diagnostics for jules_imp_alg
 
 module jules_imp_diags_mod
 
   use constants_mod,               only: l_def, r_def
   use field_mod,                   only: field_type
-  use jules_control_init_mod,      only: n_surf_tile, n_land_tile
+  use jules_control_init_mod,      only: n_surf_tile, n_land_tile, &
+                                         n_ssi_tile, first_sea_tile, &
+                                         n_sea_ice_tile, first_sea_ice_tile
   use sci_weighted_ave_kernel_mod, only: weighted_ave_kernel_type
   use timing_mod,                  only: start_timing, stop_timing, &
                                          tik, LPROF
@@ -32,12 +37,16 @@ module jules_imp_diags_mod
   logical( l_def ) :: q1p5m_ssi_flag
   logical( l_def ) :: qcl1p5m_ssi_flag
   logical( l_def ) :: rh1p5m_ssi_flag
+  logical( l_def ) :: t10m_ssi_flag
+  logical( l_def ) :: q10m_ssi_flag
   logical( l_def ) :: t1p5m_land_flag
   logical( l_def ) :: q1p5m_land_flag
   logical( l_def ) :: qcl1p5m_land_flag
   logical( l_def ) :: rh1p5m_land_flag
   logical( l_def ) :: latent_heat_flag
   logical( l_def ) :: grid_latent_heat_flag
+  logical( l_def ) :: land_mean_latent_heat_flag
+  logical( l_def ) :: ssi_mean_latent_heat_flag
   logical( l_def ) :: snomlt_surf_htf_flag
   logical( l_def ) :: soil_evap_flag
   logical( l_def ) :: soil_surf_ht_flux_flag
@@ -62,6 +71,8 @@ contains
   !> @param[in,out] q1p5m_ssi          1.5m specific humidity over sea and sea-ice
   !> @param[in,out] qcl1p5m_ssi        1.5m specific cloud water over sea and sea-ice
   !> @param[in,out] rh1p5m_ssi         1.5m relative humidity over sea and sea-ice
+  !> @param[in,out] t10m_ssi           10m temperature over sea and sea-ice
+  !> @param[in,out] q10m_ssi           10m specific humidity over sea and sea-ice
   !> @param[in,out] t1p5m_land         1.5m temperature over land
   !> @param[in,out] q1p5m_land         1.5m specific humidity over land
   !> @param[in,out] qcl1p5m_land       1.5m specific cloud water over land
@@ -78,6 +89,7 @@ contains
                                             t1p5m, q1p5m, qcl1p5m, rh1p5m,  &
                                             t1p5m_ssi, q1p5m_ssi,           &
                                             qcl1p5m_ssi, rh1p5m_ssi,        &
+                                            t10m_ssi, q10m_ssi,             &
                                             t1p5m_land, q1p5m_land,         &
                                             qcl1p5m_land, rh1p5m_land,      &
                                             latent_heat,                    &
@@ -92,6 +104,7 @@ contains
     type( field_type ), intent(inout) :: t1p5m_surft, q1p5m_surft
     type( field_type ), intent(inout) :: t1p5m, q1p5m, qcl1p5m, rh1p5m
     type( field_type ), intent(inout) :: t1p5m_ssi, q1p5m_ssi, qcl1p5m_ssi, rh1p5m_ssi
+    type( field_type ), intent(inout) :: t10m_ssi, q10m_ssi
     type( field_type ), intent(inout) :: t1p5m_land, q1p5m_land, qcl1p5m_land, rh1p5m_land
     type( field_type ), intent(inout) :: latent_heat
     type( field_type ), intent(inout) :: snomlt_surf_htf
@@ -109,6 +122,13 @@ contains
     ! 2D fields
     rh1p5m_flag = init_diag(rh1p5m, 'surface__rh1p5m')
     rh1p5m_ssi_flag = init_diag(rh1p5m_ssi, 'surface__rh1p5m_ssi')
+    t10m_ssi_flag = init_diag(t10m_ssi, 'surface__t10m_ssi')
+    q10m_ssi_flag = init_diag(q10m_ssi, 'surface__q10m_ssi', activate=t10m_ssi_flag)
+    ! both diagnostics are required even if not output.
+    ! If q has been requested and t has not, ensure t is allocated
+    if (q10m_ssi_flag .and. .not. t10m_ssi_flag) then
+      t10m_ssi_flag = init_diag(t10m_ssi, 'surface__t10m_ssi', activate=q10m_ssi_flag)
+    end if
     rh1p5m_land_flag = init_diag(rh1p5m_land, 'surface__rh1p5m_land')
     snomlt_surf_htf_flag = init_diag(snomlt_surf_htf, 'surface__snomlt_surf_htf')
     soil_evap_flag = init_diag(soil_evap, 'surface__soil_evap')
@@ -138,10 +158,14 @@ contains
       ! and save from 1st to 2nd loop
       latent_heat_flag = init_diag(latent_heat, 'surface__latent_heat')
       grid_latent_heat_flag = samp_diag('surface__grid_latent_heat')
-      if (grid_latent_heat_flag .and. .not. latent_heat_flag) then
+      land_mean_latent_heat_flag = samp_diag('surface__land_mean_latent_heat')
+      ssi_mean_latent_heat_flag = samp_diag('surface__ssi_mean_latent_heat')
+      if ((grid_latent_heat_flag .or. land_mean_latent_heat_flag .or. &
+           ssi_mean_latent_heat_flag) .and. .not. latent_heat_flag) then
         ignore = init_diag(latent_heat, 'surface__latent_heat', activate=.true.)
       end if
-      if (latent_heat_flag .or. grid_latent_heat_flag) &
+      if (latent_heat_flag .or. grid_latent_heat_flag .or. &
+          land_mean_latent_heat_flag .or. ssi_mean_latent_heat_flag) &
            call invoke(setval_c(latent_heat,0.0_r_def))
 
       ! diagnostics which are needed in BL code, so allocate on 1st loop
@@ -157,7 +181,8 @@ contains
       qcl1p5m_land_flag = init_diag(qcl1p5m_land, 'surface__qcl1p5m_land')
 
       ! Initialise fields where another diagnostic depends on them
-      if (samp_diag('surface__ustar_implicit') .or. &
+      if (samp_diag('turbulence__thermal_speed') .or. &
+          samp_diag('surface__ustar_implicit') .or. &
           samp_diag('surface__wind_gust') .or. &
           samp_diag('surface__scale_dep_wind_gust') .or. &
           samp_diag('surface__visibility_no_precip') .or. &
@@ -170,14 +195,16 @@ contains
         if (.not. qcl1p5m_flag) ignore = init_diag(qcl1p5m, 'surface__qcl1p5m', activate=.true.)
       end if
       ! sea and sea-ice derived diags
-      if (samp_diag('surface__fog_fraction_ssi') .or. &
+      if (samp_diag('surface__visibility_with_precip_ssi') .or. &
+          samp_diag('surface__fog_fraction_ssi') .or. &
           samp_diag('surface__dew_point_ssi')) then
         if (.not. t1p5m_ssi_flag) ignore = init_diag(t1p5m_ssi, 'surface__t1p5m_ssi', activate=.true.)
         if (.not. q1p5m_ssi_flag) ignore = init_diag(q1p5m_ssi, 'surface__q1p5m_ssi', activate=.true.)
         if (.not. qcl1p5m_ssi_flag) ignore = init_diag(qcl1p5m_ssi, 'surface__qcl1p5m_ssi', activate=.true.)
       end if
       ! land derived diags
-      if (samp_diag('surface__fog_fraction_land') .or. &
+      if (samp_diag('surface__visibility_with_precip_land') .or. &
+          samp_diag('surface__fog_fraction_land') .or. &
           samp_diag('surface__dew_point_land')) then
         if (.not. t1p5m_land_flag) ignore = init_diag(t1p5m_land, 'surface__t1p5m_land', activate=.true.)
         if (.not. q1p5m_land_flag) ignore = init_diag(q1p5m_land, 'surface__q1p5m_land', activate=.true.)
@@ -205,6 +232,8 @@ contains
   !> @param[in]     q1p5m_ssi                1.5m specific humidity over sea and sea-ice
   !> @param[in]     qcl1p5m_ssi              1.5m specific cloud water over sea and sea-ice
   !> @param[in]     rh1p5m_ssi               1.5m relative humidity over sea and sea-ice
+  !> @param[in]     t10m_ssi                 10m temperature over sea and sea-ice
+  !> @param[in]     q10m_ssi                 10m specific humidity over sea and sea-ice
   !> @param[in]     t1p5m_land               1.5m temperature over land
   !> @param[in]     q1p5m_land               1.5m specific humidity over land
   !> @param[in]     qcl1p5m_land             1.5m specific cloud water over land
@@ -225,7 +254,7 @@ contains
                                      t1p5m_surft, q1p5m_surft,                 &
                                      t1p5m, q1p5m, qcl1p5m, rh1p5m,            &
                                      t1p5m_ssi, q1p5m_ssi, qcl1p5m_ssi,        &
-                                     rh1p5m_ssi,                               &
+                                     rh1p5m_ssi, t10m_ssi, q10m_ssi,           &
                                      t1p5m_land, q1p5m_land, qcl1p5m_land,     &
                                      rh1p5m_land,                              &
                                      latent_heat,                              &
@@ -248,6 +277,7 @@ contains
   type( field_type ), intent(in)    :: t1p5m_surft, q1p5m_surft
   type( field_type ), intent(in)    :: t1p5m, q1p5m, qcl1p5m, rh1p5m
   type( field_type ), intent(in)    :: t1p5m_ssi, q1p5m_ssi, qcl1p5m_ssi, rh1p5m_ssi
+  type( field_type ), intent(in)    :: t10m_ssi, q10m_ssi
   type( field_type ), intent(in)    :: t1p5m_land, q1p5m_land, qcl1p5m_land, rh1p5m_land
   type( field_type ), intent(in)    :: latent_heat, snomlt_surf_htf
   type( field_type ), intent(in)    :: soil_evap
@@ -259,7 +289,9 @@ contains
 
   ! Local variables
   type( field_type ) :: land_surface_temperature, grid_canopy_evap, &
-       grid_surface_temperature, grid_latent_heat, grid_sublimation
+       grid_surface_temperature, grid_latent_heat, grid_sublimation, &
+       sea_ice_surface_temperature, land_mean_heat_flux, &
+       land_mean_latent_heat, ssi_mean_heat_flux, ssi_mean_latent_heat
   integer( tik )     :: id
 
   if ( LPROF ) call start_timing( id, 'diags.jules_imp' )
@@ -289,6 +321,33 @@ contains
       call land_surface_temperature%write_field()
     end if
 
+    if(init_diag(sea_ice_surface_temperature, 'surface__sea_ice_surface_temperature')) then
+      call invoke(weighted_ave_kernel_type(sea_ice_surface_temperature,       &
+                                       tile_temperature, tile_fraction,    &
+                                       first_sea_ice_tile, n_sea_ice_tile))
+      call sea_ice_surface_temperature%write_field()
+    end if
+
+    ! Averaging the tiled flux over the land tiles, weighted by their grid-box
+    ! fractions, divides by the land fraction and so gives a mean over the
+    ! land portion of the grid-box.
+    if(init_diag(land_mean_heat_flux, 'surface__land_mean_heat_flux')) then
+      call invoke(weighted_ave_kernel_type(land_mean_heat_flux,            &
+                                       tile_heat_flux, tile_fraction,      &
+                                       1, n_land_tile))
+      call land_mean_heat_flux%write_field()
+    end if
+
+    ! As above, but over the sea and sea-ice tiles, which are contiguous, so
+    ! dividing by the marine fraction and giving a mean over the sea and
+    ! sea-ice portion of the grid-box.
+    if(init_diag(ssi_mean_heat_flux, 'surface__ssi_mean_heat_flux')) then
+      call invoke(weighted_ave_kernel_type(ssi_mean_heat_flux,             &
+                                       tile_heat_flux, tile_fraction,      &
+                                       first_sea_tile, n_ssi_tile))
+      call ssi_mean_heat_flux%write_field()
+    end if
+
     if (init_diag(grid_canopy_evap, 'surface__grid_canopy_evap')) then
       call invoke(weighted_ave_kernel_type(grid_canopy_evap,              &
                                        canopy_evap, tile_fraction,        &
@@ -314,6 +373,22 @@ contains
       call grid_latent_heat%write_field()
     end if
 
+    ! As above, a mean over the land portion of the grid-box
+    if (init_diag(land_mean_latent_heat, 'surface__land_mean_latent_heat')) then
+      call invoke(weighted_ave_kernel_type(land_mean_latent_heat,          &
+                                       latent_heat, tile_fraction,         &
+                                       1, n_land_tile))
+      call land_mean_latent_heat%write_field()
+    end if
+
+    ! As above, a mean over the sea and sea-ice portion of the grid-box
+    if (init_diag(ssi_mean_latent_heat, 'surface__ssi_mean_latent_heat')) then
+      call invoke(weighted_ave_kernel_type(ssi_mean_latent_heat,           &
+                                       latent_heat, tile_fraction,         &
+                                       first_sea_tile, n_ssi_tile))
+      call ssi_mean_latent_heat%write_field()
+    end if
+
   else !loop=1
 
     ! Diagnostics computed within the kernel - these are computed on 1st loop
@@ -328,6 +403,8 @@ contains
     if (q1p5m_ssi_flag) call q1p5m_ssi%write_field()
     if (qcl1p5m_ssi_flag) call qcl1p5m_ssi%write_field()
     if (rh1p5m_ssi_flag) call rh1p5m_ssi%write_field()
+    if (t10m_ssi_flag) call t10m_ssi%write_field()
+    if (q10m_ssi_flag) call q10m_ssi%write_field()
     if (t1p5m_land_flag) call t1p5m_land%write_field()
     if (q1p5m_land_flag) call q1p5m_land%write_field()
     if (qcl1p5m_land_flag) call qcl1p5m_land%write_field()

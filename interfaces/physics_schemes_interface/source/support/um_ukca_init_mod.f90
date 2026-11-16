@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code via AI Foundry (Opus 5); #709
+!----------------------------------------------------------------------------
 !> @brief UKCA initialisation subroutine for UM science configuration
 
 module um_ukca_init_mod
@@ -11,12 +14,19 @@ module um_ukca_init_mod
   use aerosol_config_mod,        only: glomap_mode,                            &
                                        glomap_mode_ukca,                       &
                                        glomap_mode_dust_and_clim,              &
-                                       emissions, emissions_GC3, emissions_GC5,&
-                                       easyaerosol_cdnc, ukca_mode_seg_size,   &
+                                       emissions,                              &
+                                       emissions_GC3,                          &
+                                       emissions_GC5,                          &
+                                       easyaerosol_cdnc,                       &
+                                       ukca_mode_seg_size,                     &
                                        ukca_scale_marine_pom_ems,              &
                                        marine_pom_ems_scaling,                 &
                                        ukca_scale_sea_salt_ems,                &
-                                       sea_salt_ems_scaling
+                                       sea_salt_ems_scaling,                   &
+                                       mode_setup,                             &
+                                       mode_setup_SUBCOCSSDU_7mode,            &
+                                       mode_setup_DUonly_2mode,                &
+                                       l_dust_mp_ageing
   use section_choice_config_mod, only: aerosol, aerosol_um
   use chemistry_config_mod,      only: chem_scheme, chem_scheme_offline_ox,    &
                                        chem_scheme_strattrop, chem_scheme_none,&
@@ -34,12 +44,14 @@ module um_ukca_init_mod
                                        top_bdy_opt_overwrt_only_top_lev,       &
                                        top_bdy_opt_overwrt_co_no_o3_top,       &
                                        top_bdy_opt_overwrt_co_no_o3_h2o_top,   &
-                                       ! Variables related to initialisation of photolysis
+                                       ! Variables related to initialisation of
+                                       ! photolysis
                                        photol_scheme, photol_scheme_off,       &
                                        photol_scheme_fastjx,                   &
                                        photol_scheme_prescribed, fastjx_mode,  &
                                        fastjx_numwavel, fastjx_prescutoff,     &
-                                       fjx_solcyc_type, fjx_solcyc_months
+                                       fjx_solcyc_type, fjx_solcyc_months,     &
+                                       ukca_chem_full_chunk_size
 
   ! Other LFRic modules used
   use model_clock_mod, only: model_clock_type
@@ -62,6 +74,12 @@ module um_ukca_init_mod
   use ukca_nmspec_mod, only: nm_spec_active, nmspec_len
   use ukca_option_mod, only: i_mode_nucscav, l_ukca_plume_scav
   use ukca_scavenging_mod, only: ukca_set_conv_indices, tracer_info
+
+  ! CASIM options, to determine whether the CASIM aerosol interface needs the
+  ! UKCA tracer indexing
+  use microphysics_config_mod, only: microphysics_casim,                       &
+                                     casim_activation,                         &
+                                     casim_activation_arg
 
   ! Other UM modules used
   use dms_flux_mod_4a,      only: i_liss_merlivat
@@ -92,14 +110,19 @@ module um_ukca_init_mod
                           ukca_maxlen_emiss_vert_fact,                         &
                           ukca_strat_lbc_env,                                  &
                           ukca_get_photol_reaction_data,                       &
-                          ukca_photol_varname_len
+                          ukca_photol_varname_len,                             &
+                          ukca_i_sussbcocdu_7mode,                             &
+                          ukca_i_du_2mode
 
   ! Photolysis module
   use photol_api_mod,  only: photol_jlabel_len, photol_fieldname_len,          &
     !  Max sizes for spectral file data
     photol_max_miesets, photol_n_solcyc_av, photol_sw_band_aer,                &
     photol_sw_phases, photol_max_wvl, photol_max_crossec,                      &
-    photol_wvl_intervals, photol_num_tvals
+    photol_wvl_intervals, photol_num_tvals,                                    &
+  ! callback routine for ozone column diagnostic
+    photol_calc_ozonecol
+
 
   implicit none
 
@@ -651,6 +674,9 @@ module um_ukca_init_mod
 
   integer, save, public :: n_phot_flds_req ! Num of photol driving fields
 
+  ! Pass setting of mode_setup to UKCA
+  integer(i_um) :: i_mode_setup_local
+
 contains
 
   subroutine um_ukca_init(ncells_ukca, model_clock)
@@ -845,6 +871,7 @@ contains
     logical :: l_ukca_ro2_perm = .false.
     logical :: l_ukca_mode = .false.
     logical :: l_use_gridbox_mass = .false.
+    logical :: l_use_gridbox_volume = .false.
 
     ! Some default values - either standard values in UM, or the only ones
     ! currently supported in the LFRic-side implementation.
@@ -855,6 +882,10 @@ contains
     integer::  i_ukca_mode_seg_size            ! GLOMAP-mode segment size
     real(r_um) :: linox_scale_in
 
+    ! Tropopause level used for masking ASAD diagnostics - temporary till
+    ! mode of deriving/ specifying 2-D tropopause level array is implemented.
+    ! Compatible with L70/L85 at mid-latitudes
+    integer, parameter :: trop_level_for_diags = 42
     character(len=ukca_photol_varname_len) :: adjusted_fname  ! intermediate spc/ filename copy
 
     ! Variables for UKCA error handling
@@ -900,7 +931,7 @@ contains
          case ( top_bdy_opt_overwrt_co_no_o3_h2o_top )
            i_ukca_top_boundary_opt = i_overwrt_co_no_o3_h2o_top
          case default
-           call log_event('Unknown option - UKCA tracer top boundary handling', &
+           call log_event('Unknown option - UKCA tracer top boundary handling',&
                            LOG_LEVEL_ERROR)
        end select
 
@@ -911,14 +942,29 @@ contains
       call log_event('No Chemical scheme chosen for UKCA', LOG_LEVEL_INFO)
       return
     end if
+
     if (aerosol == aerosol_um .and. glomap_mode == glomap_mode_ukca) then
+
       l_ukca_chem_aero = .true.
       l_ukca_mode = .true.
+
+      select case( mode_setup )
+      case ( mode_setup_SUBCOCSSDU_7mode )
+        i_mode_setup_local = ukca_i_sussbcocdu_7mode
+      case ( mode_setup_DUonly_2mode )
+        i_mode_setup_local = ukca_i_du_2mode
+      case default
+        write( log_scratch_space, '(A,I0)' )                                   &
+        'This Glomap option is not supported yet. Include it here ', mode_setup
+        call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+      end select
+
     end if
 
-    ! If the Easy Aerosol climatology is being used to set CDNC values
+    ! If the Easy Aerosol climatology or Casim is being used to set CDNC values
     ! then there is no need to calculate CDNCs via an activation scheme in UKCA
-    if (easyaerosol_cdnc) then
+    if (easyaerosol_cdnc.or. ( microphysics_casim .and.                     &
+         casim_activation == casim_activation_arg )) then
       i_tmp_ukca_activation_scheme = ukca_activation_off
     else
       i_tmp_ukca_activation_scheme = ukca_activation_arg
@@ -928,9 +974,12 @@ contains
     ! parent model. For aerosols, UKCA contains a simplified calculation of a
     ! 'relative mass' sufficient for deposition and sedimentation processes
     ! and so does not require the parent to provide this field (=false)
+    ! Similarly, the gridbox volume is used in processing some ASAD diagnostics
+    ! hence has to be specified if these are needed.
     if ( chem_scheme == chem_scheme_strattrop .or.  &
          chem_scheme == chem_scheme_strat_test ) then
       l_use_gridbox_mass = .true.
+      l_use_gridbox_volume = .true.
     end if
 
     ! Set default lightning NOx scale factor to 1.0 if no factor supplied
@@ -971,6 +1020,7 @@ contains
            l_ukca_chem_aero=l_ukca_chem_aero,                                  &
            l_ukca_mode=l_ukca_mode,                                            &
            l_fix_tropopause_level=.true.,                                      &
+           fixed_tropopause_level=trop_level_for_diags,                        &
            l_ukca_persist_off=.true.,                                          &
            l_ukca_ageair=l_ukca_ageair,                                        &
            ! Chemistry configuration options
@@ -998,6 +1048,7 @@ contains
            l_ukca_ro2_ntp = l_ukca_ro2_ntp,                                    &
            l_ukca_ro2_perm = l_ukca_ro2_perm,                                  &
            l_use_gridbox_mass= l_use_gridbox_mass,                             &
+           l_use_gridbox_volume= l_use_gridbox_volume,                         &
            ! UKCA emissions configuration options
            mode_parfrac=2.5_r_um,                                              &
            l_ukca_enable_seadms_ems=.true.,                                    &
@@ -1022,7 +1073,7 @@ contains
            i_photol_scheme_fastjx = photol_fastjx,                             &
            ! General GLOMAP configuration options
            i_mode_nzts=15,                                                     &
-           i_mode_setup=8,                                                     &
+           i_mode_setup=i_mode_setup_local,                                    &
            l_mode_bhn_on=.true.,                                               &
            l_mode_bln_on=.false.,                                              &
            i_mode_nucscav=i_mode_nucscav,                                      &
@@ -1031,7 +1082,7 @@ contains
            ukca_mode_seg_size=i_ukca_mode_seg_size,                            &
            l_cv_rainout=.not.(l_ukca_plume_scav),                              &
            l_dust_mp_slinn_impc_scav=.true.,                                   &
-           l_dust_mp_ageing=.false.,                                           &
+           l_dust_mp_ageing=l_dust_mp_ageing,                                  &
            ! GLOMAP emissions configuration options
            l_ukca_primsu=.true.,                                               &
            l_ukca_primss=.true.,                                               &
@@ -1067,6 +1118,8 @@ contains
            l_fix_ukca_hygroscopicities=.false.,                                &
            l_fix_ukca_n2o5_h2o=.false.,                                        &
            l_fix_ukca_water_content=.true.,                                    &
+           ! Procedure to be used for ozone column diagnostic calculation
+           proc_calc_ozonecol = photol_calc_ozonecol,                          &
            ! Return status information
            error_message=ukca_errmsg,                                          &
            error_routine=ukca_errproc)
@@ -1081,9 +1134,13 @@ contains
     ! Retrieve the lists of required fields for the configuration
     call set_ukca_field_lists()
 
-    ! Set up indexing data needed for plume scavenging of UKCA tracers in the
-    ! GR convection scheme
-    if (l_ukca_plume_scav) then
+    ! Set up the indexing data that locates the GLOMAP mode numbers and
+    ! component masses within the UKCA tracer array. This is needed both for
+    ! plume scavenging of UKCA tracers in the GR convection scheme and by the
+    ! CASIM aerosol interface, which reads the same index arrays to build the
+    ! aerosol distribution seen by Abdul-Razzak and Ghan activation.
+    if ( l_ukca_plume_scav .or. ( microphysics_casim .and.                     &
+         casim_activation == casim_activation_arg ) ) then
       n = size(tracer_names)
       allocate(nm_spec_active(n))
       do i = 1, n
@@ -1268,7 +1325,7 @@ contains
     ! Switch on optional UM boundary layer diagnostics required by UKCA
     if (any(env_names_bllev_real(:) == fldname_bl_tke))                        &
       bl_diag%l_request_tke = .true.
-
+    
   end subroutine ukca_init
   subroutine ukca_emiss_init()
   !> @brief Set up the emissions for UKCA model
@@ -1513,6 +1570,8 @@ contains
   !>@brief Set the lists of fields required for the UKCA configuration
   subroutine set_ukca_field_lists()
 
+    use nlsizes_namelist_mod, only: tr_ukca
+
     implicit none
 
     ! Local variables
@@ -1536,6 +1595,9 @@ contains
            ukca_errmsg
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end if
+    ! Record the number of UKCA tracers where the UM code expects to find it.
+    tr_ukca = size(tracer_names)
+
     write( log_scratch_space, '(A,I0,A)' )                                     &
          'Tracers required (', size(tracer_names), '):'
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
@@ -1863,7 +1925,9 @@ contains
            !
            i_mode_nzts=15,                                                     &
            ukca_mode_seg_size=i_ukca_mode_seg_size,                            &
-           i_mode_setup=6,                                                     &
+           ukca_chem_full_chunk_size=ukca_chem_full_chunk_size,                &
+           ! i_mode_setup hard coded to ukca_i_du_2mode (6) for dust_and_clim
+           i_mode_setup=ukca_i_du_2mode,                                       &
            i_mode_nucscav=i_mode_nucscav,                                      &
            l_cv_rainout=.not.(l_ukca_plume_scav),                              &
            l_dust_mp_slinn_impc_scav=.true.,                                   &
@@ -1897,7 +1961,9 @@ contains
     call set_ukca_field_lists()
 
     ! Set up indexing data needed for plume scavenging of UKCA tracers in the
-    ! GR convection scheme
+    ! GR convection scheme. The CASIM aerosol interface also reads this
+    ! indexing, but only under Abdul-Razzak and Ghan activation, which requires
+    ! the full GLOMAP aerosol and so never reaches this dust-only path.
     if (l_ukca_plume_scav) then
       n = size(tracer_names)
       allocate(nm_spec_active(n))
@@ -1972,16 +2038,12 @@ contains
         select case( emiss_names(i) )
         case('DMS')
           long_name = 'DMS emissions expressed as sulfur'
-
         case('Monoterp')
           long_name = 'Monoterpene surf emissions expressed as carbon'
-
         case('SO2_low')
           long_name = 'SO2 low level emissions expressed as sulfur'
-
         case('SO2_high')
           long_name = 'SO2 high level emissions expressed as sulfur'
-
         end select
 
         if (emiss_names(i) == 'SO2_high') then
@@ -2140,6 +2202,5 @@ if (allocated(fl)) deallocate(fl)
 
 return
 end subroutine deallocate_fastjx_filevars
-
 
 end module um_ukca_init_mod

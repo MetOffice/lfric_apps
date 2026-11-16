@@ -93,9 +93,12 @@ contains
     type( field_type ), pointer :: cor_ins_du
 
     ! Local variables
+    type( field_type ) :: thermal_speed
     type( field_type ) :: wind_gust
     type( field_type ) :: scale_dep_wind_gust
     type( field_type ) :: visibility_no_precip
+    type( field_type ) :: vis_with_precip_land
+    type( field_type ) :: vis_with_precip_ssi
     type( field_type ) :: visibility_with_precip
     type( field_type ) :: visibility_with_dust
     type( field_type ) :: visibility_with_precip_dust
@@ -108,10 +111,13 @@ contains
     type( field_type ) :: dew_point_land
 
     ! Logical indicating whether diagnostics are requested
+    logical( l_def ) :: thermal_speed_flag
     logical( l_def ) :: wind_gust_flag
     logical( l_def ) :: scale_dep_wind_gust_flag
     logical( l_def ) :: vis_no_precip_flag
     logical( l_def ) :: vis_with_precip_flag
+    logical( l_def ) :: vis_with_precip_land_flag
+    logical( l_def ) :: vis_with_precip_ssi_flag
     logical( l_def ) :: vis_with_dust_flag
     logical( l_def ) :: vis_with_precip_dust_flag
     logical( l_def ) :: fog_fraction_flag
@@ -150,6 +156,7 @@ contains
     if (samp_diag('aerosol__murk')) call murk%write_field('aerosol__murk')
 
     ! Local diagnostic calculated here
+    thermal_speed_flag = init_diag(thermal_speed, 'turbulence__thermal_speed')
     wind_gust_flag = init_diag(wind_gust, 'surface__wind_gust')
     scale_dep_wind_gust_flag = init_diag(scale_dep_wind_gust, 'surface__scale_dep_wind_gust')
     fog_fraction_flag = init_diag(fog_fraction, 'surface__fog_fraction')
@@ -160,19 +167,22 @@ contains
     dew_point_ssi_flag = init_diag(dew_point_ssi, 'surface__dew_point_ssi')
     dew_point_land_flag = init_diag(dew_point_land, 'surface__dew_point_land')
 
+    vis_with_precip_land_flag = init_diag(vis_with_precip_land, 'surface__visibility_with_precip_land')
+    vis_with_precip_ssi_flag = init_diag(vis_with_precip_ssi, 'surface__visibility_with_precip_ssi')
     vis_with_precip_dust_flag = init_diag(visibility_with_precip_dust, &
       'surface__visibility_with_precip_dust')
     vis_with_precip_flag = init_diag(visibility_with_precip, &
-      'surface__visibility_with_precip', activate=vis_with_precip_dust_flag)
+      'surface__visibility_with_precip')
     vis_with_dust_flag = init_diag(visibility_with_dust, &
-      'surface__visibility_with_dust', activate=vis_with_precip_dust_flag)
+      'surface__visibility_with_dust')
     vis_no_precip_flag = init_diag(visibility_no_precip, &
-      'surface__visibility_no_precip', &
-      activate=vis_with_precip_dust_flag .or. vis_with_precip_flag &
-        .or. vis_with_dust_flag)
+      'surface__visibility_no_precip')
 
-    if ( wind_gust_flag .or. scale_dep_wind_gust_flag .or.                     &
+    if ( thermal_speed_flag .or.                                               &
+         wind_gust_flag .or. scale_dep_wind_gust_flag .or.                     &
          vis_no_precip_flag .or. vis_with_precip_flag .or.                     &
+         vis_with_precip_land_flag .or. vis_with_precip_ssi_flag .or.          &
+         vis_with_dust_flag .or. vis_with_precip_dust_flag .or.                &
          fog_fraction_flag .or. fog_fraction_ssi_flag .or.                     &
          fog_fraction_land_flag .or. vis_prob_5km_flag .or. dew_point_flag     &
          .or. dew_point_ssi_flag .or. dew_point_land_flag ) then
@@ -193,6 +203,7 @@ contains
                                                ls_rain, ls_snow, lsca_2d,      &
                                                conv_rain, conv_snow, cca_2d,   &
                                                ustar_implicit,                 &
+                                               thermal_speed,                  &
                                                wind_gust, scale_dep_wind_gust, &
                                                fog_fraction, fog_fraction_ssi, &
                                                fog_fraction_land, vis_prob_5km,&
@@ -200,13 +211,18 @@ contains
                                                dew_point_land,                 &
                                                visibility_with_precip,         &
                                                visibility_no_precip,           &
+                                               vis_with_precip_land,           &
+                                               vis_with_precip_ssi,            &
                                                visibility_with_dust,           &
                                                visibility_with_precip_dust) )
 
+      if (thermal_speed_flag) call thermal_speed%write_field()
       if (wind_gust_flag) call wind_gust%write_field()
       if (scale_dep_wind_gust_flag) call scale_dep_wind_gust%write_field()
       if (vis_no_precip_flag) call visibility_no_precip%write_field()
       if (vis_with_precip_flag) call visibility_with_precip%write_field()
+      if (vis_with_precip_land_flag) call vis_with_precip_land%write_field()
+      if (vis_with_precip_ssi_flag) call vis_with_precip_ssi%write_field()
       if (vis_with_dust_flag) call visibility_with_dust%write_field()
       if (vis_with_precip_dust_flag) call visibility_with_precip_dust%write_field()
       if (fog_fraction_flag) call fog_fraction%write_field()
