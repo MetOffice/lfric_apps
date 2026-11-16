@@ -71,10 +71,10 @@ module tl_test_semi_imp_alg_mod
     type( field_collection_type ), pointer :: diagnostic_fields => null()
     type( field_type ),            pointer :: mr(:) => null()
     type( field_type ),            pointer :: ls_mr(:) => null()
-    type( field_collection_type ), pointer :: adv_tracer_all_outer
-    type( field_collection_type ), pointer :: adv_tracer_last_outer
-    type( field_collection_type ), pointer :: con_tracer_all_outer
-    type( field_collection_type ), pointer :: con_tracer_last_outer
+    type( field_collection_type ), pointer :: gen_tracer_all_outer
+    type( field_collection_type ), pointer :: gen_tracer_last_outer
+    type( field_collection_type ), pointer :: pos_tracer_all_outer
+    type( field_collection_type ), pointer :: pos_tracer_last_outer
     type( field_collection_type ), pointer :: derived_fields
     type( field_collection_type ), pointer :: radiation_fields
     type( field_collection_type ), pointer :: microphysics_fields
@@ -155,10 +155,10 @@ module tl_test_semi_imp_alg_mod
     call moisture_fields%get_field("ls_moist_dyn", ls_moist_dyn_array)
     ls_mr => ls_mr_array%bundle
     ls_moist_dyn => ls_moist_dyn_array%bundle
-    adv_tracer_all_outer => modeldb%fields%get_field_collection("adv_tracer_all_outer")
-    adv_tracer_last_outer => modeldb%fields%get_field_collection("adv_tracer_last_outer")
-    con_tracer_all_outer => modeldb%fields%get_field_collection("con_tracer_all_outer")
-    con_tracer_last_outer => modeldb%fields%get_field_collection("con_tracer_last_outer")
+    gen_tracer_all_outer => modeldb%fields%get_field_collection("gen_tracer_all_outer")
+    gen_tracer_last_outer => modeldb%fields%get_field_collection("gen_tracer_last_outer")
+    pos_tracer_all_outer => modeldb%fields%get_field_collection("pos_tracer_all_outer")
+    pos_tracer_last_outer => modeldb%fields%get_field_collection("pos_tracer_last_outer")
     derived_fields => modeldb%fields%get_field_collection("derived_fields")
     radiation_fields => modeldb%fields%get_field_collection("radiation_fields")
     microphysics_fields => modeldb%fields%get_field_collection("microphysics_fields")

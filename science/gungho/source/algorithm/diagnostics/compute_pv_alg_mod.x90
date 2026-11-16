@@ -81,9 +81,9 @@ contains
     chi      => get_coordinates(mesh)
     panel_id => get_panel_id(mesh)
     if (use_fe) then
-      qr => get_qr_fe( )
+      qr => get_qr_fe(config)
       m3_inv => get_inverse_mass_matrix_fe(config, mesh, W3)
-      w0_rmultiplicity => get_rmultiplicity_fe(W0, mesh%get_id())
+      w0_rmultiplicity => get_rmultiplicity_fe(config, mesh, W0)
     else
       qr => get_qr_fv( )
       m3_inv => get_inverse_mass_matrix_fv(config, mesh, W3)
