@@ -38,16 +38,15 @@ MAX_FREQ = 5000
 # Dictionary for the multidata axes, with the associated number of
 # multidata levels, and the associated weights file.
 AXIS_MAP = {
-    # Fields on land/sea are masked
-    "surface_tiles":         [11, "regrid_weights_masked_conserve2nd.nc"],
-    "land_tiles":            [8, "regrid_weights_masked_conserve2nd.nc"],
-    "sea_ice_categories":    [1, "regrid_weights_masked_conserve2nd.nc"],
+    # Fields on land/sea that use nearest neighbour and are masked
+    "surface_tiles":         [11, "regrid_weights_masked_neareststod.nc"],
+    "land_tiles":            [8, "regrid_weights_masked_neareststod.nc"],
+    "sea_ice_categories":    [1, "regrid_weights_masked_neareststod.nc"],
+    "soil_levels":           [4, "regrid_weights_masked_neareststod.nc"],
+    "plant_func_types":      [5, "regrid_weights_masked_neareststod.nc"],
+    "dust_divisions":        [6, "regrid_weights_masked_neareststod.nc"],
     # Multilayer snow fields use nearest neighbour, but NOT masked
     "snow_layers_and_tiles": [27, "regrid_weights_neareststod.nc"],
-    # Fields on land/sea are masked
-    "soil_levels":           [4, "regrid_weights_masked_conserve2nd.nc"],
-    "plant_func_types":      [5, "regrid_weights_masked_conserve2nd.nc"],
-    "dust_divisions":        [6, "regrid_weights_masked_conserve2nd.nc"],
     # General regridding - e.g. for atmospheric fields
     "general":               [1, "regrid_weights_conserve2nd.nc"],
 }

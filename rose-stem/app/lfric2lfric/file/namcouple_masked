@@ -57,238 +57,238 @@ src_tile_fraction_level_1 dst_tile_fraction_level_1 1 5000 1 lfric2lfric_restart
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 6 
 src_tile_fraction_level_2 dst_tile_fraction_level_2 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 7 
 src_tile_fraction_level_3 dst_tile_fraction_level_3 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 8 
 src_tile_fraction_level_4 dst_tile_fraction_level_4 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 9 
 src_tile_fraction_level_5 dst_tile_fraction_level_5 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 10 
 src_tile_fraction_level_6 dst_tile_fraction_level_6 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 11 
 src_tile_fraction_level_7 dst_tile_fraction_level_7 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 12 
 src_tile_fraction_level_8 dst_tile_fraction_level_8 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 13 
 src_tile_fraction_level_9 dst_tile_fraction_level_9 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 14 
 src_tile_fraction_level_10 dst_tile_fraction_level_10 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 15 
 src_tile_fraction_level_11 dst_tile_fraction_level_11 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 16 
 src_tile_temperature_level_1 dst_tile_temperature_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 17 
 src_tile_temperature_level_2 dst_tile_temperature_level_2 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 18 
 src_tile_temperature_level_3 dst_tile_temperature_level_3 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 19 
 src_tile_temperature_level_4 dst_tile_temperature_level_4 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 20 
 src_tile_temperature_level_5 dst_tile_temperature_level_5 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 21 
 src_tile_temperature_level_6 dst_tile_temperature_level_6 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 22 
 src_tile_temperature_level_7 dst_tile_temperature_level_7 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 23 
 src_tile_temperature_level_8 dst_tile_temperature_level_8 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 24 
 src_tile_temperature_level_9 dst_tile_temperature_level_9 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 25 
 src_tile_temperature_level_10 dst_tile_temperature_level_10 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 26 
 src_tile_temperature_level_11 dst_tile_temperature_level_11 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 27 
 src_canopy_water_level_1 dst_canopy_water_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 28 
 src_canopy_water_level_2 dst_canopy_water_level_2 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 29 
 src_canopy_water_level_3 dst_canopy_water_level_3 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 30 
 src_canopy_water_level_4 dst_canopy_water_level_4 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 31 
 src_canopy_water_level_5 dst_canopy_water_level_5 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 32 
 src_canopy_water_level_6 dst_canopy_water_level_6 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 33 
 src_canopy_water_level_7 dst_canopy_water_level_7 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 34 
 src_canopy_water_level_8 dst_canopy_water_level_8 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 35 
 src_canopy_water_level_9 dst_canopy_water_level_9 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 36 
 src_canopy_water_level_10 dst_canopy_water_level_10 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 37 
 src_canopy_water_level_11 dst_canopy_water_level_11 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 38 
 src_sea_ice_temperature_level_1 dst_sea_ice_temperature_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 39 
 src_soil_sat_frac_level_1 dst_soil_sat_frac_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
@@ -316,56 +316,56 @@ src_soil_temperature_level_1 dst_soil_temperature_level_1 1 5000 1 lfric2lfric_r
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 43 
 src_soil_temperature_level_2 dst_soil_temperature_level_2 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 44 
 src_soil_temperature_level_3 dst_soil_temperature_level_3 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 45 
 src_soil_temperature_level_4 dst_soil_temperature_level_4 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 46 
 src_soil_moisture_level_1 dst_soil_moisture_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 47 
 src_soil_moisture_level_2 dst_soil_moisture_level_2 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 48 
 src_soil_moisture_level_3 dst_soil_moisture_level_3 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 49 
 src_soil_moisture_level_4 dst_soil_moisture_level_4 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 50 
 src_tile_snow_mass_level_1 dst_tile_snow_mass_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
@@ -449,77 +449,77 @@ src_tile_snow_rgrain_level_1 dst_tile_snow_rgrain_level_1 1 5000 1 lfric2lfric_r
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 62 
 src_tile_snow_rgrain_level_2 dst_tile_snow_rgrain_level_2 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 63 
 src_tile_snow_rgrain_level_3 dst_tile_snow_rgrain_level_3 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 64 
 src_tile_snow_rgrain_level_4 dst_tile_snow_rgrain_level_4 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 65 
 src_tile_snow_rgrain_level_5 dst_tile_snow_rgrain_level_5 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 66 
 src_tile_snow_rgrain_level_6 dst_tile_snow_rgrain_level_6 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 67 
 src_tile_snow_rgrain_level_7 dst_tile_snow_rgrain_level_7 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 68 
 src_tile_snow_rgrain_level_8 dst_tile_snow_rgrain_level_8 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 69 
 src_tile_snow_rgrain_level_9 dst_tile_snow_rgrain_level_9 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 70 
 src_tile_snow_rgrain_level_10 dst_tile_snow_rgrain_level_10 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 71 
 src_tile_snow_rgrain_level_11 dst_tile_snow_rgrain_level_11 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 72 
 src_n_snow_layers_level_1 dst_n_snow_layers_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
