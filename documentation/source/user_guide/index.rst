@@ -13,3 +13,4 @@ User Guide
 
     applications/index
     checkpointing/index
+    coordinates_and_vectors/index
