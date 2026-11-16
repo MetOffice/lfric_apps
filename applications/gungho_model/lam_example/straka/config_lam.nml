@@ -202,7 +202,7 @@ calendar_start='2016-01-01 15:00:00',
 &timestepping
 alpha=0.5,
 dt=10.0,
-inner_iterations=2,
+inner_iterations_si=2,2
 method='semi_implicit',
 outer_iterations=2,
 runge_kutta_method='ssp5',

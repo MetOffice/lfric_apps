@@ -15,6 +15,7 @@
 # Choose which files to Pre-proccess and PSyclone from physics_schemes / other source (e.g. UKCA)
 
 export PSYCLONE_PHYSICS_FILES = \
+                                aerosol_ukca_kernel_mod \
                                 bl_lsp \
                                 bm_kernel_mod \
                                 bm_tau_kernel_mod \
@@ -48,8 +49,7 @@ export PSYCLONE_PHYSICS_FILES = \
                                 tracer_mix_kernel_mod \
                                 ukca_aero_ctl \
                                 ukca_abdulrazzak_ghan \
-                                ukca_chemistry_ctl_full_mod \
-                                ukca_main1-ukca_main1
+                                ukca_chemistry_ctl_full_mod
 
 # These files are causing build slow downs with the CCE compiler
 # due to a compiler bug, this has been reported to HPE by HPC Opt:

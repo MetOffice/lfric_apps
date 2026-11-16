@@ -119,7 +119,7 @@ contains
 
     call compute_si_operators_common( config, rhs(igh_t), rhs(igh_d), rhs(igh_p), &
                                       moist_dyn )
-    call compute_helmholtz_operators( model_clock, stepper_siqn )
+    call compute_helmholtz_operators( config, model_clock, stepper_siqn )
 
     ! Input fields are r_def fields so preliminary work uses field_types
 
@@ -151,7 +151,7 @@ contains
 
     call vector_mx%set_scalar(0.0_r_def)
     call vector_amx%set_scalar(0.0_r_def)
-    call mixed_op%apply( vector_x, vector_mx )
+    call mixed_op%apply( config, vector_x, vector_mx )
 
     ! --------------------------------------------------------------------------
     ! Compute <Mx,Mx>
@@ -189,7 +189,7 @@ contains
 
     adj_mixed_op = adj_mixed_operator_type(stepper_siqn)
 
-    call adj_mixed_op%apply( vector_mx, vector_amx )
+    call adj_mixed_op%apply( config, vector_mx, vector_amx )
 
     ! --------------------------------------------------------------------------
     ! Compute <AMx,x>
