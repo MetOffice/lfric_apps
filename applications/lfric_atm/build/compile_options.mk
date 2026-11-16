@@ -45,10 +45,8 @@ socrates/src/radiance_core/%.o: private FFLAGS_EXTRA = $(FFLAGS_INTEL_EXTERNALS)
 socrates/src/interface_core/%.o: private FFLAGS_EXTRA = $(FFLAGS_INTEL_EXTERNALS)
 
 ifdef COUPLED
-  ifeq ("$(COUPLED)","True")
-	ifeq ($(FORTRAN_COMPILER),crayftn)
-	  $(info Disabling inlining for lfric_xios modules for LFRic_Atm Coupled Builds)
-	  lfric_xios_%.o: private FFLAGS_EXTRA = -hipa0
-	endif
-  endif
+ifeq ("$(COUPLED)","True")
+$(info Disabling inlining for lfric_xios modules for LFRic_Atm Coupled Builds)
+lfric_xios_%.o: private FFLAGS_EXTRA = -hipa0
+endif
 endif
