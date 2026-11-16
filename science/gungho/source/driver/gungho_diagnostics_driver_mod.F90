@@ -4,6 +4,8 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 ! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code via AI Foundry (Claude Fable 5.1); PR #768.
+! - Met Office Claude Code via AI Foundry (Claude Opus 5.5); PR #768.
 ! - Met Office Claude Code via AI Foundry (Claude Opus 4.8); PR #715.
 ! - Met Office Claude Code via AI Foundry (Claude Opus 5.5); PR #715.
 
@@ -63,6 +65,7 @@ module gungho_diagnostics_driver_mod
   use rh_diag_alg_mod,           only : rh_diag_alg
   use freeze_lev_alg_mod,        only : freeze_lev_alg
   use aviation_diags_alg_mod,    only : aviation_diags_alg
+  use zenith_delay_alg_mod,      only : zenith_delay_alg
 #endif
 
   implicit none
@@ -363,6 +366,8 @@ contains
       ! Aviation diagnostics
       call aviation_diags_alg(modeldb%config, mesh, theta, exner_in_wth, &
         plev_geopot, u, exner, element_order_h, element_order_v)
+      ! Zenith total delay
+      call zenith_delay_alg(modeldb%config, exner, exner_in_wth, mr, moist_dyn)
 #endif
 
       temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')
