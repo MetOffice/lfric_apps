@@ -48,26 +48,27 @@ transmute_after_dsl:
     /fm_drag
     /imp_mix
     /kmkh
+    /kmkhz_9c_wtrac
 
-  file_specific:
+  kernel/local.py:
     /bm_tau_kernel_mod
-    /conv_gr_kernel_mod
-    /gw_ussp_mod
     /jules_exp_kernel_mod
     /jules_extra_kernel_mod
     /jules_imp_kernel_mod
-    /kmkhz_9c_wtrac
+    /pc2_initiation_kernel_mod
+
+  file_specific:
+    /conv_gr_kernel_mod
+    /gw_ussp_mod
     /lw_kernel_mod
     /pc2_bl_forced_cu
     /pc2_bm_initiate
     /pc2_initiation_ctl
-    /pc2_initiation_kernel_mod
     /pc2_conv_coupling_kernel_mod
     /sw_kernel_mod
     /sw_rad_tile_kernel_mod
     /ukca_aero_ctl
     /ukca_chemistry_ctl_full_mod
-    /ukca_main1-ukca_main1
 
   no_script:
     /ukca_abdulrazzak_ghan
