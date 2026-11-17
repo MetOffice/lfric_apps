@@ -7,16 +7,16 @@
 
 module geo_on_pres_kernel_mod
 
-  use argument_mod,         only: arg_type,                  &
-                                  GH_FIELD, GH_SCALAR,       &
-                                  GH_READ, GH_WRITE,         &
-                                  GH_INTEGER,                &
-                                  GH_REAL, CELL_COLUMN,      &
-                                  ANY_DISCONTINUOUS_SPACE_1, &
-                                  ANY_DISCONTINUOUS_SPACE_2
-  use fs_continuity_mod,    only: WTHETA
-  use constants_mod,        only: r_def, i_def
-  use kernel_mod,           only: kernel_type
+  use argument_mod,      only: arg_type,                  &
+                               GH_FIELD, GH_SCALAR,       &
+                               GH_READ, GH_WRITE,         &
+                               GH_INTEGER, GH_LOGICAL,    &
+                               GH_REAL, CELL_COLUMN,      &
+                               ANY_DISCONTINUOUS_SPACE_1, &
+                               ANY_DISCONTINUOUS_SPACE_2
+  use fs_continuity_mod, only: WTHETA
+  use constants_mod,     only: r_def, i_def, l_def
+  use kernel_mod,        only: kernel_type
 
   implicit none
 
@@ -25,20 +25,21 @@ module geo_on_pres_kernel_mod
   !> Kernel metadata for PSyclone
   type, public, extends(kernel_type) :: geo_on_pres_kernel_type
     private
-    type(arg_type) :: meta_args(12) = (/                                   &
-         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD, GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                    &
-         arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                    &
-         arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                    &
-         arg_type(GH_SCALAR,GH_INTEGER, GH_READ),                          &
+    type(arg_type) :: meta_args(13) = (/                                      &
+         arg_type(GH_FIELD, GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD, GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD, GH_REAL,    GH_READ,  WTHETA),                    &
+         arg_type(GH_FIELD, GH_REAL,    GH_READ,  WTHETA),                    &
+         arg_type(GH_FIELD, GH_REAL,    GH_READ,  WTHETA),                    &
+         arg_type(GH_SCALAR,GH_INTEGER, GH_READ),                             &
 !        arg_type(GH_SCALAR_ARRAY,GH_REAL, GH_READ, 1), see PSyclone issue #1312
-         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_2), &
-         arg_type(GH_SCALAR,GH_REAL, GH_READ),                             &
-         arg_type(GH_SCALAR,GH_REAL, GH_READ),                             &
-         arg_type(GH_SCALAR,GH_REAL, GH_READ),                             &
-         arg_type(GH_SCALAR,GH_REAL, GH_READ),                             &
-         arg_type(GH_SCALAR,GH_REAL, GH_READ)                              &
+         arg_type(GH_FIELD, GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_2), &
+         arg_type(GH_SCALAR,GH_REAL,    GH_READ),                             &
+         arg_type(GH_SCALAR,GH_REAL,    GH_READ),                             &
+         arg_type(GH_SCALAR,GH_REAL,    GH_READ),                             &
+         arg_type(GH_SCALAR,GH_REAL,    GH_READ),                             &
+         arg_type(GH_SCALAR,GH_REAL,    GH_READ),                             &
+         arg_type(GH_SCALAR,GH_LOGICAL, GH_READ)                              &
          /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -65,7 +66,9 @@ contains
   !> @param[in]     kappa         Rd / cp
   !> @param[in]     cp            Specific heat at constant pressure
   !> @param[in]     gravity       Acceleration due to gravity
+  !> @param[in]     planet_radius Radius of the planet
   !> @param[in]     ex_power      (cp * lapse_rate ) / g
+  !> @param[in]     shallow       If true, gravity is constant
   !> @param[in]     ndf_in        Number of degrees of freedom per cell for in fields
   !> @param[in]     undf_in       Number of total degrees of freedom for in fields
   !> @param[in]     map_in        Dofmap for the cell at the base of the column for in fields
@@ -85,7 +88,9 @@ contains
                               kappa,                           &
                               cp,                              &
                               gravity,                         &
+                              planet_radius,                   &
                               ex_power,                        &
+                              shallow,                         &
                               ndf_in, undf_in, map_in,         &
                               ndf_wth, undf_wth, map_wth,      &
                               ndf_out, undf_out, map_out)
@@ -110,12 +115,15 @@ contains
     real(kind=r_def),    intent(inout), dimension(undf_out) :: data_out
 
     ! Constants passed explicitly from algorithm
-    real(kind=r_def),    intent(in) :: p_zero, kappa, cp, gravity, ex_power
+    real(kind=r_def),    intent(in) :: p_zero, kappa, cp, gravity, ex_power, &
+                                       planet_radius
     real(kind=r_def),    intent(in), dimension(nplev) :: plevs
+    logical(kind=l_def), intent(in) :: shallow
 
     ! Internal variables
     integer(kind=i_def) :: k, level_above, top_df, kp, level_extrap
     real(kind=r_def) :: desired_ex, h_ref_lev
+    real(kind=r_def) :: geo_ht_extrap, geo_ht_lowest
     real(kind=r_def), parameter:: extrap_height = 2000.0_r_def
 
     do kp = 1, nplev
@@ -138,9 +146,9 @@ contains
 
       if (level_above == -1_i_def) then
         ! Desired level is above model top, extrapolate up
-        data_out(map_out(1)+kp-1) = data_in(map_in(1)+top_df) - &
-                                   (desired_ex - ex_at_data(map_in(1)+top_df)) &
-                                    * cp * theta(map_wth(1)+nlayers) / gravity
+        data_out(map_out(1)+kp-1) = ( data_in(map_in(1)+top_df) - &
+                                      (desired_ex - ex_at_data(map_in(1)+top_df)) &
+                                      * cp * theta(map_wth(1)+nlayers) ) / gravity
       else if (level_above == 0_i_def) then
         ! Desired level is below surface, extrapolate down
         do k = 1, nlayers
@@ -150,10 +158,18 @@ contains
             exit
           end if
         end do
-        h_ref_lev = (height_wth(map_wth(1)+level_extrap) - data_in(map_in(1))) &
+        if ( shallow ) then
+          geo_ht_extrap = height_wth(map_wth(1)+level_extrap)
+        else
+          geo_ht_extrap = height_wth(map_wth(1)+level_extrap) / &
+                          ( 1.0_r_def + height_wth(map_wth(1)+level_extrap) / &
+                                        planet_radius )
+        end if
+        geo_ht_lowest = data_in(map_in(1)) / gravity
+        h_ref_lev = ( geo_ht_extrap - geo_ht_lowest ) &
                    / (1.0_r_def - (exner_wth(map_wth(1)+level_extrap) / &
                                    ex_at_data(map_in(1)))**ex_power )
-        data_out(map_out(1)+kp-1) = data_in(map_in(1)+level_above) &
+        data_out(map_out(1)+kp-1) = geo_ht_lowest &
                                    + h_ref_lev * (1.0_r_def - &
                                   (desired_ex/ex_at_data(map_in(1)))**ex_power)
       else
@@ -165,7 +181,7 @@ contains
                                        ex_at_data(map_in(1)+level_above)) * &
                                       data_in(map_in(1)+level_above-1) ) / &
                                     (ex_at_data(map_in(1)+level_above) - &
-                                     ex_at_data(map_in(1)+level_above-1))
+                                     ex_at_data(map_in(1)+level_above-1)) / gravity
       end if
 
     end do

@@ -1,0 +1,168 @@
+!-----------------------------------------------------------------------------
+! (c) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+!> @brief Compute the consistent vertical wind by removing the orographic component
+!!        obtained using the fem polynomials and adding in the same component
+!!        obtained using hte transport scheme reconstruction
+
+module consistent_wind_alg_mod
+
+  use config_mod,                        only: config_type
+  use constants_mod,                     only: i_def, l_def, r_def
+  use log_mod,                           only: log_event, LOG_LEVEL_INFO
+  use transport_metadata_collection_mod, only: transport_metadata_collection
+  use transport_metadata_mod,            only: transport_metadata_type
+  use transport_controller_mod,          only: transport_controller_type
+  use sci_geometric_constants_mod,       only: get_coordinates,               &
+                                               get_height_fv,                 &
+                                               get_face_selector_ew,          &
+                                               get_face_selector_ns
+  use consistent_wind_kernel_mod,        only: consistent_wind_kernel_type
+  use fs_continuity_mod,                 only: Wtheta, W2v, W2h
+  use model_clock_mod,                   only: model_clock_type
+  use combine_w2_field_kernel_mod,       only: combine_w2_field_kernel_type
+  use split_w2_field_kernel_mod,         only: split_w2_field_kernel_type
+  use integer_field_mod,                 only: integer_field_type
+  use field_mod,                         only: field_type
+  use r_tran_field_mod,                  only: r_tran_field_type
+  use function_space_mod,                only: function_space_type
+  use function_space_collection_mod,     only: function_space_collection
+  use wt_advective_update_alg_mod,       only: hori_wt_update_alg
+  use transport_enumerated_types_mod,    only: split_method_mol
+  use horizontal_cubic_sl_metric_kernel_mod, &
+                                         only: horizontal_cubic_sl_metric_kernel_type
+
+  implicit none
+
+  private
+
+  ! Contained suroutines
+  public :: consistent_wind_alg
+
+
+contains
+
+  !=============================================================================
+  !> @brief Compute a consistent vertical wind for the current transport step.
+  !> @details Modifies the vertical advecting wind so that the component that comes
+  !!          from the horizontal wind over terrain uses the transport scheme reconstruction
+  !!          to compute the orographic gradient instead of the finite element scheme. This
+  !!          results in the correct cancellation with the horizontal transport of the field
+  !!          over terrain that is applied by updating the transport controller object.
+  !> @param[in]     config               Application namelist configuration object
+  !> @param[in,out] transport_controller Encapsulating object containing the
+  !!                                     transport counter and precomputations
+  !> @param[in]     rho_d_latest         Dry density at the latest time level
+  !> @param[in]     wind_n               Wind at the start of the step
+  !> @param[in]     wind_np1             Wind at the end of the step
+  !> @param[in]     model_clock          Model time information
+  !> @param[in]     outer                Outer iteration index
+  !> @param[in]     cheap_update_step    Whether a cheap transport update is used
+  subroutine consistent_wind_alg(config,               &
+                                 transport_controller, &
+                                 rho_d_latest,         &
+                                 wind_n,               &
+                                 wind_np1,             &
+                                 model_clock,          &
+                                 outer,                &
+                                 cheap_update_step)
+
+    implicit none
+
+    type(config_type),       intent(in) :: config
+    integer(kind=i_def),     intent(in) :: outer
+    logical(kind=l_def),     intent(in) :: cheap_update_step
+    class(model_clock_type), intent(in) :: model_clock
+    type(field_type),        intent(in) :: rho_d_latest, wind_n, wind_np1
+    type(transport_controller_type), intent(inout)  :: transport_controller
+
+    type(field_type) :: chi3_inc, chi3
+    type(field_type), pointer :: chi3_default
+    type(transport_metadata_type), pointer :: transport_metadata
+
+    integer(kind=i_def) :: mesh_id
+
+    type(field_type), pointer :: chi(:)
+    type(field_type), pointer :: wind_adv_ptr
+    type(field_type), target :: wind_adv
+    type(field_type) :: wind_v, wind_h
+
+    type(r_tran_field_type) :: chi3_inc_r_tran, wind_h_r_tran, chi3_r_tran
+
+    type(integer_field_type), pointer :: face_selector_ew
+    type(integer_field_type), pointer :: face_selector_ns
+
+    type(function_space_type), pointer :: w2h_fs, w2v_fs
+
+    integer(kind=i_def), parameter :: stencil_depth = 2
+
+    ! Get the height field with a big halo
+    mesh_id = rho_d_latest%get_mesh_id()
+    chi3_default => get_height_fv(config, rho_d_latest%get_mesh(), Wtheta)
+    call chi3%initialise( chi3_default%get_function_space(), halo_depth = stencil_depth )
+    call invoke( setval_X( chi3, chi3_default ) )
+
+
+    ! Transport the height field
+    call log_event( "Computing consistent vertical wind...", LOG_LEVEL_INFO)
+    transport_metadata =>                                                      &
+        transport_metadata_collection%get_transport_metadata('potential_temperature')
+    call chi3_inc%initialise( chi3%get_function_space() )
+
+    ! Split out the horizontal and vertical components of the wind
+    w2h_fs => function_space_collection%get_fs( wind_n%get_mesh(),            &
+                                                wind_n%get_element_order_h(), &
+                                                wind_n%get_element_order_v(), W2h )
+    w2v_fs => function_space_collection%get_fs( wind_n%get_mesh(),            &
+                                                wind_n%get_element_order_h(), &
+                                                wind_n%get_element_order_v(), W2v )
+    call wind_h%initialise( w2h_fs )
+    call wind_v%initialise( w2v_fs )
+    call wind_adv%initialise( wind_n%get_function_space() )
+    face_selector_ew => get_face_selector_ew( wind_n%get_mesh() )
+    face_selector_ns => get_face_selector_ns( wind_n%get_mesh() )
+    call invoke( aX_plus_bY( wind_adv, 0.5_r_def, wind_n, 0.5_r_def, wind_np1 ), &
+                 split_w2_field_kernel_type( wind_h, wind_v, wind_adv,           &
+                                             face_selector_ew,                   &
+                                             face_selector_ns ) )
+
+    ! Compute u.grad(chi3)
+    if ( transport_metadata%get_horizontal_method() == split_method_mol ) then
+      ! With MoL
+      call chi3_inc_r_tran%initialise( chi3_inc%get_function_space() )
+      call wind_h_r_tran%initialise( wind_h%get_function_space() )
+      call chi3_r_tran%initialise( chi3%get_function_space() )
+      call invoke( real_to_real_X( chi3_inc_r_tran, chi3_inc ), &
+                   real_to_real_X( wind_h_r_tran, wind_h ),     &
+                   real_to_real_X( chi3_r_tran, chi3 ) )
+      call hori_wt_update_alg(config, chi3_inc_r_tran, wind_h_r_tran, wind_h_r_tran,  &
+                              chi3_r_tran, transport_metadata)
+      call invoke( real_to_real_X( chi3_inc, chi3_inc_r_tran ) )
+    else
+      ! With SL
+      call invoke(horizontal_cubic_sl_metric_kernel_type(chi3_inc, chi3, stencil_depth, wind_h) )
+    end if
+
+    ! Modify the vertical componenet of the transporting wind
+    chi => get_coordinates( wind_n%get_mesh() )
+    call invoke( consistent_wind_kernel_type(wind_v, wind_adv,                   &
+                                             chi3_inc, chi(3)) )
+
+    ! Combine the modified vertical wind with the horizontal wind to form a new consistent wind
+    call invoke( combine_w2_field_kernel_type( wind_adv, wind_h, wind_v,         &
+                                               face_selector_ew,                 &
+                                               face_selector_ns ) )
+
+    ! Recompute controller object (departure points etc) using new consistent wind
+    call log_event( "Recomputing transport controller with consistent wind...", LOG_LEVEL_INFO)
+    wind_adv_ptr => wind_adv
+    call transport_controller%finalise()
+    call transport_controller%initialise(                                      &
+            config, model_clock, rho_d_latest, wind_adv, wind_adv_ptr, outer,  &
+            cheap_update_step                                                  &
+    )
+  end subroutine consistent_wind_alg
+
+end module consistent_wind_alg_mod

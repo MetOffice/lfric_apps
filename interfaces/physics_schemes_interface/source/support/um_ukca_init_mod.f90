@@ -109,7 +109,10 @@ module um_ukca_init_mod
     !  Max sizes for spectral file data
     photol_max_miesets, photol_n_solcyc_av, photol_sw_band_aer,                &
     photol_sw_phases, photol_max_wvl, photol_max_crossec,                      &
-    photol_wvl_intervals, photol_num_tvals
+    photol_wvl_intervals, photol_num_tvals,                                    &
+  ! callback routine for ozone column diagnostic
+    photol_calc_ozonecol
+
 
   implicit none
 
@@ -858,6 +861,7 @@ contains
     logical :: l_ukca_ro2_perm = .false.
     logical :: l_ukca_mode = .false.
     logical :: l_use_gridbox_mass = .false.
+    logical :: l_use_gridbox_volume = .false.
 
     ! Some default values - either standard values in UM, or the only ones
     ! currently supported in the LFRic-side implementation.
@@ -868,6 +872,10 @@ contains
     integer::  i_ukca_mode_seg_size            ! GLOMAP-mode segment size
     real(r_um) :: linox_scale_in
 
+    ! Tropopause level used for masking ASAD diagnostics - temporary till
+    ! mode of deriving/ specifying 2-D tropopause level array is implemented.
+    ! Compatible with L70/L85 at mid-latitudes
+    integer, parameter :: trop_level_for_diags = 42
     character(len=ukca_photol_varname_len) :: adjusted_fname  ! intermediate spc/ filename copy
 
     ! Variables for UKCA error handling
@@ -955,9 +963,12 @@ contains
     ! parent model. For aerosols, UKCA contains a simplified calculation of a
     ! 'relative mass' sufficient for deposition and sedimentation processes
     ! and so does not require the parent to provide this field (=false)
+    ! Similarly, the gridbox volume is used in processing some ASAD diagnostics
+    ! hence has to be specified if these are needed.
     if ( chem_scheme == chem_scheme_strattrop .or.  &
          chem_scheme == chem_scheme_strat_test ) then
       l_use_gridbox_mass = .true.
+      l_use_gridbox_volume = .true.
     end if
 
     ! Set default lightning NOx scale factor to 1.0 if no factor supplied
@@ -998,6 +1009,7 @@ contains
            l_ukca_chem_aero=l_ukca_chem_aero,                                  &
            l_ukca_mode=l_ukca_mode,                                            &
            l_fix_tropopause_level=.true.,                                      &
+           fixed_tropopause_level=trop_level_for_diags,                        &
            l_ukca_persist_off=.true.,                                          &
            l_ukca_ageair=l_ukca_ageair,                                        &
            ! Chemistry configuration options
@@ -1025,6 +1037,7 @@ contains
            l_ukca_ro2_ntp = l_ukca_ro2_ntp,                                    &
            l_ukca_ro2_perm = l_ukca_ro2_perm,                                  &
            l_use_gridbox_mass= l_use_gridbox_mass,                             &
+           l_use_gridbox_volume= l_use_gridbox_volume,                         &
            ! UKCA emissions configuration options
            mode_parfrac=2.5_r_um,                                              &
            l_ukca_enable_seadms_ems=.true.,                                    &
@@ -1094,6 +1107,8 @@ contains
            l_fix_ukca_hygroscopicities=.false.,                                &
            l_fix_ukca_n2o5_h2o=.false.,                                        &
            l_fix_ukca_water_content=.true.,                                    &
+           ! Procedure to be used for ozone column diagnostic calculation
+           proc_calc_ozonecol = photol_calc_ozonecol,                          &
            ! Return status information
            error_message=ukca_errmsg,                                          &
            error_routine=ukca_errproc)
@@ -1295,7 +1310,7 @@ contains
     ! Switch on optional UM boundary layer diagnostics required by UKCA
     if (any(env_names_bllev_real(:) == fldname_bl_tke))                        &
       bl_diag%l_request_tke = .true.
-
+    
   end subroutine ukca_init
   subroutine ukca_emiss_init()
   !> @brief Set up the emissions for UKCA model

@@ -54,6 +54,9 @@ module lfric2lfric_init_mesh_mod
   use mesh_mod,                    only: mesh_type
   use global_mesh_mod,             only: global_mesh_type
   use local_mesh_mod,              only: local_mesh_type
+  use ugrid_2d_mod,                only: ugrid_2d_type
+  use ugrid_file_mod,              only: ugrid_file_type
+  use ncdf_quad_mod,               only: ncdf_quad_type
 
   ! Lfric2lfric modules
   use lfric2lfric_config_mod,      only: regrid_method_map,                   &
@@ -142,7 +145,6 @@ subroutine init_mesh( config,                  &
   ! Local variables
   integer(kind=i_def)             :: i
   character(len=str_max_filename) :: mesh_file(2)
-  character(str_max_filename)     :: mesh_input_file
   integer(kind=i_def)             :: stencil_depths(2)
 
   character(str_def) :: stored_mesh_names(2)
@@ -164,6 +166,11 @@ subroutine init_mesh( config,                  &
 
   logical(l_def) :: enforce_constraints
   integer(i_def) :: mapping_factors(2)
+
+  type(ugrid_2d_type) :: ugrid_2d_src
+  class(ugrid_file_type), allocatable :: file_handler_src
+  type(ugrid_2d_type) :: ugrid_2d_dst
+  class(ugrid_file_type), allocatable :: file_handler_dst
 
   nullify( src_global_mesh, src_mesh, partitioner_src)
   nullify( dst_global_mesh, dst_mesh, partitioner_dst)
@@ -275,14 +282,21 @@ subroutine init_mesh( config,                  &
         trim(meshfile_prefix(src)) // '_', local_rank, '-',  &
                                            total_ranks, '.nc'
 
+    ! Open files
+    allocate( ncdf_quad_type :: file_handler_src )
+    call ugrid_2d_src%set_file_handler( file_handler_src )
+    call ugrid_2d_src%file_handler_open(mesh_file(src))
+    allocate( ncdf_quad_type :: file_handler_dst )
+    call ugrid_2d_dst%set_file_handler( file_handler_dst )
+    call ugrid_2d_dst%file_handler_open(mesh_file(dst))
+
     ! Read in all local mesh data for this rank and
     ! initialise local mesh objects from them.
     !===========================================================
     ! Each partitioned mesh file will contain meshes of the
     ! same name as all other partitions.
-
-    call load_local_mesh( mesh_file(src), mesh_names(src))
-    call load_local_mesh( mesh_file(dst), mesh_names(dst))
+    call load_local_mesh( mesh_file(src), mesh_names(src), ugrid_2d_src)
+    call load_local_mesh( mesh_file(dst), mesh_names(dst), ugrid_2d_dst)
 
     ! Apply configuration related checks to ensure that these
     ! meshes are suitable for the supplied application
@@ -301,8 +315,8 @@ subroutine init_mesh( config,                  &
       ! Intergrid mesh maps should be in the mesh input file,
       ! i.e. the source and destination file should be the same.
       if (trim(mesh_file(dst)) == trim(mesh_file(src))) then
-         mesh_input_file = mesh_file(src)
-         call load_local_mesh_maps( mesh_input_file, mesh_names )
+         call load_local_mesh_maps( mesh_file(src), mesh_names, ugrid_2d_src)
+
       else
          call log_event( "Inter-grid maps/meshes should be "// &
                          "sourced from the same input files)", &
@@ -355,12 +369,22 @@ subroutine init_mesh( config,                  &
                                    decomposition_dst,    &
                                    partitioner_dst )
 
+    ! Open files
+    allocate( ncdf_quad_type :: file_handler_src )
+    call ugrid_2d_src%set_file_handler( file_handler_src )
+    call ugrid_2d_src%file_handler_open(mesh_file(src))
+    allocate( ncdf_quad_type :: file_handler_dst )
+    call ugrid_2d_dst%set_file_handler( file_handler_dst )
+    call ugrid_2d_dst%file_handler_open(mesh_file(dst))
+
     ! Read in all global meshes from input file
     !===========================================================
     call load_global_mesh( mesh_file(src), mesh_names(src), &
+                           ugrid_2d_src,                    &
                            rename_to=stored_mesh_names(src) )
 
     call load_global_mesh( mesh_file(dst), mesh_names(dst), &
+                           ugrid_2d_dst,                    &
                            rename_to=stored_mesh_names(dst) )
 
     ! Partition the global meshes
@@ -408,6 +432,12 @@ subroutine init_mesh( config,                  &
     end if
 
   end if  ! prepartitioned
+
+  ! Close open files
+  call ugrid_2d_src%file_handler_close()
+  if (allocated(file_handler_src)) deallocate( file_handler_src )
+  call ugrid_2d_dst%file_handler_close()
+  if (allocated(file_handler_dst)) deallocate( file_handler_dst )
 
   !============================================================================
   ! Extrude the specified meshes from local mesh objects into

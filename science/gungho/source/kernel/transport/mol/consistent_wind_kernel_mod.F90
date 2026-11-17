@@ -113,10 +113,10 @@ subroutine consistent_wind_code(nlayers,                   &
   integer(kind=i_def), dimension(ndf_w2v), intent(in) :: map_w2v
   integer(kind=i_def), dimension(ndf_wx),  intent(in) :: map_wx
 
-  real(kind=r_tran), dimension(undf_w2v), intent(inout) :: consistent_wind
-  real(kind=r_tran), dimension(undf_wt),  intent(in)    :: theta_metrics
-  real(kind=r_tran), dimension(undf_w2),  intent(in)    :: wind
-  real(kind=r_def), dimension(undf_wx),   intent(in)    :: height
+  real(kind=r_def), dimension(undf_w2v), intent(inout) :: consistent_wind
+  real(kind=r_def), dimension(undf_wt),  intent(in)    :: theta_metrics
+  real(kind=r_def), dimension(undf_w2),  intent(in)    :: wind
+  real(kind=r_def), dimension(undf_wx),  intent(in)    :: height
 
   real(kind=r_def), dimension(3,ndf_wx,ndf_w2v), intent(in) :: diff_basis_wx
   real(kind=r_def), dimension(3,ndf_w2,ndf_w2v), intent(in) :: basis_w2
@@ -124,30 +124,30 @@ subroutine consistent_wind_code(nlayers,                   &
   ! Local variables
   integer(kind=i_def) :: k, df, w2v_df
 
-  real(kind=r_tran) :: dz, dzdx, dzdy
-  real(kind=r_tran), dimension(3,0:nlayers) :: u_av
+  real(kind=r_def) :: dzdx, dzdy, dz
+  real(kind=r_def), dimension(2,0:nlayers) :: u_av
 
   ! Compute u and v averaged to w points
-  u_av = 0.0_r_tran
+  u_av = 0.0_r_def
   do k = 0, nlayers-1
     do df = 1,4
       ! Basis W2 has shape (dim, ndf_w2, ndf_w2v) = (3,6,2)
-      u_av(:,k)   = u_av(:,k)   + wind(map_w2(df)+k)*real(basis_w2(:,df,1), r_tran)
-      u_av(:,k+1) = u_av(:,k+1) + wind(map_w2(df)+k)*real(basis_w2(:,df,2), r_tran)
+      u_av(:,k)   = u_av(:,k)   + wind(map_w2(df)+k)*basis_w2(1:2,df,1)
+      u_av(:,k+1) = u_av(:,k+1) + wind(map_w2(df)+k)*basis_w2(1:2,df,2)
     end do
   end do
-  u_av(:,1:nlayers-1) = 0.5_r_tran*u_av(:,1:nlayers-1)
+  u_av(:,1:nlayers-1) = 0.5_r_def*u_av(:,1:nlayers-1)
 
   layer_loop: do k = 1, nlayers-1
     ! Compute dz/dx & dz/dy on w/theta points
     w2v_df = 1
-    dz = 0.0_r_tran
-    dzdx = 0.0_r_tran
-    dzdy = 0.0_r_tran
+    dz = 0.0_r_def
+    dzdx = 0.0_r_def
+    dzdy = 0.0_r_def
     do df = 1,ndf_wx
-      dzdx = dzdx + real(height(map_wx(df)+k)*diff_basis_wx(1,df,w2v_df), r_tran)
-      dzdy = dzdy + real(height(map_wx(df)+k)*diff_basis_wx(2,df,w2v_df), r_tran)
-      dz   = dz   + real(height(map_wx(df)+k)*diff_basis_wx(3,df,w2v_df), r_tran)
+      dzdx = dzdx + height(map_wx(df)+k)*diff_basis_wx(1,df,w2v_df)
+      dzdy = dzdy + height(map_wx(df)+k)*diff_basis_wx(2,df,w2v_df)
+      dz   = dz   + height(map_wx(df)+k)*diff_basis_wx(3,df,w2v_df)
     end do
 
     consistent_wind(map_w2v(w2v_df)+k) = consistent_wind(map_w2v(w2v_df)+k) &

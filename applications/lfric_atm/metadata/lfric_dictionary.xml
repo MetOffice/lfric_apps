@@ -434,6 +434,5 @@
   <field id="lf_pond_depth" name="lf_pond_depth" long_name="lf_pond_depth" unit="m" domain_ref="face" axis_ref="sea_ice_categories" />
   <field id="lf_sunocean" name="lf_sunocean" long_name="lf_sunocean" unit="ms-1" domain_ref="face" />
   <field id="lf_svnocean" name="lf_svnocean" long_name="lf_svnocean" unit="ms-1" domain_ref="face" />
-
 </field_group>
 </field_definition>

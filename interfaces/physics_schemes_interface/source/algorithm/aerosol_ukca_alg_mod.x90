@@ -8,6 +8,7 @@
 module aerosol_ukca_alg_mod
 
   use config_mod,      only: config_type
+  use key_value_collection_mod, only: key_value_collection_type
   use mesh_mod,        only: mesh_type
   use model_clock_mod, only: model_clock_type
 
@@ -39,6 +40,7 @@ contains
   !>@param[in] model_clock           Time in model
 
   subroutine aerosol_ukca_alg( config,                                         &
+                               values,                                         &
                                chemistry_fields,                               &
                                aerosol_fields,                                 &
                                radiation_fields,                               &
@@ -55,6 +57,7 @@ contains
 
     use field_mod,                     only: field_type
     use integer_field_mod,             only: integer_field_type
+    use empty_data_mod,                only: empty_real_data
     use field_collection_mod,          only: field_collection_type
     use fs_continuity_mod,             only: W3, Wtheta
     use function_space_collection_mod, only: function_space_collection
@@ -65,7 +68,7 @@ contains
     use extrusion_mod,                 only: SHIFTED
     use field_indices_mod,             only: igh_t, igh_p
     use mr_indices_mod,                only: imr_v, imr_cl, imr_ci, imr_s
-    use constants_mod,                 only: i_def, l_def
+    use constants_mod,                 only: i_def, l_def, str_long
     use sci_geometric_constants_mod,   only: get_latitude_fv,                  &
                                              get_longitude_fv,                 &
                                              get_height_fv, get_da_msl_proj,   &
@@ -126,11 +129,14 @@ contains
     use photol_kernel_mod,             only: photol_kernel_type
     use msat_kernel_mod,               only: msat_kernel_type
     use photol_diags_kernel_mod,       only: photol_diags_kernel_type
+    use ukca_diags_interface_mod,      only: initialise_ukca_diagnostics,      &
+                                             output_ukca_diagnostics
 
     implicit none
 
     ! -- Arguments --
     type(config_type), intent(in) :: config
+    type(key_value_collection_type), intent(in) :: values
 
     type( field_collection_type ), intent(in) :: derived_fields
     type( field_collection_type ), intent(in) :: radiation_fields
@@ -444,6 +450,11 @@ contains
     type( field_type ), pointer :: wetrho_in_w3 ! Wet density in W3
     type( field_type ), pointer :: wetrho_in_wth ! Wet density in WTHETA
 
+    ! Diagnostics super array, names and request status flags
+    type(field_type) :: diagnostics_fullht_real
+    integer(i_def)   :: n_req_ukca_diags_3d
+    integer(i_def), allocatable :: idiags_status_3d(:)
+    character(str_long), allocatable :: ukca_req_diagnames_fullht(:)
 
     ! Time variables
     ! Note: Time at previous step is not required by UKCA on the first time
@@ -466,6 +477,7 @@ contains
 
     integer( kind=i_def ) :: ncells
     integer( kind=i_def)  :: jp1, jp2  ! Indices for photolysis fields
+    logical(l_def) :: l_chem_timestep  ! TRUE if this is a chemical step
 
     type( field_type ) :: mr_ice
     integer( tik ) :: id, id_photo, id_chem, id_diags
@@ -1004,6 +1016,10 @@ contains
       call invoke(inc_X_plus_Y(mr_ice, mr(imr_ci)))
     end if
 
+    ! Determine if this call is on a chemistry timestep
+    l_chem_timestep = (mod( model_clock%get_step(),                            &
+            chem_timestep/int(model_clock%get_seconds_per_step()) ) == 0)
+
     ! Fields needed by UKCA and Photolysis
     call zh%copy_field_properties(conv_cloud_lwp)
     call zh%copy_field_properties(surf_albedo)
@@ -1031,8 +1047,7 @@ contains
 
       ! Only call photolysis if this is a chemistry timestep as photol rates
       ! are only used by chemistry
-      if (mod( model_clock%get_step(),                                         &
-            chem_timestep/int(model_clock%get_seconds_per_step()) ) == 0) then
+      if ( l_chem_timestep ) then
 
         if ( LPROF ) call start_timing( id_photo, 'ukca.photolysis_alg' )
         ! FastJX scheme
@@ -1159,6 +1174,28 @@ contains
       end if  ! Chem timestep
 
     end if  ! Chem/ photolysis schemes
+
+    ! Chemistry Diagnostics handling
+    ! Initialise UKCA diagnostics, obtain number and list of requested
+    ! diags and then initialise the super array accordingly
+    n_req_ukca_diags_3d = 0_i_def
+    call initialise_ukca_diagnostics(                                          &
+                                     values,                                   &
+                                     l_chem_timestep,                          &
+                                     ! values out
+                                     n_req_ukca_diags_3d,                      &
+                                     idiags_status_3d,                         &
+                                     ukca_req_diagnames_fullht                 &
+                                    )
+
+    vector_space=>function_space_collection%get_fs( mesh,0,0,Wtheta,           &
+                                                    n_req_ukca_diags_3d )
+    if (n_req_ukca_diags_3d > 0) then
+      call diagnostics_fullht_real%initialise( vector_space)
+    else
+      call diagnostics_fullht_real%initialise( vector_space,                   &
+                                              override_data = empty_real_data )
+    end if
 
     ! Do UKCA time step
 
@@ -1309,6 +1346,10 @@ contains
                                           pvol_om_ait_ins,                     &
                                           pvol_du_acc_ins,                     &
                                           pvol_du_cor_ins,                     &
+                                          ! diagnostics
+                                          diagnostics_fullht_real,             &
+                                          n_req_ukca_diags_3d,                 &
+                                          ! End diagnostics
                                           model_clock%get_step(),              &
                                           current_time_year,                   &
                                           current_time_month,                  &
@@ -1572,6 +1613,16 @@ contains
           call photol_rate_jo1d%write_field('chemistry__photol_rate_jo1d')
           call photol_rate_jno2%write_field('chemistry__photol_rate_jno2')
         end if
+        ! output Chemistry diagnostics - if requested
+        if ( n_req_ukca_diags_3d > 0_i_def )                                   &
+          call output_ukca_diagnostics( n_req_ukca_diags_3d,                   &
+                                        idiags_status_3d,                      &
+                                        ukca_req_diagnames_fullht,             &
+                                        diagnostics_fullht_real                &
+                                      )
+
+        if (allocated(idiags_status_3d)) deallocate(idiags_status_3d)
+        if (allocated(ukca_req_diagnames_fullht)) deallocate(ukca_req_diagnames_fullht)
       end if    ! chem_scheme_strattrop
 
       call dms%write_field('chemistry__dms')

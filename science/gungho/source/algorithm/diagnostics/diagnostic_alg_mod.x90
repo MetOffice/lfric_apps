@@ -9,7 +9,7 @@ module diagnostic_alg_mod
 
   use config_mod,                    only: config_type
   use constants_mod,                 only: i_def, r_def, l_def, str_max_filename
-  use mesh_mod,                      only: mesh_type
+  use mesh_mod,                      only: mesh_type, geometry_spherical
   use function_space_collection_mod, only: function_space_collection
   use fs_continuity_mod,             only: W1, W2, W3, Wtheta, W2H
   use field_mod,                     only: field_type
@@ -35,8 +35,7 @@ module diagnostic_alg_mod
   use initialise_diagnostics_mod,    only: init_diag => init_diagnostic_field
 
   ! Configuration modules
-  use base_mesh_config_mod,      only: geometry, topology, &
-                                       geometry_spherical
+  use base_mesh_config_mod,      only: geometry, topology
   use finite_element_config_mod, only: coord_system, coord_system_native
   use planet_config_mod,         only: scaled_radius, cp
 

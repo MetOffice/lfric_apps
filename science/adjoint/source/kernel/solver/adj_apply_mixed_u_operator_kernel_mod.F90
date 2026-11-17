@@ -11,6 +11,7 @@ module adj_apply_mixed_u_operator_kernel_mod
 use argument_mod,      only : arg_type,              &
                               GH_FIELD, GH_OPERATOR, &
                               GH_READ,               &
+                              GH_SCALAR,             &
                               GH_READWRITE,          &
                               GH_INC,                &
                               GH_REAL, CELL_COLUMN
@@ -27,14 +28,15 @@ private
 
 type, public, extends(kernel_type) :: adj_apply_mixed_u_operator_kernel_type
   private
-  type(arg_type) :: meta_args(7) = (/                           &
+  type(arg_type) :: meta_args(8) = (/                           &
        arg_type(GH_FIELD,    GH_REAL, GH_READWRITE, W2broken),  & ! lhs_uv
        arg_type(GH_FIELD,    GH_REAL, GH_INC,       W2h),       & ! uv'
        arg_type(GH_FIELD,    GH_REAL, GH_READWRITE, W2v),       & ! w'
        arg_type(GH_FIELD,    GH_REAL, GH_READWRITE, W3),        & ! exner'
        arg_type(GH_OPERATOR, GH_REAL, GH_READ,      W2, W2),    & ! Mu^{c,d}
        arg_type(GH_OPERATOR, GH_REAL, GH_READ,      W2, W3),    & ! grad
-       arg_type(GH_FIELD,    GH_REAL, GH_READ,      W2)         & ! norm_u
+       arg_type(GH_FIELD,    GH_REAL, GH_READ,      W2),        & ! norm_u
+       arg_type(GH_SCALAR,   GH_REAL, GH_READ)                  & ! const_u
        /)
   integer :: operates_on = CELL_COLUMN
   contains
@@ -60,6 +62,7 @@ contains
 !> @param[in]     ncell2        Total number of cells for the grad operator
 !> @param[in]     grad          Generalised gradient operator for the momentum equation
 !> @param[in]     norm_u        Normalisation field for the momentum equation
+!> @param[in]     const_u       Scaling constant applied to the pressure gradient contribution
 !> @param[in]     ndf_w2hb      number of degrees of freedom per cell for the broken horizontal wind space
 !> @param[in]     undf_w2hb     unique number of degrees of freedom for the broken horizontal wind space
 !> @param[in]     map_w2hb      dofmap for the cell at the base of the column for the broken horizontal wind space
@@ -83,6 +86,7 @@ subroutine adj_apply_mixed_u_operator_code(cell,                          &
                                            ncell1, mu_cd,                 &
                                            ncell2, grad,                  &
                                            norm_u,                        &
+                                           const_u,                       &
                                            ndf_w2hb, undf_w2hb, map_w2hb, &
                                            ndf_w2h, undf_w2h, map_w2h,    &
                                            ndf_w2v, undf_w2v, map_w2v,    &
@@ -94,6 +98,7 @@ subroutine adj_apply_mixed_u_operator_code(cell,                          &
   ! Arguments
   integer(kind=i_def),                      intent(in) :: cell, nlayers
   integer(kind=i_def),                      intent(in) :: ncell1, ncell2
+  real(kind=r_solver),                      intent(in) :: const_u
   integer(kind=i_def),                      intent(in) :: undf_w2, ndf_w2
   integer(kind=i_def),                      intent(in) :: undf_w2h, ndf_w2h
   integer(kind=i_def),                      intent(in) :: undf_w2hb, ndf_w2hb
@@ -154,7 +159,7 @@ subroutine adj_apply_mixed_u_operator_code(cell,                          &
     iw2   = map_w2(df)
     exner(iw3:iw3+nm1) = exner(iw3:iw3+nm1) &
                        - norm_u(iw2:iw2+nm1)   &
-                         *grad(ij:ij+nm1, df, 1)*lhs_uv(iw2hb:iw2hb+nm1)
+                         *const_u*grad(ij:ij+nm1, df, 1)*lhs_uv(iw2hb:iw2hb+nm1)
     lhs_uv(iw2hb:iw2hb+nm1) = 0.0_r_solver
   end do
 

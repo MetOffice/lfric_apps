@@ -7,10 +7,6 @@
 !>
 module lfric2lfric_regrid_mod
 
-  use base_mesh_config_mod,     only: geometry_spherical,      &
-                                      geometry_planar,         &
-                                      topology_fully_periodic, &
-                                      topology_non_periodic
   use constants_mod,            only: str_def, i_def
   use driver_modeldb_mod,       only: modeldb_type
   use field_parent_mod,         only: field_parent_type
@@ -125,16 +121,8 @@ contains
 
     ! Get the geometry and topology of the destination mesh
     mesh_dst => mesh_collection%get_mesh(trim(mesh_names(dst)))
-    if (mesh_dst%is_geometry_spherical()) then
-      geometry = geometry_spherical
-    else if (mesh_dst%is_geometry_planar()) then
-      geometry = geometry_planar
-    end if
-    if (mesh_dst%is_topology_periodic()) then
-      topology = topology_fully_periodic
-    else if (mesh_dst%is_topology_non_periodic()) then
-      topology = topology_non_periodic
-    end if
+    geometry = mesh_dst%geometry()
+    topology = mesh_dst%topology()
 
     ! Main loop over fields to be processed
     call iter%initialise(source_fields)

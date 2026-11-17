@@ -11,6 +11,7 @@ module adj_apply_mixed_wp_operator_kernel_mod
 use argument_mod,      only : arg_type,              &
                               GH_FIELD, GH_OPERATOR, &
                               GH_READ,               &
+                              GH_SCALAR,             &
                               GH_INC,                &
                               GH_READWRITE,          &
                               GH_REAL, CELL_COLUMN
@@ -26,7 +27,7 @@ private
 !-------------------------------------------------------------------------------
 type, public, extends(kernel_type) :: adj_apply_mixed_wp_operator_kernel_type
   private
-  type(arg_type) :: meta_args(14) = (/                           &
+  type(arg_type) :: meta_args(17) = (/                           &
        arg_type(GH_FIELD,    GH_REAL, GH_READWRITE, W2v),        & ! lhs_w
        arg_type(GH_FIELD,    GH_REAL, GH_READWRITE, W3),         & ! lhs_p
        arg_type(GH_FIELD,    GH_REAL, GH_INC,       W2h),        & ! uv'
@@ -40,7 +41,10 @@ type, public, extends(kernel_type) :: adj_apply_mixed_wp_operator_kernel_type
        arg_type(GH_FIELD,    GH_REAL, GH_READ,      W2),         & ! norm_u
        arg_type(GH_OPERATOR, GH_REAL, GH_READ,      W3, W3),     & ! m3p
        arg_type(GH_OPERATOR, GH_REAL, GH_READ,      W3, W2),     & ! q32
-       arg_type(GH_OPERATOR, GH_REAL, GH_READ,      W3, Wtheta)  & ! p3t
+       arg_type(GH_OPERATOR, GH_REAL, GH_READ,      W3, Wtheta), & ! p3t
+       arg_type(GH_SCALAR,   GH_REAL, GH_READ),                  & ! const_u
+       arg_type(GH_SCALAR,   GH_REAL, GH_READ),                  & ! const_t
+       arg_type(GH_SCALAR,   GH_REAL, GH_READ)                   & ! const_r
        /)
   integer :: operates_on = CELL_COLUMN
   contains
@@ -78,6 +82,9 @@ contains
 !> @param[in]     q32           Projection operator from W2 to W3
 !> @param[in]     ncell6        Total number of cells for the p3t operator
 !> @param[in]     p3t           Projection operator from W2 to Wtheta
+!> @param[in]     const_u       Scaling constant for the vertical momentum terms
+!> @param[in]     const_t       Scaling constant for the eliminated temperature term
+!> @param[in]     const_r       Scaling constant for the density contribution
 !> @param[in]     ndf_w2v       Number of degrees of freedom per cell for the vertical wind space
 !> @param[in]     undf_w2v      Unique number of degrees of freedom for the vertical wind space
 !> @param[in]     map_w2v       Dofmap for the cell at the base of the column for the vertical wind space
@@ -110,6 +117,7 @@ subroutine adj_apply_mixed_wp_operator_code(cell,                       &
                                             ncell4, m3p,                &
                                             ncell5, q32,                &
                                             ncell6, p3t,                &
+                                            const_u, const_t, const_r,  &
                                             ndf_w2v, undf_w2v, map_w2v, &
                                             ndf_w3, undf_w3, map_w3,    &
                                             ndf_w2h, undf_w2h, map_w2h, &
@@ -122,6 +130,7 @@ subroutine adj_apply_mixed_wp_operator_code(cell,                       &
   integer(kind=i_def),                     intent(in) :: cell, nlayers
   integer(kind=i_def),                     intent(in) :: ncell0, ncell1, ncell2, ncell3
   integer(kind=i_def),                     intent(in) :: ncell4, ncell5, ncell6
+  real(kind=r_solver),                     intent(in) :: const_u, const_t, const_r
   integer(kind=i_def),                     intent(in) :: undf_w2, ndf_w2
   integer(kind=i_def),                     intent(in) :: undf_w2h, ndf_w2h
   integer(kind=i_def),                     intent(in) :: undf_w2v, ndf_w2v
@@ -166,7 +175,7 @@ subroutine adj_apply_mixed_wp_operator_code(cell,                       &
 
   ! LHS P
   do df = ndf_w2, 1, -1
-    u_e(:,df) = q32(ij:ij+nm1, 1, df)*lhs_p(iw3:iw3+nm1)
+    u_e(:,df) = const_r*q32(ij:ij+nm1, 1, df)*lhs_p(iw3:iw3+nm1)
   end do
 
   t_col(0) = - p3t(ij, 1, 1)*lhs_p(iw3)
@@ -195,13 +204,13 @@ subroutine adj_apply_mixed_wp_operator_code(cell,                       &
     iw2v = map_w2v(df)
     iw2  = map_w2(ndf_w2h+df)
     exner(iw3:iw3+nm1) = exner(iw3:iw3+nm1)   &
-                       - norm_u(iw2:iw2+nm1)* &
+                       - const_u*norm_u(iw2:iw2+nm1)* &
                          grad(ij:ij+nm1, ndf_w2h+df, 1)*lhs_w(iw2v:iw2v+nm1)
     t_col(1:nm1+1) = t_col(1:nm1+1)       &
-                   - norm_u(iw2:iw2+nm1)* &
+                   - const_u*norm_u(iw2:iw2+nm1)* &
                      p2t(ij:ij+nm1, ndf_w2h+df, 2)*lhs_w(iw2v:iw2v+nm1)
     t_col(0:nm1) = t_col(0:nm1)         &
-                 - norm_u(iw2:iw2+nm1)* &
+                 - const_u*norm_u(iw2:iw2+nm1)* &
                    p2t(ij:ij+nm1, ndf_w2h+df, 1)*lhs_w(iw2v:iw2v+nm1)
 
   end do
@@ -210,7 +219,7 @@ subroutine adj_apply_mixed_wp_operator_code(cell,                       &
   lhs_w(iw2v:iw2v+nlayers) = 0.0_r_solver
 
   ! Compute t for the column
-  t_col(:) = t_col(:) * mt_lumped_inv(iwt:iwt+1+nm1)
+  t_col(:) = t_col(:) * mt_lumped_inv(iwt:iwt+1+nm1) * const_t
   do df = ndf_w2, 1, -1
     u_e(:,df) = u_e(:,df)                             &
               - (pt2(ij:ij+nm1, 1, df)*t_col(0:nm1) + &

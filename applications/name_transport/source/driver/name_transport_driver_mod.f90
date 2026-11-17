@@ -37,7 +37,9 @@ module name_transport_driver_mod
                                                 LOG_LEVEL_ERROR,   &
                                                 LOG_LEVEL_INFO,    &
                                                 LOG_LEVEL_TRACE
-  use mesh_mod,                           only: mesh_type
+  use mesh_mod,                           only: mesh_type,       &
+                                                geometry_planar, &
+                                                geometry_spherical
   use mesh_collection_mod,                only: mesh_collection
   use model_clock_mod,                    only: model_clock_type
   use runtime_constants_mod,              only: create_runtime_constants
@@ -56,8 +58,6 @@ module name_transport_driver_mod
                                                 name_transport_final
 
   ! Configuration modules
-  use base_mesh_config_mod,      only: geometry_planar, &
-                                       geometry_spherical
   use finite_element_config_mod, only: coord_system,    &
                                        element_order_h, &
                                        element_order_v

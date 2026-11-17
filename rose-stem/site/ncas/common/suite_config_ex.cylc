@@ -29,10 +29,6 @@
             --account={{ HPC_ACCOUNT }}
             --chdir=/work/n02/n02/{{ HPC_USERNAME }}
 
-    [[EX_BUILD]]
-        [[[environment]]]
-            PSYCLONE_TRANSFORMATION="meto-ex1a"
-
     [[EX_GNU]]
         pre-script = """
                      umask 0022
@@ -56,10 +52,10 @@
              COMPILER = 'cce'
 
     [[EX_BUILD_GNU]]
-        inherit = EX_SLURM, EX_BUILD, EX_GNU
+        inherit = EX_SLURM, EX_GNU
 
     [[EX_BUILD_CCE]]
-        inherit = EX_SLURM, EX_BUILD, EX_CCE
+        inherit = EX_SLURM, EX_CCE
 
     [[EX_RUN]]
         [[[environment]]]

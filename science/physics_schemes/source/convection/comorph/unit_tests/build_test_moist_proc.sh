@@ -41,6 +41,9 @@ gfortran -O0 -g -Wall -ffpe-trap=invalid,zero -fbounds-check -Warray-bounds \
       "$comorph/moist_thermo/sat_adjust.F90" \
       "$comorph/moist_thermo/linear_qs_mod.F90" \
       \
+      "$comorph/control/grid_type_mod.F90" \
+      "$comorph/control/fields_type_mod.F90" \
+      \
       "$comorph/moist_proc/moist_proc_diags_type_mod.F90" \
       "$comorph/moist_proc/phase_change_coefs_mod.F90" \
       "$comorph/moist_proc/calc_phase_change_coefs.F90" \
@@ -68,6 +71,7 @@ gfortran -O0 -g -Wall -ffpe-trap=invalid,zero -fbounds-check -Warray-bounds \
       "$comorph/microphysics/collision_rate.F90" \
       "$comorph/microphysics/ice_rain_to_graupel.F90" \
       "$comorph/microphysics/collision_ctl.F90" \
+      "$comorph/microphysics/autoconversion.F90" \
       "$comorph/microphysics/microphysics_1.F90" \
       "$comorph/microphysics/microphysics_2.F90" \
       \

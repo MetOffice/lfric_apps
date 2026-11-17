@@ -29,8 +29,8 @@ program cma_test
                                              test_cma_apply_inv,             &
                                              test_cma_diag_DhMDhT
   use config_mod,                     only : config_type
-  use constants_mod,                  only : i_def, r_def, i_def, l_def, imdi, &
-                                             r_solver, pi, str_def,            &
+  use constants_mod,                  only : i_def, r_def, i_def, l_def,  &
+                                             r_solver, pi, str_def,       &
                                              str_max_filename
   use derived_config_mod,             only : set_derived_config
   use extrusion_mod,                  only : extrusion_type, &
@@ -55,15 +55,18 @@ program cma_test
                                              finalise_logging,   &
                                              LOG_LEVEL_ERROR,    &
                                              LOG_LEVEL_INFO
-  use mesh_mod,                       only : mesh_type
+  use mesh_mod,                       only : mesh_type, geometry_spherical
   use mesh_collection_mod,            only : mesh_collection
-  use base_mesh_config_mod,           only : GEOMETRY_SPHERICAL
   use create_mesh_mod,                only : create_mesh
   use add_mesh_map_mod,               only : assign_mesh_maps
   use sci_chi_transform_mod,          only : init_chi_transforms, &
                                              final_chi_transforms
 
   implicit none
+
+  real(r_def), parameter :: geostrophic_north_pole(2) = [0.0_r_def, PI/2.0_r_def]
+  real(r_def), parameter :: null_island(2) = [0.0_r_def, 0.0_r_def]
+  real(r_def), parameter :: equator_latitude = 0.0_r_def
 
   ! MPI communicator
   type(lfric_comm_type) :: comm
@@ -321,18 +324,24 @@ program cma_test
                     alt_name=twod_names )
   call assign_mesh_maps(twod_names)
 
-  call init_chi_transforms(geometry_spherical, imdi, &
-                           mesh_collection=mesh_collection)
-
   ! Work out grid spacing, which should be of order 1
   mesh => mesh_collection%get_mesh(prime_mesh_name)
   ncells_2d_local = mesh%get_ncells_2d()
 
   ! Ensure that a spherical geometry is used (otherwise tests are too simple)
-  if (geometry /= GEOMETRY_SPHERICAL) then
+  if (geometry /= geometry_spherical) then
      call log_event( "Geometry has to be spherical", &
                      LOG_LEVEL_ERROR )
   end if
+
+  ! Note: Calling 'init_chi_transforms' is only valid for meshes which have a
+  !       spherical geometry and coordinate system. While it may not be relevant
+  !       to this mesh, it is called due to an unknown interaction which changes
+  !       results. If it is not applicable to this mesh, it should be removed once
+  !       this issue is resolved.
+  call init_chi_transforms( geostrophic_north_pole, &
+                            null_island, &
+                            equator_latitude )
 
   ! Work out total number of cells
   call global_mpi%global_sum(ncells_2d_local, ncells_2d)
