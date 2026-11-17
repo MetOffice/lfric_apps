@@ -26,7 +26,7 @@ Code Reviewer: <!-- CR id, filled by system team -->
 ### :memo: Contributor Checklist
 
 - [ ] I have performed a self-review of my own code.
-- [ ] All commits in this PR are signed and show as verified.
+- [ ] All commits in this PR are signed and show as [verified](https://metoffice.github.io/simulation-systems/WorkingPractices/gh_authorisation.html#verified-commits).
 - [ ] My code follows the project's [style guidelines](https://metoffice.github.io/lfric_core/how_to_contribute/index.html#how-to-contribute-index).
 - [ ] Comments have been included that aid understanding and enhance the readability of the code.
 - [ ] Where appropriate I have updated documentation related to this change and confirmed that it builds correctly.
@@ -44,12 +44,6 @@ Code Reviewer: <!-- CR id, filled by system team -->
 #### trac.log
 
 <!-- Paste your trac.log from testing output here -->
-
-### :shield: Security Considerations
-
-- [ ] I have reviewed my changes for potential security issues.
-- [ ] Sensitive data is properly handled (if applicable).
-- [ ] Authentication and authorisation are properly implemented (if applicable).
 
 ### :zap: Performance Impact
 
@@ -82,7 +76,7 @@ Commit-message attribution is encouraged for traceability, but is optional. It d
 ### :white_check_mark: Specialist Approval
 
 - [ ] If this PR includes optimisation work or is expected to affect performance, I have obtained approval from `@MetOffice/HPC-opt` team.
-- [ ] If this PR includes PSyclone-related changes (e.g. PSyKAl-lite, Kernel interface, optimisation scripts, LFRic data structure code), I have obtained approval from `@christophermaynard`.
+- [ ] If this PR includes PSyclone-related changes (e.g. PSyKAl-lite, Kernel interface, optimisation scripts, LFRic data structure code), I have obtained approval from `@MetOffice/HPC-opt`.
 - [ ] If this PR includes XIOS-related changes, I have obtained approval from `@MetOffice/ToolsCollabDev` team.
 
 ## :microscope: Sci/Tech Review <!-- To be completed by the Sci/Tech Reviewer -->
@@ -90,19 +84,15 @@ Commit-message attribution is encouraged for traceability, but is optional. It d
 
 - [ ] The change is described in the pull request description or linked documentation.
 - [ ] The scientific/technical approach is justified and appropriate.
-
 - [ ] I have checked that the developer has made appropriate updates to science or technical documentation.
 
-(_Please alert the code reviewer via a tag when you have approved the SR_)
+(_Once you have approved the science review, please notify the code reviewer by `@mentioning` them._)
 
 ## :computer: Code Review <!-- To be completed by the Code Reviewer -->
 
-- [ ] All dependencies have been resolved.
-- [ ] All relevant CODEOWNERS have approved the PR, where applicable.
+- [ ] Relevant CODEOWNERS have approved the PR or been given sufficient opprtunity.
 - [ ] Related Issues have been properly linked and addressed.
-- [ ] Code quality standards have been met.
 - [ ] Tests are adequate and have passed.
 - [ ] Documentation is complete and accurate.
-- [ ] Security considerations have been addressed.
 - [ ] Performance impact is acceptable.
 - [ ] PR complies with the [Simulation Systems AI policy](https://metoffice.github.io/simulation-systems/FurtherDetails/ai.html).
