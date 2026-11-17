@@ -1,0 +1,324 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code via AI Foundry (Claude Opus 5.5).
+
+!> Test the mtn_wave_advect kernel
+!>
+module mtn_wave_advect_kernel_mod_test
+
+  use funit
+  use constants_mod, only : r_def, i_def, l_def, pi
+
+  implicit none
+
+  private
+  public :: test_sectors_equator, test_sectors_60n, test_upwind,       &
+            test_contours, test_calm_source, test_calm_centre,         &
+            test_cube_corner, test_domain_edge
+
+  ! A 3x3 latitude-longitude patch, in the slot order of a depth-1 region
+  ! stencil: centre, then west, south-west, south, south-east, east,
+  ! north-east, north and north-west
+  integer(i_def), parameter :: nslot = 9_i_def
+  integer(i_def), parameter :: centre = 1_i_def, w = 2_i_def,          &
+                               sw = 3_i_def, s = 4_i_def,              &
+                               se = 5_i_def, e = 6_i_def,              &
+                               ne = 7_i_def, n = 8_i_def,              &
+                               nw = 9_i_def
+  integer(i_def), parameter :: di(nslot) = (/ 0, -1, -1, 0, 1, 1, 1, 0, -1 /)
+  integer(i_def), parameter :: dj(nslot) = (/ 0, 0, -1, -1, -1, 0, 1, 1, 1 /)
+
+  ! The winds are on two pressure levels; the 200 hPa wind is the second
+  integer(i_def), parameter :: nplev = 2_i_def
+  integer(i_def), parameter :: wind_level = 2_i_def
+
+  !> Grid spacing (radians)
+  real(r_def), parameter :: spacing = 0.1_r_def * pi / 180.0_r_def
+  real(r_def), parameter :: deg = pi / 180.0_r_def
+  real(r_def), parameter :: speed = 20.0_r_def
+  real(r_def), parameter :: tol = 1.0e-12_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Run the kernel on the centre of the patch.
+  !> The stencil holds the centre and the slots flagged in in_stencil.
+  !> u and v are the 200 hPa wind in each slot; the other level holds the
+  !> opposite wind, so reading the wrong level picks the wrong neighbour.
+  function predictor(lat0, in_stencil, stress, u, v) result(value)
+
+    use mtn_wave_advect_kernel_mod, only : mtn_wave_advect_code
+
+    implicit none
+
+    real(r_def),    intent(in) :: lat0
+    logical(l_def), intent(in) :: in_stencil(nslot)
+    real(r_def),    intent(in) :: stress(nslot), u(nslot), v(nslot)
+    real(r_def)                :: value
+
+    real(r_def)    :: latitude(nslot), longitude(nslot), output(nslot)
+    real(r_def)    :: u_plev(nslot * nplev), v_plev(nslot * nplev)
+    integer(i_def) :: smap_2d(1, nslot), smap_pl(1, nslot)
+    integer(i_def) :: map_2d(1), map_pl(1)
+    integer(i_def) :: slot, ncell
+
+    ncell = 0_i_def
+    do slot = 1, nslot
+      latitude(slot)  = lat0 + dj(slot) * spacing
+      longitude(slot) = di(slot) * spacing
+      u_plev((slot - 1) * nplev + 1) = -u(slot)
+      v_plev((slot - 1) * nplev + 1) = -v(slot)
+      u_plev((slot - 1) * nplev + 2) = u(slot)
+      v_plev((slot - 1) * nplev + 2) = v(slot)
+      if ( slot == centre .or. in_stencil(slot) ) then
+        ncell = ncell + 1_i_def
+        smap_2d(1, ncell) = slot
+        smap_pl(1, ncell) = (slot - 1) * nplev + 1
+      end if
+    end do
+    map_2d(1) = 1_i_def
+    map_pl(1) = 1_i_def
+    output(:) = -1.0_r_def
+
+    call mtn_wave_advect_code( 1_i_def, output,                         &
+                               stress, ncell, smap_2d(:, 1:ncell),      &
+                               u_plev, ncell, smap_pl(:, 1:ncell),      &
+                               v_plev, ncell, smap_pl(:, 1:ncell),      &
+                               latitude, ncell, smap_2d(:, 1:ncell),    &
+                               longitude, ncell, smap_2d(:, 1:ncell),   &
+                               wind_level,                              &
+                               1_i_def, nslot, map_2d,                  &
+                               1_i_def, nslot * nplev, map_pl )
+
+    value = output(centre)
+
+  end function predictor
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> The neighbour picked by a uniform wind blowing from the given
+  !> bearing (degrees clockwise from north), identified by its stress;
+  !> 0 if the cell keeps its own value. The stencil holds every slot unless
+  !> stencil says otherwise.
+  function source_from(lat0, bearing, stencil) result(slot)
+
+    implicit none
+
+    real(r_def),    intent(in)           :: lat0, bearing
+    logical(l_def), intent(in), optional :: stencil(nslot)
+    integer(i_def)                       :: slot
+
+    real(r_def)    :: stress(nslot), u(nslot), v(nslot), value
+    logical(l_def) :: in_stencil(nslot)
+
+    in_stencil(:) = .true.
+    if ( present(stencil) ) in_stencil(:) = stencil(:)
+
+    ! The centre is below every contour; each neighbour is above them all
+    ! and different from the others
+    do slot = 1, nslot
+      stress(slot) = real(slot, r_def)
+    end do
+    stress(centre) = 0.0_r_def
+    u(:) = -speed * sin(bearing * deg)
+    v(:) = -speed * cos(bearing * deg)
+
+    value = predictor(lat0, in_stencil, stress, u, v)
+    slot = nint(value, i_def)
+
+  end function source_from
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> On a square grid at the equator the sectors change 26.6 and 63.4
+  !> degrees from the grid axes, as in the original method
+  @test
+  subroutine test_sectors_equator()
+
+    implicit none
+
+    real(r_def), parameter :: a1 = atan(0.5_r_def) / deg
+    real(r_def), parameter :: a2 = atan(2.0_r_def) / deg
+
+    @assertEqual(n,  source_from(0.0_r_def, a1 - 1.0_r_def))
+    @assertEqual(ne, source_from(0.0_r_def, a1 + 1.0_r_def))
+    @assertEqual(ne, source_from(0.0_r_def, a2 - 1.0_r_def))
+    @assertEqual(e,  source_from(0.0_r_def, a2 + 1.0_r_def))
+    @assertEqual(e,  source_from(0.0_r_def, 180.0_r_def - a2 - 1.0_r_def))
+    @assertEqual(se, source_from(0.0_r_def, 180.0_r_def - a2 + 1.0_r_def))
+    @assertEqual(se, source_from(0.0_r_def, 180.0_r_def - a1 - 1.0_r_def))
+    @assertEqual(s,  source_from(0.0_r_def, 180.0_r_def - a1 + 1.0_r_def))
+    @assertEqual(s,  source_from(0.0_r_def, 180.0_r_def + a1 - 1.0_r_def))
+    @assertEqual(sw, source_from(0.0_r_def, 180.0_r_def + a1 + 1.0_r_def))
+    @assertEqual(sw, source_from(0.0_r_def, 180.0_r_def + a2 - 1.0_r_def))
+    @assertEqual(w,  source_from(0.0_r_def, 180.0_r_def + a2 + 1.0_r_def))
+    @assertEqual(w,  source_from(0.0_r_def, 360.0_r_def - a2 - 1.0_r_def))
+    @assertEqual(nw, source_from(0.0_r_def, 360.0_r_def - a2 + 1.0_r_def))
+    @assertEqual(nw, source_from(0.0_r_def, 360.0_r_def - a1 - 1.0_r_def))
+    @assertEqual(n,  source_from(0.0_r_def, 360.0_r_def - a1 + 1.0_r_def))
+
+  end subroutine test_sectors_equator
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> At 60N the cells are half as wide as they are tall, so the sectors
+  !> change 14.0 and 45 degrees from north and south, as in the original
+  !> method
+  @test
+  subroutine test_sectors_60n()
+
+    implicit none
+
+    real(r_def), parameter :: lat0 = 60.0_r_def * deg
+    real(r_def), parameter :: a1 = atan(0.25_r_def) / deg
+    real(r_def), parameter :: a2 = atan(1.0_r_def) / deg
+
+    @assertEqual(n,  source_from(lat0, a1 - 1.0_r_def))
+    @assertEqual(ne, source_from(lat0, a1 + 1.0_r_def))
+    @assertEqual(ne, source_from(lat0, a2 - 1.0_r_def))
+    @assertEqual(e,  source_from(lat0, a2 + 1.0_r_def))
+    @assertEqual(e,  source_from(lat0, 180.0_r_def - a2 - 1.0_r_def))
+    @assertEqual(se, source_from(lat0, 180.0_r_def - a2 + 1.0_r_def))
+    @assertEqual(se, source_from(lat0, 180.0_r_def - a1 - 1.0_r_def))
+    @assertEqual(s,  source_from(lat0, 180.0_r_def - a1 + 1.0_r_def))
+
+  end subroutine test_sectors_60n
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> A wind blowing towards the north-east carries the south-west value,
+  !> and a wind blowing towards the north carries the south value
+  @test
+  subroutine test_upwind()
+
+    implicit none
+
+    @assertEqual(sw, source_from(0.0_r_def, 225.0_r_def))
+    @assertEqual(s,  source_from(0.0_r_def, 180.0_r_def))
+
+  end subroutine test_upwind
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> The value is carried only across a stress contour
+  @test
+  subroutine test_contours()
+
+    implicit none
+
+    @assertEqual(0.01_r_def,  carried(0.0_r_def,   0.01_r_def), tol)
+    @assertEqual(0.0_r_def,   carried(0.0_r_def,   0.007_r_def), tol)
+    @assertEqual(0.007_r_def, carried(0.007_r_def, 0.01_r_def), tol)
+    @assertEqual(0.01_r_def,  carried(0.01_r_def,  0.05_r_def), tol)
+    @assertEqual(0.1_r_def,   carried(0.01_r_def,  0.1_r_def), tol)
+    @assertEqual(0.3_r_def,   carried(0.1_r_def,   0.3_r_def), tol)
+    @assertEqual(0.3_r_def,   carried(0.3_r_def,   1.0_r_def), tol)
+
+  contains
+
+    !> Predictor at a cell with a west wind, from its own stress and its
+    !> western neighbour's
+    function carried(own, west) result(value)
+      real(r_def), intent(in) :: own, west
+      real(r_def)             :: value
+      real(r_def)    :: stress(nslot), u(nslot), v(nslot)
+      logical(l_def) :: in_stencil(nslot)
+      in_stencil(:) = .true.
+      stress(:) = 0.0_r_def
+      stress(centre) = own
+      stress(w) = west
+      u(:) = speed
+      v(:) = 0.0_r_def
+      value = predictor(0.0_r_def, in_stencil, stress, u, v)
+    end function carried
+
+  end subroutine test_contours
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Nothing is carried from a neighbour where the wind is calm
+  @test
+  subroutine test_calm_source()
+
+    implicit none
+
+    real(r_def)    :: stress(nslot), u(nslot), v(nslot), value
+    logical(l_def) :: in_stencil(nslot)
+
+    in_stencil(:) = .true.
+    stress(:) = 0.0_r_def
+    stress(w) = 1.0_r_def
+    u(:) = speed
+    v(:) = 0.0_r_def
+    u(w) = 0.0_r_def
+
+    value = predictor(0.0_r_def, in_stencil, stress, u, v)
+    @assertEqual(0.0_r_def, value, tol)
+
+  end subroutine test_calm_source
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> A calm cell counts as having a southerly wind
+  @test
+  subroutine test_calm_centre()
+
+    implicit none
+
+    real(r_def)    :: stress(nslot), u(nslot), v(nslot), value
+    logical(l_def) :: in_stencil(nslot)
+    integer(i_def) :: slot
+
+    in_stencil(:) = .true.
+    do slot = 1, nslot
+      stress(slot) = real(slot, r_def)
+    end do
+    stress(centre) = 0.0_r_def
+    u(:) = speed
+    v(:) = speed
+    u(centre) = 0.0_r_def
+    v(centre) = 0.0_r_def
+
+    value = predictor(0.0_r_def, in_stencil, stress, u, v)
+    @assertEqual(real(s, r_def), value, tol)
+
+  end subroutine test_calm_centre
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> With a diagonal neighbour missing, as at a cube corner, the
+  !> neighbours either side share its directions
+  @test
+  subroutine test_cube_corner()
+
+    implicit none
+
+    logical(l_def) :: in_stencil(nslot)
+
+    in_stencil(:) = .true.
+    in_stencil(ne) = .false.
+
+    @assertEqual(n, source_from(0.0_r_def, 40.0_r_def, in_stencil))
+    @assertEqual(e, source_from(0.0_r_def, 50.0_r_def, in_stencil))
+
+  end subroutine test_cube_corner
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> At the southern edge of a limited-area domain, a wind from anywhere
+  !> south of east and west carries nothing and the cell keeps its own value
+  @test
+  subroutine test_domain_edge()
+
+    implicit none
+
+    logical(l_def) :: in_stencil(nslot)
+
+    in_stencil(:) = .true.
+    in_stencil(sw) = .false.
+    in_stencil(s)  = .false.
+    in_stencil(se) = .false.
+
+    @assertEqual(0, source_from(0.0_r_def, 180.0_r_def, in_stencil))
+    @assertEqual(0, source_from(0.0_r_def, 100.0_r_def, in_stencil))
+    @assertEqual(e, source_from(0.0_r_def, 80.0_r_def, in_stencil))
+    @assertEqual(w, source_from(0.0_r_def, 280.0_r_def, in_stencil))
+
+  end subroutine test_domain_edge
+
+end module mtn_wave_advect_kernel_mod_test

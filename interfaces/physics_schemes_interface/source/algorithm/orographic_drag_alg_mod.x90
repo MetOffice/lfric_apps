@@ -3,12 +3,15 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code via AI Foundry (Claude Opus 5.5).
+
 !> @brief Interface to the orographic drag parametrization scheme
 
 module orographic_drag_alg_mod
 
   use config_mod,           only: config_type
-  use constants_mod,        only: i_def
+  use constants_mod,        only: i_def, l_def
   use field_mod,            only: field_type
   use field_collection_mod, only: field_collection_type
   use mr_indices_mod,       only: nummr, imr_v, imr_cl, imr_ci, imr_s
@@ -27,6 +30,7 @@ module orographic_drag_alg_mod
                            use_xios_io
   use orographic_drag_diags_mod, only: initialise_diags_for_orographic_drag, &
                                        output_diags_for_orographic_drag
+  use initialise_diagnostics_mod, only: diag_samp => diagnostic_to_be_sampled
 
   implicit none
 
@@ -51,6 +55,8 @@ contains
                     derived_fields, orography_fields, theta, u, mr_n)
 
     ! orographic kernels
+    use mtn_wave_max_stress_kernel_mod, &
+                                only: mtn_wave_max_stress_kernel_type
     use orographic_drag_kernel_mod, only: orographic_drag_kernel_type
 
     implicit none
@@ -91,6 +97,10 @@ contains
     type( field_type ), pointer :: height_w3 => null()
     type( field_type ), pointer :: height_wth => null()
 
+    ! Column maximum of the stress, for the mountain wave turbulence
+    ! predictor
+    type( field_type ), pointer :: mtn_wave_max_stress
+
     ! Diagnostics
 
     ! Zonal and and meridional stress from ...
@@ -101,9 +111,15 @@ contains
     type( mesh_type ), pointer :: mesh => null()
     integer( tik )            :: id
 
+    ! The mountain wave turbulence predictor is computed after the
+    ! dynamics, by the diagnostics driver, from the stress of this step
+    logical( l_def ) :: mtn_wave_turb_req
+
     if ( LPROF ) call start_timing( id, 'orographic_drag' )
 
     call log_event( 'slow_physics: Running Orographic drag', LOG_LEVEL_DEBUG )
+
+    nullify( mtn_wave_max_stress )
 
     mesh => theta%get_mesh()
 
@@ -142,10 +158,12 @@ contains
                 setval_c(dtemp_orog_gwd, 0.0_r_def) )
 
     ! Initialise orographic drag diagnostics
+    mtn_wave_turb_req = diag_samp('aviation__mtn_wave_turb')
     call initialise_diags_for_orographic_drag(                              &
                                 theta, u_in_w3,                             &
                                 taux_orog_blk, tauy_orog_blk,               &
-                                taux_orog_gwd, tauy_orog_gwd)
+                                taux_orog_gwd, tauy_orog_gwd,               &
+                                mtn_wave_turb_req)
 
     ! Calculate total ice field
     call mr_n(imr_s)%copy_field_properties(mr_ice)
@@ -171,6 +189,18 @@ contains
                 height_w3, height_wth,                        &
                 taux_orog_blk, tauy_orog_blk,                 &
                 taux_orog_gwd, tauy_orog_gwd)
+
+    if (mtn_wave_turb_req) then
+      call orography_fields%get_field('mtn_wave_max_stress',                &
+                                      mtn_wave_max_stress)
+      call invoke(mtn_wave_max_stress_kernel_type(height_w3,                &
+                                                  mtn_wave_max_stress,      &
+                                                  taux_orog_blk,            &
+                                                  tauy_orog_blk,            &
+                                                  taux_orog_gwd,            &
+                                                  tauy_orog_gwd,            &
+                                                  height_wth))
+    end if
 
     ! Sum increments
     call invoke(X_plus_Y (du_orographic_drag, du_orog_blk, du_orog_gwd),          &

@@ -3,6 +3,8 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code via AI Foundry (Claude Opus 5.5); PR #789.
 
 !> @brief Outputs diagnostics from gungho/lfric_atm
 
@@ -59,6 +61,8 @@ module gungho_diagnostics_driver_mod
   use pmsl_alg_mod,              only : pmsl_alg
   use rh_diag_alg_mod,           only : rh_diag_alg
   use freeze_lev_alg_mod,        only : freeze_lev_alg
+  use mtn_wave_turb_alg_mod,     only : mtn_wave_turb_alg
+  use section_choice_config_mod, only : orographic_drag, orographic_drag_um
 #endif
 
   implicit none
@@ -94,6 +98,13 @@ contains
     type(field_type),            pointer :: mr(:)
     type(field_type),            pointer :: moist_dyn(:)
     type(field_collection_type), pointer :: derived_fields
+
+#ifdef UM_PHYSICS
+    ! Winds on pressure levels, set by pres_lev_diags_alg
+    type(field_type) :: plev_u, plev_v
+    ! Fields of the orographic drag scheme
+    type(field_collection_type), pointer :: orography_fields
+#endif
 
     type(field_type), pointer :: theta
     type(field_type), pointer :: u
@@ -333,9 +344,16 @@ contains
       call pmsl_alg(modeldb%config, exner, derived_fields, theta, twod_mesh)
       ! Pressure level diagnostics
       call pres_lev_diags_alg(modeldb%config, derived_fields, theta, exner, &
-                              mr, moist_dyn)
+                              mr, moist_dyn, plev_u, plev_v)
       ! Wet bulb freezing level
       call freeze_lev_alg(modeldb%config,theta, mr, moist_dyn, exner_in_wth)
+      ! Mountain wave turbulence predictor, from the orographic drag stress
+      if (orographic_drag == orographic_drag_um) then
+        orography_fields =>                                                  &
+            modeldb%fields%get_field_collection("orography_fields")
+        call mtn_wave_turb_alg(modeldb%config, orography_fields,             &
+                               plev_u, plev_v, twod_mesh)
+      end if
 #endif
 
       temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')

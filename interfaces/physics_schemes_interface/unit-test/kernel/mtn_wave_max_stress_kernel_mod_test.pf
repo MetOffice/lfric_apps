@@ -1,0 +1,183 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code via AI Foundry (Claude Opus 5.5).
+
+!> Test the mtn_wave_max_stress kernel
+!>
+module mtn_wave_max_stress_kernel_mod_test
+
+  use funit
+  use constants_mod, only : r_def, i_def
+
+  implicit none
+
+  private
+  public :: test_band, test_band_edges, test_surface_height, &
+            test_total_stress, test_no_stress
+
+  integer(i_def), parameter :: nlayers = 6_i_def
+
+  !> Layer-centre heights above mean sea level (m): the second is the
+  !> bottom of the band and the fifth its top, over a sea-level surface
+  real(r_def), parameter :: heights(nlayers) =                         &
+       (/ 1000.0_r_def, 3767.0_r_def, 4500.0_r_def,                    &
+          10000.0_r_def, 15248.0_r_def, 20000.0_r_def /)
+
+  real(r_def), parameter :: tol = 1.0e-12_r_def
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Run the kernel on one column. The stresses are on theta levels 0 to
+  !> nlayers.
+  function column_max(surface, taux_blk, tauy_blk, taux_gwd, tauy_gwd) &
+       result(max_stress)
+
+    use mtn_wave_max_stress_kernel_mod, only : mtn_wave_max_stress_code
+
+    implicit none
+
+    real(r_def), intent(in) :: surface
+    real(r_def), intent(in) :: taux_blk(0:nlayers), tauy_blk(0:nlayers)
+    real(r_def), intent(in) :: taux_gwd(0:nlayers), tauy_gwd(0:nlayers)
+    real(r_def)             :: max_stress
+
+    real(r_def)    :: height_w3(nlayers), height_wth(0:nlayers)
+    real(r_def)    :: output(1)
+    integer(i_def) :: map_w3(1), map_2d(1), map_wth(1)
+
+    map_w3(1)  = 1_i_def
+    map_2d(1)  = 1_i_def
+    map_wth(1) = 1_i_def
+
+    height_w3(:)  = heights(:)
+    height_wth(:) = 0.0_r_def
+    height_wth(0) = surface
+
+    output(1) = -1.0_r_def
+
+    call mtn_wave_max_stress_code( nlayers, height_w3, output,          &
+                                   taux_blk, tauy_blk,                 &
+                                   taux_gwd, tauy_gwd,                 &
+                                   height_wth,                         &
+                                   1_i_def, nlayers, map_w3,           &
+                                   1_i_def, 1_i_def, map_2d,           &
+                                   1_i_def, nlayers + 1_i_def, map_wth )
+
+    max_stress = output(1)
+
+  end function column_max
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Larger stresses below and above the band, and at the surface, are
+  !> ignored
+  @test
+  subroutine test_band()
+
+    implicit none
+
+    real(r_def) :: taux(0:nlayers), zero(0:nlayers)
+    real(r_def) :: result
+
+    zero(:) = 0.0_r_def
+    taux(:) = (/ 9.0_r_def, 8.0_r_def, 0.0_r_def, 2.0_r_def,          &
+                 3.0_r_def, 0.0_r_def, 7.0_r_def /)
+
+    result = column_max(0.0_r_def, taux, zero, zero, zero)
+    @assertEqual(3.0_r_def, result, tol)
+
+  end subroutine test_band
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Levels exactly at the bottom or the top of the band are outside it
+  @test
+  subroutine test_band_edges()
+
+    implicit none
+
+    real(r_def) :: taux(0:nlayers), zero(0:nlayers)
+    real(r_def) :: result
+
+    zero(:) = 0.0_r_def
+    taux(:) = (/ 0.0_r_def, 0.0_r_def, 5.0_r_def, 1.0_r_def,          &
+                 0.0_r_def, 6.0_r_def, 0.0_r_def /)
+
+    result = column_max(0.0_r_def, taux, zero, zero, zero)
+    @assertEqual(1.0_r_def, result, tol)
+
+  end subroutine test_band_edges
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> A surface 2000 m high raises the bottom of the band by 1000 m, above
+  !> the third layer, and its top by 3000 m, above the fifth
+  @test
+  subroutine test_surface_height()
+
+    implicit none
+
+    real(r_def) :: taux(0:nlayers), zero(0:nlayers)
+    real(r_def) :: result
+
+    zero(:) = 0.0_r_def
+    taux(:) = (/ 0.0_r_def, 0.0_r_def, 0.0_r_def, 4.0_r_def,          &
+                 1.0_r_def, 3.0_r_def, 0.0_r_def /)
+
+    result = column_max(0.0_r_def, taux, zero, zero, zero)
+    @assertEqual(4.0_r_def, result, tol)
+    result = column_max(2000.0_r_def, taux, zero, zero, zero)
+    @assertEqual(3.0_r_def, result, tol)
+
+  end subroutine test_surface_height
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> The blocking and gravity wave stresses are added before taking the
+  !> magnitude
+  @test
+  subroutine test_total_stress()
+
+    implicit none
+
+    real(r_def) :: taux_blk(0:nlayers), tauy_blk(0:nlayers)
+    real(r_def) :: taux_gwd(0:nlayers), tauy_gwd(0:nlayers)
+    real(r_def) :: result
+
+    taux_blk(:) = 0.0_r_def
+    tauy_blk(:) = 0.0_r_def
+    taux_gwd(:) = 0.0_r_def
+    tauy_gwd(:) = 0.0_r_def
+
+    ! Opposing parts cancel: magnitude 0.4, not 0.8
+    taux_blk(3) =  0.3_r_def
+    taux_gwd(3) = -0.3_r_def
+    tauy_blk(3) =  0.4_r_def
+    ! Perpendicular parts: magnitude 0.5, not 0.7
+    taux_blk(4) =  0.3_r_def
+    tauy_gwd(4) =  0.4_r_def
+
+    result = column_max(0.0_r_def, taux_blk, tauy_blk, taux_gwd, tauy_gwd)
+    @assertEqual(0.5_r_def, result, tol)
+
+  end subroutine test_total_stress
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> No stress anywhere, as over the sea
+  @test
+  subroutine test_no_stress()
+
+    implicit none
+
+    real(r_def) :: zero(0:nlayers)
+    real(r_def) :: result
+
+    zero(:) = 0.0_r_def
+
+    result = column_max(0.0_r_def, zero, zero, zero, zero)
+    @assertEqual(0.0_r_def, result, tol)
+
+  end subroutine test_no_stress
+
+end module mtn_wave_max_stress_kernel_mod_test

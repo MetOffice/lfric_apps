@@ -1,0 +1,109 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code via AI Foundry (Claude Opus 5.5).
+
+!> @brief Compute and output the mountain wave turbulence predictor.
+
+module mtn_wave_turb_alg_mod
+
+  use base_mesh_config_mod,        only: geometry_spherical
+  use config_mod,                  only: config_type
+  use constants_mod,               only: r_def, i_def, l_def
+  use field_collection_mod,        only: field_collection_type
+  use field_mod,                   only: field_type
+  use fs_continuity_mod,           only: W3
+  use initialise_diagnostics_mod,  only: init_diag => init_diagnostic_field
+  use lfric_xios_diag_mod,         only: get_axis_dimension, get_axis_values
+  use log_mod,                     only: log_event, LOG_LEVEL_ERROR
+  use mesh_mod,                    only: mesh_type
+  use mtn_wave_advect_kernel_mod,  only: mtn_wave_advect_kernel_type
+  use plev_index_mod,              only: plev_index
+  use sci_geometric_constants_mod, only: get_latitude_fv, get_longitude_fv
+
+  implicit none
+
+  private
+
+  public :: mtn_wave_turb_alg
+
+  !> XIOS axis of the standard pressure-level winds
+  character(len=*), parameter :: plev_axis = 'pressure_levels'
+  !> Pressure of the wind that carries the stress (Pa)
+  real(kind=r_def), parameter :: wind_pressure = 20000.0_r_def
+  !> Depth of the horizontal stencil: the eight surrounding cells
+  integer(kind=i_def), parameter :: stencil_depth = 1_i_def
+
+contains
+
+  !> @brief   Compute and output the mountain wave turbulence predictor.
+  !> @details The orographic drag scheme leaves the column maximum of its
+  !>          stress in mtn_wave_max_stress earlier in the timestep; this
+  !>          carries it one cell downwind along the 200 hPa wind, which
+  !>          must be on the standard pressure_levels axis.
+  !> @param[in] config            Application namelist configuration object
+  !> @param[in] orography_fields  Fields of the orographic drag scheme
+  !> @param[in] plev_u            Zonal wind on the standard pressure levels
+  !> @param[in] plev_v            Meridional wind on the standard pressure
+  !>                              levels
+  !> @param[in] twod_mesh         The 2D mesh
+  subroutine mtn_wave_turb_alg(config, orography_fields, plev_u, plev_v, &
+                               twod_mesh)
+
+    implicit none
+
+    ! Arguments
+    type(config_type),           intent(in)          :: config
+    type(field_collection_type), intent(in)          :: orography_fields
+    type(field_type),            intent(in)          :: plev_u, plev_v
+    type(mesh_type),             intent(in), pointer :: twod_mesh
+
+    ! Output field
+    type(field_type) :: mtn_wave_turb
+
+    ! Input fields
+    type(field_type), pointer :: max_stress, latitude, longitude
+
+    logical(kind=l_def) :: mtn_wave_turb_flag
+
+    integer(kind=i_def) :: nplev, wind_level
+    real(kind=r_def), allocatable :: plevs(:)
+
+    nullify(max_stress, latitude, longitude)
+
+    mtn_wave_turb_flag = init_diag(mtn_wave_turb, 'aviation__mtn_wave_turb')
+    if ( .not. mtn_wave_turb_flag ) return
+
+    ! The wind direction relative to the neighbouring cells needs latitude
+    ! and longitude, which a planar mesh does not have
+    if ( config%base_mesh%geometry() /= geometry_spherical ) then
+      call log_event('The mountain wave turbulence predictor is only '     &
+                     // 'available for spherical geometry', LOG_LEVEL_ERROR)
+    end if
+
+    nplev = get_axis_dimension(plev_axis)
+    allocate(plevs(nplev))
+    plevs = get_axis_values(plev_axis, nplev)
+    wind_level = plev_index(plev_axis, plevs, wind_pressure)
+    deallocate(plevs)
+
+    call orography_fields%get_field('mtn_wave_max_stress', max_stress)
+    latitude  => get_latitude_fv(config, twod_mesh, W3)
+    longitude => get_longitude_fv(config, twod_mesh, W3)
+
+    call invoke( mtn_wave_advect_kernel_type(mtn_wave_turb,                &
+                                             max_stress, stencil_depth,    &
+                                             plev_u, stencil_depth,        &
+                                             plev_v, stencil_depth,        &
+                                             latitude, stencil_depth,      &
+                                             longitude, stencil_depth,     &
+                                             wind_level) )
+
+    call mtn_wave_turb%write_field()
+
+  end subroutine mtn_wave_turb_alg
+
+end module mtn_wave_turb_alg_mod

@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code via AI Foundry (Claude Opus 5.5).
+
 !> @brief create physics prognostics
 !> @details Creates the physics prognostic fields
 module create_physics_prognostics_mod
@@ -620,6 +623,12 @@ contains
          ckp=checkpoint_flag))
     call processor%apply(make_spec('silhouette_area_orog', main%orography,      &
          ckp=checkpoint_flag))
+
+    ! 2D field, doesn't need checkpointing: the column maximum of the
+    ! orographic drag stress, left for the mountain wave turbulence predictor
+    ! later in the same timestep
+    call processor%apply(make_spec('mtn_wave_max_stress', main%orography, W3,  &
+        twod=.true., empty = (orographic_drag /= orographic_drag_um) ))
 
     !========================================================================
     ! Fields owned by the turbulence scheme
