@@ -46,7 +46,7 @@ module compute_energetics_kernel_mod
 !>
 type, public, extends(kernel_type) :: compute_energetics_kernel_type
   private
-  type(arg_type) :: meta_args(15) = (/                                     &
+  type(arg_type) :: meta_args(14) = (/                                     &
        arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),                        &
        arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),                        &
        arg_type(GH_FIELD,   GH_REAL, GH_WRITE, W3),                        &
@@ -58,7 +58,6 @@ type, public, extends(kernel_type) :: compute_energetics_kernel_type
        arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                    &
        arg_type(GH_FIELD*6, GH_REAL, GH_READ,  Wtheta),                    &
        arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                        &
-       arg_type(GH_SCALAR,  GH_REAL, GH_READ),                             &
        arg_type(GH_FIELD*3, GH_REAL, GH_READ,  ANY_SPACE_9),               &
        arg_type(GH_FIELD,   GH_REAL, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), &
        arg_type(GH_SCALAR,  GH_REAL, GH_READ)                              &
@@ -99,7 +98,6 @@ contains
 !! @param[in] mr_g  Graupel mixing ratio
 !! @param[in] mr_ci Ice cloud mixing ratio
 !! @param[in] phi The geopotential
-!! @param[in] phi0 Surface geopotential
 !! @param[in] chi_1 1st coordinate field in Wchi
 !! @param[in] chi_2 2nd coordinate field in Wchi
 !! @param[in] chi_3 3rd coordinate field in Wchi
@@ -135,7 +133,7 @@ subroutine compute_energetics_code(                                           &
                                    internal, moist_int,                       &
                                    u, rho, exner, theta,                      &
                                    mr_v, mr_cl, mr_r, mr_s, mr_g, mr_ci, phi, &
-                                   phi0, chi_1, chi_2, chi_3, panel_id,       &
+                                   chi_1, chi_2, chi_3, panel_id,             &
                                    cv,                                        &
                                    ndf_w3, undf_w3, map_w3, w3_basis,         &
                                    ndf_w2, undf_w2, map_w2, w2_basis,         &
@@ -181,7 +179,6 @@ subroutine compute_energetics_code(                                           &
   real(kind=r_def), dimension(undf_chi),    intent(in)    :: chi_1, chi_2, chi_3
   real(kind=r_def), dimension(undf_pid),    intent(in)    :: panel_id
   real(kind=r_def),                         intent(in)    :: cv
-  real(kind=r_def),                         intent(in)    :: phi0
 
   real(kind=r_def), dimension(nqp_h),       intent(in)  ::  wqp_h
   real(kind=r_def), dimension(nqp_v),       intent(in)  ::  wqp_v
@@ -267,8 +264,6 @@ subroutine compute_energetics_code(                                           &
         do df = 1, ndf_w3
           phi_at_quad = phi_at_quad + phi_e(df)*w3_basis(1,df,qp1,qp2)
         end do
-        ! Add on surface value
-        phi_at_quad = phi_at_quad + phi0
         do df = 1, ndf_wtheta
           theta_at_quad   = theta_at_quad                              &
                           + theta_e(df)*wtheta_basis(1,df,qp1,qp2)

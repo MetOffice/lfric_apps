@@ -81,7 +81,7 @@ contains
     ! Initialise potential temperature and water vapour
     call set_bundle_scalar(0.0_r_def, mr, nummr)
     if ( test == test_specified_profiles ) then
-      call init_thermo_profile_alg( config, theta, mr(imr_v) )
+      call init_thermo_profile_alg( config, theta, mr(imr_v), exner )
     else if ( test == test_bryan_fritsch ) then
       call init_saturated_profile_alg( config, theta, mr, exner, rho, moist_dyn )
     else
@@ -92,7 +92,7 @@ contains
     ! Call subroutine to set up Exner and rho
     if ( test /= test_bryan_fritsch ) then
       call init_exner_field( config, exner, theta, moist_dyn, initial_time )
-      call init_rho_field( rho, theta, exner, moist_dyn, initial_time )
+      call init_rho_field( config, rho, theta, exner, moist_dyn, initial_time )
     end if
 
     if ( test == test_grabowski_clark ) then

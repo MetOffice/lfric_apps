@@ -16,7 +16,28 @@ contains
 ! Estimates the gradient of the saturation water vapour mixing
 ! ratio curve as a function of temperature T,
 ! by assuming d/dT of the saturation vapour pressure follows
-! the Claussius-Clapeyron equation
+! the Claussius-Clapeyron equation:
+!
+! des/dT = Lc es / (Rv T^2)
+!
+! p = pd + ev
+! qv = rhov/rhod
+! pd = rhod Rd T
+! ev = rhov Rv T
+! => ev/pd = Rv/Rd qv
+! => qv = Rd/Rv ev / (p - ev)
+!
+! Assuming constant total-pressure p,
+!
+! dqs/dT = dqs/des des/dT
+!        = Rd/Rv ( 1/(p - es) + es/(p - es)^2 ) des/dT
+!        = Rd/Rv p/(p - es)^2 des/dT
+!        = Rd/Rv p/(p - es)^2 Lc es / (Rv T^2)
+!        = qs p/(p - es) Lc / (Rv T^2)
+!        = qs ( rhod Rd + rhov Rv ) / ( rhod Rd )  Lc / (Rv T^2)
+!        = qs ( 1 + Rv/Rd qs ) Lc / (Rv T^2)
+!
+! This formula is used below...
 
 !----------------------------------------------------------------
 ! Routine for liquid at all temperatures
@@ -24,7 +45,7 @@ contains
 subroutine set_dqsatdt_liq( n_points, temperature, qsat,                       &
                             dqsatdt )
 
-use comorph_constants_mod, only: R_dry, R_vap, real_cvprec, one
+use comorph_constants_mod, only: R_dry, R_vap, real_cvprec, one, sqrt_min_float
 use lat_heat_mod, only: set_l_con
 
 implicit none
@@ -53,9 +74,9 @@ call set_l_con( n_points, temperature, L_con )
 
 ! Compute dqsat/dT:
 do ic = 1, n_points
-  dqsatdt(ic) = qsat(ic) * ( one + (R_vap/R_dry) * qsat(ic) )                  &
-                         * L_con(ic)                                           &
-              / ( R_vap * temperature(ic) * temperature(ic) )
+  dqsatdt(ic) = qsat(ic) * ( one + (R_vap/R_dry) * qsat(ic) ) * L_con(ic)      &
+              / max( R_vap * temperature(ic) * temperature(ic),                &
+                     sqrt_min_float )
 end do
 
 return
@@ -68,7 +89,7 @@ end subroutine set_dqsatdt_liq
 subroutine set_dqsatdt_ice( n_points, temperature, qsat,                       &
                             dqsatdt )
 
-use comorph_constants_mod, only: R_dry, R_vap, real_cvprec, one
+use comorph_constants_mod, only: R_dry, R_vap, real_cvprec, one, sqrt_min_float
 use lat_heat_mod, only: set_l_sub
 
 implicit none
@@ -97,9 +118,9 @@ call set_l_sub( n_points, temperature, L_sub )
 
 ! Compute dqsat/dT:
 do ic = 1, n_points
-  dqsatdt(ic) = qsat(ic) * ( one + (R_vap/R_dry) * qsat(ic) )                  &
-                         * L_sub(ic)                                           &
-              / ( R_vap * temperature(ic) * temperature(ic) )
+  dqsatdt(ic) = qsat(ic) * ( one + (R_vap/R_dry) * qsat(ic) ) * L_sub(ic)      &
+              / max( R_vap * temperature(ic) * temperature(ic),                &
+                     sqrt_min_float )
 end do
 
 return

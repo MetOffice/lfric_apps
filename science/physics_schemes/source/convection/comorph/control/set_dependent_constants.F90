@@ -23,22 +23,20 @@ contains
 subroutine set_dependent_constants()
 
 use comorph_constants_mod, only: newline, l_init_constants,                    &
-                     L_con_ref, L_sub_ref, L_fus_ref,                          &
-                     L_con_0, L_sub_0, L_fus_0,                                &
-                     melt_temp,                                                &
-                     l_cv_rain, l_cv_cf, l_cv_snow, l_cv_graup,                &
-                     n_cond_species,                                           &
-                     n_cond_species_liq, n_cond_species_ice,                   &
-                     i_cond_cl, i_cond_rain,                                   &
-                     i_cond_cf, i_cond_snow, i_cond_graup,                     &
-                     k_bot_conv, k_top_conv,                                   &
-                     params_cl, params_rain,                                   &
-                     params_cf, params_snow, params_graup,                     &
-                     cond_params,                                              &
-                     i_cl, i_rain, i_cf, i_snow, i_graup,                      &
-                     cp_vap, cp_liq, cp_ice,                                   &
-                     rho_liq, rho_ice, rho_rim,                                &
-                     nx_full, ny_full, k_bot_conv, k_top_conv, k_top_init
+                                 L_con_ref, L_sub_ref, L_fus_ref,              &
+                                 L_con_0, L_sub_0, L_fus_0, melt_temp,         &
+                                 l_cv_rain, l_cv_cf, l_cv_snow, l_cv_graup,    &
+                                 n_cond_species,                               &
+                                 n_cond_species_liq, n_cond_species_ice,       &
+                                 i_cond_cl, i_cond_rain,                       &
+                                 i_cond_cf, i_cond_snow, i_cond_graup,         &
+                                 cond_params, params_cl, params_rain,          &
+                                 params_cf, params_snow, params_graup,         &
+                                 i_cl, i_rain, i_cf, i_snow, i_graup,          &
+                                 cp_vap, cp_liq, cp_ice,                       &
+                                 rho_liq, rho_ice, rho_rim,                    &
+                                 nx_full, ny_full, k_bot_conv, k_top_conv,     &
+                                 k_top_init
 
 use raise_error_mod, only: raise_fatal
 

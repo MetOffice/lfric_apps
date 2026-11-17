@@ -1,0 +1,17 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/pawsey/lfric_atm/tasks_lfric_atm.cylc") %}
+
+{% include 'site/'+SITE+'/lfric_atm/tasks_lfric_atm_'~task_ns.platform~'.cylc' %}
+
+{% if task_dict %}
+    {% do task_dict.update({
+        "kgo_checks": [],
+        "psyclone_transformation": "meto-ex1a",
+        "plot_str": "" }) %}
+{% endif %}
+
+{% do LOG.debug("Finised in site/pawsey/lfric_atm/tasks_lfric_atm.cylc") %}
