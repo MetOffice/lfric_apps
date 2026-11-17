@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code via AI Foundry (Claude Fable 5.1); PR #584.
+! - Met Office Claude Code via AI Foundry (Agent-selected model); PR #743.
 !> @brief Interface to the UKCA GLOMAP-mode aerosol scheme
 
 module aerosol_ukca_alg_mod
@@ -75,7 +78,10 @@ contains
                                              get_detj_at_w3_fv
     use physics_constants_mod,         only: get_rdz_w3
     use aerosol_ukca_kernel_mod,       only: aerosol_ukca_kernel_type
+    use glomap_ccn_diags_mod,          only: output_diags_for_glomap_ccn
+    use ukca_config_specification_mod, only: glomap_variables
     use io_config_mod,                 only: use_xios_io, write_diag
+    use initialise_diagnostics_mod,    only: init_diag => init_diagnostic_field
     use xios,                          only: xios_date, xios_get_current_date, &
                                              xios_date_get_day_of_year
     use timing_mod,                    only: start_timing, stop_timing, &
@@ -429,8 +435,13 @@ contains
     ! Photolysis rates array and sample output fields
     type( field_type ) :: photol_rates
     type( field_type ) :: photol_rate_jo1d
+    type( field_type ) :: photol_rate_jo3p
     type( field_type ) :: photol_rate_jno2
     type( field_type ) :: photol_rate_profile
+
+    logical( kind=l_def ) :: photol_rate_jo1d_flag
+    logical( kind=l_def ) :: photol_rate_jo3p_flag
+    logical( kind=l_def ) :: photol_rate_jno2_flag
 
     ! Other Photolysis driving fields - pre-set currently
     type( field_type ) :: sulp_accum
@@ -449,6 +460,7 @@ contains
     type( field_type ), pointer :: w_in_wth     ! Vertical component of winds
     type( field_type ), pointer :: wetrho_in_w3 ! Wet density in W3
     type( field_type ), pointer :: wetrho_in_wth ! Wet density in WTHETA
+    type( field_type ), pointer :: rho_in_wth    ! Dry density in WTHETA
 
     ! Diagnostics super array, names and request status flags
     type(field_type) :: diagnostics_fullht_real
@@ -734,6 +746,7 @@ contains
     call derived_fields%get_field('w_in_wth', w_in_wth)
     call derived_fields%get_field('wetrho_in_w3', wetrho_in_w3)
     call derived_fields%get_field('wetrho_in_wth', wetrho_in_wth)
+    call derived_fields%get_field('rho_in_wth', rho_in_wth)
 
     ! Unpack other fields
     call radiation_fields%get_field('sin_stellar_declination_rts',             &
@@ -1038,12 +1051,24 @@ contains
          photol_scheme /= photol_scheme_off ) then
       ! Photolysis currently linked to Strattrop
 
-      ! Sample Rates to output; wtheta grid
-      call ls_rain_3d%copy_field_properties(photol_rate_jo1d)
-      call ls_rain_3d%copy_field_properties(photol_rate_jno2)
+      ! Sample rates to output on the wtheta grid. A field is only created
+      ! and populated if it has been requested for output.
+      photol_rate_jo1d_flag = init_diag( photol_rate_jo1d,                     &
+                                        'chemistry__photol_rate_jo1d' )
+      photol_rate_jo3p_flag = init_diag( photol_rate_jo3p,                     &
+                                        'chemistry__photol_rate_jo3p' )
+      photol_rate_jno2_flag = init_diag( photol_rate_jno2,                     &
+                                        'chemistry__photol_rate_jno2' )
 
-      call invoke( setval_c(photol_rate_jo1d,  0.0_r_def),                     &
-                   setval_c(photol_rate_jno2,  0.0_r_def) )
+      if ( photol_rate_jo1d_flag ) then
+        call invoke( setval_c(photol_rate_jo1d, 0.0_r_def) )
+      end if
+      if ( photol_rate_jo3p_flag ) then
+        call invoke( setval_c(photol_rate_jo3p, 0.0_r_def) )
+      end if
+      if ( photol_rate_jno2_flag ) then
+        call invoke( setval_c(photol_rate_jno2, 0.0_r_def) )
+      end if
 
       ! Only call photolysis if this is a chemistry timestep as photol rates
       ! are only used by chemistry
@@ -1123,20 +1148,31 @@ contains
                                             cv_base,                           &
                                             cv_top ) )
 
-            ! Extract sample rates from full array for verification
-            ! Currently only rates for O1D and NO2 output, so ignore others
+            ! Extract sample rates from full array for verification.
+            ! Only the requested diagnostics are populated.
             do jp1 = 1, n_phot_spc
               select case(trim(ratj_varnames(jp1)))
               case ('jo3a')
-                !  jO(1D)
-                call invoke (  photol_diags_kernel_type(photol_rate_jo1d,      &
-                                                        jp1,                   &
-                                                        photol_rates) )
+                !  jO(1D): O3 -> O2 + O(1D)
+                if ( photol_rate_jo1d_flag ) then
+                  call invoke( photol_diags_kernel_type( photol_rate_jo1d,     &
+                                                         jp1,                  &
+                                                         photol_rates ) )
+                end if
+              case ('jo3b')
+                !  jO(3P): O3 -> O2 + O(3P)
+                if ( photol_rate_jo3p_flag ) then
+                  call invoke( photol_diags_kernel_type( photol_rate_jo3p,     &
+                                                         jp1,                  &
+                                                         photol_rates ) )
+                end if
               case ('jno2')
-                !  jNO2
-                call invoke (  photol_diags_kernel_type(photol_rate_jno2,      &
-                                                        jp1,                   &
-                                                        photol_rates) )
+                !  jNO2: NO2 -> NO + O(3P)
+                if ( photol_rate_jno2_flag ) then
+                  call invoke( photol_diags_kernel_type( photol_rate_jno2,     &
+                                                         jp1,                  &
+                                                         photol_rates ) )
+                end if
               end select
             end do
 
@@ -1609,9 +1645,10 @@ contains
         call emiss_no%write_field('chemistry__emiss_no')
         call emiss_no_aircrft%write_field('chemistry__emiss_no_aircrft')
 
-        if (photol_scheme /= photol_scheme_off )  then
-          call photol_rate_jo1d%write_field('chemistry__photol_rate_jo1d')
-          call photol_rate_jno2%write_field('chemistry__photol_rate_jno2')
+        if ( photol_scheme /= photol_scheme_off ) then
+          if ( photol_rate_jo1d_flag ) call photol_rate_jo1d%write_field()
+          if ( photol_rate_jo3p_flag ) call photol_rate_jo3p%write_field()
+          if ( photol_rate_jno2_flag ) call photol_rate_jno2%write_field()
         end if
         ! output Chemistry diagnostics - if requested
         if ( n_req_ukca_diags_3d > 0_i_def )                                   &
@@ -1710,6 +1747,25 @@ contains
       call pvol_om_ait_ins%write_field('aerosol__pvol_om_ait_ins')
       call pvol_du_acc_ins%write_field('aerosol__pvol_du_acc_ins')
       call pvol_du_cor_ins%write_field('aerosol__pvol_du_cor_ins')
+
+      ! Cloud condensation nuclei number concentrations and dust mass
+      ! concentrations, computed only when requested
+      call output_diags_for_glomap_ccn( glomap_variables,                      &
+                                        rho_in_wth,                            &
+                                        n_ait_sol,                             &
+                                        n_acc_sol,                             &
+                                        n_cor_sol,                             &
+                                        n_ait_ins,                             &
+                                        n_acc_ins,                             &
+                                        n_cor_ins,                             &
+                                        drydp_ait_sol,                         &
+                                        drydp_acc_sol,                         &
+                                        drydp_cor_sol,                         &
+                                        drydp_ait_ins,                         &
+                                        drydp_acc_ins,                         &
+                                        drydp_cor_ins,                         &
+                                        acc_ins_du,                            &
+                                        cor_ins_du )
 
       if ( LPROF ) call stop_timing( id_diags, 'diags.ukca' )
     end if      ! write diag
