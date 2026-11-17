@@ -1,7 +1,7 @@
 *Replace with one-line Summary*
 
 Sci/Tech Reviewer: <!-- SR id, filled by author when ready for review -->  
-Code Reviewer: <!-- CR id, filled by SSD/CCD -->
+Code Reviewer: <!-- CR id, filled by system team -->
 <!-- IAO/IAM: include-if-required -->
 
 ---
