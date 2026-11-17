@@ -1,0 +1,90 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!
+! Some of the content of this file has been produced with the assistance of
+! GitHub Copilot (Claude Sonnet 5).
+!-------------------------------------------------------------------------------
+module newtonian_nudging_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_all
+
+contains
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  @Test
+  subroutine test_all( )
+
+    use newtonian_nudging_kernel_mod, only: newtonian_nudging_code
+
+    implicit none
+
+    integer(kind=i_def), parameter :: nlayers = 10
+    integer(kind=i_def), parameter :: ndf_3d = 1
+    integer(kind=i_def), parameter :: undf_3d = 10
+    integer(kind=i_def), parameter :: ndf_2d = 1
+    integer(kind=i_def), parameter :: undf_2d = 1
+    integer(kind=i_def), parameter :: nvert(1) = nlayers
+
+    ! Bottom and top levels for full-strength nudging: the tropopause level
+    ! is more restrictive than max_level (and both are within the number of
+    ! model levels), so it is the tropopause level that should determine the
+    ! top of the nudged range
+    integer(kind=i_def), parameter :: min_level = 2
+    integer(kind=i_def), parameter :: max_level = 6
+    integer(kind=i_def), parameter :: trop_level = 5
+
+    real(kind=r_def), parameter :: time_weight = 2.0_r_def
+    real(kind=r_def), parameter :: tol = 10.0_r_def*epsilon(1.0_r_def)
+
+    integer(kind=i_def) :: map_3d(ndf_3d)
+    integer(kind=i_def) :: map_2d(ndf_2d)
+    integer(kind=i_def) :: tropopause_level(undf_2d)
+
+    real(kind=r_def) :: increment(undf_3d)
+    real(kind=r_def) :: field_in(undf_3d)
+    real(kind=r_def) :: field_ref(undf_3d)
+    real(kind=r_def) :: vert_weights(nvert(1))
+    real(kind=r_def) :: answer(undf_3d)
+
+    integer(kind=i_def) :: k
+
+    map_3d(1) = 1
+    map_2d(1) = 1
+    tropopause_level(1) = trop_level
+
+    do k = 1, undf_3d
+      field_in(k) = 10.0_r_def + real(k, r_def)
+      field_ref(k) = 50.0_r_def + 2.0_r_def*real(k, r_def)
+    end do
+
+    vert_weights(:) = (/ 0.0_r_def, 0.0_r_def, 0.5_r_def, 1.0_r_def, 1.0_r_def, &
+                        1.0_r_def, 0.5_r_def, 0.0_r_def, 0.0_r_def, 0.0_r_def /)
+
+    answer(:) = 0.0_r_def
+    do k = 1, nlayers
+      if (k >= min_level .and. k <= max_level .and. k <= trop_level) then
+        answer(k) = (field_ref(k) - field_in(k)) * time_weight * vert_weights(k)
+      end if
+    end do
+
+    increment(:) = 0.0_r_def
+
+    call newtonian_nudging_code(                                               &
+        nlayers, increment, field_in, field_ref, nvert, vert_weights,          &
+        tropopause_level, min_level, max_level, time_weight,                   &
+        ndf_3d, undf_3d, map_3d, ndf_2d, undf_2d, map_2d                       &
+    )
+
+    @assertEqual(answer, increment, tol)
+
+  end subroutine test_all
+
+end module newtonian_nudging_kernel_mod_test

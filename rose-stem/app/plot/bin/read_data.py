@@ -15,6 +15,10 @@ from __future__ import print_function
 import numpy as np
 import pandas as pd
 
+# Re-introduce the removed append method dynamically
+pd.DataFrame.append = lambda self, other, **kwargs: pd.concat([self, other], **kwargs)
+pd.DataFrame._append = lambda self, other, **kwargs: pd.concat([self, other], **kwargs)
+
 import glob
 import sys
 
@@ -61,10 +65,13 @@ def read_nodal_data(filestem, ncomp, comp):
 
             # For compatibility between different pandas versions on old and
             # new meto systems, use this try-except
-            try:
-                all_data = all_data._append(tmp_data)
-            except AttributeError:
-                all_data = all_data.append(tmp_data)
+            #try:
+            #    all_data = all_data._append(tmp_data)
+            #except AttributeError:
+            #    all_data = all_data.append(tmp_data)
+
+            # Pandas version 2.0 and later have completely removed the DataFrame.append()
+            all_data = pd.concat([all_data, tmp_data], ignore_index=True)
 
         # Select full or half levels for vector fields, if required
         if ncomp == 3:  # vector field

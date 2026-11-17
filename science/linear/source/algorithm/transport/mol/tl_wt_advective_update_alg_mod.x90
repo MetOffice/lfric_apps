@@ -76,7 +76,6 @@ contains
 
 
     use reference_element_mod,          only: reference_element_type
-    use mesh_mod,                       only: mesh_type
     use split_w2_field_kernel_mod,      only: split_w2_field_kernel_type
     use integer_field_mod,              only: integer_field_type
     use sci_geometric_constants_mod,    only: get_face_selector_ew, &
@@ -181,7 +180,7 @@ contains
       call log_event( "TL: fem not available", LOG_LEVEL_ERROR )
     end select
 
-    mt_lumped_inv => get_inverse_lumped_mass_matrix_fe(Wtheta, mesh%get_id())
+    mt_lumped_inv => get_inverse_lumped_mass_matrix_fe(config, mesh, Wtheta)
 
     ! Scale by lumped inverse mass matrix
     call invoke( X_times_Y(rhs, u_grad_f, mt_lumped_inv) )

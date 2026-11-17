@@ -239,12 +239,12 @@ contains
       nullify( theta_in_w3, u_in_w3, v_in_w3, w_in_w3 )
 
     case default
-      write( log_scratch_space, '(''Unknown integral_method = '', i0, &
-                                 ''in compute_total_energy.'')' ) integral_method
+      write( log_scratch_space, "('Unknown integral_method = ', i0, &
+                                 'in compute_total_energy.')" ) integral_method
       call log_event( log_scratch_space, LOG_LEVEL_ERROR )
     end select
 
-    write( log_scratch_space, '(''compute_total_energy: '', e30.22)' ) total_energy
+    write( log_scratch_space, "('compute_total_energy: ', e30.22)" ) total_energy
     call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
 
     nullify( geopotential )

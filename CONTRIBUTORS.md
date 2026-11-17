@@ -1,4 +1,5 @@
 # Contributors
+
 | GitHub user         | Real Name          | Affiliation                      | Date       |
 | ------------------- | ------------------ | -------------------------------- | ---------- |
 | jedbakerMO          | Jed Baker          | Met Office                       | 2025-12-29 |
@@ -12,9 +13,11 @@
 | mcdalvi             | Mohit Dalvi        | Met Office                       | 2026-01-15 |
 | mo-lucy-gordon      | Lucy Gordon        | Met Office                       | 2026-03-11 |
 | timgraham-Met       | Tim Graham         | Met Office                       | 2026-01-15 |
+| MatthewHambley      | Matthew Hambley    | Met Office                       | 2026-10-16 |
 | tinyendian          | Wolfgang Hayek     | Earth Sciences New Zealand       | 2026-02-02 |
 | mo-marqh            | mark Hedley        | Met Office                       | 2025-12-11 |
 | maggiehendry        | Maggie Hendry      | Met Office                       | 2026-01-29 |
+| hiker               | Joerg Henrichs     | Bureau of Meteorology, Australia | 2026-04-01 |
 | alanjhewitt         | Alan J Hewitt      | Met Office                       | 2026-01-28 |
 | jennyhickson        | Jenny Hickson      | Met Office                       | 2025-12-10 |
 | tom-j-h             | Tom Hill           | Met Office                       | 2026-01-27 |
@@ -61,3 +64,9 @@
 | mo-cjsmith          | Chris Smith        | Met Office                       | 2026-09-02 |
 | mo-joshuacolclough  | Joshua Colclough   | Met Office                       | 2026-08-11 |
 | hiker               | Joerg Henrichs     | Bureau of Meteorology, Australia | 2026-04-01 |
+| JMEdwardsXtr        | John Edwards       | Met Office                       | 2026-09-25 |
+| zmaalick            | Zubair Maalick     | Met Office                       | 2026-08-31 |
+| ddeeptimahanti      | Deva Kumar Deeptimahanti | Pawsey Supercomputing Research Centre | 2026-10-14 |
+| doucla              | Douglas Clark      | UKCEH                            | 2026-10-13 |
+| jerry-liu-jianyu    | Liu Jianyu         | NEA/MSS/CCRS                     | 2026-09-25 |
+| mn416               | Matthew Naylor     | University of Cambridge          | 2026-07-24 |

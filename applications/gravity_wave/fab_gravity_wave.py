@@ -47,7 +47,7 @@ class FabGravityWave(PfUnitMixin, LFRicAppsBase):
 
     def grab_files_step(self) -> None:
         """
-        Grabs the required source files.
+        Grabs the required source files and optimisation scripts.
         """
         super().grab_files_step()
         dirs = ['applications/gravity_wave/source/',

@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code via AI Foundry (Opus 5); #709
+!-------------------------------------------------------------------------------
 !> @brief Interface to the CASIM Microphysics scheme
 
 module casim_alg_mod
@@ -91,6 +94,8 @@ contains
     type( field_type ), pointer :: w_in_wth           => null()
     type( field_type ), pointer :: wetrho_in_w3        => null()
     type( field_type ), pointer :: rho_in_wth          => null()
+    type( field_type ), pointer :: u_in_w3
+    type( field_type ), pointer :: v_in_w3
 
     type( field_type ), pointer :: bcf_in
     type( field_type ), pointer :: cfl_in              => null()
@@ -117,6 +122,29 @@ contains
     type( field_type ), pointer :: murk                => null()
 
     type( field_type ), pointer :: wvar
+
+    ! GLOMAP modal aerosol, used by the CASIM mechanistic activation
+    type( field_type ), pointer :: n_ait_sol
+    type( field_type ), pointer :: ait_sol_su
+    type( field_type ), pointer :: ait_sol_bc
+    type( field_type ), pointer :: ait_sol_om
+    type( field_type ), pointer :: n_acc_sol
+    type( field_type ), pointer :: acc_sol_su
+    type( field_type ), pointer :: acc_sol_bc
+    type( field_type ), pointer :: acc_sol_om
+    type( field_type ), pointer :: acc_sol_ss
+    type( field_type ), pointer :: n_cor_sol
+    type( field_type ), pointer :: cor_sol_su
+    type( field_type ), pointer :: cor_sol_bc
+    type( field_type ), pointer :: cor_sol_om
+    type( field_type ), pointer :: cor_sol_ss
+    type( field_type ), pointer :: n_ait_ins
+    type( field_type ), pointer :: ait_ins_bc
+    type( field_type ), pointer :: ait_ins_om
+    type( field_type ), pointer :: n_acc_ins
+    type( field_type ), pointer :: acc_ins_du
+    type( field_type ), pointer :: n_cor_ins
+    type( field_type ), pointer :: cor_ins_du
 
     type( field_type ), pointer :: height_w3 => null()
     type( field_type ), pointer :: height_wth => null()
@@ -150,6 +178,9 @@ contains
     call derived_fields%get_field('w_in_wth', w_in_wth)
     call derived_fields%get_field('wetrho_in_w3', wetrho_in_w3)
     call derived_fields%get_field('rho_in_wth', rho_in_wth)
+    ! Winds are needed for the PC2 cloud fraction response to falling ice
+    call derived_fields%get_field('u_in_w3', u_in_w3)
+    call derived_fields%get_field('v_in_w3', v_in_w3)
 
     call cloud_fields%get_field('bulk_fraction', bcf_in)
     call cloud_fields%get_field('liquid_fraction', cfl_in)
@@ -174,6 +205,28 @@ contains
     call aerosol_fields%get_field('cloud_drop_no_conc',cloud_drop_no_conc)
     call aerosol_fields%get_field('murk', murk)
 
+    call aerosol_fields%get_field('n_ait_sol', n_ait_sol)
+    call aerosol_fields%get_field('ait_sol_su', ait_sol_su)
+    call aerosol_fields%get_field('ait_sol_bc', ait_sol_bc)
+    call aerosol_fields%get_field('ait_sol_om', ait_sol_om)
+    call aerosol_fields%get_field('n_acc_sol', n_acc_sol)
+    call aerosol_fields%get_field('acc_sol_su', acc_sol_su)
+    call aerosol_fields%get_field('acc_sol_bc', acc_sol_bc)
+    call aerosol_fields%get_field('acc_sol_om', acc_sol_om)
+    call aerosol_fields%get_field('acc_sol_ss', acc_sol_ss)
+    call aerosol_fields%get_field('n_cor_sol', n_cor_sol)
+    call aerosol_fields%get_field('cor_sol_su', cor_sol_su)
+    call aerosol_fields%get_field('cor_sol_bc', cor_sol_bc)
+    call aerosol_fields%get_field('cor_sol_om', cor_sol_om)
+    call aerosol_fields%get_field('cor_sol_ss', cor_sol_ss)
+    call aerosol_fields%get_field('n_ait_ins', n_ait_ins)
+    call aerosol_fields%get_field('ait_ins_bc', ait_ins_bc)
+    call aerosol_fields%get_field('ait_ins_om', ait_ins_om)
+    call aerosol_fields%get_field('n_acc_ins', n_acc_ins)
+    call aerosol_fields%get_field('acc_ins_du', acc_ins_du)
+    call aerosol_fields%get_field('n_cor_ins', n_cor_ins)
+    call aerosol_fields%get_field('cor_ins_du', cor_ins_du)
+
     call turbulence_fields%get_field('wvar', wvar)
 
     height_w3  => get_height_fv(config, theta%get_mesh(), W3)
@@ -185,21 +238,32 @@ contains
     call invoke(name = "invoke_casim_kernel_type",                             &
                  casim_kernel_type ( mr_n(imr_v), mr_n(imr_cl), mr_n(imr_ci),  &
                                      mr_n(imr_r), mr_n(imr_g), mr_n(imr_s),    &
-                                     cfl_in, cff_in,                           &
+                                     cfl_in, cff_in, bcf_in,                   &
                                      nl_mphys, nr_mphys,                       &
                                      ni_mphys, ns_mphys, ng_mphys,             &
                                      w_in_wth,                                 &
                                      theta, exner_in_wth,                      &
-                                     wetrho_in_w3, dry_rho_in_w3,              &
+                                     wetrho_in_w3, dry_rho_in_w3, rho_in_wth,  &
+                                     u_in_w3, v_in_w3,                         &
                                      height_w3, height_wth,                    &
                                      dmr_mphys(imr_v),  dmr_mphys(imr_cl),     &
                                      dmr_mphys(imr_ci), dmr_mphys(imr_r),      &
                                      dmr_mphys(imr_g), dmr_mphys(imr_s),       &
+                                     dcfl, dcff, dbcf,                         &
                                      ls_rain, ls_snow, ls_graup, lsca_2d,      &
                                      ls_rain_3d, ls_snow_3d, ls_graup_3d,      &
                                      theta_inc, cloud_drop_no_conc, murk,      &
                                      refl_tot, refl_1km,                       &
-                                     superc_liq, superc_rain, conv_ppn_frac ) )
+                                     superc_liq, superc_rain, conv_ppn_frac,   &
+                                     n_ait_sol, ait_sol_su,                    &
+                                     ait_sol_bc, ait_sol_om,                   &
+                                     n_acc_sol, acc_sol_su,                    &
+                                     acc_sol_bc, acc_sol_om, acc_sol_ss,       &
+                                     n_cor_sol, cor_sol_su,                    &
+                                     cor_sol_bc, cor_sol_om, cor_sol_ss,       &
+                                     n_ait_ins, ait_ins_bc, ait_ins_om,        &
+                                     n_acc_ins, acc_ins_du,                    &
+                                     n_cor_ins, cor_ins_du ) )
 
     if (turb_gen_mixph) then
       dz_in_wth => get_dz_at_wtheta(config, theta%get_mesh())
