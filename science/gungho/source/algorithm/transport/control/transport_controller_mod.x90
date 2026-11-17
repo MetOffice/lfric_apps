@@ -83,7 +83,6 @@ module transport_controller_mod
     logical(kind=l_def) :: cheap_update_step = .false.
     logical(kind=l_def) :: adaptive_splitting = .false.
     logical(kind=l_def) :: make_tracers_advective = .false.
-    logical(kind=l_def) :: enforce_positive_ref_field = .false.
     integer(kind=i_def) :: reference_splitting = IMDI
     integer(kind=i_def) :: max_courant_num = 0
     logical(kind=l_def) :: dep_stencil_extent_computed = .false.
@@ -120,7 +119,6 @@ module transport_controller_mod
     procedure, public  :: check_reference_field
     procedure, public  :: get_dep_stencil_extent
     procedure, public  :: get_reference_splitting
-    procedure, public  :: set_enforce_positive_ref_field
     procedure, public  :: initialise_flux_precomputations
 
     procedure, public  :: finalise
@@ -539,7 +537,6 @@ contains
     self%cheap_update_step = .false.
     self%adaptive_splitting = .false.
     self%make_tracers_advective = .false.
-    self%enforce_positive_ref_field = .false.
     self%reference_splitting = IMDI
     self%dep_stencil_extent_computed = .false.
     call self%counter%finalise()
@@ -796,7 +793,7 @@ contains
     if (self%outer_set) then
       call self%metadata%update_metadata(                                      &
               self%outer, self%adaptive_splitting, self%reference_splitting,   &
-              self%make_tracers_advective, self%enforce_positive_ref_field     &
+              self%make_tracers_advective                                      &
       )
       call self%counter%initialise(                                            &
               self%metadata, self%dt_substep, self%num_substeps, self%outer    &
@@ -824,18 +821,6 @@ contains
     nullify(self%metadata)
 
   end subroutine after_transport_field
-
-  !> @brief Sets the flag to enforce positive reference field during transport
-  !> @param[in,out] self  The transport controller object
-  subroutine set_enforce_positive_ref_field(self)
-
-    implicit none
-
-    class(transport_controller_type), target, intent(inout) :: self
-
-    self%enforce_positive_ref_field = .true.
-
-  end subroutine set_enforce_positive_ref_field
 
 ! ============================================================================ !
 ! GETTERS

@@ -411,10 +411,8 @@ contains
   !> @param[in]     make_tracers_advective Whether to set the equation form to be
   !!                         advective when unable to compute departure points
   !!                         for consistent tracers
-  !> @param[in]     positive_ref_field Whether to enforce positivity for
-  !!                                   transport of the reference density field
   subroutine update_metadata(self, outer, adaptive_splitting, splitting,       &
-                             make_tracers_advective, positive_ref_field)
+                             make_tracers_advective)
 
     use timestepping_config_mod,    only: outer_iterations
     use transport_config_mod,       only: si_outer_transport,                  &
@@ -428,10 +426,8 @@ contains
                                           equation_form_consistent,            &
                                           split_method_ffsl,                   &
                                           split_method_sl,                     &
-                                          split_method_mol,                    &
                                           monotone_qm_pos,                     &
                                           monotone_strict,                     &
-                                          monotone_koren,                      &
                                           monotone_none
 
     implicit none
@@ -441,7 +437,6 @@ contains
     logical(kind=l_def),            intent(in)    :: adaptive_splitting
     integer(kind=i_def),            intent(in)    :: splitting
     logical(kind=l_def),            intent(in)    :: make_tracers_advective
-    logical(kind=l_def),            intent(in)    :: positive_ref_field
 
     if (si_outer_transport /= si_outer_transport_none                          &
         .and. outer < outer_iterations                                         &
@@ -485,24 +480,6 @@ contains
          self%equation_form == equation_form_consistent ) then
       ! Set equation form to be advective
       self%equation_form = equation_form_advective
-    end if
-
-    if (self%fname == dry_field_name .and. positive_ref_field) then
-      ! Set monotonicity, appropriate for the transport scheme
-      ! Only need to check FFSL as SL cannot be used for density
-      if (self%horizontal_method == split_method_ffsl) then
-        self%horizontal_monotone = monotone_strict
-      else if (self%horizontal_method == split_method_mol) then
-        ! Note: this cannot guarantee positivity for large Courant numbers
-        self%horizontal_monotone = monotone_koren
-      end if
-
-      if (self%vertical_method == split_method_ffsl) then
-        self%vertical_monotone = monotone_strict
-      else if (self%vertical_method == split_method_mol) then
-        ! Note: this cannot guarantee positivity for large Courant numbers
-        self%vertical_monotone = monotone_koren
-      end if
     end if
 
   end subroutine update_metadata

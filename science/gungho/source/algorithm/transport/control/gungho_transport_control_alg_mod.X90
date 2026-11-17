@@ -211,7 +211,6 @@ contains
     use timestepping_config_mod,         only: outer_iterations
     use tracer_collection_transport_mod, only: tracer_collection_transport_alg, &
                                                coarse_collection_transport_alg
-    use transport_enumerated_types_mod,  only: monotone_none
     use transport_field_mod,             only: transport_field
     use wind_transport_alg_mod,          only: wind_transport_alg
 
@@ -343,25 +342,6 @@ contains
     ! Check negative reference fields at this point
     if (check_any_eqn_consistent()) then
       safe_ref = transport_controller%check_reference_field(fail_on_neg=.false.)
-      non_mono_density = (                                                     &
-          transport_metadata%get_horizontal_monotone() == monotone_none        &
-          .and. transport_metadata%get_vertical_monotone() == monotone_none    &
-      )
-      if (.not. safe_ref .and. non_mono_density) then
-        ! First try re-transporting density with monotonicity applied to avoid
-        ! generation of negative values through undershoots
-        call transport_controller%set_enforce_positive_ref_field()
-
-        call transport_field(                                                  &
-                fields_np1(igh_d), advected_fields(igh_d),                     &
-                transport_controller, transport_metadata                       &
-        )
-        call invoke( X_minus_Y( advection_inc(igh_d), fields_np1(igh_d),       &
-                                advected_fields(igh_d) ) )
-
-        ! Recheck whether negative values were calculated
-        safe_ref = transport_controller%check_reference_field(fail_on_neg=.false.)
-      end if
       if (.not. safe_ref) then
         ! We will need to substep the transport of tracers
         ! This can be prompted by re-initialising the flux precomputations
