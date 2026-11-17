@@ -35,9 +35,9 @@ Code Reviewer: <!-- CR id, filled by system team -->
 ### :test_tube: Testing
 
 - [ ] I have tested this change locally, using the LFRic Apps rose-stem suite.
-- [ ] If any tests fail (rose-stem or CI) the reason is understood and acceptable (e.g., KGO changes).
+- [ ] Explanation and justification for failed tests is provided (e.g. KGO changes).
 - [ ] I have added tests to cover new functionality as appropriate (e.g. system tests, unit tests, etc.).
-- [ ] Any new tests have been assigned an appropriate amount of compute resource and have been allocated to an appropriate testing group (i.e., the developer tests are for jobs which use a small amount of compute resource and complete in a matter of minutes).
+- [ ] New tests have been assigned appropriate compute resource and have been allocated to an appropriate testing group (e.g. the developer tests are for jobs which use a small amount of compute resource and complete in a matter of minutes).
 
 <!-- Describe other testing performed (if applicable) -->
 
@@ -53,11 +53,11 @@ Code Reviewer: <!-- CR id, filled by system team -->
 
 ### :zap: Performance Impact
 
-- [ ] Performance of the code has been considered and, if applicable, suitable performance measurements have been conducted.  
+- [ ] Performance of the code has been considered. Where applicable, performance results are provided.  
 
 ### :robot: Generative AI Declaration
 
-**Any Generative AI tools (e.g., GitHub Copilot, Calude Code, ChatGPT) to assist in writing, refactoring, or optimising code for this PR?**
+**Were Generative AI tools (e.g. GitHub Copilot, Claude Code, ChatGPT) used to assist writing, refactoring or optimising code for this PR?**
 
 - [ ] **No.** This code was written entirely manually.
 - [ ] **Yes.** (If yes, please complete the verification items below).
@@ -67,15 +67,15 @@ Code Reviewer: <!-- CR id, filled by system team -->
 
 #### AI Usage Verification
 
-*Only check the boxes below if they are true. If any box cannot be checked, your PR will be automatically rejected.*
+*If you cannot check all of the following boxes, you must obtain prior approval for any exceptions. Otherwise, your PR will be rejected.*
 
-- [ ] **Approved Tool:** The AI tool used is an approved enterprise/institutional tier model that provides IPR indemnity. An exception may be made with IAO/IAM approval, subject to appropriate scrutiny of the generated code.  
+- [ ] **Approved Tool:** The AI tool used is an approved enterprise/institutional tier model that provides IPR indemnity.
 `Assisted-by: [Institution Name] [Tool / Agent Context] ([Model Version]).`  
 See [AI attribution requirements](https://metoffice.github.io/simulation-systems/FurtherDetails/ai.html#attribution-requirements).
 - [ ] **No Free/Personal Tiers:** I confirm that **no** free or personal tier AI tools (which lack legal protection and IPR indemnity) were used.
 - [ ] **In-File Attribution:** I have added the required `! Some content in this file was generated...` comment block following the [Simulation Systems AI policy](https://metoffice.github.io/simulation-systems/FurtherDetails/ai.html).
 Commit-message attribution is encouraged for traceability, but is optional. It does not replace the required attribution in the PR description and source file headers.
-- [ ] **Code Responsibility:** I have personally reviewed, tested, and understood all AI-assisted sections, and I take full responsibility for its logic, security, and IPR compliance.
+- [ ] **Code Responsibility:** I have personally reviewed, tested and understood all AI-assisted sections, and I take full responsibility for its logic, security and IPR compliance.
 
 </details>
 
@@ -88,8 +88,10 @@ Commit-message attribution is encouraged for traceability, but is optional. It d
 ## :microscope: Sci/Tech Review <!-- To be completed by the Sci/Tech Reviewer -->
 <!-- May be skipped for trivial tickets -->
 
-- [ ] I have reviewed the scientific approach and its implementation described in the PR and consider them appropriate.
-- [ ] I have identified whether scientific documentation or papers need updating.
+- [ ] The change is described in the pull request description or linked documentation.
+- [ ] The scientific/technical approach is justified and appropriate.
+
+- [ ] I have checked that the developer has made appropriate updates to science or technical documentation.
 
 (_Please alert the code reviewer via a tag when you have approved the SR_)
 
