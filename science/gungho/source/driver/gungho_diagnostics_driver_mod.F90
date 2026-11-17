@@ -265,7 +265,7 @@ contains
     call write_vorticity_diagnostic( modeldb%config, u, exner, modeldb%clock )
 #ifdef UM_PHYSICS
     call write_pv_diagnostic( modeldb%config, u, theta, rho, exner, &
-                              derived_fields modeldb%clock )
+                              derived_fields, modeldb%clock )
 #else
     call write_pv_diagnostic( modeldb%config, u, theta, rho, modeldb%clock )
 #endif
