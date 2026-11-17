@@ -217,7 +217,7 @@ program solver
   ! Call an algorithm
   call chi_inventory%get_field_array(mesh, chi)
   call panel_id_inventory%get_field(mesh, panel_id)
-  call solver_miniapp_alg( fv_1, chi, panel_id )
+  call solver_miniapp_alg( config, fv_1, chi, panel_id )
 
   ! Write out output file
   call log_event(program_name//": writing diagnostic output", LOG_LEVEL_INFO)

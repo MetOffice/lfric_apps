@@ -103,8 +103,8 @@
 	<field id="frozen_soil_moisture" name="frozen_soil_moisture" long_name="Frozen soil moisture proportion" unit="1" grid_ref="soil_levels_face_grid" />
 	<field id="soil_wet_frac" name="soil_wet_frac" long_name="Soil wet fraction" unit="1" domain_ref="face" />
 	<field id="tstar_sea" name="tstar_sea" long_name="Sea surface temperature" unit="K" domain_ref="face" />
-	<field id="land_mask" name="land_mask" long_name="land_mask" unit="1" domain_ref="checkpoint_W3" />
-	<field id="exner" name="exner_inc" long_name="Exner Pressure" unit="kg m-1 s-2" domain_ref="checkpoint_W3"/>
+	<field id="land_mask" name="land_mask" long_name="land_mask" unit="1" domain_ref="legacy_W3" />
+	<field id="exner" name="exner_inc" long_name="Exner Pressure" unit="kg m-1 s-2" domain_ref="legacy_W3"/>
 	</field_group>
 
     </field_definition>
