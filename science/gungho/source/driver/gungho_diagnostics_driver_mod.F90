@@ -4,6 +4,7 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 ! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code via AI Foundry (Opus 5); PR #673
 ! - Met Office Claude Code via AI Foundry (Claude Fable 5.1); PR #768.
 ! - Met Office Claude Code via AI Foundry (Claude Opus 5.5); PR #768.
 ! - Met Office Claude Code via AI Foundry (Claude Opus 4.8); PR #715.
@@ -60,6 +61,7 @@ module gungho_diagnostics_driver_mod
   use driver_modeldb_mod,        only : modeldb_type
 
 #ifdef UM_PHYSICS
+  use height_lev_diags_alg_mod,  only : height_lev_diags_alg
   use pres_lev_diags_alg_mod,    only : pres_lev_diags_alg
   use pmsl_alg_mod,              only : pmsl_alg
   use rh_diag_alg_mod,           only : rh_diag_alg
@@ -262,7 +264,8 @@ contains
     end if
     call write_vorticity_diagnostic( modeldb%config, u, exner, modeldb%clock )
 #ifdef UM_PHYSICS
-    call write_pv_diagnostic( modeldb%config, u, theta, rho, exner, modeldb%clock )
+    call write_pv_diagnostic( modeldb%config, u, theta, rho, exner, &
+                              derived_fields, modeldb%clock )
 #else
     call write_pv_diagnostic( modeldb%config, u, theta, rho, modeldb%clock )
 #endif
@@ -361,6 +364,8 @@ contains
       ! Pressure level diagnostics
       call pres_lev_diags_alg(modeldb%config, derived_fields, theta, exner, &
                               mr, moist_dyn, plev_geopot)
+      ! Height level diagnostics
+      call height_lev_diags_alg(modeldb%config, derived_fields)
       ! Wet bulb freezing level
       call freeze_lev_alg(modeldb%config,theta, mr, moist_dyn, exner_in_wth)
       ! Aviation diagnostics
