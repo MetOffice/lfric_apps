@@ -19,7 +19,6 @@ module shallow_to_deep_alg_mod
 
   use map_fd_to_prognostics_alg_mod, only: hydrostatic_balance
   use moist_dyn_mod,                 only: num_moist_factors
-  use formulation_config_mod,        only: shallow
 
   implicit none
 
