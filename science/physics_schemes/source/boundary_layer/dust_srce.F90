@@ -150,12 +150,20 @@ character(len=*), parameter :: RoutineName='DUST_SRCE'
 
 if (lhook) call dr_hook(ModuleName//':'//RoutineName,zhook_in,zhook_handle)
 
+! In 1 bin scheme, bare soil dust flux is calculated on single aggregated tile
+if (ntiles > 1) then
+  soil_tile = soil
+else
+  soil_tile = 1
+end if
+
 ! parameters in block below - ndivh, ndivl
 !$OMP PARALLEL DEFAULT(none) private(idiv,m,n,l)                               &
 !$OMP SHARED(ndiv,ntiles,tile_pts,tile_index,dust_flux_tile,                   &
 !$OMP   tot_horiz_flux_tile,horiz_flux_789,horiz_flux_1to6,                    &
 !$OMP   u_s_t_tile,u_s_t_dry_tile,horiz_flux_tile,soil,soil_tile,              &
 !$OMP   mrel7,mrel8,mrel9,mrel_land_all,sand_land,land_pts,mrel_land)
+
 ! Initialisation
 !$OMP do SCHEDULE(STATIC) COLLAPSE(2)
 do idiv = 1, ndiv
@@ -191,15 +199,6 @@ do idiv = 1, ndivh
   end do
 end do
 !$OMP end do
-
-!$OMP SINGLE
-! In 1 bin scheme, bare soil dust flux is calculated on single aggregated tile
-if (ntiles > 1) then
-  soil_tile = soil
-else
-  soil_tile = 1
-end if
-!$OMP end SINGLE
 
 ! Calculate relative mass for all divs and put into single array
 !$OMP do SCHEDULE(STATIC)
