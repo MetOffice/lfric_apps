@@ -7,6 +7,16 @@
 
 {% include 'site/'+SITE+'/lfricinputs/tasks_lfricinputs_'~task_ns.platform~'.cylc' %}
 
+
+{% if task_ns.conf_name == "um2lfric-nwp_gal9-N1280L70_C896L70"
+    or task_ns.conf_name == "lfric2um-nwp_gal9-C896L70_N1280L70" %}
+
+    {% do task_dict.update({
+        "gen_weights_wallclock": 20,
+    }) %}
+
+{% endif %}
+
 {% if "perftools" in task_ns.compiler %}
     {% do task_dict.update({
         "kgo_checks": [],
