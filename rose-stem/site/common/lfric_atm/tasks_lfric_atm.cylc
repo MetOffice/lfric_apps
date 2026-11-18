@@ -198,6 +198,22 @@
         {% do task_dict.update({"kgo_checks": []}) %}
     {% endif %}
 
+{% elif task_ns.conf_name == "nwp_gal10_4T-C48_MG-s_RADAER" %}
+    {% do task_dict.update({
+        "opt_confs": ["physics_segmentation","um_dump","no_diags","simple_radaer"],
+        "resolution": "C48_MG",
+        "DT": 1800,
+        "tsteps": 36,
+        "mpi_parts": 6,
+        "threads": 4,
+        "memory": [40, "GB"],
+        "kgo_checks": ["checksum"],
+    }) %}
+
+    {%  if task_ns.compiler == "gnu" %}
+        {% do task_dict.update({"kgo_checks": []}) %}
+    {% endif %}
+
 {% elif task_ns.conf_name == "nwp_gal10_3n_1T-C192_MG" %}
 
     {% do task_dict.update({
