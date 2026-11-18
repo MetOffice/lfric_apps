@@ -10,7 +10,7 @@ module solver_moist_correction_alg_mod
 
   ! Infrastructure
   use config_mod,                    only: config_type
-  use constants_mod,                 only: i_def
+  use constants_mod,                 only: i_def, r_def
   use extrusion_mod,                 only: SHIFTED
   use field_mod,                     only: field_type
   use fs_continuity_mod,             only: W2, W3
