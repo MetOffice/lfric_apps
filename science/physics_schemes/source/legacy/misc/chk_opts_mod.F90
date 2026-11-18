@@ -13,6 +13,8 @@ module chk_opts_mod
 !
 ! Code Owner: Please refer to the UM file CodeOwners.txt
 ! This file belongs in section: Misc
+!
+use, intrinsic :: iso_fortran_env, only : real64
 
 use errormessagelength_mod, only: errormessagelength
 use umprintmgr,             only: umprint, ummessage, newline
@@ -293,7 +295,7 @@ subroutine chk_real_str (var, var_name, string, report_pass, cmessage)
 
 implicit none
 
-real,             intent(in) :: var        ! The real variable to be checked
+real(real64),     intent(in) :: var        ! The real variable to be checked
 character(len=*), intent(in) :: var_name   ! The name of the test variable
 character(len=*), intent(in) :: string     ! String containg test criteria
 

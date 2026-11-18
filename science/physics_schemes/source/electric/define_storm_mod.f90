@@ -89,6 +89,8 @@ case (graupel_only)
       if ( gwp(i,j) > gwp_thresh ) then
         storm_field(i,j) = .true.
         nspts = nspts + 1
+      else
+        storm_field(i, j) = .false.
       end if
     end do ! i
   end do  ! j
@@ -109,6 +111,8 @@ case (graupel_and_ice)
       if ( gwp(i,j) > gwp_thresh .or. tiwp(i,j) > tiwp_thresh ) then
         storm_field(i,j) = .true.
         nspts = nspts + 1
+      else
+        storm_field(i, j) = .false.
       end if
     end do ! i
   end do  ! j

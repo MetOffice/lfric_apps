@@ -33,6 +33,7 @@ export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
                                $(APPS_ROOT_DIR)/science/shared \
                                $(APPS_ROOT_DIR)/interfaces/socrates_interface \
                                $(APPS_ROOT_DIR)/interfaces/jules_interface \
+                               $(APPS_ROOT_DIR)/science/physics_schemes \
                                $(APPS_ROOT_DIR)/interfaces/physics_schemes_interface
 
 META_VN             ?= HEAD
@@ -130,10 +131,6 @@ build: ALWAYS
 	$(call MESSAGE,========================================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
 	          SOURCE_DIR=$(APPS_ROOT_DIR)/science/gungho/source
-	$(call MESSAGE,========================================)
-	$(call MESSAGE,Extracting UM physics )
-	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(APPS_ROOT_DIR)/build/extract/extract_physics.mk
 	$(call MESSAGE,========================================)
 	$(call MESSAGE,Extracting $(PROJECT_NAME))
 	$(call MESSAGE,========================================)
