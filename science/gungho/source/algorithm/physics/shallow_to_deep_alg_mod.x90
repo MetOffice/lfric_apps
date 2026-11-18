@@ -7,18 +7,19 @@
 !> @brief Adjust prognostic fields from shallow to deep
 module shallow_to_deep_alg_mod
 
-  use config_mod,                only: config_type
-  use constants_mod,             only: i_def, r_def, l_def
-  use log_mod,                   only: log_event,         &
-                                       log_scratch_space, &
-                                       LOG_LEVEL_INFO
+  use config_mod,                    only: config_type
+  use constants_mod,                 only: i_def, r_def, l_def
+  use log_mod,                       only: log_event,         &
+                                           log_scratch_space, &
+                                           LOG_LEVEL_INFO
 
   ! Derived Types
-  use field_mod,                 only: field_type
-  use field_collection_mod,      only: field_collection_type
+  use field_mod,                     only: field_type
+  use field_collection_mod,          only: field_collection_type
 
-  use map_fd_to_prognostics_alg, only: hydrostatic_balance
-  use moist_dyn_mod,             only: num_moist_factors
+  use map_fd_to_prognostics_alg_mod, only: hydrostatic_balance
+  use moist_dyn_mod,                 only: num_moist_factors
+  use formulation_config_mod,        only: shallow
 
   implicit none
 
