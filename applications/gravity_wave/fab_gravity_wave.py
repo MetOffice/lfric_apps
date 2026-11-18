@@ -60,10 +60,6 @@ class FabGravityWave(PfUnitMixin, LFRicAppsBase):
         for dir in dirs:
             grab_folder(self.config, src=lfric_apps_root / dir, dst_label='')
 
-        # Copy the optimisation scripts into a separate directory
-        grab_folder(self.config, src=self._this_root / "optimisation",
-                    dst_label='optimisation')
-
     def get_rose_meta(self) -> Path:
         """
         :returns: the rose-meta.conf path.
