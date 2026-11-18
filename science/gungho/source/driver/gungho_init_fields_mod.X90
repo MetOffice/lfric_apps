@@ -88,6 +88,7 @@ module gungho_init_fields_mod
   use create_nudging_fields_mod,          only : create_nudging_fields
   use field_mapper_mod,                   only : field_mapper_type
   use map_fd_to_prognostics_alg_mod,      only : map_fd_to_prognostics
+  use shallow_to_deep_alg_mod,            only : shallow_to_deep
   use gungho_init_prognostics_driver_mod, only : init_gungho_prognostics
   use init_gungho_lbcs_alg_mod,           only : init_lbcs_file_alg,    &
                                                  init_lbcs_analytic_alg
@@ -811,6 +812,12 @@ subroutine create_model_data( modeldb,           &
                               modeldb%clock%get_first_step() - 1,   &
                               checkpoint_stem_name )
         call combine_complex_prognostics( prognostic_fields )
+
+        if ( .not. shallow ) then
+          call shallow_to_deep( modeldb%config,    &
+                                prognostic_fields, &
+                                moist_dyn_array%bundle )
+        end if
 
         ! Update factors for moist dynamics
         call moist_dyn_factors_alg( moist_dyn_array%bundle, &
