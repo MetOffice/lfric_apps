@@ -26,7 +26,9 @@ contains
   subroutine run_gen_adj_kernel_tests( mesh, chi, panel_id )
 
     ! Test harness module list
-    ! <adjoint_test_mod>
+{%- for name in algorithms %}
+    use {{name}}_alg_mod, only : {{name}}_alg
+{%- endfor %}
 
     implicit none
 
@@ -35,7 +37,9 @@ contains
     type(field_type),               intent(in) :: panel_id
 
     ! Call an algorithm
-    ! <adjoint_test_call>
+{%- for name in algorithms %}
+    call {{name}}_alg( mesh, chi, panel_id )
+{%- endfor %}
 
   end subroutine run_gen_adj_kernel_tests
 
