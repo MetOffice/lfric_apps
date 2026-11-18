@@ -28,7 +28,7 @@ public :: lfricinp_gather_lfric_field
 contains
 
 subroutine lfricinp_gather_lfric_field( lfric_field, global_field_array, comm, &
-                                        num_levels, level, twod_mesh )
+                                        level, twod_mesh )
 
 implicit none
 !
@@ -38,10 +38,9 @@ implicit none
 !  and puts into correct location using the global id (gid) map
 !
 ! Arguments
-type(field_type),    intent(INOUT) :: lfric_field
+type(field_type),    intent(in)    :: lfric_field
 real(kind=real64),   intent(out)   :: global_field_array(:)
 type(lfric_comm_type), intent(in)  :: comm
-integer(kind=int64), intent(in)    :: num_levels
 integer(kind=int64), intent(in)    :: level
 type(mesh_type),     intent(in), pointer :: twod_mesh
 
@@ -56,6 +55,8 @@ integer(kind=int32), parameter   :: rank_0 = 0
 integer(kind=int32) :: err, i
 integer(kind=int64) :: index_3d
 integer(kind=i_def) :: mpi_comm
+integer(kind=i_def) :: num_levels
+integer(kind=i_def) :: ndata
 !, unit_num
 
 real(kind=real64), allocatable :: local_data(:)
@@ -69,9 +70,14 @@ mesh => lfric_field%get_mesh()
 
 field_proxy = lfric_field%get_proxy()
 
-! Get number of layers from function space, as we have W3, Wtheta and W3 2d
-! fields which have different number of layers
-!nlayers = fs%get_nlayers()
+! Get number of layers by dividing the number of dofs in the local domain
+! by the number of 2D cells and number of dofs per dof-location. Calculation
+! accounts for the fact that Wtheta fields have one extra level than W3 field
+! even though the number of levels in each function space is the same
+ndata = field_proxy%vspace%get_ndata()
+num_levels = field_proxy%vspace%get_last_dof_annexed() /                     &
+                (mesh%get_last_edge_cell() * ndata)
+
 local_rank = global_mpi%get_comm_rank()
 total_ranks = global_mpi%get_comm_size()
 
@@ -84,7 +90,8 @@ allocate(local_data(local_size_2d))
 index_3d = level
 do i = 1, local_size_2d
   local_data(i) = field_proxy%data(index_3d)
-  index_3d = index_3d + num_levels
+  ! Size of a column of data is levels times data points per level
+  index_3d = index_3d + num_levels * ndata
 end do
 
 mpi_comm = comm%get_comm_mpi_val()

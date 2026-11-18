@@ -7,6 +7,8 @@
 !> the domain (horizontal mesh, vertical levels)
 module um_domain_init_mod
 
+  use config_mod, only: config_type
+
   ! LFRic namelists which have been read
   use extrusion_config_mod,        only : domain_height,    &
                                           number_of_layers, &
@@ -38,8 +40,9 @@ module um_domain_init_mod
 contains
 
   !>@brief Initialisation of variables related to the domain.
+  !>@param[in] config  Application configuration object
   !>@param[in] mesh    Mesh
-  subroutine um_domain_init( mesh )
+  subroutine um_domain_init( config, mesh )
 
     ! UM modules containing things that need setting
     use bl_option_mod,               only: nl_bl_levels
@@ -51,7 +54,8 @@ contains
 
     implicit none
 
-    type(mesh_type),  intent(in), pointer :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
 
     ! Local variables
     type(field_type), pointer       :: delta => null() ! Horizontal edge length
@@ -80,7 +84,7 @@ contains
     ! the global mean of a field - once psyclone#489 is live,
     ! it should be changed to use the built-in function
 
-    delta => get_delta_at_wtheta(mesh)
+    delta => get_delta_at_wtheta(config, mesh)
     call delta%copy_field_properties(ones)
     call invoke( setval_c(ones, 1.0_r_def), &
                  sum_X(sum_delta, delta)  , &

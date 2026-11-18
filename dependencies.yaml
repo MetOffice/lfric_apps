@@ -19,21 +19,19 @@
 
 casim:
     source: git@github.com:MetOffice/casim.git
-    ref: 996db30c2bac55360623eb081b4d2e273289f4de
+    ref: deab1a05430779d9f29a0a5e184f74aea118acd9
 
 jules:
     source: git@github.com:MetOffice/jules.git
-    ref: e34bc36803fd87c8118296bfc8a5c61fc55a42d9
+    ref: 056beaf218777c4480450dfc2177d62b627e7c23
 
 lfric_apps:
     source:
     ref:
 
 lfric_core:
-    source: cazldt000007:/home/users/matthew.hambley/Projects/CorePPonImport
-    ref:
-#    source: git@github.com:MetOffice/lfric_core.git
-#    ref: 72ba0a8ad0cf16b54d66e700bd9bee07fa90aeb8
+    source: git@github.com:MetOffice/lfric_core.git
+    ref: 10c46a577b5c3d226121c2c9d55581f3683f3963
 
 moci:
     source: git@github.com:MetOffice/moci.git
