@@ -23,14 +23,13 @@
                             'module load cray-mpich/8.1.27 ; '~
                             'module load lfric-cray/15.0.0/3.2 || true' %}
 
-{% set ex1a_oasis = 'module load xios/2.2701-oasis oasis || true ; ' ~
+{% set ex1a_oasis = 'module load xios/2.2701-oasis || true ; ' ~
                     'module load oasis || true' %}
 
-{% set ex1a_coupled_cce = 'module unload xios/2.2701 || true ; ' ~
-                          'module load cray-hdf5-parallel ; ' ~
-                          'module load cray-netcdf-hdf5parallel ; ' ~
-                          'module use /data/users/moci/modules_ngms/modules ; '~
-                          'module load GC6-PrgEnv_ngarch/2026-10-ngarch-cpe23.05-mpich8.1.27/ngarch_wp2_oasis_6d603e4.lua' %}
+{% set ex1a_coupled_cce = 'export external_ldflags=$LDFLAGS; '~
+                          'export external_fflags=$FFLAGS; '~
+                          'export JULES_LDFLAGS_EXTRA=$LDFLAGS; '~
+                          'export JULES_FFLAGS_EXTRA=$FFLAGS' %}
 
 {% set ex1a_coupled_run = '. $BIG_DATA_DIR/ancils/lfric_coupled/ocean/ocean_ancil_GO8p0_CORE_forcing_eORCA025 ; ' ~
                           'DIAG_MEAN_PERIOD="INVALID_PERIOD"'%}
@@ -102,7 +101,7 @@
 
     [[EX1A_BUILD_COUPLED_CCE]]
         inherit=EX1A_BASE,EX1A_BUILD,EX1A_CCE
-        {{ generate_script("pre-script", [ex1a_base, ex1a_compiler_cce, ex1a_coupled_cce, ex1a_scitools]) }}
+        {{ generate_script("pre-script", [ex1a_base, ex1a_compiler_cce, ex1a_oasis, ex1a_coupled_cce, ex1a_scitools]) }}
 
     [[EX1A_BUILD_PERFTOOLS-GNU]]
         inherit=EX1A_BASE,EX1A_BUILD,EX1A_GNU
@@ -150,6 +149,7 @@
         inherit=EX1A_BASE,EX1A_RUN,EX1A_CCE
         {{ generate_script("pre-script", [ex1a_base,
                                           ex1a_compiler_cce,
+                                          ex1a_oasis,
                                           ex1a_coupled_cce,
                                           ex1a_scitools,
                                           ex1a_coupled_run,
