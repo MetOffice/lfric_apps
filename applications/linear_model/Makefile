@@ -58,6 +58,7 @@ export INTERNAL_DEPENDENCIES = $(CORE_ROOT_DIR)/infrastructure \
                                $(CORE_ROOT_DIR)/components/inventory \
                                $(CORE_ROOT_DIR)/components/lfric-xios \
                                $(APPS_ROOT_DIR)/science/shared \
+                               $(APPS_ROOT_DIR)/science/gungho \
                                $(APPS_ROOT_DIR)/interfaces/socrates_interface \
                                $(APPS_ROOT_DIR)/interfaces/jules_interface \
                                $(APPS_ROOT_DIR)/interfaces/physics_schemes_interface
@@ -119,11 +120,6 @@ build: ALWAYS
 	$(call MESSAGE,========================================)
 	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
 	          SOURCE_DIR=$(APPS_ROOT_DIR)/interfaces/coupled_interface/source
-	$(call MESSAGE,========================================)
-	$(call MESSAGE,Extracting Gungho dynamical core)
-	$(call MESSAGE,========================================)
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/extract.mk \
-	          SOURCE_DIR=$(APPS_ROOT_DIR)/science/gungho/source
 	$(call MESSAGE,========================================)
 	$(call MESSAGE,Extracting Linear)
 	$(call MESSAGE,========================================)
