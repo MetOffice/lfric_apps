@@ -70,7 +70,7 @@ contains
                                         nodal_output_on_w3 )
 
         if ( limited_area )then
-          if ( lbc_method == lbc_method_onion_layer ) call write_masks()
+          if ( lbc_method == lbc_method_onion_layer ) call write_masks(modeldb%config)
         end if
       end if
     end if

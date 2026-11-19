@@ -10,6 +10,8 @@
 
 module comorph_diags_mod
 
+  use config_mod, only: config_type
+
   use constants_mod,       only: l_def
   use field_mod,           only: field_type
   use timing_mod,          only: start_timing, stop_timing, tik, LPROF
@@ -47,7 +49,7 @@ module comorph_diags_mod
 contains
 
   !> @brief Initialise fields for locally-computed diagnostics
-  subroutine initialise_diags_for_comorph(lowest_cv_base,         &
+  subroutine initialise_diags_for_comorph(config, lowest_cv_base,         &
                                           lowest_cv_top,          &
                                           cv_base,                &
                                           cv_top,                 &
@@ -67,6 +69,8 @@ contains
                                           lowest_cloud_top_icao_height)
 
     implicit none
+
+  type(config_type), intent(in) :: config
 
     ! Diagnostic fields to initialise
     type( field_type ), intent(inout) :: lowest_cv_base,          &
@@ -92,52 +96,51 @@ contains
     if ( LPROF ) call start_timing( id, 'diags.comorph' )
 
     ! Convective diagnostics - 2d
-    lowest_cv_base_flag = init_diag(lowest_cv_base, 'convection__lowest_cv_base')
-    lowest_cv_top_flag = init_diag(lowest_cv_top, 'convection__lowest_cv_top')
+    lowest_cv_base_flag = init_diag(config, lowest_cv_base, 'convection__lowest_cv_base')
+    lowest_cv_top_flag = init_diag(config, lowest_cv_top, 'convection__lowest_cv_top')
 
     ! cv_base and _top are dependencies for chemistry, hence need to be 'active'
 
-    cloud_base_icao_height_flag = init_diag(cloud_base_icao_height, &
+    cloud_base_icao_height_flag = init_diag(config, cloud_base_icao_height, &
       'convection__conv_cloud_base_icao_height')
-    cloud_top_icao_height_flag = init_diag(cloud_top_icao_height, &
+    cloud_top_icao_height_flag = init_diag(config, cloud_top_icao_height, &
       'convection__conv_cloud_top_icao_height')
 
-    pres_cv_base_flag = init_diag(pres_cv_base, 'convection__pres_cv_base', &
+    pres_cv_base_flag = init_diag(config, pres_cv_base, 'convection__pres_cv_base', &
       activate=cloud_base_icao_height_flag)
-    pres_cv_top_flag = init_diag(pres_cv_top, 'convection__pres_cv_top', &
+    pres_cv_top_flag = init_diag(config, pres_cv_top, 'convection__pres_cv_top', &
       activate=cloud_top_icao_height_flag)
 
     lowest_cloud_base_icao_height_flag = init_diag( &
-      lowest_cloud_base_icao_height, &
+      config, lowest_cloud_base_icao_height, &
       'convection__lowest_conv_cloud_base_icao_height')
     lowest_cloud_top_icao_height_flag = init_diag( &
-      lowest_cloud_top_icao_height, &
+      config, lowest_cloud_top_icao_height, &
       'convection__lowest_conv_cloud_top_icao_height')
 
-    pres_lowest_cv_base_flag = init_diag(pres_lowest_cv_base, &
-      'convection__pres_lowest_cv_base', &
-      activate=lowest_cloud_base_icao_height_flag)
-    pres_lowest_cv_top_flag = init_diag(pres_lowest_cv_top, &
+    pres_lowest_cv_base_flag = init_diag(config, pres_lowest_cv_base, &
+                                         'convection__pres_lowest_cv_base')
+    pres_lowest_cv_top_flag = init_diag(config, pres_lowest_cv_top, &
       'convection__pres_lowest_cv_top', &
       activate=lowest_cloud_top_icao_height_flag)
 
-    lowest_cca_2d_flag = init_diag(lowest_cca_2d, &
+    lowest_cca_2d_flag = init_diag(config, lowest_cca_2d, &
                                    'convection__lowest_cca_2d')
 
     ! Convective diagnostics - 3d  - theta levels
-    entrain_up_flag = init_diag(entrain_up, 'convection__entrain_up')
+    entrain_up_flag = init_diag(config, entrain_up, 'convection__entrain_up')
     if (entrain_up_flag) call invoke( setval_c(entrain_up, 0.0_r_def) )
 
-    entrain_down_flag = init_diag(entrain_down, 'convection__entrain_down')
+    entrain_down_flag = init_diag(config, entrain_down, 'convection__entrain_down')
     if (entrain_down_flag) call invoke( setval_c(entrain_down, 0.0_r_def) )
 
-    detrain_up_flag = init_diag(detrain_up, 'convection__detrain_up')
+    detrain_up_flag = init_diag(config, detrain_up, 'convection__detrain_up')
     if (detrain_up_flag) call invoke( setval_c(detrain_up, 0.0_r_def) )
 
-    detrain_down_flag = init_diag(detrain_down, 'convection__detrain_down')
+    detrain_down_flag = init_diag(config, detrain_down, 'convection__detrain_down')
     if (detrain_down_flag) call invoke( setval_c(detrain_down, 0.0_r_def) )
 
-    massflux_up_half_flag = init_diag(massflux_up_half, 'convection__massflux_up_half')
+    massflux_up_half_flag = init_diag(config, massflux_up_half, 'convection__massflux_up_half')
 
     if ( LPROF ) call stop_timing( id, 'diags.comorph' )
 

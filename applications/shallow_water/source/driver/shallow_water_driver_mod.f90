@@ -15,7 +15,6 @@ module shallow_water_driver_mod
   use field_mod,                     only: field_type
   use field_collection_mod,          only: field_collection_type
   use io_config_mod,                 only: write_diag,           &
-                                           diagnostic_frequency, &
                                            nodal_output_on_w3
   use log_mod,                       only: log_event,         &
                                            log_scratch_space, &
@@ -104,6 +103,10 @@ contains
     implicit none
 
     type(modeldb_type), intent(inout) :: modeldb
+
+    integer(i_def) :: diagnostic_frequency
+
+    diagnostic_frequency = modeldb%config%io%diagnostic_frequency()
 
     call shallow_water_step( modeldb  )
 

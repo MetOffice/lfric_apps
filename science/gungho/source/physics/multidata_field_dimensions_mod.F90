@@ -8,8 +8,8 @@
 
 module multidata_field_dimensions_mod
 
+  use config_mod,                only: config_type
   use constants_mod,             only: i_def, l_def
-  use io_config_mod,             only: use_xios_io
   use lfric_xios_diag_mod,       only: set_axis_dimension, &
                                        get_axis_dimension, &
                                        set_zoom_axis_attr
@@ -74,15 +74,19 @@ contains
 
 !> @brief Synchronise XIOS axis dimensions with multidata field
 !> dimensions sourced from configuration
-subroutine sync_multidata_field_dimensions()
+subroutine sync_multidata_field_dimensions(config)
+
       implicit none
+
+      type(config_type), intent(in) :: config
+
 #ifdef UM_PHYSICS
       logical(l_def), parameter :: tolerate_missing_axes = .true.
       integer(i_def) :: i
       do i=1,size(multidata_items)
             call set_axis_dimension(                                          &
                   multidata_items(i),                                         &
-                  get_multidata_field_dimension(multidata_items(i)),          &
+                  get_multidata_field_dimension(config, multidata_items(i)),  &
                   tolerate_missing_axes)
       end do
 
@@ -91,13 +95,13 @@ subroutine sync_multidata_field_dimensions()
       ! (the begin element is n_land_tiles and n_land_tiles+1 respectively)
       call set_zoom_axis_attr(                                                &
             'surface_tiles_sea_zoom_axis',                                    &
-            get_multidata_field_dimension('land_tiles'),                      &
+            get_multidata_field_dimension(config, 'land_tiles'),              &
             1,                                                                &
             tolerate_missing_axes)
       call set_zoom_axis_attr(                                                &
             'surface_tiles_sea_ice_zoom_axis',                                &
-            get_multidata_field_dimension('land_tiles')+1,                    &
-            get_multidata_field_dimension('sea_ice_categories'),              &
+            get_multidata_field_dimension(config, 'land_tiles')+1,                    &
+            get_multidata_field_dimension(config, 'sea_ice_categories'),              &
             tolerate_missing_axes)
       ! Settings for some land tile zoom axes
       call set_zoom_axis_attr(                                                &
@@ -137,7 +141,7 @@ end subroutine sync_multidata_field_dimensions
   !> "entrainment_levels".
   !> @param multidata_item
   !> @return Integer containing the number of multidata entries
-  function get_multidata_field_dimension(multidata_item) result (dim)
+  function get_multidata_field_dimension(config, multidata_item) result (dim)
 
 #ifdef UM_PHYSICS
     use jules_control_init_mod,  only: n_surf_tile, n_sea_ice_tile,            &
@@ -149,26 +153,26 @@ end subroutine sync_multidata_field_dimensions
     use um_physics_init_mod,     only: sw_band_mode, lw_band_mode, mode_dimen
     use socrates_init_mod,       only: n_sw_band, n_lw_band, n_pathway
     use dust_parameters_mod,     only: ndiv
-    use extrusion_config_mod,    only: number_of_layers
-    use cosp_config_mod,         only: n_subcol_gen
+!   use extrusion_config_mod,    only: number_of_layers
+!    use cosp_config_mod,         only: n_subcol_gen
     use cosp_mod,                only: n_cloudsat_levels, n_backscatter_bins,  &
                                        n_isccp_tau_bins, n_isccp_pressure_bins
-    use radiation_config_mod,    only: topography,         &
+    use radiation_config_mod,    only: &!topography,         &
                                        topography_horizon, &
                                        n_horiz_layer,      &
                                        n_horiz_ang
-    use stochastic_physics_config_mod, only: stph_spectral_dim
+!    use stochastic_physics_config_mod, only: stph_spectral_dim
     use section_choice_config_mod, &
-                                 only: radiation,                              &
-                                       radiation_socrates,                     &
+                                 only: radiation_socrates,                     &
                                        radiation_none
 
     use ukca_radaer_precalc,     only: npd_ukca_aod_wavel
 
-    use aerosol_config_mod,      only: l_radaer
-    use chemistry_config_mod,    only: chem_scheme, chem_scheme_strattrop
+!    use aerosol_config_mod,      only: l_radaer
+    use chemistry_config_mod,    only: &!chem_scheme,
+                                        chem_scheme_strattrop
     use um_ukca_init_mod,        only: n_phot_spc
-    use nudging_config_mod,      only: num_ref_data_levels
+!    use nudging_config_mod,      only: num_ref_data_levels
 #endif
 
     use log_mod,                 only: log_event, LOG_LEVEL_ERROR,             &
@@ -176,9 +180,42 @@ end subroutine sync_multidata_field_dimensions
 
     implicit none
 
+    type(config_type), intent(in) :: config
+
     character(*), intent(in) :: multidata_item
 
     integer(kind=i_def) :: dim
+
+    logical(l_def) :: use_xios_io
+
+#ifdef UM_PHYSICS
+    integer(i_def) :: number_of_layers
+    integer(i_def) :: radiation
+    integer(i_def) :: topography
+    integer(i_def) :: n_horiz_layer
+    integer(i_def) :: n_horiz_ang
+    integer(i_def) :: chem_scheme
+    integer(i_def) :: stph_spectral_dim
+    integer(i_def) :: num_ref_data_levels
+    integer(i_def) :: n_subcol_cosp
+    logical(l_def) :: l_radaer
+
+    number_of_layers    = config%extrusion%number_of_layers()
+    chem_scheme         = config%chemistry%chem_scheme()
+    stph_spectral_dim   = config%stochastic_physics%stph_spectral_dim()
+    l_radaer            = config%aerosol%l_radaer()
+    num_ref_data_levels = config%nudging%num_ref_data_levels()
+    n_subcol_cosp       = config%cosp%n_subcol_cosp
+
+    radiation = config%section_choice%radiation()
+    if (radiation == radiation_socrates) then
+      topography    = config%radiation%topography()
+      n_horiz_layer = config%radiation%n_horiz_layer()
+      n_horiz_ang   = config%radiation%n_horiz_ang()
+    end if
+#endif
+
+    use_xios_io = config%io%use_xios_io()
 
     select case (multidata_item)
 #ifdef UM_PHYSICS

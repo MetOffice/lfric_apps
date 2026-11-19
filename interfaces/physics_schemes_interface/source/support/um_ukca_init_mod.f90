@@ -27,7 +27,7 @@ module um_ukca_init_mod
                                        mode_setup_SUBCOCSSDU_7mode,            &
                                        mode_setup_DUonly_2mode,                &
                                        l_dust_mp_ageing
-  use section_choice_config_mod, only: aerosol, aerosol_um
+  use section_choice_config_mod, only: aerosol_um
   use chemistry_config_mod,      only: chem_scheme, chem_scheme_offline_ox,    &
                                        chem_scheme_strattrop, chem_scheme_none,&
                                        chem_scheme_strat_test,                 &
@@ -59,6 +59,7 @@ module um_ukca_init_mod
                       log_scratch_space,                                       &
                       LOG_LEVEL_ERROR, LOG_LEVEL_INFO
 
+  use config_mod, only: config_type
   use constants_mod, only : i_def, r_um, i_um, imdi
   use water_constants_mod, only: tfs, rho_water, rhosea, latent_heat_cw => lc
   use chemistry_constants_mod, only: avogadro, boltzmann, rho_so4
@@ -679,7 +680,7 @@ module um_ukca_init_mod
 
 contains
 
-  subroutine um_ukca_init(ncells_ukca, model_clock)
+  subroutine um_ukca_init(config, ncells_ukca, model_clock)
   !> @brief Set up the UKCA model
 
   use nlsizes_namelist_mod, only: bl_levels, rows, model_levels
@@ -693,6 +694,8 @@ contains
   use cv_run_mod,           only: l_param_conv
 
   implicit none
+
+  type(config_type), intent(in) :: config
 
     integer(i_def), intent(in) :: ncells_ukca
     class(model_clock_type), intent(in) :: model_clock
@@ -758,21 +761,21 @@ contains
       n_solcyc_ts = 1_i_um
     end if
 
-    if ( ( aerosol == aerosol_um ) .and.                                       &
+    if ( ( config%section_choice%aerosol() == aerosol_um ) .and.               &
          ( glomap_mode == glomap_mode_dust_and_clim ) ) then
 
         call aerosol_ukca_dust_only_init( row_length_ukca, rows, model_levels, &
                   bl_levels, model_clock%get_seconds_per_step(), l_param_conv )
 
-    else if ( ( aerosol == aerosol_um .and.                                    &
+    else if ( ( config%section_choice%aerosol() == aerosol_um .and.            &
                 glomap_mode == glomap_mode_ukca ) .or.                         &
               ( chem_scheme == chem_scheme_offline_ox .or.                     &
                 chem_scheme == chem_scheme_strat_test .or.                     &
                 chem_scheme == chem_scheme_strattrop ) ) then
 
-        call ukca_init( row_length_ukca, rows, model_levels, bl_levels,        &
-                        ntype, npft, brd_leaf, ndl_leaf, c3_grass, c4_grass,   &
-                        shrub, urban, lake, soil, ice, dzsoil_io(1),           &
+        call ukca_init( config, row_length_ukca, rows, model_levels, bl_levels, &
+                        ntype, npft, brd_leaf, ndl_leaf, c3_grass, c4_grass,    &
+                        shrub, urban, lake, soil, ice, dzsoil_io(1),            &
                         model_clock%get_seconds_per_step(), l_param_conv )
 
     end if
@@ -806,7 +809,7 @@ contains
   !> @param[in] timestep        Model time step (s)
   !> @param[in] l_param_conv    True if convection is parameterized
 
-  subroutine ukca_init( row_length, rows, model_levels, bl_levels,             &
+  subroutine ukca_init( config, row_length, rows, model_levels, bl_levels,     &
                         ntype, npft, i_brd_leaf, i_ndl_leaf, i_c3_grass,       &
                         i_c4_grass, i_shrub, i_urban, i_lake, i_soil, i_ice,   &
                         dzsoil_layer1, timestep, l_param_conv )
@@ -820,6 +823,8 @@ contains
                             photol_2d, photol_fastjx, photol_get_environ_varlist
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     integer, intent(in) :: row_length      ! X dimension of model grid
     integer, intent(in) :: rows            ! Y dimension of model grid
@@ -943,7 +948,8 @@ contains
       return
     end if
 
-    if (aerosol == aerosol_um .and. glomap_mode == glomap_mode_ukca) then
+    if (config%section_choice%aerosol() == aerosol_um .and. &
+        glomap_mode == glomap_mode_ukca) then
 
       l_ukca_chem_aero = .true.
       l_ukca_mode = .true.
@@ -1325,8 +1331,9 @@ contains
     ! Switch on optional UM boundary layer diagnostics required by UKCA
     if (any(env_names_bllev_real(:) == fldname_bl_tke))                        &
       bl_diag%l_request_tke = .true.
-    
+
   end subroutine ukca_init
+
   subroutine ukca_emiss_init()
   !> @brief Set up the emissions for UKCA model
     implicit none

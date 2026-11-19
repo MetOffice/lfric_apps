@@ -20,7 +20,6 @@ module diagnostics_io_mod
                                            vector_nodal_diagnostic_alg
   use initialise_diagnostics_mod,    only: diagnostic_to_be_sampled
   use io_config_mod,                 only: use_xios_io, write_fluxes
-  use files_config_mod,              only: diag_stem_name
   use function_space_collection_mod, only: function_space_collection
   use fs_continuity_mod,             only: Wtheta, W2H
   use sci_geometric_constants_mod,   only: get_coordinates, &
@@ -77,6 +76,10 @@ subroutine write_scalar_diagnostic( config, mesh, field_name, field, &
   integer(i_timestep)             :: timestep
 
   procedure(write_interface), pointer  :: tmp_write_ptr => null()
+
+  character(str_max_filename) :: diag_stem_name
+
+  diag_stem_name = config%files%diag_stem_name()
 
   ! Nodal output
   if ( .not. (use_xios_io) )  then
@@ -147,11 +150,11 @@ subroutine write_scalar_diagnostic( config, mesh, field_name, field, &
 
     ! Check if we need to write an initial field
     if (clock%is_initialisation()) then
-      if (diagnostic_to_be_sampled(trim('init_'//field_name))) then
+      if (diagnostic_to_be_sampled(config, trim('init_'//field_name))) then
         call output_field(1)%write_field(trim('init_'//field_name))
       end if
     else
-      if (diagnostic_to_be_sampled(trim(field_name))) then
+      if (diagnostic_to_be_sampled(config, trim(field_name))) then
         call output_field(1)%write_field(trim(field_name))
       end if
     end if
@@ -212,6 +215,10 @@ subroutine write_vector_diagnostic( config, mesh, field_name, field, &
   integer(i_timestep)             :: timestep
 
   procedure(write_interface), pointer  :: tmp_write_ptr => null()
+
+  character(str_max_filename) :: diag_stem_name
+
+  diag_stem_name = config%files%diag_stem_name()
 
   chi      => get_coordinates(mesh)
   panel_id => get_panel_id(mesh)
@@ -326,45 +333,45 @@ subroutine write_vector_diagnostic( config, mesh, field_name, field, &
 
       if (clock%is_initialisation()) then
         if (field_name == 'u') then
-          if (diagnostic_to_be_sampled("init_u_in_w2h")) then
+          if (diagnostic_to_be_sampled(config, "init_u_in_w2h")) then
             call u1_wind%write_field("init_u_in_w2h")
           end if
-          if (diagnostic_to_be_sampled("init_v_in_w2h")) then
+          if (diagnostic_to_be_sampled(config, "init_v_in_w2h")) then
             call u2_wind%write_field("init_v_in_w2h")
           end if
-          if (diagnostic_to_be_sampled("init_w_in_wth")) then
+          if (diagnostic_to_be_sampled(config, "init_w_in_wth")) then
             call u3_wind%write_field("init_w_in_wth")
           end if
         else
-          if (diagnostic_to_be_sampled(trim(field_name)//"1")) then
+          if (diagnostic_to_be_sampled(config, trim(field_name)//"1")) then
             call u1_wind%write_field("init_"//trim(field_name)//"1")
           end if
-          if (diagnostic_to_be_sampled(trim(field_name)//"2")) then
+          if (diagnostic_to_be_sampled(config, trim(field_name)//"2")) then
             call u2_wind%write_field("init_"//trim(field_name)//"2")
           end if
-          if (diagnostic_to_be_sampled(trim(field_name)//"3")) then
+          if (diagnostic_to_be_sampled(config, trim(field_name)//"3")) then
             call u3_wind%write_field("init_"//trim(field_name)//"3")
           end if
         end if
       else
         if (field_name == 'u') then
-          if (diagnostic_to_be_sampled("u_in_w2h")) then
+          if (diagnostic_to_be_sampled(config, "u_in_w2h")) then
             call u1_wind%write_field("u_in_w2h")
           end if
-          if (diagnostic_to_be_sampled("v_in_w2h")) then
+          if (diagnostic_to_be_sampled(config, "v_in_w2h")) then
             call u2_wind%write_field("v_in_w2h")
           end if
-          if (diagnostic_to_be_sampled("w_in_wth")) then
+          if (diagnostic_to_be_sampled(config, "w_in_wth")) then
             call u3_wind%write_field("w_in_wth")
           end if
         else
-          if (diagnostic_to_be_sampled(trim(field_name)//"1")) then
+          if (diagnostic_to_be_sampled(config, trim(field_name)//"1")) then
             call u1_wind%write_field(trim(field_name)//"1")
           end if
-          if (diagnostic_to_be_sampled(trim(field_name)//"2")) then
+          if (diagnostic_to_be_sampled(config, trim(field_name)//"2")) then
              call u2_wind%write_field(trim(field_name)//"2")
           end if
-          if (diagnostic_to_be_sampled(trim(field_name)//"3")) then
+          if (diagnostic_to_be_sampled(config, trim(field_name)//"3")) then
              call u3_wind%write_field(trim(field_name)//"3")
           end if
         end if

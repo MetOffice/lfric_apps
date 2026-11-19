@@ -21,7 +21,7 @@ module process_send_fields_2d_mod
                                             LOG_LEVEL_DEBUG, &
                                             LOG_LEVEL_ERROR, &
                                             log_scratch_space
-  use io_config_mod,                  only: checkpoint_read
+
 #if defined(UM_PHYSICS)
   use cv_run_mod,                     only: l_param_conv
   use jules_control_init_mod,         only: n_sea_tile, first_sea_tile,   &

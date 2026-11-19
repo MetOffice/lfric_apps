@@ -23,7 +23,7 @@ module casim_activate_alg_mod
   use mphys_inputs_mod,              only: casim_iopt_act, fixed_number
   use mr_indices_mod,                only: nummr, imr_cl, imr_ci
   use sci_geometric_constants_mod,   only: get_height_fv
-  use section_choice_config_mod,     only: convection, convection_um
+  use section_choice_config_mod,     only: convection_um
   use timing_mod,                    only: start_timing, stop_timing, &
                                            tik, LPROF
 
@@ -199,7 +199,7 @@ contains
 
     ! If convection has provided an increment to ice or we want to
     ! initialise the ice
-    if (convection == convection_um .or. initialise) then
+    if (config%section_choice%convection() == convection_um .or. initialise) then
 
       call derived_fields%get_field('exner_in_wth', exner_wth)
       call derived_fields%get_field('rho_in_wth', rho_wth)

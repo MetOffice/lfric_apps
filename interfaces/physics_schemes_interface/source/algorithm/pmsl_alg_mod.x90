@@ -94,8 +94,8 @@ contains
 
     if ( LPROF ) call start_timing( id, 'diags.pmsl' )
 
-    pmsl_flag = init_diag(pmsl, 'processed__pmsl')
-    pmsl_unsmooth_flag = init_diag(pmsl_unsmooth, 'processed__pmsl_unsmooth', &
+    pmsl_flag = init_diag(config, pmsl, 'processed__pmsl')
+    pmsl_unsmooth_flag = init_diag(config, pmsl_unsmooth, 'processed__pmsl_unsmooth', &
                                    activate = pmsl_flag)
 
     if ((pmsl_flag .or. pmsl_unsmooth_flag) .and. use_xios_io) then

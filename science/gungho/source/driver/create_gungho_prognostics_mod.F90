@@ -13,6 +13,7 @@
 !>          a 'prognostic_fields' field collection
 module create_gungho_prognostics_mod
 
+  use config_mod,                     only : config_type
   use constants_mod,                  only : i_def, l_def, r_def
   use field_mod,                      only : field_type
   use field_parent_mod,               only : write_interface, read_interface, &
@@ -40,7 +41,6 @@ module create_gungho_prognostics_mod
                                              moist_dyn_names
   use initialization_config_mod,      only: init_option,               &
                                             init_option_checkpoint_dump
-  use io_config_mod,                  only: checkpoint_read, checkpoint_write
   use transport_config_mod,           only : transport_ageofair
   use clock_mod,                      only : clock_type
   implicit none
@@ -59,10 +59,13 @@ contains
   !> before the io context closes, and this is too early for field creation.
   !> @param  proc   Processor to be applied to selected field specifiers
   !> @param  legacy Logical flag to enable/disable legacy checkpointing
-  subroutine process_gungho_prognostics(proc, legacy)
+  subroutine process_gungho_prognostics(config, proc, legacy)
+
     use field_spec_mod,            only : main => main_coll_dict, &
                                           adv => adv_coll_dict
     implicit none
+
+    type(config_type) :: config
 
     class(processor_type) :: proc
     logical(l_def), intent(in) :: legacy
@@ -78,19 +81,19 @@ contains
     ord_h = element_order_h
     ord_v = element_order_v
 
-    call proc%apply(make_spec('theta', main%none, Wtheta, order_h=ord_h, &
+    call proc%apply(config, make_spec('theta', main%none, Wtheta, order_h=ord_h, &
                               order_v=ord_v, ckp=.true., legacy=legacy))
-    call proc%apply(make_spec('u', main%none, W2, order_h=ord_h, order_v=ord_v,&
+    call proc%apply(config, make_spec('u', main%none, W2, order_h=ord_h, order_v=ord_v,&
                               ckp=.true., legacy=legacy))
     if (.not. legacy) then
-      call proc%apply(make_spec('h_u', main%none, W2H, order_h=ord_h, &
+      call proc%apply(config, make_spec('h_u', main%none, W2H, order_h=ord_h, &
                                 order_v=ord_v, ckp=.true.))
-      call proc%apply(make_spec('v_u', main%none, W2V, order_h=ord_h, &
+      call proc%apply(config, make_spec('v_u', main%none, W2V, order_h=ord_h, &
                                 order_v=ord_v, ckp=.true.))
     end if
-    call proc%apply(make_spec('rho', main%none, W3, order_h=ord_h, &
+    call proc%apply(config, make_spec('rho', main%none, W3, order_h=ord_h, &
                               order_v=ord_v, ckp=.true., legacy=legacy))
-    call proc%apply(make_spec('exner', main%none, W3, order_h=ord_h, &
+    call proc%apply(config, make_spec('exner', main%none, W3, order_h=ord_h, &
                               order_v=ord_v, ckp=.true., legacy=legacy))
 
     ! Create reference fields for solver. They are only created and checkpointed if either the first or
@@ -100,7 +103,7 @@ contains
     checkpoint_flag =                                                &
       mod(clock%get_first_step()-1, reference_reset_freq) /= 0 .or.  &
       mod(clock%get_last_step(),    reference_reset_freq) /= 0
-    if (checkpoint_read .or. &
+    if (config%io%checkpoint_read() .or. &
          init_option == init_option_checkpoint_dump) then
       ! If the first timestep of this run IS an operator calc timestep, but the
       ! first timestep of the next run IS NOT, then checkpoint_flag
@@ -109,7 +112,7 @@ contains
       if (mod(clock%get_first_step()-1, reference_reset_freq) == 0 .and.       &
           mod(clock%get_last_step(),    reference_reset_freq) /= 0) then
         checkpoint_flag = .false.
-        if (checkpoint_write) then
+        if (config%io%checkpoint_write()) then
           ! Any dump written will be incomplete, and the following run
           ! will need to start on an operator calc timestep - print user a
           ! warning
@@ -122,18 +125,18 @@ contains
       end if
     end if
     is_empty = .not. checkpoint_flag
-    call proc%apply(make_spec('theta_ref', main%none, Wtheta, empty=is_empty, &
+    call proc%apply(config, make_spec('theta_ref', main%none, Wtheta, empty=is_empty, &
                     order_h=ord_h, order_v=ord_v, ckp=checkpoint_flag))
-    call proc%apply(make_spec('rho_ref', main%none, W3, empty=is_empty, &
+    call proc%apply(config, make_spec('rho_ref', main%none, W3, empty=is_empty, &
                     order_h=ord_h, order_v=ord_v, ckp=checkpoint_flag))
-    call proc%apply(make_spec('exner_ref', main%none, W3,  empty=is_empty, &
+    call proc%apply(config, make_spec('exner_ref', main%none, W3,  empty=is_empty, &
                     order_h=ord_h, order_v=ord_v, ckp=checkpoint_flag))
 
     ! The moisture mixing ratio fields (mr) and moist dynamics fields
     ! (moist_dyn) are always passed into the timestep algorithm, so are
     ! always created here, even when moisture_formulation = 'dry'
     do imr = 1,nummr
-      call proc%apply(make_spec(trim(mr_names(imr)), main%none, &
+      call proc%apply(config, make_spec(trim(mr_names(imr)), main%none, &
         Wtheta, moist_arr=moist_arr_dict%mr, moist_idx=imr, order_h=ord_h,     &
         order_v=ord_v, ckp=.true., legacy=legacy))
     end do
@@ -141,16 +144,16 @@ contains
     ! Auxiliary fields holding moisture-dependent factors for dynamics, including checkpointed versions for
     ! semi-implicit operator recalculations
     do imr = 1, num_moist_factors
-      call proc%apply(make_spec(trim(moist_dyn_names(imr)), main%none, &
+      call proc%apply(config, make_spec(trim(moist_dyn_names(imr)), main%none, &
         Wtheta, moist_arr=moist_arr_dict%moist_dyn, moist_idx=imr, &
         order_h=ord_h, order_v=ord_v))
-      call proc%apply(make_spec(trim('moist_dyn_'//trim(moist_dyn_names(imr))//'_ref'), &
+      call proc%apply(config, make_spec(trim('moist_dyn_'//trim(moist_dyn_names(imr))//'_ref'), &
         main%none, Wtheta,  empty=is_empty, moist_arr=moist_arr_dict%moist_dyn_ref, &
         moist_idx=imr, order_h=ord_h, order_v=ord_v, ckp=checkpoint_flag))
     end do
 
     if (transport_ageofair) then
-      call proc%apply(make_spec('ageofair', main%none, &
+      call proc%apply(config, make_spec('ageofair', main%none, &
         W3, adv_coll=adv%last_pos, order_h=ord_h, order_v=ord_v, ckp=.true., &
         legacy=legacy))
     end if
@@ -162,15 +165,17 @@ contains
   !> @param[in]    twod_mesh  The current 2d mesh
   !> @param[in]    mapper     Provides access to the field collections
   !> @param[in]    clock      The model clock
-  subroutine create_gungho_prognostics(mesh,                                  &
+  subroutine create_gungho_prognostics(config, mesh,                          &
                                        twod_mesh,                             &
                                        mapper,                                &
                                        clock)
 
     implicit none
 
-    type(mesh_type), intent(in), pointer      :: mesh
-    type(mesh_type), intent(in), pointer      :: twod_mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
+    type(mesh_type),   intent(in) :: twod_mesh
+
     type( field_mapper_type ), intent(in)     :: mapper
     class( clock_type ), intent(in)           :: clock
 
@@ -183,7 +188,7 @@ contains
 
     legacy = (mesh%is_geometry_planar() .and. mesh%is_topology_periodic())
 
-    call process_gungho_prognostics(creator, legacy)
+    call process_gungho_prognostics(config, creator, legacy)
 
   end subroutine create_gungho_prognostics
 

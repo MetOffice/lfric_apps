@@ -7,6 +7,8 @@
 
 module mphys_diagnostics_mod
 
+  use config_mod, only: config_type
+
   use constants_mod,       only: l_def
   use field_mod,           only: field_type
   use timing_mod,          only: start_timing, stop_timing, tik, LPROF
@@ -46,11 +48,13 @@ contains
   !> @param[inout] sfsnow          Seeder-Feeder snow over subgrid hills
   !> @param[inout] refl_tot        Total radar reflectivity
   !> @param[inout] refl_1km        Radar Reflectivity at 1km above the surface
-  subroutine initialise_diags_for_mphys(superc_liq, superc_rain,               &
+  subroutine initialise_diags_for_mphys(config, superc_liq, superc_rain,               &
                                         sfwater, sfrain, sfsnow,               &
                                         refl_tot, refl_1km)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type( field_type ), intent(inout) :: superc_liq
     type( field_type ), intent(inout) :: superc_rain
@@ -63,13 +67,13 @@ contains
 
     if ( LPROF ) call start_timing( id, 'diags.mphys' )
 
-    superc_liq_flag = init_diag(superc_liq, 'microphysics__superc_liq')
-    superc_rain_flag = init_diag(superc_rain, 'microphysics__superc_rain')
-    sfwater_flag = init_diag(sfwater, 'microphysics__sfwater')
-    sfrain_flag = init_diag(sfrain, 'microphysics__sfrain')
-    sfsnow_flag = init_diag(sfsnow, 'microphysics__sfsnow')
-    refl_tot_flag = init_diag(refl_tot, 'microphysics__refl_tot')
-    refl_1km_flag = init_diag(refl_1km, 'microphysics__refl_1km')
+    superc_liq_flag = init_diag(config, superc_liq, 'microphysics__superc_liq')
+    superc_rain_flag = init_diag(config, superc_rain, 'microphysics__superc_rain')
+    sfwater_flag = init_diag(config, sfwater, 'microphysics__sfwater')
+    sfrain_flag = init_diag(config, sfrain, 'microphysics__sfrain')
+    sfsnow_flag = init_diag(config, sfsnow, 'microphysics__sfsnow')
+    refl_tot_flag = init_diag(config, refl_tot, 'microphysics__refl_tot')
+    refl_1km_flag = init_diag(config, refl_1km, 'microphysics__refl_1km')
 
     if ( LPROF ) call stop_timing( id, 'diags.mphys' )
 
@@ -81,7 +85,7 @@ contains
   !       casim_diagnostics_mod.x90
   !----------------------------------------------------------------------------
 
-  subroutine output_diags_for_mphys(exner_in_wth, dtheta_mphys,               &
+  subroutine output_diags_for_mphys(config, exner_in_wth, dtheta_mphys,               &
                                     dmv_mphys, dmcl_mphys, dmci_mphys,        &
                                     dmr_mphys, dmg_mphys, dms_mphys,          &
                                     dcfl_mphys, dcff_mphys, dbcf_mphys,       &
@@ -95,6 +99,8 @@ contains
     use convection_config_mod, only: cv_scheme, cv_scheme_comorph
 
     implicit none
+
+type(config_type), intent(in) :: config
 
     type ( field_type ), intent (in) :: exner_in_wth,                         &
                                         dtheta_mphys,                         &
@@ -140,7 +146,7 @@ contains
 
     call dtheta_mphys%write_field('microphysics__dtheta_mphys')
 
-    dt_mphys_flag = init_diag(dt_mphys, 'microphysics__dt_mphys')
+    dt_mphys_flag = init_diag(config, dt_mphys, 'microphysics__dt_mphys')
     if (dt_mphys_flag) then
       ! Convert from theta increment to temperature increment
       call invoke( X_times_Y(dt_mphys, dtheta_mphys, exner_in_wth) )

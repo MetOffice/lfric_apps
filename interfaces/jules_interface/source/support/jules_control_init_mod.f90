@@ -15,7 +15,8 @@ module jules_control_init_mod
   use jules_sea_seaice_config_mod,          only : nice_in => nice
 
   ! Other LFRic modules used
-  use constants_mod,        only : i_def, imdi
+  use config_mod,    only: config_type
+  use constants_mod, only: i_def, imdi
 
   implicit none
 
@@ -50,7 +51,7 @@ contains
   !>          due course, but if not, they will need to be promoted to the
   !>          LFRic namelists. We then derive other JULES information
   !>          from these parameters.
-  subroutine jules_control_init()
+  subroutine jules_control_init(config)
 
     ! LFRic namelists which have been read
     use jules_model_environment_lfric_config_mod, only :                       &
@@ -70,7 +71,7 @@ contains
                               lake_in => lake,                                 &
                               soil_in => soil,                                 &
                               ice_in => ice
-    use section_choice_config_mod, only : surface, surface_jules
+    use section_choice_config_mod, only : surface_jules
 
     ! UM/JULES modules containing things that need setting
     use ancil_info, only: jules_dim_cs1 => dim_cs1, nsurft
@@ -93,10 +94,9 @@ contains
     use log_mod, only : log_event, log_scratch_space, LOG_LEVEL_INFO,          &
        LOG_LEVEL_ERROR
 
-    use section_choice_config_mod,  only: surface,            &
-                                          surface_jules
-
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! This allows l_jules_parent switch to remain private in JULES module
     integer(kind=i_def) :: l_jules_parent_config = imdi
@@ -107,7 +107,7 @@ contains
     ! Surface tile information - set in JULES module jules_surface_types
     ! ----------------------------------------------------------------
 
-    if (surface == surface_jules) then
+    if (config%section_choice%surface() == surface_jules) then
       write( log_scratch_space, '(A)' ) 'JULES surface scheme is being used.'
       call log_event( log_scratch_space, LOG_LEVEL_INFO )
       npft         = npft_in
@@ -204,7 +204,7 @@ contains
     !   - contained in module jules_model_environment
     ! ----------------------------------------------------------------
 
-    if (surface == surface_jules) then
+    if (config%section_choice%surface() == surface_jules) then
       ! Initialise LSM to be JULES (other options do exist; CABLE, Rivers-only)
       lsm_id = jules
       select case (l_jules_parent_in)

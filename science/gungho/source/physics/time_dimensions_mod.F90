@@ -7,6 +7,7 @@
 !>
 module time_dimensions_mod
 
+  use config_mod,                only: config_type
   use constants_mod,             only: i_def, l_def, str_def, cmdi
   use log_mod,                   only: log_event,                             &
                                        log_scratch_space,                     &
@@ -16,8 +17,7 @@ module time_dimensions_mod
   ! This import split to support fparser which gets confused by FPP directives
   ! in the middle of a syntactic unit.
   !
-  use initialization_config_mod, only: ancil_option,                          &
-                                       ancil_option_fixed,                    &
+  use initialization_config_mod, only: ancil_option_fixed,                    &
                                        ancil_option_updating
 #endif
   use initialization_config_mod, only: lbc_option,                            &
@@ -90,9 +90,13 @@ module time_dimensions_mod
 
   !> @brief Synchonise XIOS time axis dimensions with the files being read.
   !>
-  subroutine sync_time_dimensions()
+  subroutine sync_time_dimensions(config)
+
     use lfric_xios_diag_mod, only: set_axis_dimension
+
     implicit none
+
+    type(config_type) :: config
 
     logical(l_def), parameter :: tolerate_missing_axes = .true.
     integer(i_def) :: tdim
@@ -101,11 +105,11 @@ module time_dimensions_mod
     tdim = get_lbc_dim()
     if (tdim /= 0) &
       call set_axis_dimension('lbc_axis', tdim, tolerate_missing_axes)
-    tdim = get_reynolds_dim()
+    tdim = get_reynolds_dim(config)
     if (tdim /= 0) &
       call set_axis_dimension('reynolds_timeseries', tdim, &
         tolerate_missing_axes)
-    tdim = get_emiss_dim()
+    tdim = get_emiss_dim(config)
     if (tdim /= 0) &
       call set_axis_dimension('emiss_axis', tdim, tolerate_missing_axes)
     tdim = get_nudging_dim()
@@ -137,11 +141,19 @@ module time_dimensions_mod
   !> @result The dimension of the reynolds_timeseries axis
   !>         or zero if the relevant ancil file is not enabled.
   !>
-  function get_reynolds_dim() result(tdim)
+  function get_reynolds_dim(config) result(tdim)
+
     implicit none
 
+    type(config_type), intent(in) :: config
+
     integer(i_def) :: tdim
+    integer(i_def) :: ancil_option
+
     tdim = 0
+
+    ancil_option = config%initialization%ancil_option()
+
 #ifdef UM_PHYSICS
     if(ancil_option == ancil_option_fixed .or.                                &
        ancil_option == ancil_option_updating ) then
@@ -158,10 +170,19 @@ module time_dimensions_mod
   !> @result The dimension of the emiss_axis
   !>         or zero if there are no enabled emiss files.
   !>
-  function get_emiss_dim() result(tdim)
+  function get_emiss_dim(config) result(tdim)
+
     implicit none
+
+    type(config_type), intent(in) :: config
+
     integer(i_def) :: tdim
+    integer(i_def) :: ancil_option
+
     tdim = 0
+
+    ancil_option = config%initialization%ancil_option()
+
 #ifdef UM_PHYSICS
     ! conditions and list of emiss files from gungho_setup_io_mod;
     ! to be safe, we try them all in sequence

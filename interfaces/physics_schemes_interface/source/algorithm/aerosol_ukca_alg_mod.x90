@@ -1042,7 +1042,7 @@ contains
 
     ! Multi-dimensional field: photol_rates
     vector_space=>function_space_collection%get_fs(mesh,0,0,Wtheta,            &
-                   get_ndata_val('photol_species') )
+                   get_ndata_val(config,'photol_species') )
 
     call photol_rates%initialise(vector_space)
     call invoke( setval_c(photol_rates,    0.0_r_def) )
@@ -1053,11 +1053,11 @@ contains
 
       ! Sample rates to output on the wtheta grid. A field is only created
       ! and populated if it has been requested for output.
-      photol_rate_jo1d_flag = init_diag( photol_rate_jo1d,                     &
+      photol_rate_jo1d_flag = init_diag( config, photol_rate_jo1d,                     &
                                         'chemistry__photol_rate_jo1d' )
-      photol_rate_jo3p_flag = init_diag( photol_rate_jo3p,                     &
+      photol_rate_jo3p_flag = init_diag( config, photol_rate_jo3p,                     &
                                         'chemistry__photol_rate_jo3p' )
-      photol_rate_jno2_flag = init_diag( photol_rate_jno2,                     &
+      photol_rate_jno2_flag = init_diag( config, photol_rate_jno2,                     &
                                         'chemistry__photol_rate_jno2' )
 
       if ( photol_rate_jo1d_flag ) then
@@ -1215,8 +1215,7 @@ contains
     ! Initialise UKCA diagnostics, obtain number and list of requested
     ! diags and then initialise the super array accordingly
     n_req_ukca_diags_3d = 0_i_def
-    call initialise_ukca_diagnostics(                                          &
-                                     values,                                   &
+    call initialise_ukca_diagnostics(values,                                   &
                                      l_chem_timestep,                          &
                                      ! values out
                                      n_req_ukca_diags_3d,                      &
@@ -1652,7 +1651,7 @@ contains
         end if
         ! output Chemistry diagnostics - if requested
         if ( n_req_ukca_diags_3d > 0_i_def )                                   &
-          call output_ukca_diagnostics( n_req_ukca_diags_3d,                   &
+          call output_ukca_diagnostics( config, n_req_ukca_diags_3d,                   &
                                         idiags_status_3d,                      &
                                         ukca_req_diagnames_fullht,             &
                                         diagnostics_fullht_real                &
@@ -1750,7 +1749,7 @@ contains
 
       ! Cloud condensation nuclei number concentrations and dust mass
       ! concentrations, computed only when requested
-      call output_diags_for_glomap_ccn( glomap_variables,                      &
+      call output_diags_for_glomap_ccn( config, glomap_variables,              &
                                         rho_in_wth,                            &
                                         n_ait_sol,                             &
                                         n_acc_sol,                             &

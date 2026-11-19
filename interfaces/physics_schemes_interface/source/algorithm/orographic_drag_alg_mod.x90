@@ -145,7 +145,7 @@ contains
                 setval_c(dtemp_orog_gwd, 0.0_r_def) )
 
     ! Initialise orographic drag diagnostics
-    call initialise_diags_for_orographic_drag(                              &
+    call initialise_diags_for_orographic_drag(config,&
                                 theta, u_in_w3,                             &
                                 taux_orog_blk, tauy_orog_blk,               &
                                 taux_orog_gwd, tauy_orog_gwd)

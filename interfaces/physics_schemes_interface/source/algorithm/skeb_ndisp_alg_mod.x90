@@ -262,11 +262,11 @@ module skeb_ndisp_alg_mod
     ! Stop SKEB timer
     if ( LPROF ) call stop_timing( id_stoch, 'stoch_phys.skeb')
     if ( LPROF ) call start_timing( id_diags, 'diags.skeb')
-    if (diagnostic_to_be_sampled('stochastic__norm_div')) then
+    if (diagnostic_to_be_sampled(config, 'stochastic__norm_div')) then
       call invoke( inc_a_times_X(K_amp, norm_gu) )
       call norm_gu%write_field('stochastic__norm_div')
     end if
-    if (diagnostic_to_be_sampled('stochastic__norm_xi')) then
+    if (diagnostic_to_be_sampled(config, 'stochastic__norm_xi')) then
       call invoke( inc_a_times_X(K_amp, norm_xi) )
       call norm_xi%write_field('stochastic__norm_xi')
     end if

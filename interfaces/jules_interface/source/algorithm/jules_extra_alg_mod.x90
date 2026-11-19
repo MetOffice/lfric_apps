@@ -231,11 +231,11 @@ contains
     call snow_fields%get_field('snow_unload_rate', snow_unload_rate)
 
     ! Initialise the snow diagnostics
-    call initialise_diags_for_jules_snow(soil_moist_sat,                       &
+    call initialise_diags_for_jules_snow(config, soil_moist_sat, &
                                          grid_snow_mass, grid_snowmelt)
 
     ! Initialise the soil diagnostics
-    call initialise_diags_for_jules_soil(soil_moist_sat,                       &
+    call initialise_diags_for_jules_soil(config, soil_moist_sat,               &
                                          tile_fraction,                        &
                                          soil_moisture_content,                &
                                          grid_canopy_water,                    &
@@ -307,7 +307,7 @@ contains
                                      inland_basin_flow)
 
       ! Output sea ice diagnostics
-      call output_diags_for_jules_seaice(tile_fraction, snowice_melt,          &
+      call output_diags_for_jules_seaice(config, tile_fraction, snowice_melt,          &
                                     sea_ice_thickness,                         &
                                     sea_ice_temperature, sea_ice_conductivity, &
                                     sea_ice_pensolar, melt_pond_fraction,      &

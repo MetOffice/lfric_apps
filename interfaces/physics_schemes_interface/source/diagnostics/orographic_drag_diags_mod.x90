@@ -10,6 +10,7 @@
 
 module orographic_drag_diags_mod
 
+  use config_mod,          only: config_type
   use constants_mod,       only: l_def
   use field_mod,           only: field_type
   use timing_mod,          only: start_timing, stop_timing, tik, LPROF
@@ -36,12 +37,14 @@ module orographic_drag_diags_mod
 contains
 
   !> @brief Initialise fields for locally-computed diagnostics
-  subroutine initialise_diags_for_orographic_drag(                          &
+  subroutine initialise_diags_for_orographic_drag(config,                   &
                                 theta, u1_in_w3,                            &
                                 taux_orog_blk, tauy_orog_blk,               &
                                 taux_orog_gwd, tauy_orog_gwd)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Fields passed in to copy properties from
     type( field_type ), intent(in)    :: theta, u1_in_w3
@@ -55,13 +58,13 @@ contains
     if ( LPROF ) call start_timing( id, 'diags.orog_gwd' )
 
     ! 3D fields in wtheta space
-    taux_orog_blk_flag = init_diag(taux_orog_blk, 'orographic_drag__taux_orog_blk')
+    taux_orog_blk_flag = init_diag(config, taux_orog_blk, 'orographic_drag__taux_orog_blk')
     if (taux_orog_blk_flag) call invoke( setval_c(taux_orog_blk, 0.0_r_def) )
-    tauy_orog_blk_flag = init_diag(tauy_orog_blk, 'orographic_drag__tauy_orog_blk')
+    tauy_orog_blk_flag = init_diag(config, tauy_orog_blk, 'orographic_drag__tauy_orog_blk')
     if (tauy_orog_blk_flag) call invoke( setval_c(tauy_orog_blk, 0.0_r_def) )
-    taux_orog_gwd_flag = init_diag(taux_orog_gwd, 'orographic_drag__taux_orog_gwd')
+    taux_orog_gwd_flag = init_diag(config, taux_orog_gwd, 'orographic_drag__taux_orog_gwd')
     if (taux_orog_gwd_flag) call invoke( setval_c(taux_orog_gwd, 0.0_r_def) )
-    tauy_orog_gwd_flag = init_diag(tauy_orog_gwd, 'orographic_drag__tauy_orog_gwd')
+    tauy_orog_gwd_flag = init_diag(config, tauy_orog_gwd, 'orographic_drag__tauy_orog_gwd')
     if (tauy_orog_gwd_flag) call invoke( setval_c(tauy_orog_gwd, 0.0_r_def) )
 
     if ( LPROF ) call stop_timing( id, 'diags.orog_gwd' )

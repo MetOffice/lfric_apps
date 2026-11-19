@@ -346,7 +346,7 @@ contains
     dz_wth           => get_dz_at_wtheta(config, mesh)
 
     ! Initialise diagnostics
-    call initialise_diags_for_bl_exp(zht, oblen, cape_undilute)
+    call initialise_diags_for_bl_exp(config, zht, oblen, cape_undilute)
 
     ! Fields from microphysics
     call dtheta_mphys%copy_field_properties(dtl_mphys)

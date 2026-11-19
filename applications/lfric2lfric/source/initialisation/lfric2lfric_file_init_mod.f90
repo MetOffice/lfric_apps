@@ -13,10 +13,7 @@ module lfric2lfric_file_init_mod
   use driver_modeldb_mod,     only: modeldb_type
   use file_mod,               only: FILE_MODE_READ,       &
                                     FILE_MODE_WRITE
-  use io_config_mod,          only: diagnostic_frequency, &
-                                    checkpoint_write,     &
-                                    checkpoint_read,      &
-                                    write_diag,           &
+  use io_config_mod,          only: write_diag,           &
                                     use_xios_io
   use lfric_xios_file_mod,    only: lfric_xios_file_type, &
                                     OPERATION_TIMESERIES
@@ -42,9 +39,11 @@ module lfric2lfric_file_init_mod
   !!          source_file_lbc extracted from the `lfric2lfric` namelist.
   !> @param [out]        files_list    The list of I/O files.
   !> @param [in,out]     modeldb       Required by init_io.
-  subroutine init_lfric2lfric_src_files( files_list, modeldb )
+  subroutine init_lfric2lfric_src_files( config, files_list, modeldb )
 
     implicit none
+
+    type(config_type),  intent(in) :: config
 
     type(linked_list_type),        intent(out)   :: files_list
     type(modeldb_type), optional,  intent(inout) :: modeldb
@@ -53,6 +52,10 @@ module lfric2lfric_file_init_mod
     character(len=str_max_filename) :: start_dump_filename
     character(len=str_max_filename) :: source_file_lbc
     character(len=str_max_filename) :: src_ancil_fname
+
+    integer(i_def) :: diagnostic_frequency
+
+    diagnostic_frequency = config%io%diagnostic_frequency()
 
     if ( use_xios_io ) then
 
@@ -101,9 +104,11 @@ module lfric2lfric_file_init_mod
   !!          the checkpoint_stem_name extracted from the `files` namelist.
   !> @param [out]        files_list    The list of I/O files.
   !> @param [in,out]     modeldb       Required by init_io.
-  subroutine init_lfric2lfric_dst_files( files_list, modeldb )
+  subroutine init_lfric2lfric_dst_files( config, files_list, modeldb )
 
     implicit none
+
+    type(config_type),  intent(in) :: config
 
     type(linked_list_type),        intent(out)   :: files_list
     type(modeldb_type), optional,  intent(inout) :: modeldb
@@ -115,6 +120,12 @@ module lfric2lfric_file_init_mod
     character(len=str_max_filename) :: dst_ancil_fname
     character(len=str_max_filename) :: checkpoint_stem_name
     character(len=str_max_filename) :: diag_stem_name
+
+    integer(i_def) :: diagnostic_frequency
+    logical(l_def) :: checkpoint_write
+
+    diagnostic_frequency = config%io%diagnostic_frequency()
+    checkpoint_write     = config%io%checkpoint_write()
 
     if ( use_xios_io ) then
 

@@ -199,7 +199,7 @@ contains
 
     call orography_fields%get_field('sd_orog', sd_orog)
 
-    call initialise_diags_for_mphys(superc_liq, superc_rain,                   &
+    call initialise_diags_for_mphys(config, superc_liq, superc_rain,           &
                                     sfwater, sfrain, sfsnow,                   &
                                     refl_tot, refl_1km)
 
@@ -274,7 +274,8 @@ contains
     ! Output microphysics diagnostics
     if (write_diag .and. use_xios_io) then
 
-        call output_diags_for_mphys( exner_in_wth,                 &
+        call output_diags_for_mphys( config,&
+                                     exner_in_wth,                 &
                                      dtheta_mphys,                 &
                                      dmr_mphys(imr_v),             &
                                      dmr_mphys(imr_cl),            &

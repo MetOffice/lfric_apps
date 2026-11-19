@@ -146,7 +146,6 @@ contains
                                            dt,                                 &
                                            alpha,                              &
                                            outer_iterations,                   &
-                                           inner_iterations_si,                &
                                            inner_iterations_tr,                &
                                            inner_iterations_bdf2
     use mesh_mod,                    only: geometry_spherical,                 &
@@ -168,12 +167,18 @@ contains
                             preconditioner_tridiagonal
     implicit none
 
-      class(modeldb_type),  intent(in) :: modeldb
+      class(modeldb_type), target, intent(in) :: modeldb
 
       logical(kind=l_def) :: any_scheme_mol, any_horz_dep_pts
       integer(kind=i_def) :: i, dry_field_splitting
 
+      type(config_type), pointer :: config
+
+      integer(i_def), allocatable :: inner_iterations_si(:)
+
       call log_event( 'Checking gungho configuration...', LOG_LEVEL_INFO )
+
+      config => modeldb%config
 
       ! Check the options in the finite element namelist
       if ( cellshape == cellshape_triangle ) then
@@ -271,6 +276,8 @@ contains
           outer_iterations
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end if
+
+        inner_iterations_si = size(config%timestepping%inner_iterations_si())
         if ( SIZE(inner_iterations_si) /= outer_iterations ) then
           write( log_scratch_space, '(A,I4,A,I4)' ) 'Invalid Options: ' //     &
             'inner_iterations_si has size ', SIZE(inner_iterations_si),        &

@@ -7,6 +7,7 @@
 
 module um_radaer_lut_init_mod
 
+  use config_mod,                only : config_type
   use constants_mod,             only : r_um
   use aerosol_config_mod,        only : aclw_file,                 &
                                         acsw_file,                 &
@@ -22,8 +23,9 @@ module um_radaer_lut_init_mod
                                         glomap_mode_ukca,          &
                                         l_radaer,                  &
                                         prec_file
-  use section_choice_config_mod, only : aerosol, &
-                                        aerosol_um
+
+  use section_choice_config_mod, only : aerosol_um
+
   use socrates_init_mod,         only : sw_wavelength_short, &
                                         sw_wavelength_long,  &
                                         lw_wavelength_short, &
@@ -50,11 +52,13 @@ contains
   !>@details  Read all the lut namelist files and populate the UM to ukca_lut
   !>          structure.
 
-  subroutine um_radaer_lut_init()
+  subroutine um_radaer_lut_init(config)
 
     use filenamelength_mod, only: filenamelength
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Local variables
 
@@ -62,7 +66,7 @@ contains
 
     dummy_file = 'unset'
 
-    if ( aerosol == aerosol_um ) then
+    if ( config%section_choice%aerosol() == aerosol_um ) then
 
       select case (glomap_mode)
       case( glomap_mode_climatology,   &

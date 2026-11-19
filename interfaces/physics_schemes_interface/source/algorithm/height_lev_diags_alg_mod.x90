@@ -74,13 +74,13 @@ contains
 
     integer(tik) :: id
 
-    u50m_flag = init_diag(u50m, 'processed__u50m')
-    v50m_flag = init_diag(v50m, 'processed__v50m')
+    if ( LPROF ) call start_timing( id, 'diags.height_levels' )
+
+    u50m_flag = init_diag(config, u50m, 'processed__u50m')
+    v50m_flag = init_diag(config, v50m, 'processed__v50m')
 
     if (.not. (u50m_flag .or. v50m_flag)) return
     if (.not. use_xios_io) return
-
-    if ( LPROF ) call start_timing( id, 'diags.height_levels' )
 
     call derived_fields%get_field('u_in_w3', u_in_w3)
     call derived_fields%get_field('v_in_w3', v_in_w3)

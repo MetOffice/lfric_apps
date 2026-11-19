@@ -95,8 +95,8 @@ contains
     type( field_type ), intent(in)            :: rho
     type( field_type ), intent(in)            :: mr(nummr)
 
-    type( mesh_type ), intent(in), pointer    :: mesh
-    type( mesh_type ), intent(in), pointer    :: twod_mesh
+    type( mesh_type ), intent(in)             :: mesh
+    type( mesh_type ), intent(in)             :: twod_mesh
 
     real( kind=r_def ), intent(out)           :: total_energy
 

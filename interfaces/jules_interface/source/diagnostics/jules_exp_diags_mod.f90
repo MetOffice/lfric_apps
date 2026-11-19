@@ -7,6 +7,8 @@
 
 module jules_exp_diags_mod
 
+  use config_mod, only: config_type
+
   use constants_mod,       only: l_def
   use field_mod,           only: field_type
   use integer_field_mod,   only: integer_field_type
@@ -41,11 +43,11 @@ contains
   !> @param[inout] soil_respiration   Soil heterotrophic respiration
   !> @param[inout] chr10m             10m transfer coefficient
   !> @param[in]    mesh               3D mesh field
-  subroutine initialise_diags_for_jules_exp(z0h_eff, gross_prim_prod, &
+  subroutine initialise_diags_for_jules_exp(config, z0h_eff, gross_prim_prod, &
                                             soil_respiration, chr10m, mesh)
 
     implicit none
-
+type(config_type), intent(in) :: config
     type( field_type ), intent(inout) :: z0h_eff
     type( field_type ), intent(inout) :: gross_prim_prod
     type( field_type ), intent(inout) :: soil_respiration
@@ -59,9 +61,9 @@ contains
 
     if ( LPROF ) call start_timing( id, 'diags.jules_exp' )
 
-    z0h_eff_flag = init_diag(z0h_eff, 'surface__z0h_eff')
-    gross_prim_prod_flag = init_diag(gross_prim_prod, 'surface__gross_prim_prod')
-    soil_respiration_flag = init_diag(soil_respiration, 'surface__soil_respiration')
+    z0h_eff_flag = init_diag(config, z0h_eff, 'surface__z0h_eff')
+    gross_prim_prod_flag = init_diag(config, gross_prim_prod, 'surface__gross_prim_prod')
+    soil_respiration_flag = init_diag(config, soil_respiration, 'surface__soil_respiration')
     ! chr10m is required if either t10m_ssi or q10m_ssi are requested
     ! but needed as an empty field otherwise
     twod_mesh => mesh_collection%get_mesh(mesh, TWOD)

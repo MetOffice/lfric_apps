@@ -17,7 +17,6 @@ module linear_map_fd_alg_mod
   use integer_field_mod,               only: integer_field_type
   use field_collection_mod,            only: field_collection_type
   use driver_modeldb_mod,              only: modeldb_type
-  use initialization_config_mod,       only: read_w2h_wind
   use combine_w2_field_kernel_mod,     only: combine_w2_field_kernel_type
   use map_fd_to_prognostics_alg_mod,   only: set_wind
   use sci_field_minmax_alg_mod,        only: log_field_minmax
@@ -78,6 +77,10 @@ contains
     type(field_array_type),      pointer :: moist_dyn_array => null()
     type(integer_field_type),    pointer :: face_selector_ew => null()
     type(integer_field_type),    pointer :: face_selector_ns => null()
+
+    logical(l_def) :: read_w2h_wind
+
+    read_w2h_wind = modeldb%config%initialization%read_w2h_wind()
 
     prognostic_fields => modeldb%fields%get_field_collection(&
                                           "prognostic_fields")

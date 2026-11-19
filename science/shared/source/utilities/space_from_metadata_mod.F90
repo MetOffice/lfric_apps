@@ -11,6 +11,7 @@ module space_from_metadata_mod
                                              log_scratch_space, &
                                              log_level_trace,   &
                                              log_level_error
+  use config_mod,                   only: config_type
   use constants_mod,                   only: i_def, l_def, str_def
   use mesh_mod,                        only: mesh_type
   use fs_continuity_mod,               only: W3,                      &
@@ -29,7 +30,6 @@ module space_from_metadata_mod
                                                   get_multidata_field_dimension
   use extrusion_mod,                   only: TWOD
   use mesh_collection_mod,             only: mesh_collection
-  use base_mesh_config_mod,            only: prime_mesh_name
 
   implicit none
 
@@ -228,13 +228,15 @@ contains
   !> @param[in, optional] force_order_v    Override function space order in
   !!                                       vertical
   !> @return                               Function space returned
-  function space_from_metadata(xios_id,                                    &
+  function space_from_metadata(config, xios_id,                            &
                                mesh_3d, mesh_2d, force_mesh,               &
                                force_rad_levels, force_order_h,            &
                                force_order_v, force_ndata) &
                                result(vector_space)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     character(*),                       intent(in)  :: xios_id
     type(mesh_type), pointer, optional, intent(in)  :: mesh_3d
@@ -260,6 +262,8 @@ contains
     type(mesh_type), pointer            :: this_mesh
     type(function_space_type), pointer  :: vector_space
 
+    character(str_def)  :: prime_mesh_name
+
 #ifdef UNIT_TEST
     diag_mesh_3d => mesh_collection%get_mesh('test mesh: planar bi-periodic')
     diag_mesh_2d => mesh_collection%get_mesh('test mesh: planar bi-periodic')
@@ -268,7 +272,9 @@ contains
     if (present(mesh_3d)) then
       diag_mesh_3d => mesh_3d
     else
-      ! default to prime_mesh
+      ! default to prime_mesh, needs to be removed, mesh should be passed in
+      ! and not assumed
+      prime_mesh_name = config%base_mesh%prime_mesh_name()
       diag_mesh_3d => mesh_collection%get_mesh(prime_mesh_name)
     endif
     if (present(mesh_2d)) then
@@ -325,7 +331,7 @@ contains
       if (axis_ref == "") then
         ndata = 1
       else
-        ndata = get_ndata(axis_ref)
+        ndata = get_ndata(config, axis_ref)
       end if
     case (planar)
       ! scalar field on 2d mesh
@@ -335,7 +341,7 @@ contains
       ndata = 1
     case (vanilla_multi)
       ! multidata field on 3d mesh
-      ndata = get_ndata(axis_ref)
+      ndata = get_ndata(config, axis_ref)
     case default
       call log_event("unexpected flavour: " // flavour, log_level_error)
     end select

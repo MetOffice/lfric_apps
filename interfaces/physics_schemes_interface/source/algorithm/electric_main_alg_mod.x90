@@ -97,7 +97,7 @@ contains
     call electric_fields%get_field('flash_potential', flash_potential)
     call flash_potential%copy_field_properties(num_flashes_2d)
 
-    call initialise_main_diags_for_electric( gwp_2d, tiwp_2d,                  &
+    call initialise_main_diags_for_electric( config, gwp_2d, tiwp_2d,          &
                                              total_flash_rate_2d,              &
                                              fr1_mc_2d, fr2_mc_2d,             &
                                              storm_field_2d)

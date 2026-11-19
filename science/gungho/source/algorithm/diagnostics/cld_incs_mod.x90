@@ -6,6 +6,7 @@
 !> @brief Save and output cloud fields for increment diagnostics
 module cld_incs_mod
 
+  use config_mod,             only: config_type
   use constants_mod,             only: str_def, r_def
   use field_collection_mod,      only: field_collection_type
   use field_mod,                 only: field_type
@@ -22,10 +23,10 @@ contains
   !> @param[out]    dbcf_x       Bulk fraction at current point
   !> @param[in]     section      Name of the diagnostic group
   !> @param[in]     suffix       Suffix in name of the individual diagnostic
-  subroutine cld_incs_init(cloud_fields, dcfl_x, dcff_x, dbcf_x, section, suffix)
+  subroutine cld_incs_init(config, cloud_fields, dcfl_x, dcff_x, dbcf_x, section, suffix)
 
     implicit none
-
+type(config_type), intent(in) :: config
     character(str_def), intent(in) :: section, suffix
     type( field_collection_type ), intent(inout) :: cloud_fields
     type(field_type), intent(out) :: dbcf_x, dcfl_x, dcff_x
@@ -34,17 +35,17 @@ contains
     type( field_type ), pointer :: frozen_fraction
     type( field_type ), pointer :: bulk_fraction
 
-    if (init_diag(dcfl_x, trim(section)//'__dcfl_'//trim(suffix))) then
+    if (init_diag(config, dcfl_x, trim(section)//'__dcfl_'//trim(suffix))) then
       call cloud_fields%get_field('liquid_fraction', liquid_fraction)
       call invoke(a_times_X(dcfl_x, -1.0_r_def, liquid_fraction))
     end if
 
-    if (init_diag(dcff_x, trim(section)//'__dcff_'//trim(suffix))) then
+    if (init_diag(config, dcff_x, trim(section)//'__dcff_'//trim(suffix))) then
       call cloud_fields%get_field('frozen_fraction', frozen_fraction)
       call invoke(a_times_X(dcff_x, -1.0_r_def, frozen_fraction))
     end if
 
-    if (init_diag(dbcf_x, trim(section)//'__dbcf_'//trim(suffix))) then
+    if (init_diag(config, dbcf_x, trim(section)//'__dbcf_'//trim(suffix))) then
       call cloud_fields%get_field('bulk_fraction', bulk_fraction)
       call invoke(a_times_X(dbcf_x, -1.0_r_def, bulk_fraction))
     end if
@@ -57,10 +58,10 @@ contains
   !> @param[out]    dbcf_x       Bulk fraction at current point
   !> @param[in]     section      Name of the diagnostic group
   !> @param[in]     suffix       Suffix in name of the individual diagnostic
-  subroutine cld_incs_output(cloud_fields, dcfl_x, dcff_x, dbcf_x, section, suffix)
+  subroutine cld_incs_output(config, cloud_fields, dcfl_x, dcff_x, dbcf_x, section, suffix)
 
     implicit none
-
+type(config_type), intent(in) :: config
     character(str_def), intent(in) :: section, suffix
     type( field_collection_type ), intent(inout) :: cloud_fields
     type(field_type), intent(inout) :: dbcf_x, dcfl_x, dcff_x
@@ -69,19 +70,19 @@ contains
     type( field_type ), pointer :: frozen_fraction
     type( field_type ), pointer :: bulk_fraction
 
-    if (samp_diag(trim(section)//'__dcfl_'//trim(suffix))) then
+    if (samp_diag(config, trim(section)//'__dcfl_'//trim(suffix))) then
       call cloud_fields%get_field('liquid_fraction', liquid_fraction)
       call invoke(inc_X_plus_Y(dcfl_x, liquid_fraction))
       call dcfl_x%write_field()
     end if
 
-    if (samp_diag(trim(section)//'__dcff_'//trim(suffix))) then
+    if (samp_diag(config, trim(section)//'__dcff_'//trim(suffix))) then
       call cloud_fields%get_field('frozen_fraction', frozen_fraction)
       call invoke(inc_X_plus_Y(dcff_x, frozen_fraction))
       call dcff_x%write_field()
     end if
 
-    if (samp_diag(trim(section)//'__dbcf_'//trim(suffix))) then
+    if (samp_diag(config, trim(section)//'__dbcf_'//trim(suffix))) then
       call cloud_fields%get_field('bulk_fraction', bulk_fraction)
       call invoke(inc_X_plus_Y(dbcf_x, bulk_fraction))
       call dbcf_x%write_field()

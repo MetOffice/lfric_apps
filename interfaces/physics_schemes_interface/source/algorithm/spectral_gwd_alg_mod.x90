@@ -123,7 +123,7 @@ contains
     call ls_rain%copy_field_properties(totalppn)
 
      ! Initialise diagnostics
-     call initialise_diags_for_spectral_gwd(                   &
+     call initialise_diags_for_spectral_gwd(config,            &
                                 theta, tau_east_spectral_gwd,  &
                                 tau_south_spectral_gwd,        &
                                 tau_west_spectral_gwd,         &

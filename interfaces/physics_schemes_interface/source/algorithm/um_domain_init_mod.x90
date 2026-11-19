@@ -15,10 +15,9 @@ module um_domain_init_mod
                                           planet_radius
   use nlsizes_namelist_mod,        only : bl_levels
   use cloud_config_mod,            only : use_fsd_eff_res
-  use section_choice_config_mod,   only : microphysics,      &
-                                          microphysics_um,   &
-                                          radiation,         &
-                                          radiation_socrates
+
+  use section_choice_config_mod, only: microphysics_um, &
+                                       radiation_socrates
 
   ! Other modules used
   use constants_mod,               only : i_um, r_um, rmdi, i_def, r_def
@@ -67,6 +66,12 @@ contains
     integer(i_def) :: k
     integer(i_def) :: n_cells, n_panels, cells_per_panel, cells_per_side
     type(local_mesh_type), pointer :: local_mesh => null()
+
+    integer(i_def) :: microphysics
+    integer(i_def) :: radiation
+
+    microphysics = config%section_choice%microphysics()
+    radiation    = config%section_choice%radiation()
 
     ! The following 3D arrays are used direct from level_heights_mod
     ! throughout the UM code.

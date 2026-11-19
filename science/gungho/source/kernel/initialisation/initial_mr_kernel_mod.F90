@@ -14,7 +14,8 @@
 module initial_mr_kernel_mod
 
   use argument_mod,                  only: arg_type, func_type,       &
-                                           GH_FIELD, GH_REAL,         &
+                                           GH_FIELD, GH_INTEGER,      &
+                                           GH_REAL,                   &
                                            GH_SCALAR, GH_BASIS,       &
                                            GH_WRITE, GH_READ,         &
                                            ANY_SPACE_9,               &
@@ -23,7 +24,7 @@ module initial_mr_kernel_mod
   use fs_continuity_mod,             only: W3, Wtheta
   use constants_mod,                 only: r_def, i_def
   use kernel_mod,                    only: kernel_type
-  use section_choice_config_mod,     only: cloud, cloud_um
+  use section_choice_config_mod,     only: cloud_um
   use idealised_config_mod,          only: test, test_bryan_fritsch, &
                                            test_grabowski_clark, &
                                            test_isot_dry_atm
@@ -43,7 +44,8 @@ module initial_mr_kernel_mod
   !> The type declaration for the kernel. Contains the metadata needed by the Psy layer
   type, public, extends(kernel_type) :: initial_mr_kernel_type
     private
-    type(arg_type) :: meta_args(9) = (/                                      &
+    type(arg_type) :: meta_args(10) = (/                                     &
+         arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),                          &
          arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                    &
          arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                        &
          arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                        &
@@ -72,6 +74,7 @@ contains
 
   !> @brief The subroutine which is called directly by the Psy layer
   !! @param[in] nlayers Integer the number of layers
+  !! @param[in] cloud Enumeration
   !! @param[in] theta Potential temperature
   !! @param[in] exner Exner pressure variable
   !! @param[in] rho Density of dry air
@@ -101,7 +104,7 @@ contains
   !! @param[in] ndf_pid  Number of degrees of freedom per cell for panel_id
   !! @param[in] undf_pid Number of unique degrees of freedom for panel_id
   !! @param[in] map_pid  Dofmap for the cell at the base of the column for panel_id
-  subroutine initial_mr_code(nlayers, theta, exner, rho,            &
+  subroutine initial_mr_code(nlayers, cloud, theta, exner, rho,     &
                              mr_v, mr_cl, mr_r, mr_ci, mr_s, mr_g,  &
                              chi_1, chi_2, chi_3,                   &
                              panel_id,                              &
@@ -128,6 +131,10 @@ contains
 
     real(kind=r_def), dimension(undf_wtheta), intent(inout) :: mr_v, mr_cl, mr_r
     real(kind=r_def), dimension(undf_wtheta), intent(inout) :: mr_ci, mr_s, mr_g
+
+
+    integer(i_def), intent(in) :: cloud
+
     real(kind=r_def), dimension(undf_wtheta), intent(in)    :: theta
     real(kind=r_def), dimension(undf_w3),     intent(in)    :: exner
     real(kind=r_def), dimension(undf_w3),     intent(in)    :: rho

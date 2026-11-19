@@ -13,7 +13,7 @@ module process_inputs_alg_mod
   use mesh_mod,             only: mesh_type
   use mesh_collection_mod,  only: mesh_collection
   use integer_field_mod,    only: integer_field_type
-  use constants_mod,        only: i_def
+  use constants_mod,        only: i_def, l_def
 
   use initialization_config_mod,  only: sst_source, sst_source_start_dump, &
                                         init_option, init_option_fd_start_dump, &
@@ -21,9 +21,7 @@ module process_inputs_alg_mod
                                         sea_ice_source, &
                                         sea_ice_source_start_dump, &
                                         sea_ice_source_surf
-  use io_config_mod,              only: checkpoint_read
-  use section_choice_config_mod,  only: surface, surface_jules, &
-                                        radiation, radiation_socrates
+  use section_choice_config_mod,  only: surface_jules, radiation_socrates
   use radiation_config_mod,       only: topography, topography_flat, &
                                         topography_horizon, &
                                         n_horiz_ang, n_horiz_layer
@@ -140,6 +138,10 @@ contains
 
     integer( i_def ) :: n_horizon_angle, n_horizon_layer
 
+    logical(l_def) :: checkpoint_read
+
+    checkpoint_read = config%io%checkpoint_read()
+
     if (checkpoint_read) then
       ! This algorithm should only be called on a new run
       ! i.e. checkpoint_read==.false.)
@@ -149,7 +151,7 @@ contains
       call log_event(log_scratch_space, LOG_LEVEL_ERROR)
     end if
 
-    if (surface == surface_jules) then
+    if (config%section_choice%surface() == surface_jules) then
 
       ! Only needed on cold start from UM
       if (init_option == init_option_fd_start_dump) then
@@ -317,7 +319,7 @@ contains
 
     end if
 
-    if (radiation == radiation_socrates .and. &
+    if (config%section_choice%radiation() == radiation_socrates .and. &
         topography /= topography_flat .and. &
         init_option == init_option_fd_start_dump) then
 

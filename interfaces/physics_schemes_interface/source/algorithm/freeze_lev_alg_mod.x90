@@ -49,7 +49,7 @@ contains
     type( field_type ) :: freeze_lev
     type( field_type), pointer :: height_wth
 
-    if (init_diag(freeze_lev, 'processed__freeze_lev') .and. use_xios_io) then
+    if (init_diag(config, freeze_lev, 'processed__freeze_lev') .and. use_xios_io) then
 
       height_wth => get_height_fv(config, theta%get_mesh(), Wtheta)
 

@@ -28,28 +28,28 @@ module gungho_init_fields_mod
   use driver_modeldb_mod,                 only : modeldb_type
   use gungho_time_axes_mod,               only : gungho_time_axes_type, &
                                                  get_time_axes_from_collection
+
+  use config_mod, only: config_type
+
   use constants_mod,                      only : i_def, l_def, r_def, str_def, &
-                                                 r_second
+                                                 r_second, str_max_filename
   use log_mod,                            only : log_event,       &
                                                  LOG_LEVEL_INFO,  &
                                                  LOG_LEVEL_ERROR, &
                                                  LOG_LEVEL_DEBUG, &
                                                  log_scratch_space
   use mesh_mod,                           only : mesh_type, geometry_spherical
-  use files_config_mod,                   only : checkpoint_stem_name
   use formulation_config_mod,             only : use_physics
   use section_choice_config_mod,          only : iau,                         &
                                                  iau_sst,                     &
                                                  iau_surf,                    &
-                                                 cloud, cloud_none,           &
-                                                 stochastic_physics,          &
                                                  stochastic_physics_um
+
   use initialization_config_mod,          only : init_option,                 &
                                                  init_option_analytic,        &
                                                  init_option_fd_start_dump,   &
                                                  init_option_checkpoint_dump, &
                                                  init_option_fe_start_dump,   &
-                                                 ancil_option,                &
                                                  ancil_option_none,           &
                                                  ancil_option_start_dump,     &
                                                  ancil_option_fixed,          &
@@ -65,9 +65,7 @@ module gungho_init_fields_mod
                                                  sst_source_start_dump,       &
                                                  snow_source,                 &
                                                  snow_source_surf
-  use io_config_mod,                      only : checkpoint_read,  &
-                                                 checkpoint_write, &
-                                                 checkpoint_times, &
+  use io_config_mod,                      only : checkpoint_times, &
                                                  end_of_run_checkpoint, &
                                                  write_dump
   use lfric_xios_read_mod,                only : read_checkpoint,  &
@@ -149,7 +147,8 @@ module gungho_init_fields_mod
   use dust_parameters_mod,                only: rhop_def
   use aerosol_config_mod,                 only : glomap_mode, &
                                                  glomap_mode_dust_and_clim
-  use section_choice_config_mod,          only : aerosol, aerosol_um
+!  use section_choice_config_mod,          only : aerosol, aerosol_um
+  use section_choice_config_mod,          only : aerosol_um
   use dust_transform_kernel_mod,          only: dust_transform_kernel_type
 #endif
 
@@ -336,7 +335,7 @@ subroutine create_model_data( modeldb,           &
 
     implicit none
 
-    type( modeldb_type ), intent(inout)       :: modeldb
+    type( modeldb_type ), intent(inout), target :: modeldb
     type( mesh_type ),    intent(in), pointer :: mesh
     type( mesh_type ),    intent(in), pointer :: twod_mesh
     type( mesh_type ),    intent(in), pointer :: aerosol_mesh
@@ -384,6 +383,17 @@ subroutine create_model_data( modeldb,           &
 
     integer(i_def) :: theta_forcing
     integer(i_def) :: wind_forcing
+    integer(i_def) :: ancil_option
+    logical(l_def) :: checkpoint_read
+    logical(l_def) :: checkpoint_write
+
+    type(config_type), pointer :: config
+
+    config => modeldb%config
+    ancil_option     = config%initialization%ancil_option()
+    checkpoint_read  = config%io%checkpoint_read()
+    checkpoint_write = config%io%checkpoint_write()
+
     !-------------------------------------------------------------------------
     ! Select how to initialize model prognostic fields
     !-------------------------------------------------------------------------
@@ -509,13 +519,15 @@ subroutine create_model_data( modeldb,           &
                             model_axes )
 
     ! Create gungho prognostics and auxiliary (diagnostic) fields
-    call create_gungho_prognostics( mesh,                             &
+    call create_gungho_prognostics( config,                   &
+                                    mesh,                             &
                                     twod_mesh,                        &
                                     field_mapper,                     &
                                     modeldb%clock )
 
     if (limited_area) then
-      call create_lbc_fields( mesh, twod_mesh, field_mapper, modeldb%clock )
+      call create_lbc_fields( config, mesh, twod_mesh, &
+                              field_mapper, modeldb%clock )
     end if
 
     if ( iau ) call create_iau_fields( mesh, twod_mesh,                      &
@@ -524,8 +536,8 @@ subroutine create_model_data( modeldb,           &
                                        modeldb )
     ! Setup fields for nudging, if external forcing is specified
     if ( external_forcing_is_loaded() ) then
-      theta_forcing = modeldb%config%external_forcing%theta_forcing()
-      wind_forcing = modeldb%config%external_forcing%wind_forcing()
+      theta_forcing = config%external_forcing%theta_forcing()
+      wind_forcing = config%external_forcing%wind_forcing()
 
       if ( wind_forcing == wind_forcing_nudging .or.                           &
            theta_forcing == theta_forcing_nudging ) then
@@ -537,7 +549,8 @@ subroutine create_model_data( modeldb,           &
 
     ! Create prognostics used by physics
     if (use_physics) then
-      call create_physics_prognostics( mesh, twod_mesh, field_mapper, modeldb%clock )
+      call create_physics_prognostics( config, mesh, twod_mesh, &
+                                       field_mapper, modeldb%clock )
 
     end if
 
@@ -559,7 +572,7 @@ subroutine create_model_data( modeldb,           &
 
     implicit none
 
-    type( modeldb_type ), intent(inout)       :: modeldb
+    type( modeldb_type ), intent(inout), target  :: modeldb
     type( mesh_type ),    intent(in), pointer :: mesh
     type( mesh_type ),    intent(in), pointer :: twod_mesh
     type( mesh_type ),    intent(in), pointer :: aerosol_mesh
@@ -569,6 +582,10 @@ subroutine create_model_data( modeldb,           &
     type(field_collection_type), pointer :: fd_fields
     type(field_collection_type), pointer :: ancil_fields
     type(gungho_time_axes_type), pointer :: model_axes
+
+    type(config_type), pointer :: config
+
+    config => modeldb%config
 
     model_axes => get_time_axes_from_collection(modeldb%values, "model_axes" )
     depository => modeldb%fields%get_field_collection("depository")
@@ -580,7 +597,8 @@ subroutine create_model_data( modeldb,           &
       ! Create FD prognostic fields
       select case ( prognostic_init_choice )
         case ( init_option_fd_start_dump )
-          call create_fd_prognostics(mesh, twod_mesh,       &
+          call create_fd_prognostics(config,        &
+                                     mesh, twod_mesh,       &
                                      fd_fields,             &
                                      depository)
       end select
@@ -588,14 +606,16 @@ subroutine create_model_data( modeldb,           &
       ! Create and populate collection of fields to be read from ancillary files
       select case ( ancil_choice )
         case ( ancil_option_fixed, ancil_option_updating )
-          call create_fd_ancils( depository,                      &
+          call create_fd_ancils( config,                  &
+                                 depository,                      &
                                  ancil_fields,                    &
                                  mesh, twod_mesh ,                &
                                  aerosol_mesh,                    &
                                  aerosol_twod_mesh,               &
                                  model_axes%ancil_times_list )
         case ( ancil_option_idealised )
-          call create_fd_ancils_idealised( depository, &
+          call create_fd_ancils_idealised( config, &
+                                           depository, &
                                            ancil_fields, &
                                            mesh, twod_mesh )
       end select
@@ -614,9 +634,9 @@ subroutine create_model_data( modeldb,           &
 
     implicit none
 
-    type(modeldb_type), intent(inout) :: modeldb
-    type( mesh_type ),  intent(in), pointer :: mesh
-    type( mesh_type ),  intent(in), pointer :: twod_mesh
+    type(modeldb_type), intent(inout), target :: modeldb
+    type(mesh_type),    intent(in)    :: mesh
+    type(mesh_type),    intent(in)    :: twod_mesh
 
     type( field_type ), pointer :: theta => null()
     type( field_type ), pointer :: rho   => null()
@@ -684,12 +704,33 @@ subroutine create_model_data( modeldb,           &
     integer(i_def) :: theta_forcing
     integer(i_def) :: wind_forcing
 
+    character(str_max_filename) :: checkpoint_stem_name
+
+    logical(l_def) :: checkpoint_read
+    logical(l_def) :: checkpoint_write
+
     integer(i_def) :: i
+
+    integer(i_def) :: ancil_option, stochastic_physics, aerosol
+
 #ifdef UM_PHYSICS
     integer(i_def) :: ensemble_number
     real(r_def), allocatable :: power_law(:)
     procedure(regridder), pointer :: regrid_operation => null()
+#endif
 
+    type(config_type), pointer :: config
+
+    config => modeldb%config
+
+    checkpoint_stem_name = config%files%checkpoint_stem_name()
+    ancil_option         = config%initialization%ancil_option()
+    checkpoint_read      = config%io%checkpoint_read()
+    checkpoint_write     = config%io%checkpoint_write()
+    stochastic_physics   = config%section_choice%stochastic_physics()
+    aerosol              = config%section_choice%aerosol()
+
+#ifdef UM_PHYSICS
     regrid_operation => map_scalar_intermesh
 #endif
 
@@ -730,7 +771,7 @@ subroutine create_model_data( modeldb,           &
     ! Initialise all the physics fields here. We'll then re initialise
     ! them below if need be
     if (use_physics) then
-          call init_physics_prognostics_alg( modeldb%config,      &
+          call init_physics_prognostics_alg( config,      &
                                              radiation_fields,    &
                                              microphysics_fields, &
                                              electric_fields,     &
@@ -797,7 +838,7 @@ subroutine create_model_data( modeldb,           &
         ! Initialise prognostics analytically according to
         ! namelist options
 
-        call init_gungho_prognostics( modeldb%config,    &
+        call init_gungho_prognostics( config,    &
                                       prognostic_fields, &
                                       mr_array%bundle,   &
                                       moist_dyn_array%bundle )
@@ -826,7 +867,7 @@ subroutine create_model_data( modeldb,           &
           call init_fd_prognostics_dump( fd_fields )
 
           ! Populate prognostics from input finite difference fields
-          call map_fd_to_prognostics( modeldb%config,         &
+          call map_fd_to_prognostics( config,         &
                                       prognostic_fields,      &
                                       mr_array%bundle,        &
                                       moist_dyn_array%bundle, &
@@ -889,13 +930,13 @@ subroutine create_model_data( modeldb,           &
                                        lbc_fields, modeldb )
 
         case ( lbc_option_gungho_file )
-          call init_lbcs_file_alg( modeldb%config,            &
+          call init_lbcs_file_alg( config,            &
                                    model_axes%lbc_times_list, &
                                    modeldb%clock,             &
                                    lbc_fields )
 
         case ( lbc_option_um2lfric_file )
-          call init_lbcs_file_alg( modeldb%config,            &
+          call init_lbcs_file_alg( config,            &
                                    model_axes%lbc_times_list, &
                                    modeldb%clock,             &
                                    lbc_fields )
@@ -928,7 +969,7 @@ subroutine create_model_data( modeldb,           &
       if (.not. checkpoint_read .and. zero_w2v_wind) then
         call set_any_dof_alg(u, T, 0.0_r_def)
       end if
-      call map_physics_fields_alg(modeldb%config, u,      &
+      call map_physics_fields_alg(config, u,      &
                                   exner, rho, theta,      &
                                   moist_dyn_array%bundle, &
                                   derived_fields)
@@ -936,8 +977,8 @@ subroutine create_model_data( modeldb,           &
 
       ! Initialise reading of nudging fields, if external forcing is specified
       if ( external_forcing_is_loaded() ) then
-        theta_forcing = modeldb%config%external_forcing%theta_forcing()
-        wind_forcing = modeldb%config%external_forcing%wind_forcing()
+        theta_forcing = config%external_forcing%theta_forcing()
+        wind_forcing = config%external_forcing%wind_forcing()
 
         if ( wind_forcing == wind_forcing_nudging .or.                         &
              theta_forcing == theta_forcing_nudging ) then
@@ -952,7 +993,7 @@ subroutine create_model_data( modeldb,           &
       ! Initialise Casim numbers if they aren't coming from an LFRic dump
       if (microphysics_casim .and. &
            ( prognostic_init_choice /= init_option_checkpoint_dump ) ) then
-        call casim_activate_alg( modeldb%config,                           &
+        call casim_activate_alg( config,                           &
                                  theta, mr_array%bundle,                   &
                                  mr_array%bundle(imr_cl),                  &
                                  derived_fields,                           &
@@ -985,7 +1026,7 @@ subroutine create_model_data( modeldb,           &
             if (init_option == init_option_fd_start_dump) then
                  call read_state( ancil_fields )
             end if
-            call process_inputs_alg( modeldb%config, &
+            call process_inputs_alg( config, &
                                      ancil_fields,   &
                                      fd_fields,      &
                                      surface_fields, &
@@ -1018,7 +1059,7 @@ subroutine create_model_data( modeldb,           &
           end if
 
           ! Urban fields need calculating even on checkpoint-read
-          call process_urban_alg(surface_fields)
+          call process_urban_alg(config, surface_fields)
           call surface_fields%remove_field("urbemisw")
           call depository%remove_field("urbemisw")
           call surface_fields%remove_field("urbemisr")
@@ -1082,9 +1123,9 @@ subroutine create_model_data( modeldb,           &
 
       ! Initialise energy correction
       if ( encorr_usage /= encorr_usage_none ) then
-        call compute_total_mass_alg( modeldb%config, total_dry_mass, rho, mesh )
+        call compute_total_mass_alg( config, total_dry_mass, rho, mesh )
 
-        call compute_total_energy_alg( modeldb%config,        &
+        call compute_total_energy_alg( config,        &
                                        total_energy_previous, &
                                        derived_fields,        &
                                        u, theta, exner, rho,  &
@@ -1230,9 +1271,22 @@ subroutine create_model_data( modeldb,           &
     integer(i_def), allocatable :: ranseed(:)
     real(r_second), allocatable :: all_checkpoint_times(:)
 
+    character(str_max_filename) :: checkpoint_stem_name
+    logical(l_def)              :: checkpoint_write
+    integer(i_def)              :: stochastic_physics
+
+    type(config_type), pointer :: config
+
+    config => modeldb%config
+
+    checkpoint_write     = config%io%checkpoint_write()
+    checkpoint_stem_name = config%files%checkpoint_stem_name()
+    stochastic_physics   = config%section_choice%stochastic_physics()
+
     ! Get pointers to field collections for use downstream
     fd_fields => modeldb%fields%get_field_collection("fd_fields")
     prognostic_fields => modeldb%fields%get_field_collection("prognostic_fields")
+
 
     !===================== Write fields to dump ======================!
     if( use_physics ) then
@@ -1275,7 +1329,7 @@ subroutine create_model_data( modeldb,           &
 #endif
 
       call write_checkpoint( prognostic_fields, modeldb%values, modeldb%clock, &
-                              checkpoint_stem_name, all_checkpoint_times )
+                             checkpoint_stem_name, all_checkpoint_times )
     end if
 
   end subroutine output_model_data

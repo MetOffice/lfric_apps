@@ -21,9 +21,8 @@ module create_gravity_wave_prognostics_mod
   use function_space_collection_mod,  only : function_space_collection
   use fs_continuity_mod,              only : W0, W2, W3, Wtheta
   use io_config_mod,                  only : write_diag, &
-                                             use_xios_io, &
-                                             checkpoint_write, &
-                                             checkpoint_read
+                                             use_xios_io!, &
+
   use io_mod,                         only : checkpoint_read_netcdf, &
                                              checkpoint_write_netcdf
   use lfric_xios_read_mod,            only : checkpoint_read_xios
@@ -53,10 +52,12 @@ contains
   !> @param [inout] wind prognostic field
   !> @param [inout] pressure prognostic field
   !> @param [inout] buoyancy prognostic field
-  subroutine create_gravity_wave_prognostics(mesh, wind, pressure, buoyancy)
+  subroutine create_gravity_wave_prognostics(config, mesh, wind, pressure, buoyancy)
 
     implicit none
-    type( mesh_type ), intent(in), pointer :: mesh
+
+    type(config_type), intent(in) :: config
+    type( mesh_type ), intent(in) :: mesh
 
     type( field_type), intent(inout) :: wind
     type( field_type), intent(inout) :: pressure
@@ -67,6 +68,12 @@ contains
     procedure(write_interface),       pointer :: tmp_write_ptr
     procedure(checkpoint_write_interface), pointer :: tmp_checkpoint_write_ptr
     procedure(checkpoint_read_interface),  pointer :: tmp_checkpoint_read_ptr
+
+    logical(l_def) :: checkpoint_read
+    logical(l_def) :: checkpoint_write
+
+    checkpoint_read  = config%io%checkpoint_read()
+    checkpoint_write = config%io%checkpoint_write()
 
     ! Create prognostic fields
     select case(b_space)

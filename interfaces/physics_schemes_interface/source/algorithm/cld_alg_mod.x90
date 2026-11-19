@@ -16,8 +16,7 @@ module cld_alg_mod
                                            imr_r, imr_s
   use sci_enforce_lower_bound_kernel_mod, only: enforce_lower_bound_kernel_type
   use io_config_mod,                 only: write_conservation_diag,       &
-                                           write_diag, use_xios_io,       &
-                                           diagnostic_frequency
+                                           write_diag, use_xios_io
   use timing_mod,                    only: start_timing, stop_timing, &
                                            tik, LPROF
   use microphysics_config_mod,       only: microphysics_casim
@@ -133,6 +132,10 @@ contains
     integer(i_def) :: i_mr, ncells
     character(str_def) :: name_ext
     integer(tik)       :: id
+    integer(i_def) :: diagnostic_frequency
+
+
+    diagnostic_frequency = config%io%diagnostic_frequency()
 
     if ( LPROF ) call start_timing( id, 'cloud' )
 
@@ -149,7 +152,8 @@ contains
     call cloud_fields%get_field('area_fraction', cf_area)
     call turbulence_fields%get_field('zh', zh)
 
-    call initialise_diags_for_cld( sskew_bm, svar_bm, svar_tb, call_b4_conv )
+    call initialise_diags_for_cld( config, sskew_bm, svar_bm, &
+                                   svar_tb, call_b4_conv )
 
     if (scheme == scheme_smith) then
 

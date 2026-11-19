@@ -52,15 +52,15 @@ contains
     nullify(height_wth)
 
     ! Initialise the requires fields, which have a one-way dependency chain.
-    trop_icao_ht_flag = init_diag(trop_icao_ht, 'aviation__trop_icao_height')
+    trop_icao_ht_flag = init_diag(config, trop_icao_ht, 'aviation__trop_icao_height')
 
-    trop_press_flag = init_diag(trop_press, 'aviation__trop_pressure', &
+    trop_press_flag = init_diag(config, trop_press, 'aviation__trop_pressure', &
         activate=trop_icao_ht_flag)
 
-    trop_temp_flag = init_diag(trop_temp, 'aviation__trop_temperature', &
+    trop_temp_flag = init_diag(config, trop_temp, 'aviation__trop_temperature', &
         activate=(trop_press_flag .or. trop_icao_ht_flag))
 
-    trop_ht_flag = init_diag(trop_ht, 'aviation__trop_height', &
+    trop_ht_flag = init_diag(config, trop_ht, 'aviation__trop_height', &
         activate=(trop_temp_flag .or. trop_press_flag .or. trop_icao_ht_flag))
 
     ! Call the kernel and write the fields.

@@ -14,7 +14,6 @@ module bl_imp2_kernel_mod
                                      GH_READWRITE, DOMAIN,                     &
                                      ANY_DISCONTINUOUS_SPACE_1,                &
                                      ANY_DISCONTINUOUS_SPACE_2
-  use section_choice_config_mod, only : cloud, cloud_um
   use blayer_config_mod,         only : fric_heating
   use cloud_config_mod,          only : scheme, scheme_smith, scheme_pc2,      &
                                         scheme_bimodal,                        &
@@ -30,6 +29,8 @@ module bl_imp2_kernel_mod
                                         lowest_level_flux
   use water_constants_mod,       only : lc, lf
 
+  use section_choice_config_mod, only : cloud_um
+
   implicit none
 
   private
@@ -41,7 +42,8 @@ module bl_imp2_kernel_mod
   !>
   type, public, extends(kernel_type) :: bl_imp2_kernel_type
     private
-    type(arg_type) :: meta_args(56) = (/                                       &
+    type(arg_type) :: meta_args(57) = (/                                       &
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                             &! cloud
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                             &! outer
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                             &! loop
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                &! wetrho_in_wth
@@ -114,6 +116,7 @@ contains
   !>             vertical mixing of heat, momentum and moisture,
   !>             as documented in UMDP24
   !> @param[in]     nlayers              Number of layers
+  !> @param[in]     cloud                Enumeration for cloud section code
   !> @param[in]     outer                Outer loop counter
   !> @param[in]     wetrho_in_wth        Wet density field in wth space
   !> @param[in]     exner_in_w3          Exner pressure field in density space
@@ -197,6 +200,7 @@ contains
   !> @param[in]     undf_bl              Number of total DOFs for BL types
   !> @param[in]     map_bl               Dofmap for cell for BL types
   subroutine bl_imp2_code(nlayers, seg_len,                                    &
+                          cloud,                                               &
                           outer,                                               &
                           loop,                                                &
                           wetrho_in_wth,                                       &
@@ -291,7 +295,7 @@ contains
 
     ! Arguments
     integer(kind=i_def), intent(in) :: nlayers, seg_len
-    integer(kind=i_def), intent(in) :: outer, loop
+    integer(kind=i_def), intent(in) :: cloud, outer, loop
 
     integer(kind=i_def), intent(in) :: ndf_wth, ndf_w3
     integer(kind=i_def), intent(in) :: ndf_2d, undf_2d

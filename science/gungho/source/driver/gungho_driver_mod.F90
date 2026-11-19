@@ -39,15 +39,12 @@ module gungho_driver_mod
                                           setup_step_multifile_io, &
                                           finalise_multifile_io
   use initial_output_mod,          only : write_initial_output
-  use io_config_mod,               only : checkpoint_read,      &
-                                          write_diag,           &
-                                          diagnostic_frequency, &
+  use io_config_mod,               only : write_diag,           &
                                           multifile_io,         &
                                           nodal_output_on_w3
   use initialization_config_mod,   only : lbc_option,               &
                                           lbc_option_gungho_file,   &
                                           lbc_option_um2lfric_file, &
-                                          ancil_option,             &
                                           ancil_option_updating,    &
                                           coarse_aerosol_ancil,     &
                                           coarse_ozone_ancil
@@ -60,11 +57,12 @@ module gungho_driver_mod
   use mesh_mod,                    only : mesh_type
   use mesh_collection_mod,         only : mesh_collection
   use remove_field_collection_mod, only : remove_field_collection
+
   use section_choice_config_mod,   only : iau,                   &
                                           iau_sst,               &
                                           iau_surf,              &
-                                          stochastic_physics,    &
                                           stochastic_physics_um
+
   use io_value_mod,                only : io_value_type
   use integer_io_value_mod,        only : integer_io_value_type
   use time_config_mod,             only : timestep_start
@@ -155,6 +153,9 @@ contains
     character(str_def) :: aerosol_mesh_name
     character(str_def) :: nudging_mesh_name
 
+    logical(l_def) :: checkpoint_read
+    integer(i_def) :: stochastic_physics
+
 #ifdef UM_PHYSICS
     integer(i_def) :: i
     real(r_def),    allocatable :: real_array(:)
@@ -169,8 +170,13 @@ contains
     nullify( field_collection_ptr, soil_fields, snow_fields, surface_fields )
 #endif
 
+
     call log_event('Initialising gungho', LOG_LEVEL_INFO)
     if ( LPROF ) call start_timing(id, 'gungho_driver.initialise')
+
+    checkpoint_read    = modeldb%config%io%checkpoint_read()
+    stochastic_physics = modeldb%config%section_choice%stochastic_physics()
+
     ! Initialise infrastructure and setup constants
     call initialise_infrastructure( io_context_name, modeldb )
 
@@ -388,6 +394,12 @@ contains
 
     integer(i_def) :: theta_forcing
     integer(i_def) :: wind_forcing
+    integer(i_def) :: ancil_option
+    integer(i_def) :: diagnostic_frequency, stochastic_physics
+
+    ancil_option = modeldb%config%initialization%ancil_option()
+    diagnostic_frequency = modeldb%config%io%diagnostic_frequency()
+    stochastic_physics = modeldb%config%section_choice%stochastic_physics()
 
     read(timestep_start,*,iostat=rc)  ts_start
     if ( LPROF ) then

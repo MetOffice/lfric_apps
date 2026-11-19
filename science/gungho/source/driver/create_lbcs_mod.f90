@@ -7,6 +7,7 @@
 !> @details Create LBC field collection and add fields.
 module create_lbcs_mod
 
+  use config_mod,                 only : config_type
   use constants_mod,              only : i_def, l_def, str_def
   use log_mod,                    only : log_event,             &
                                          log_scratch_space,     &
@@ -47,13 +48,15 @@ module create_lbcs_mod
    !> before the io context closes, and this is too early for field creation.
    !> @param  proc   Processor to be applied to selected field specifiers
    !> @param  legacy Flag to enable/disable legacy CP
-   subroutine process_lbc_fields(proc, legacy)
+   subroutine process_lbc_fields(config, proc, legacy)
+
       use field_spec_mod,             only : main => main_coll_dict,            &
                                              axis => time_axis_dict,            &
                                              processor_type,                    &
                                              make_spec
       implicit none
 
+      type(config_type)     :: config
       class(processor_type) :: proc
       logical(l_def) :: legacy
 
@@ -64,78 +67,78 @@ module create_lbcs_mod
 
         case ( lbc_option_analytic )
 
-          call proc%apply(make_spec('lbc_theta', main%lbc, Wtheta, ckp=.true., legacy=legacy))
-          call proc%apply(make_spec('lbc_u', main%lbc, W2, ckp=.true., legacy=legacy))
-          call proc%apply(make_spec('lbc_h_u', main%lbc, W2H, ckp=.true., legacy=legacy))
-          call proc%apply(make_spec('lbc_v_u', main%lbc, W2V, ckp=.true., legacy=legacy))
-          call proc%apply(make_spec('lbc_rho', main%lbc, W3, ckp=.true., legacy=legacy))
-          call proc%apply(make_spec('lbc_exner', main%lbc, W3, ckp=.true., legacy=legacy))
-          call proc%apply(make_spec('boundary_u_diff', main%lbc, W2, ckp=.true., legacy=legacy))
+          call proc%apply(config, make_spec('lbc_theta', main%lbc, Wtheta, ckp=.true., legacy=legacy))
+          call proc%apply(config, make_spec('lbc_u', main%lbc, W2, ckp=.true., legacy=legacy))
+          call proc%apply(config, make_spec('lbc_h_u', main%lbc, W2H, ckp=.true., legacy=legacy))
+          call proc%apply(config, make_spec('lbc_v_u', main%lbc, W2V, ckp=.true., legacy=legacy))
+          call proc%apply(config, make_spec('lbc_rho', main%lbc, W3, ckp=.true., legacy=legacy))
+          call proc%apply(config, make_spec('lbc_exner', main%lbc, W3, ckp=.true., legacy=legacy))
+          call proc%apply(config, make_spec('boundary_u_diff', main%lbc, W2, ckp=.true., legacy=legacy))
           if (.not. legacy) then
-            call proc%apply(make_spec('boundary_h_u_diff', main%lbc, W2H, ckp=.true., legacy=.false.))
-            call proc%apply(make_spec('boundary_v_u_diff', main%lbc, W2V, ckp=.true., legacy=.false.))
+            call proc%apply(config, make_spec('boundary_h_u_diff', main%lbc, W2H, ckp=.true., legacy=.false.))
+            call proc%apply(config, make_spec('boundary_v_u_diff', main%lbc, W2V, ckp=.true., legacy=.false.))
           end if
-          call proc%apply(make_spec('boundary_u_driving', main%lbc, W2, ckp=.true., legacy=legacy))
+          call proc%apply(config, make_spec('boundary_u_driving', main%lbc, W2, ckp=.true., legacy=legacy))
           if (.not. legacy) then
-            call proc%apply(make_spec('boundary_h_u_driving', main%lbc, W2H, ckp=.true., legacy=.false.))
-            call proc%apply(make_spec('boundary_v_u_driving', main%lbc, W2V, ckp=.true., legacy=.false.))
+            call proc%apply(config, make_spec('boundary_h_u_driving', main%lbc, W2H, ckp=.true., legacy=.false.))
+            call proc%apply(config, make_spec('boundary_v_u_driving', main%lbc, W2V, ckp=.true., legacy=.false.))
           end if
           do imr = 1, nummr
             name = trim('lbc_') // adjustl(mr_names(imr))
-            call proc%apply(make_spec(name, main%lbc, Wtheta, ckp=.true., legacy=legacy))
+            call proc%apply(config, make_spec(name, main%lbc, Wtheta, ckp=.true., legacy=legacy))
           enddo
 
         case ( lbc_option_gungho_file )
 
           !------ Fields updated directly from LBC file-----------------
-          call proc%apply(make_spec('lbc_theta', main%lbc, Wtheta, time_axis=axis%lbc))
-          call proc%apply(make_spec('lbc_rho', main%lbc, W3, time_axis=axis%lbc))
-          call proc%apply(make_spec('lbc_exner', main%lbc, W3, time_axis=axis%lbc))
-          call proc%apply(make_spec('lbc_h_u', main%lbc, W2H, time_axis=axis%lbc))
-          call proc%apply(make_spec('lbc_v_u', main%lbc, Wtheta, time_axis=axis%lbc))
+          call proc%apply(config, make_spec('lbc_theta', main%lbc, Wtheta, time_axis=axis%lbc))
+          call proc%apply(config, make_spec('lbc_rho', main%lbc, W3, time_axis=axis%lbc))
+          call proc%apply(config, make_spec('lbc_exner', main%lbc, W3, time_axis=axis%lbc))
+          call proc%apply(config, make_spec('lbc_h_u', main%lbc, W2H, time_axis=axis%lbc))
+          call proc%apply(config, make_spec('lbc_v_u', main%lbc, Wtheta, time_axis=axis%lbc))
 
           !----- Fields derived from the fields in the LBC file---------
-          call proc%apply(make_spec('lbc_u', main%lbc, W2))
-          call proc%apply(make_spec('boundary_u_diff', main%lbc, W2))
-          call proc%apply(make_spec('boundary_u_driving', main%lbc, W2))
+          call proc%apply(config, make_spec('lbc_u', main%lbc, W2))
+          call proc%apply(config, make_spec('boundary_u_diff', main%lbc, W2))
+          call proc%apply(config, make_spec('boundary_u_driving', main%lbc, W2))
 
         case ( lbc_option_um2lfric_file )
           !------ Fields updated directly from LBC file-----------------
-          call proc%apply(make_spec('lbc_theta', main%lbc, Wtheta, time_axis=axis%lbc))
+          call proc%apply(config, make_spec('lbc_theta', main%lbc, Wtheta, time_axis=axis%lbc))
           select case (lbc_bal_meth)
           case(lbc_bal_meth_keep_rho)
-            call proc%apply(make_spec('lbc_rho_r2', main%lbc, W3, time_axis=axis%lbc))
-            call proc%apply(make_spec('lbc_exner', main%lbc, W3))
+            call proc%apply(config, make_spec('lbc_rho_r2', main%lbc, W3, time_axis=axis%lbc))
+            call proc%apply(config, make_spec('lbc_exner', main%lbc, W3))
           case(lbc_bal_meth_keep_exner_eos_lev)
-            call proc%apply(make_spec('lbc_rho_r2', main%lbc, W3))
-            call proc%apply(make_spec('lbc_exner', main%lbc, W3, time_axis=axis%lbc))
+            call proc%apply(config, make_spec('lbc_rho_r2', main%lbc, W3))
+            call proc%apply(config, make_spec('lbc_exner', main%lbc, W3, time_axis=axis%lbc))
           end select
 
-          call proc%apply(make_spec('lbc_h_u', main%lbc, W2H, time_axis=axis%lbc))
-          call proc%apply(make_spec('lbc_v_u', main%lbc, Wtheta, time_axis=axis%lbc))
+          call proc%apply(config, make_spec('lbc_h_u', main%lbc, W2H, time_axis=axis%lbc))
+          call proc%apply(config, make_spec('lbc_v_u', main%lbc, Wtheta, time_axis=axis%lbc))
 
           ! Specific humidities (Initially these are read in, but
           ! in the long run we should move to just use the mixing
           ! ratios)
-          call proc%apply(make_spec('lbc_q', main%lbc, Wtheta, time_axis=axis%lbc))
-          call proc%apply(make_spec('lbc_qcl', main%lbc, Wtheta, time_axis=axis%lbc))
-          call proc%apply(make_spec('lbc_qcf', main%lbc, Wtheta, time_axis=axis%lbc))
-          call proc%apply(make_spec('lbc_qrain', main%lbc, Wtheta, time_axis=axis%lbc))
+          call proc%apply(config, make_spec('lbc_q', main%lbc, Wtheta, time_axis=axis%lbc))
+          call proc%apply(config, make_spec('lbc_qcl', main%lbc, Wtheta, time_axis=axis%lbc))
+          call proc%apply(config, make_spec('lbc_qcf', main%lbc, Wtheta, time_axis=axis%lbc))
+          call proc%apply(config, make_spec('lbc_qrain', main%lbc, Wtheta, time_axis=axis%lbc))
           if (murk_lbc) then
-            call proc%apply(make_spec('lbc_murk', main%lbc, Wtheta, time_axis=axis%lbc))
+            call proc%apply(config, make_spec('lbc_murk', main%lbc, Wtheta, time_axis=axis%lbc))
           end if
 
           !----- Fields derived from the fields in the LBC file---------
-          call proc%apply(make_spec('lbc_rho', main%lbc, W3))
-          call proc%apply(make_spec('lbc_u', main%lbc, W2))
-          call proc%apply(make_spec('boundary_u_diff', main%lbc, W2))
-          call proc%apply(make_spec('boundary_u_driving', main%lbc, W2))
+          call proc%apply(config, make_spec('lbc_rho', main%lbc, W3))
+          call proc%apply(config, make_spec('lbc_u', main%lbc, W2))
+          call proc%apply(config, make_spec('boundary_u_diff', main%lbc, W2))
+          call proc%apply(config, make_spec('boundary_u_driving', main%lbc, W2))
 
           ! Mixing ratios
-          call proc%apply(make_spec('lbc_m_v', main%lbc, Wtheta))
-          call proc%apply(make_spec('lbc_m_cl', main%lbc, Wtheta))
-          call proc%apply(make_spec('lbc_m_s', main%lbc, Wtheta))
-          call proc%apply(make_spec('lbc_m_r', main%lbc, Wtheta))
+          call proc%apply(config, make_spec('lbc_m_v', main%lbc, Wtheta))
+          call proc%apply(config, make_spec('lbc_m_cl', main%lbc, Wtheta))
+          call proc%apply(config, make_spec('lbc_m_s', main%lbc, Wtheta))
+          call proc%apply(config, make_spec('lbc_m_r', main%lbc, Wtheta))
 
         case default
           call log_event( 'This lbc_option not available', LOG_LEVEL_ERROR )
@@ -151,10 +154,14 @@ module create_lbcs_mod
     !> @param[in]    twod_mesh  The current 2d mesh (not used here)
     !> @param[in]    mapper     Provides access to the field collections
     !> @param[in]    clock      The model clock
-    subroutine create_lbc_fields(mesh, twod_mesh, mapper, clock)
+    subroutine create_lbc_fields(config, mesh, twod_mesh, mapper, clock)
+
      implicit none
-     type(mesh_type), intent(in), pointer    :: mesh
-     type(mesh_type), intent(in), pointer    :: twod_mesh
+
+     type(config_type), intent(in) :: config
+     type(mesh_type),   intent(in) :: mesh
+     type(mesh_type),   intent(in) :: twod_mesh
+
      type(field_mapper_type), intent(in)     :: mapper
      class(clock_type), intent(in)           :: clock
 
@@ -171,7 +178,7 @@ module create_lbcs_mod
      call creator%init(mesh, twod_mesh, mapper, clock)
 
      legacy = (mesh%is_geometry_planar() .and. mesh%is_topology_periodic())
-     call process_lbc_fields(creator, legacy)
+     call process_lbc_fields(config, creator, legacy)
 
      call gungho_axes%save_lbc_time_axis()
 

@@ -19,7 +19,6 @@ module rh_to_mr_kernel_mod
   use constants_mod,              only: r_def, i_def
   use fs_continuity_mod,          only: Wtheta
   use kernel_mod,                 only: kernel_type
-  use section_choice_config_mod,  only: cloud, cloud_um, cloud_evap_condense
   use physics_common_mod,         only: qsaturation
 
   implicit none

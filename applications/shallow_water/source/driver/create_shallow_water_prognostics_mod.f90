@@ -13,7 +13,7 @@
 
 module create_shallow_water_prognostics_mod
 
-  use constants_mod,                      only: i_def
+  use constants_mod,                      only: i_def, l_def
   use field_mod,                          only: field_type
   use field_parent_mod,                   only: write_interface,            &
                                                 checkpoint_write_interface, &
@@ -23,9 +23,8 @@ module create_shallow_water_prognostics_mod
   use function_space_collection_mod,      only: function_space_collection
   use fs_continuity_mod,                  only: W1, W2, W3
   use io_config_mod,                      only: write_diag,       &
-                                                use_xios_io,      &
-                                                checkpoint_write, &
-                                                checkpoint_read
+                                                use_xios_io
+
   use mesh_mod,                           only: mesh_type
   use pure_abstract_field_mod,            only: pure_abstract_field_type
   use lfric_xios_write_mod,               only: write_field_generic, &
@@ -52,13 +51,14 @@ module create_shallow_water_prognostics_mod
   !> @param [in]     mesh        Mesh to initialise variables on
   !> @param [in,out] depository  A collection of all fields used in the miniapp
   !> @param [in,out] prognostics A collection of all the prognostic fields.
-  subroutine create_shallow_water_prognostics( mesh,        &
+  subroutine create_shallow_water_prognostics( config, mesh,        &
                                                depository,  &
                                                prognostics )
 
     implicit none
 
-    type(mesh_type), intent(in) :: mesh
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
 
     type(field_collection_type), intent(inout) :: depository
     type(field_collection_type), intent(inout) :: prognostics
@@ -82,6 +82,12 @@ module create_shallow_water_prognostics_mod
     procedure(write_interface),            pointer :: tmp_write_ptr
     procedure(checkpoint_write_interface), pointer :: tmp_checkpoint_write_ptr => null()
     procedure(checkpoint_read_interface),  pointer :: tmp_checkpoint_read_ptr => null()
+
+    logical(l_def) :: checkpoint_read
+    logical(l_def) :: checkpoint_write
+
+    checkpoint_read  = config%io%checkpoint_read()
+    checkpoint_write = config%io%checkpoint_write()
 
     ! Create prognostic fields
     buoyancy_space = W3

@@ -74,7 +74,7 @@ module smagorinsky_alg_mod
   use mixing_config_mod,         only: mix_factor, conservative_diffusion,     &
                                        smag_l_calc, smag_l_calc_use_geo,       &
                                        density_weighted
-  use section_choice_config_mod, only: boundary_layer, boundary_layer_um
+  use section_choice_config_mod, only: boundary_layer_um
   use physics_config_mod,        only: smagorinsky_placement,                  &
                                        smagorinsky_placement_outer,            &
                                        smagorinsky_placement_end
@@ -183,7 +183,7 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
     ! ======================================================================== !
 
     ! With UM BL scheme --------------------------------------------------------
-    if (boundary_layer == boundary_layer_um) then
+    if (config%section_choice%boundary_layer() == boundary_layer_um) then
 
       ! Use stability-dependent diffusion coefficient from UM BL scheme
       ! This will be the blended BL-Smag coefficient if mixing_option='blending'

@@ -26,7 +26,7 @@ module bl_imp_alg_mod
 
   use timing_mod,    only: start_timing, stop_timing, tik, LPROF
   ! xios output
-  use io_config_mod, only: write_diag, use_xios_io, diagnostic_frequency
+  use io_config_mod, only: write_diag, use_xios_io
   use bl_imp_diags_mod, only: initialise_diags_for_bl_imp,   &
                               output_diags_for_bl_imp
   use log_mod,                       only: log_event, LOG_LEVEL_DEBUG
@@ -226,6 +226,13 @@ contains
     logical(l_def) :: diag_step, flag_blpert
     integer(tik)   :: id
 
+    integer(i_def) :: diagnostic_frequency
+    integer(i_def) :: cloud
+
+
+    diagnostic_frequency = config%io%diagnostic_frequency()
+    cloud                = config%section_choice%cloud()
+
 
     if ( LPROF ) call start_timing( id, 'bl.implicit' )
 
@@ -305,7 +312,7 @@ contains
     face_selector_ns => get_face_selector_ns(mesh)
 
     ! Initialise the BL diagnostics
-    call initialise_diags_for_bl_imp(mr(imr_v), mr(imr_cl), mr(imr_s),         &
+    call initialise_diags_for_bl_imp(config, mr(imr_v), mr(imr_cl), mr(imr_s), &
                                      cf_bulk, cf_area, cf_liq, cf_fro,         &
                                      dmv_bl, dmcl_bl, dmci_bl,                 &
                                      dbcf_bl, dacf_bl,                         &
@@ -406,7 +413,8 @@ contains
                           mr_ice, latent_heat, t1p5m, q1p5m, qcl1p5m,          &
                           t1p5m_ssi, q1p5m_ssi, qcl1p5m_ssi, t1p5m_land,       &
                           q1p5m_land, qcl1p5m_land)
-      call invoke(bl_imp2_kernel_type( outer, loop, wetrho_in_wth, exner,      &
+      call invoke(bl_imp2_kernel_type( cloud, outer, loop, wetrho_in_wth, &
+                                       exner,      &
                                        exner_in_wth, theta_latest, height_w3,  &
                                        height_wth, ntml, cumulus, dtheta_bl,   &
                                        diss_u, diss_v, mr(imr_v),              &

@@ -107,7 +107,7 @@ contains
     call lake_evap%copy_field_properties(moist_mask)
 
     ! Initialise diagnostics
-    soilm_change_lakes_flag = init_diag(soilm_change_lakes, 'soil__soilm_change_lakes')
+    soilm_change_lakes_flag = init_diag(config, soilm_change_lakes, 'soil__soilm_change_lakes')
     if (soilm_change_lakes_flag) then
       call lake_evap%copy_field_properties(soilm_init)
       call lake_evap%copy_field_properties(soilm_end)

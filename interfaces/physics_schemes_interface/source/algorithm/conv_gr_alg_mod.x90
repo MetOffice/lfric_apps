@@ -472,7 +472,8 @@ contains
     delta      => get_delta_at_wtheta(config, mesh)
 
     ! Initialise the convection diagnostics
-    call initialise_diags_for_conv(rho,                    &
+    call initialise_diags_for_conv(config, &
+                                   rho,                    &
                                    zh,                     &
                                    deep_in_col,            & ! 2-D local variables
                                    shallow_in_col,         &

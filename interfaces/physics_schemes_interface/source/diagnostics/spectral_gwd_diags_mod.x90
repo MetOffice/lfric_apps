@@ -7,6 +7,8 @@
 
 module spectral_gwd_diags_mod
 
+  use config_mod, only: config_type
+
   use constants_mod,       only: l_def
   use field_mod,           only: field_type
   use timing_mod,          only: start_timing, stop_timing, tik, LPROF
@@ -31,13 +33,15 @@ module spectral_gwd_diags_mod
 contains
 
   !> @brief Initialise fields for locally-computed diagnostics
-  subroutine initialise_diags_for_spectral_gwd(                &
+  subroutine initialise_diags_for_spectral_gwd(   config,             &
                                 theta, tau_east_spectral_gwd,  &
                                 tau_south_spectral_gwd,        &
                                 tau_west_spectral_gwd,         &
                                 tau_north_spectral_gwd)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Fields passed in to copy properties from
     type( field_type ), intent(in)    :: theta
@@ -51,10 +55,10 @@ contains
     if ( LPROF ) call start_timing( id, 'diags.spectral_gwd' )
 
     ! 3D fields in wtheta space
-    tau_east_spectral_gwd_flag = init_diag(tau_east_spectral_gwd, 'spectral_gwd__tau_east_spectral_gwd')
-    tau_south_spectral_gwd_flag = init_diag(tau_south_spectral_gwd, 'spectral_gwd__tau_south_spectral_gwd')
-    tau_west_spectral_gwd_flag = init_diag(tau_west_spectral_gwd, 'spectral_gwd__tau_west_spectral_gwd')
-    tau_north_spectral_gwd_flag = init_diag(tau_north_spectral_gwd, 'spectral_gwd__tau_north_spectral_gwd')
+    tau_east_spectral_gwd_flag = init_diag(config, tau_east_spectral_gwd, 'spectral_gwd__tau_east_spectral_gwd')
+    tau_south_spectral_gwd_flag = init_diag(config, tau_south_spectral_gwd, 'spectral_gwd__tau_south_spectral_gwd')
+    tau_west_spectral_gwd_flag = init_diag(config, tau_west_spectral_gwd, 'spectral_gwd__tau_west_spectral_gwd')
+    tau_north_spectral_gwd_flag = init_diag(config, tau_north_spectral_gwd, 'spectral_gwd__tau_north_spectral_gwd')
 
     if ( LPROF ) call stop_timing( id, 'diags.spectral_gwd' )
 

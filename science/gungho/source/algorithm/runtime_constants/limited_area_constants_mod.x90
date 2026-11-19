@@ -14,6 +14,7 @@
 module limited_area_constants_mod
 
   ! Infrastructure
+  use config_mod,                     only: config_type
   use constants_mod,                     only: i_def, r_def, l_def, &
                                                str_def, str_short
   use extrusion_mod,                     only: TWOD, PRIME_EXTRUSION
@@ -381,13 +382,16 @@ contains
 
   end subroutine list_mask_fields
 
-  subroutine write_masks()
+  subroutine write_masks(config)
+
     use diagnostic_alg_mod,            only: extract_w2h_diagnostic_alg
     use lfric_xios_write_mod,          only: write_field_generic
     use field_parent_mod,              only: write_interface
     use initialise_diagnostics_mod,    only: diagnostic_to_be_sampled
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     class(field_parent_type),    pointer :: abstract_field_ptr
     type(field_type),            pointer :: field_ptr
@@ -429,14 +433,14 @@ contains
         call v_component%set_write_behaviour(v_comp_write_ptr)
         h_comp_write_ptr => write_field_generic
         call h_component%set_write_behaviour(h_comp_write_ptr)
-        if (diagnostic_to_be_sampled("h_"//trim(name))) then
+        if (diagnostic_to_be_sampled(config, "h_"//trim(name))) then
           call h_component%write_field( "h_"//trim(name) )
         end if
-        if (diagnostic_to_be_sampled("v_"//trim(name))) then
+        if (diagnostic_to_be_sampled(config, "v_"//trim(name))) then
           call v_component%write_field( "v_"//trim(name) )
         end if
       case default
-        if (diagnostic_to_be_sampled(name)) then
+        if (diagnostic_to_be_sampled(config, name)) then
           tmp_write_ptr => write_field_generic
           call field_ptr%set_write_behaviour(tmp_write_ptr)
           call field_ptr%write_field(name)

@@ -297,19 +297,19 @@ contains
 
         wth_aero => function_space_collection%get_fs( aerosol_mesh,            &
                                                       0, 0, WTHETA,            &
-                                                      get_ndata_val('aero_modes') )
+                                            get_ndata_val(config,'aero_modes') )
         call aer_mix_ratio_coarse%initialise(vector_space = wth_aero)
 
         wth_aero => function_space_collection%get_fs( aerosol_mesh,            &
                                                       0, 0, WTHETA,            &
-                                                      get_ndata_val('sw_bands_aero_modes') )
+                                                      get_ndata_val(config, 'sw_bands_aero_modes') )
         call aer_sw_absorption_coarse%initialise(vector_space = wth_aero)
         call aer_sw_scattering_coarse%initialise(vector_space = wth_aero)
         call aer_sw_asymmetry_coarse%initialise(vector_space = wth_aero)
 
         wth_aero => function_space_collection%get_fs( aerosol_mesh,            &
                                                       0, 0, WTHETA,            &
-                                                      get_ndata_val('lw_bands_aero_modes') )
+                                                      get_ndata_val(config, 'lw_bands_aero_modes') )
         call aer_lw_absorption_coarse%initialise(vector_space = wth_aero)
         call aer_lw_scattering_coarse%initialise(vector_space = wth_aero)
         call aer_lw_asymmetry_coarse%initialise(vector_space = wth_aero)
@@ -363,7 +363,8 @@ contains
       end if
 
       ! Initialise radaer diagnostics
-      call initialise_main_diags_for_radaer(  aod_ukca_ait_sol,                &
+      call initialise_main_diags_for_radaer( config, &
+                                              aod_ukca_ait_sol,                &
                                              aaod_ukca_ait_sol,                &
                                               aod_ukca_acc_sol,                &
                                              aaod_ukca_acc_sol,                &

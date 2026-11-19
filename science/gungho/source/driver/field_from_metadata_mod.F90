@@ -10,6 +10,7 @@ module field_from_metadata_mod
   use log_mod,                              only: log_event,         &
                                                   log_scratch_space, &
                                                   log_level_error
+  use config_mod,                           only: config_type
   use constants_mod,                        only: i_def, l_def, str_def
   use space_from_metadata_mod,              only: space_from_metadata
   use mesh_mod,                             only: mesh_type
@@ -43,7 +44,7 @@ contains
   !> @param[in, optional] force_order_v    Override derived order in vertical
   !> @param[in, optional] force_ndata      Override derived ndata
   !> @param[in, optional] diag_status      Diagnostic enabling status
-  subroutine init_real_field_from_metadata(field, xios_id, empty,           &
+  subroutine init_real_field_from_metadata(config, field, xios_id, empty,           &
                                            mesh_3d, mesh_2d, force_mesh,    &
                                            force_rad_levels, force_order_h, &
                                            force_order_v, force_ndata,      &
@@ -51,6 +52,7 @@ contains
 
     implicit none
 
+    type(config_type),                  intent(in)  :: config
     type(field_type),                   intent(out) :: field
     character(*),                       intent(in)  :: xios_id
     logical(l_def), optional,           intent(in)  :: empty
@@ -71,7 +73,7 @@ contains
     make_empty = .false.
     if (present(empty)) make_empty = empty
 
-    vector_space => space_from_metadata(xios_id,                         &
+    vector_space => space_from_metadata(config, xios_id,                 &
                                         mesh_3d, mesh_2d, force_mesh,    &
                                         force_rad_levels, force_order_h, &
                                         force_order_v, force_ndata)
@@ -110,7 +112,7 @@ contains
   !> @param[in, optional] force_order_v    Override derived order in vertical
   !> @param[in, optional] force_ndata      Override derived ndata
   !> @param[in, optional] diag_status      Diagnostic enabling status
-  subroutine init_integer_field_from_metadata(field, xios_id, empty,           &
+  subroutine init_integer_field_from_metadata(config, field, xios_id, empty,           &
                                               mesh_3d, mesh_2d, force_mesh,    &
                                               force_rad_levels, force_order_h, &
                                               force_order_v, force_ndata,      &
@@ -118,6 +120,7 @@ contains
 
     implicit none
 
+    type(config_type),    intent(in) :: config
     type(integer_field_type),           intent(out) :: field
     character(*),                       intent(in)  :: xios_id
     logical(l_def), optional,           intent(in)  :: empty
@@ -138,7 +141,7 @@ contains
     make_empty = .false.
     if (present(empty)) make_empty = empty
 
-    vector_space => space_from_metadata(xios_id,                         &
+    vector_space => space_from_metadata(config, xios_id,                 &
                                         mesh_3d, mesh_2d, force_mesh,    &
                                         force_rad_levels, force_order_h, &
                                         force_order_v, force_ndata)

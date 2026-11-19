@@ -10,7 +10,7 @@ module gravity_wave_driver_mod
 
   use base_mesh_config_mod,     only: prime_mesh_name
   use driver_modeldb_mod,       only: modeldb_type
-  use constants_mod,            only: i_def, r_def
+  use constants_mod,            only: i_def, r_def, l_def
   use gravity_wave_infrastructure_mod,                           &
                                 only: initialise_infrastructure, &
                                        finalise_infrastructure
@@ -30,9 +30,9 @@ module gravity_wave_driver_mod
                                       gravity_wave_alg_step, &
                                       gravity_wave_alg_final
   use io_config_mod,            only: write_diag,            &
-                                      checkpoint_read,       &
-                                      checkpoint_write,      &
-                                      diagnostic_frequency,  &
+!                                      checkpoint_read,       &
+!                                      checkpoint_write,      &
+!                                      diagnostic_frequency,  &
                                       use_xios_io,           &
                                       nodal_output_on_w3
   use io_context_mod,           only: io_context_type
@@ -76,6 +76,10 @@ contains
 
   character(*),       intent(in)    :: program_name
   type(modeldb_type), intent(inout) :: modeldb
+
+  logical(l_def) :: checkpoint_read
+
+  checkpoint_read  = modeldb%config%io%checkpoint_read()
 
   ! Initialise aspects of the infrastructure
   call initialise_infrastructure( program_name, modeldb)
@@ -152,6 +156,9 @@ contains
     character(*),        intent(in)    :: program_name
     class(modeldb_type), intent(inout) :: modeldb
 
+    integer(i_def) :: diagnostic_frequency
+
+    diagnostic_frequency = modeldb%config%io%diagnostic_frequency()
 
     ! Update XIOS calendar if we are using it for diagnostic output or
     ! checkpoint
@@ -201,6 +208,10 @@ contains
 
   character(*),        intent(in)    :: program_name
   class(modeldb_type), intent(inout) :: modeldb
+
+  logical(l_def) :: checkpoint_write
+
+  checkpoint_write = modeldb%config%io%checkpoint_write()
 
   !--------------------------------------------------------------------------
   ! Model finalise

@@ -27,8 +27,7 @@ module linear_diagnostics_driver_mod
   use fs_continuity_mod,         only : W3, Wtheta
   use mesh_mod,                  only : mesh_type
   use mr_indices_mod,            only : nummr, mr_names
-  use initialization_config_mod, only : ls_option, &
-                                        ls_option_file
+  use initialization_config_mod, only : ls_option_file
   use initialise_diagnostics_mod, &
                                  only : diagnostic_to_be_sampled
   use io_value_mod,              only : io_value_type, get_io_value
@@ -152,6 +151,10 @@ contains
     integer :: i, fs
     character(len=str_def) :: name
 
+    integer(i_def) :: ls_option
+
+    ls_option = modeldb%config%initialization%ls_option()
+
     call log_event("Linear: writing diagnostic output", LOG_LEVEL_INFO)
 
     prognostic_fields => modeldb%fields%get_field_collection("prognostic_fields")
@@ -198,23 +201,23 @@ contains
       call u_in_w2h%set_write_behaviour(tmp_write_ptr)
       call v_in_w2h%set_write_behaviour(tmp_write_ptr)
       if (modeldb%clock%is_initialisation()) then
-        if (diagnostic_to_be_sampled("init_u_in_w2h")) then
+        if (diagnostic_to_be_sampled(config, "init_u_in_w2h")) then
           call u_in_w2h%write_field("init_u_in_w2h")
         end if
-        if (diagnostic_to_be_sampled("init_v_in_w2h")) then
+        if (diagnostic_to_be_sampled(config, "init_v_in_w2h")) then
           call v_in_w2h%write_field("init_v_in_w2h")
         end if
-        if (diagnostic_to_be_sampled("init_w_in_wth")) then
+        if (diagnostic_to_be_sampled(config, "init_w_in_wth")) then
           call w_in_wth%write_field("init_w_in_wth")
         end if
       else
-        if (diagnostic_to_be_sampled("u_in_w2h")) then
+        if (diagnostic_to_be_sampled(config, "u_in_w2h")) then
           call u_in_w2h%write_field("u_in_w2h")
         end if
-        if (diagnostic_to_be_sampled("v_in_w2h")) then
+        if (diagnostic_to_be_sampled(config, "v_in_w2h")) then
           call v_in_w2h%write_field("v_in_w2h")
         end if
-        if (diagnostic_to_be_sampled("w_in_wth")) then
+        if (diagnostic_to_be_sampled(config, "w_in_wth")) then
           call w_in_wth%write_field("w_in_wth")
         end if
       end if
@@ -266,7 +269,7 @@ contains
             fs = field_ptr%which_function_space()
             if ( fs == W3 .or. fs == Wtheta ) then
               name = trim(adjustl( field_ptr%get_name() ))
-              if (diagnostic_to_be_sampled(trim(name))) &
+              if (diagnostic_to_be_sampled(config, trim(name))) &
                    call field_ptr%write_field(trim(name))
             end if
         end select

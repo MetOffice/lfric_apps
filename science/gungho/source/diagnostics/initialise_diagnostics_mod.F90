@@ -8,11 +8,11 @@
 
 module initialise_diagnostics_mod
 
+  use config_mod,                      only: config_type
   use constants_mod,                   only: i_def, l_def, str_def
   use field_mod,                       only: field_type
   use mesh_mod,                        only: mesh_type
   use lfric_xios_diag_mod,             only: field_is_active
-  use io_config_mod,                   only: diag_always_on_sampling, use_xios_io
   use field_from_metadata_mod,         only: init_field_from_metadata
   use field_parent_mod,                only: write_interface
   use lfric_xios_write_mod,            only: write_field_generic
@@ -38,10 +38,20 @@ contains
   !> @brief Return true if and only if XIOS will sample the field at the current timestep.
   !> @param[in]   unique_id   XIOS id of field
   !> @return                  Sampling on/off status of the field
-  function diagnostic_to_be_sampled(unique_id) result(sampling_on)
+  function diagnostic_to_be_sampled(config, unique_id) result(sampling_on)
+
     implicit none
-    character(*), intent(in) :: unique_id
+
+    type(config_type), intent(in) :: config
+    character(*),      intent(in) :: unique_id
+
     logical(l_def) :: sampling_on
+    logical(l_def) :: diag_always_on_sampling
+    logical(l_def) :: use_xios_io
+
+    diag_always_on_sampling = config%io%diag_always_on_sampling()
+    use_xios_io             = config%io%use_xios_io()
+
     if (diag_always_on_sampling .or. .not. use_xios_io) then
       sampling_on = .true. ! for testing
       ! This is used when xios is off to ensure existing behaviour of
@@ -66,11 +76,12 @@ contains
   !> @param[in, optional] force_rad_levels Override derived radiation levels
   !> @param[in, optional] deactivate       Force-deactivate field
   !> @return                               Sampling status of the field
-  function init_diagnostic_field(field, unique_id,                            &
+  function init_diagnostic_field(config, field, unique_id, &
     activate, force_mesh, force_rad_levels, deactivate) result (sampling_on)
 
     implicit none
 
+    type(config_type),                  intent(in)  :: config
     type(field_type),                   intent(out) :: field
     character(*),                       intent(in)  :: unique_id
     logical(l_def), optional,           intent(in)  :: activate
@@ -87,7 +98,7 @@ contains
     procedure(write_interface), pointer :: write_behaviour => null()
 
     ! field sampling status
-    sampling_on = diagnostic_to_be_sampled(unique_id)
+    sampling_on = diagnostic_to_be_sampled(config, unique_id)
 
     ! field activation status
     is_activated = .false.
@@ -118,7 +129,7 @@ contains
     end if
 
     call init_field_from_metadata( &
-      field, unique_id, empty=(.not. active), &
+      config, field, unique_id, empty=(.not. active), &
       force_mesh=force_mesh, force_rad_levels=force_rad_levels, &
       diag_status=status)
 

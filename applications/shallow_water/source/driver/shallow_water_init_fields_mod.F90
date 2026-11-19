@@ -19,8 +19,8 @@ module shallow_water_init_fields_mod
   use files_config_mod,                     only: checkpoint_stem_name
   use log_mod,                              only: log_event,      &
                                                   LOG_LEVEL_INFO
-  use io_config_mod,                        only: checkpoint_read,  &
-                                                  checkpoint_write
+!  use io_config_mod,                        only: checkpoint_read,  &
+!                                                  checkpoint_write
   use lfric_xios_read_mod,                  only: read_checkpoint
   use lfric_xios_write_mod,                 only: write_checkpoint, &
                                                   write_state

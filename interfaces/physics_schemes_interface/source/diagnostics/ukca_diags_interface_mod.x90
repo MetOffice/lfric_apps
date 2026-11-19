@@ -19,6 +19,7 @@
 
 module ukca_diags_interface_mod
 
+use config_mod, only: config_type
 use ukca_diag_setup_mod,   only: nm_rxnflux_oh_ch4_trop,                       &
                                  nm_o3_column_du,                              &
                                  key_diagname_base
@@ -36,7 +37,7 @@ use initialise_diagnostics_mod,  only: init_diag => init_diagnostic_field,     &
 use key_value_collection_mod,    only: key_value_collection_type
 use constants_mod, only : i_def, r_def, l_def, str_def, i_um
 use field_mod,            only: field_type
-use log_mod,       only : log_scratch_space, log_event, LOG_LEVEL_ERROR,    & 
+use log_mod,       only : log_scratch_space, log_event, LOG_LEVEL_ERROR,    &
                           LOG_LEVEL_DEBUG
 
 implicit none
@@ -53,7 +54,7 @@ subroutine initialise_ukca_diagnostics(                                        &
                                         l_chem_timestep,                       &
                                         n_req_ukca_diags_3d,                   &
                                         idiag_status_3d,                       &
-                                        ukca_req_diagnames_fullht              &                                        
+                                        ukca_req_diagnames_fullht              &
                                       )
 ! ----------------------------------------------------------------------
 ! Description:
@@ -118,11 +119,11 @@ do n = 1, n_req_ukca_diags_3d
   l_diag_active = .false.
   select case (trim(ukca_req_diagnames_fullht(n)))
     case (trim(nm_rxnflux_oh_ch4_trop))
-      l_diag_active = diagnostic_to_be_sampled(                                &
+      l_diag_active = diagnostic_to_be_sampled(config,                                 &
                                  'chemistry__'//nm_rxnflux_oh_ch4_trop )
       if ( .not. l_chem_timestep ) l_diag_active = .false.
     case (trim(nm_o3_column_du))
-      l_diag_active = diagnostic_to_be_sampled('chemistry__'//nm_o3_column_du)
+      l_diag_active = diagnostic_to_be_sampled(config, 'chemistry__'//nm_o3_column_du)
     case default
       call log_event(                                                          &
         'INIT_UKCA_DIAGS: Unrecognised :'//trim(ukca_req_diagnames_fullht(n)), &
@@ -134,8 +135,8 @@ do n = 1, n_req_ukca_diags_3d
           trim(ukca_req_diagnames_fullht(n))
     call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
   else
-    idiag_status_3d(n) = ukca_diag_status_inactive  
-  end if  
+    idiag_status_3d(n) = ukca_diag_status_inactive
+  end if
 end do
 
 ! Update the diagnostic request information in UKCA via API call
@@ -155,7 +156,7 @@ end subroutine initialise_ukca_diagnostics
 ! ----------------------------------------------------------------------
 
 ! ----------------------------------------------------------------------
-subroutine output_ukca_diagnostics(                                            &
+subroutine output_ukca_diagnostics( config,                                    &
                                     n_req_ukca_diags_3d,                       &
                                     idiag_status_3d,                           &
                                     ukca_req_diagnames_fullht,                 &
@@ -168,9 +169,10 @@ subroutine output_ukca_diagnostics(                                            &
 !   is extracted from the multi-data field/ super array first using the
 !   photol_diag kernel routine.
 ! ----------------------------------------------------------------------
-               
+
 implicit none
 
+type(config_type), intent(in) :: config
 integer(i_def), intent(in) :: n_req_ukca_diags_3d
 integer(i_def), allocatable, intent(in) :: idiag_status_3d(:)
 character(len=ukca_maxlen_diagname), allocatable, intent(in) ::                &
@@ -186,19 +188,19 @@ do i = 1, n_req_ukca_diags_3d
   select case (trim(ukca_req_diagnames_fullht(i)))
     case (trim(nm_rxnflux_oh_ch4_trop))
       if (idiag_status_3d(i) == ukca_diag_status_requested  .and.              &
-          init_diag(rxnflux_oh_ch4_trop,                                       &
+          init_diag(config, rxnflux_oh_ch4_trop,                               &
                     'chemistry__'//nm_rxnflux_oh_ch4_trop) )  then
         call invoke (  photol_diags_kernel_type( rxnflux_oh_ch4_trop, i,       &
                                                 diagnostics_fullht_real ) )
         call rxnflux_oh_ch4_trop % write_field
-      end if  
+      end if
     case (trim(nm_o3_column_du))
       if (idiag_status_3d(i) == ukca_diag_status_requested  .and.              &
-          init_diag(o3_column_du,'chemistry__'//nm_o3_column_du) ) then
+          init_diag(config, o3_column_du,'chemistry__'//nm_o3_column_du) ) then
         call invoke (  photol_diags_kernel_type( o3_column_du, i,              &
                                                 diagnostics_fullht_real ) )
         call o3_column_du % write_field
-      end if  
+      end if
     case default
       write(log_scratch_space, '(A,A,A)')'OUTPUT_UKCA_DIAGS, Unrecognised ',   &
             trim(ukca_req_diagnames_fullht(i)),                                &

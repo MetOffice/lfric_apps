@@ -6,7 +6,8 @@
 !>@brief Prepares the turbulence fields
 module init_turbulence_fields_alg_mod
 
-  use constants_mod,                   only: r_def
+  use config_mod,                      only: config_type
+  use constants_mod,                   only: r_def, i_def
 
   ! Derived Types
   use field_mod,                       only: field_type
@@ -28,16 +29,18 @@ contains
   !>          value when passed on to the physics at the first time step,
   !>          in case no restart file is used.
   !> @param[in,out] turbulence_fields Collection of fields for turbulence scheme
-  subroutine init_turbulence_fields_alg(turbulence_fields)
+  subroutine init_turbulence_fields_alg(config, turbulence_fields)
 
     use timestepping_config_mod,   only: method, method_no_timestepping, &
                                          method_jules
-    use section_choice_config_mod, only: boundary_layer, boundary_layer_um
+    use section_choice_config_mod, only: boundary_layer_um
     use blayer_config_mod,         only: bl_scheme, bl_scheme_Kprof, &
                                          bl_scheme_HoC, bdy_tke, &
                                          bdy_tke_deardorff, shcu_buoy
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Arguments
     type(field_collection_type), intent(in) :: turbulence_fields
@@ -71,11 +74,15 @@ contains
     type( field_type ), pointer :: mix_len_bm
     type( field_type ), pointer :: gradrinr
 
+    integer(i_def) :: boundary_layer
+
     nullify( zh, z_lcl, ntml, cumulus, wvar, heat_flux_bl, moist_flux_bl,      &
              tke_bl, tsq_bl, qsq_bl, cov_bl, zhpar_shcu, rhokm_bl, rhokh_bl,   &
              dtrdz_tq_bl, zhsc, level_ent, level_ent_dsc, ent_we_lim,          &
              ent_t_frac, ent_zrzi, ent_we_lim_dsc, ent_t_frac_dsc,             &
              ent_zrzi_dsc, dsldzm, mix_len_bm, gradrinr )
+
+    boundary_layer = config%section_choice%boundary_layer()
 
     call turbulence_fields%get_field('zh', zh)
     call turbulence_fields%get_field('z_lcl', z_lcl)

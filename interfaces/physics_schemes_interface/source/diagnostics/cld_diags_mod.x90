@@ -62,9 +62,11 @@ module cld_diags_mod
 contains
 
   !> @brief Initialise fields for computing diagnostics
-  subroutine initialise_diags_for_cld( sskew_bm, svar_bm, svar_tb, call_b4_conv )
+  subroutine initialise_diags_for_cld( config, sskew_bm, svar_bm, svar_tb, call_b4_conv )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Diagnostic fields to initialise
     type( field_type ), intent(inout) :: sskew_bm, svar_bm, svar_tb
@@ -75,14 +77,14 @@ contains
 
     if (call_b4_conv) then
       ! No diagnostics output in mid-timestep call
-      sskew_bm_flag = init_diag(sskew_bm, 'cloud__sskew_bm', deactivate=.true.)
-      svar_bm_flag = init_diag(svar_bm, 'cloud__svar_bm', deactivate=.true.)
-      svar_tb_flag = init_diag(svar_tb, 'cloud__svar_tb', deactivate=.true.)
+      sskew_bm_flag = init_diag(config, sskew_bm, 'cloud__sskew_bm', deactivate=.true.)
+      svar_bm_flag = init_diag(config, svar_bm, 'cloud__svar_bm', deactivate=.true.)
+      svar_tb_flag = init_diag(config, svar_tb, 'cloud__svar_tb', deactivate=.true.)
     else
       ! Output diagnostics based on xios requirements
-      sskew_bm_flag = init_diag(sskew_bm, 'cloud__sskew_bm')
-      svar_bm_flag = init_diag(svar_bm, 'cloud__svar_bm')
-      svar_tb_flag = init_diag(svar_tb, 'cloud__svar_tb')
+      sskew_bm_flag = init_diag(config, sskew_bm, 'cloud__sskew_bm')
+      svar_bm_flag = init_diag(config, svar_bm, 'cloud__svar_bm')
+      svar_tb_flag = init_diag(config, svar_tb, 'cloud__svar_tb')
     end if
 
     if ( LPROF ) call stop_timing( id, 'diags.cloud' )
@@ -164,28 +166,28 @@ contains
     if ( LPROF ) call start_timing( id, 'diags.cloud' )
 
     ! 2D fields
-    cld_amount_max_flag = init_diag(cld_amount_max, 'cloud__cloud_amount_max')
-    cld_amount_rnd_flag = init_diag(cld_amount_rnd, 'cloud__cloud_amount_rnd')
-    cld_amount_maxrnd_flag = init_diag(cld_amount_maxrnd, 'cloud__cloud_amount_maxrnd')
-    ceil_cld_amount_maxrnd_flag = init_diag(ceil_cld_amount_maxrnd, 'cloud__ceilometer_cloud_amount_maxrnd')
-    cld_base_0p1_okta_flag = init_diag(cld_base_0p1_okta, 'cloud__cloud_base_0p1_okta')
-    cld_base_2p5_okta_flag = init_diag(cld_base_2p5_okta, 'cloud__cloud_base_2p5_okta')
-    cld_base_4p5_okta_flag = init_diag(cld_base_4p5_okta, 'cloud__cloud_base_4p5_okta')
-    cld_base_7p9_okta_flag = init_diag(cld_base_7p9_okta, 'cloud__cloud_base_7p9_okta')
-    cld_top_2p5_okta_flag  = init_diag(cld_top_2p5_okta,  'cloud__cloud_top_2p5_okta')
-    low_cld_base_altitude_flag = init_diag(low_cld_base_altitude, 'cloud__low_cloud_base_altitude')
-    very_low_cld_amount_flag = init_diag(very_low_cld_amount, 'cloud__very_low_type_cloud_amount')
-    low_cld_amount_flag = init_diag(low_cld_amount, 'cloud__low_type_cloud_amount')
-    medium_cld_amount_flag = init_diag(medium_cld_amount, 'cloud__medium_type_cloud_amount')
-    high_cld_amount_flag = init_diag(high_cld_amount, 'cloud__high_type_cloud_amount')
-    very_high_cld_amount_flag = init_diag(very_high_cld_amount, 'cloud__very_high_type_cloud_amount')
-    cloud_fraction_below_1000feet_asl_flag = init_diag(cloud_fraction_below_1000feet_asl, &
+    cld_amount_max_flag = init_diag(config, cld_amount_max, 'cloud__cloud_amount_max')
+    cld_amount_rnd_flag = init_diag(config, cld_amount_rnd, 'cloud__cloud_amount_rnd')
+    cld_amount_maxrnd_flag = init_diag(config, cld_amount_maxrnd, 'cloud__cloud_amount_maxrnd')
+    ceil_cld_amount_maxrnd_flag = init_diag(config, ceil_cld_amount_maxrnd, 'cloud__ceilometer_cloud_amount_maxrnd')
+    cld_base_0p1_okta_flag = init_diag(config, cld_base_0p1_okta, 'cloud__cloud_base_0p1_okta')
+    cld_base_2p5_okta_flag = init_diag(config, cld_base_2p5_okta, 'cloud__cloud_base_2p5_okta')
+    cld_base_4p5_okta_flag = init_diag(config, cld_base_4p5_okta, 'cloud__cloud_base_4p5_okta')
+    cld_base_7p9_okta_flag = init_diag(config, cld_base_7p9_okta, 'cloud__cloud_base_7p9_okta')
+    cld_top_2p5_okta_flag  = init_diag(config, cld_top_2p5_okta,  'cloud__cloud_top_2p5_okta')
+    low_cld_base_altitude_flag = init_diag(config, low_cld_base_altitude, 'cloud__low_cloud_base_altitude')
+    very_low_cld_amount_flag = init_diag(config, very_low_cld_amount, 'cloud__very_low_type_cloud_amount')
+    low_cld_amount_flag = init_diag(config, low_cld_amount, 'cloud__low_type_cloud_amount')
+    medium_cld_amount_flag = init_diag(config, medium_cld_amount, 'cloud__medium_type_cloud_amount')
+    high_cld_amount_flag = init_diag(config, high_cld_amount, 'cloud__high_type_cloud_amount')
+    very_high_cld_amount_flag = init_diag(config, very_high_cld_amount, 'cloud__very_high_type_cloud_amount')
+    cloud_fraction_below_1000feet_asl_flag = init_diag(config, cloud_fraction_below_1000feet_asl, &
       'cloud__cloud_fraction_below_1000feet_asl')
 
     ! 3D fields
-    combined_cld_amount_flag = init_diag(combined_cld_amount, 'cloud__combined_cloud_amount')
-    icing_sfip_li_bcf_flag = init_diag(icing_sfip_li_bcf, 'cloud__icing_sfip_li_bcf')
-    icing_sfip_lir_com_flag = init_diag(icing_sfip_lir_com, 'cloud__icing_sfip_lir_com')
+    combined_cld_amount_flag = init_diag(config, combined_cld_amount, 'cloud__combined_cloud_amount')
+    icing_sfip_li_bcf_flag = init_diag(config, icing_sfip_li_bcf, 'cloud__icing_sfip_li_bcf')
+    icing_sfip_lir_com_flag = init_diag(config, icing_sfip_lir_com, 'cloud__icing_sfip_lir_com')
 
     ! If any of these diagnostics are required, combined_cloud_amount is needed
     if (cld_amount_max_flag         .or. &
@@ -209,7 +211,7 @@ contains
         icing_sfip_lir_com_flag ) then
 
       if (.not. combined_cld_amount_flag) ignore = &
-        init_diag(combined_cld_amount, 'cloud__combined_cloud_amount', activate=.true.)
+        init_diag(config, combined_cld_amount, 'cloud__combined_cloud_amount', activate=.true.)
     end if
 
     if (cld_amount_max_flag         .or. &

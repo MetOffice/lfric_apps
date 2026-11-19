@@ -6,7 +6,8 @@
 !>@brief Prepares the glomap aerosol fields
 module init_aerosol_fields_alg_mod
 
-  use constants_mod,                   only: r_def, i_def
+  use config_mod,    only: config_type
+  use constants_mod, only: r_def, i_def
 
   ! Derived Types
   use field_mod,                       only: field_type
@@ -26,9 +27,10 @@ contains
   !>          Also the CDNC field is given a value for use when the
   !>          aerosol parametrization is not used.
   !> @param[in,out] aerosol_fields   aerosol related fields
-  subroutine init_aerosol_fields_alg(aerosol_fields)
+  subroutine init_aerosol_fields_alg(config, aerosol_fields)
 
-    use section_choice_config_mod, only: aerosol, aerosol_um
+    use section_choice_config_mod, only: aerosol_um
+
     use aerosol_config_mod, only: glomap_mode,               &
                                   glomap_mode_climatology,   &
                                   glomap_mode_dust_and_clim, &
@@ -38,7 +40,9 @@ contains
 
     implicit none
 
+
     ! Arguments
+    type(config_type), intent(in) :: config
     type( field_collection_type ), intent( in ) :: aerosol_fields
 
     ! Prognostic fields
@@ -159,7 +163,7 @@ contains
 
     call aerosol_fields%get_field('cloud_drop_no_conc', cloud_drop_no_conc)
 
-    if (aerosol == aerosol_um) then
+    if (config%section_choice%aerosol() == aerosol_um) then
       call aerosol_fields%get_field('drydp_ait_sol', drydp_ait_sol)
       call aerosol_fields%get_field('drydp_acc_sol', drydp_acc_sol)
       call aerosol_fields%get_field('drydp_cor_sol', drydp_cor_sol)
@@ -204,7 +208,7 @@ contains
 
     end if
 
-    if ( aerosol == aerosol_um .and.            &
+    if ( config%section_choice%aerosol() == aerosol_um .and.            &
          glomap_mode == glomap_mode_ukca ) then
 
       call aerosol_fields%get_field('n_nuc_sol', n_nuc_sol)
@@ -325,7 +329,7 @@ contains
                    setval_c(pvol_du_acc_ins,       0.0_r_def), &
                    setval_c(pvol_du_cor_ins,       0.0_r_def))
 
-    else if (aerosol == aerosol_um .and. &
+    else if (config%section_choice%aerosol() == aerosol_um .and. &
          ( glomap_mode == glomap_mode_climatology .or. &
            glomap_mode == glomap_mode_dust_and_clim ) ) then
 
@@ -393,7 +397,7 @@ contains
                    setval_c(pvol_du_acc_ins,       0.0_r_def), &
                    setval_c(pvol_du_cor_ins,       0.0_r_def))
 
-    else if (aerosol == aerosol_um .and. l_radaer) then
+    else if (config%section_choice%aerosol() == aerosol_um .and. l_radaer) then
 
       ! Running RADAER test with no GLOMAP-mode scheme.
       ! Set GLOMAP-mode aerosol fields and particle properties to fixed values
@@ -499,7 +503,7 @@ contains
                    setval_c(dust_flux,             0.0_r_def), &
                    ! CDNC and particle properties
                    setval_c(cloud_drop_no_conc,  1.0e8_r_def))
-      if (aerosol == aerosol_um) then
+      if (config%section_choice%aerosol() == aerosol_um) then
         call invoke(setval_c(drydp_ait_sol,         0.0_r_def), &
                     setval_c(drydp_acc_sol,         0.0_r_def), &
                     setval_c(drydp_cor_sol,         0.0_r_def), &

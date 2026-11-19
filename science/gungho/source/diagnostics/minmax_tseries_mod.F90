@@ -12,7 +12,6 @@ module minmax_tseries_mod
   use field_mod,                         only: field_type, field_proxy_type
   use diagnostic_alg_mod,                only: scalar_nodal_diagnostic_alg, &
                                                vector_nodal_diagnostic_alg
-  use files_config_mod,                  only: diag_stem_name
   use lfric_mpi_mod,                     only: global_mpi
   use mesh_mod,                          only: mesh_type
   use fs_continuity_mod,                 only: W1, W2
@@ -27,14 +26,20 @@ module minmax_tseries_mod
 contains
 
 
- subroutine minmax_tseries_init(field_name)
+ subroutine minmax_tseries_init(config, field_name)
 
     use io_utility_mod, only: claim_io_unit
 
     implicit none
 
-    character(len=*),    intent(in)    :: field_name
-    character(len=str_max_filename)    :: fname
+    type(config_type), intent(in) :: config
+    character(len=*),  intent(in) :: field_name
+
+    character(len=str_max_filename) :: fname
+
+    character(str_max_filename) :: diag_stem_name
+
+    diag_stem_name = config%files%diag_stem_name()
 
     if ( global_mpi%get_comm_rank() == 0 ) then
 
@@ -80,6 +85,10 @@ contains
    integer(i_def)                     :: i
 
    character(len=str_max_filename)    :: fname
+
+   character(str_max_filename) :: diag_stem_name
+
+   diag_stem_name = config%files%diag_stem_name()
 
    fname = trim(diag_stem_name) // "_" // &
            trim("nodal_minmax_") // trim(field_name) // trim(".m")

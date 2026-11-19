@@ -21,7 +21,8 @@ module create_tl_prognostics_mod
                                              LOG_LEVEL_INFO, &
                                              LOG_LEVEL_ERROR
   use mesh_mod,                       only : mesh_type
-  use initialization_config_mod,      only : read_w2h_wind
+
+use constants_mod, only: l_def
 
   implicit none
 
@@ -64,6 +65,10 @@ contains
     type( field_type ) :: mcl_in_wtheta   ! Cloud liquid mix ratio
     type( field_type ) :: mcf_in_wtheta   ! Clould ice mix ratio
     type( field_type ) :: mr_in_wtheta    ! Rain mix ratio
+
+    logical(l_def) :: read_w2h_wind
+
+    read_w2h_wind = config%initialization%read_w2h_wind()
 
     call log_event( 'Creating Tangent linear initial perturbation prognostics...', &
                     LOG_LEVEL_INFO )

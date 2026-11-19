@@ -8,6 +8,7 @@
 !
 module field_spec_mod
 
+  use config_mod,    only : config_type
   use constants_mod, only : i_def, l_def, str_def, imdi
   use log_mod,       only : log_event, log_scratch_space, log_level_error, log_level_info
   use clock_mod,     only : clock_type
@@ -173,11 +174,14 @@ module field_spec_mod
   abstract interface
     !> @brief Apply a processor object to a field specifier.
     !> @param[in] self       Processor object
+    !> @param[in] config     Application configuration object
     !> @param[in] spec       Field specifier
-    subroutine apply_interface(self, spec)
+    subroutine apply_interface(self, config, spec)
       import processor_type
+      import config_type
       import field_spec_type
       class(processor_type), intent(in) :: self
+      type(config_type),     intent(in) :: config
       type(field_spec_type), intent(in) :: spec
     end subroutine apply_interface
   end interface

@@ -13,8 +13,7 @@ module linear_driver_mod
   use field_mod,                  only : field_type
   use field_collection_mod,       only : field_collection_type
   use io_value_mod,               only : io_value_type
-  use section_choice_config_mod,  only : stochastic_physics, &
-                                         stochastic_physics_um
+  use section_choice_config_mod,  only : stochastic_physics_um
   use gungho_model_mod,           only : initialise_infrastructure, &
                                          initialise_model, &
                                          finalise_infrastructure, &
@@ -108,7 +107,7 @@ contains
                                        temp_corr_io_value )
     call modeldb%values%add_key_value( 'total_dry_mass', 0.0_r_def )
     call modeldb%values%add_key_value( 'total_energy_previous', 0.0_r_def )
-    if ( stochastic_physics == stochastic_physics_um ) then
+    if ( modeldb%config%section_choice%stochastic_physics() == stochastic_physics_um ) then
       ! Random seed for stochastic physics
       call random_seed(size = random_seed_size)
       allocate(real_array(random_seed_size))
