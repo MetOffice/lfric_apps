@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code via AI Foundry (Opus 5); PR #676
+!-----------------------------------------------------------------------------
 !> @brief Interface to the explicit UM boundary layer scheme.
 module bl_exp_kernel_mod
 
@@ -40,7 +43,7 @@ module bl_exp_kernel_mod
   !>
   type, public, extends(kernel_type) :: bl_exp_kernel_type
     private
-    type(arg_type) :: meta_args(93) = (/                                       &
+    type(arg_type) :: meta_args(94) = (/                                       &
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! theta_in_wth
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      W3),                       &! rho_in_w3
          arg_type(GH_FIELD, GH_REAL,  GH_READ,      WTHETA),                   &! rho_in_wth
@@ -133,7 +136,8 @@ module bl_exp_kernel_mod
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_5),&! ent_t_frac_dsc
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_5),&! ent_zrzi_dsc
          arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! diag__zht
-         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1) &! diag__oblen
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1),&! diag__oblen
+         arg_type(GH_FIELD, GH_REAL,  GH_WRITE,     ANY_DISCONTINUOUS_SPACE_1) &! diag__cape_undilute
          /)
     integer :: operates_on = DOMAIN
   contains
@@ -242,6 +246,8 @@ contains
   !> @param[in,out] ent_zrzi_dsc           Level height as fraction of DSC inversion height above DSC ML base
   !> @param[in,out] zht                    Diagnostic: turb mixing height
   !> @param[in,out] oblen                  Diagnostic: Obukhov length
+  !> @param[in,out] cape_undilute_2d       Diagnostic: CAPE from an undilute
+  !>                                       parcel ascent
   !> @param[in]     ndf_wth                Number of DOFs per cell for potential temperature space
   !> @param[in]     undf_wth               Number of unique DOFs for potential temperature space
   !> @param[in]     map_wth                Dofmap for the cell at the base of the column for potential temperature space
@@ -263,106 +269,107 @@ contains
   !> @param[in]     ndf_ent                Number of DOFs per cell for entrainment levels
   !> @param[in]     undf_ent               Number of total DOFs for entrainment levels
   !> @param[in]     map_ent                Dofmap for cell for entrainment levels
-  subroutine bl_exp_code(nlayers, seg_len,                                     &
-                         theta_in_wth,                                         &
-                         rho_in_w3,                                            &
-                         rho_in_wth,                                           &
-                         wetrho_in_wth,                                        &
-                         exner_in_w3,                                          &
-                         exner_in_wth,                                         &
-                         u_in_w3,                                              &
-                         v_in_w3,                                              &
-                         w_in_wth,                                             &
-                         velocity_w2v,                                         &
-                         m_v_n,                                                &
-                         m_cl_n,                                               &
-                         m_ci_n,                                               &
-                         height_w3,                                            &
-                         height_wth,                                           &
-                         dz_wth,                                               &
-                         rdz_w3,                                               &
-                         dtrdz_wth,                                            &
-                         shear,                                                &
-                         delta,                                                &
-                         max_diff_smag,                                        &
-                         zh_2d,                                                &
-                         ntml_2d,                                              &
-                         cumulus_2d,                                           &
-                         tile_fraction,                                        &
-                         sd_orog_2d,                                           &
-                         peak_to_trough_orog,                                  &
-                         silhouette_area_orog,                                 &
-                         tile_temperature,                                     &
-                         rhostar_2d,                                           &
-                         recip_l_mo_sea_2d,                                    &
-                         t1_sd_2d,                                             &
-                         q1_sd_2d,                                             &
-                         dtl_mphys,                                            &
-                         dmt_mphys,                                            &
-                         sw_heating_rate,                                      &
-                         lw_heating_rate,                                      &
-                         cf_bulk,                                              &
-                         cf_liquid,                                            &
-                         rh_crit,                                              &
-                         tnuc,                                                 &
-                         tnuc_nlcl,                                            &
-                         dsldzm,                                               &
-                         mix_len_bm,                                           &
-                         wvar,                                                 &
-                         visc_m_blend,                                         &
-                         visc_h_blend,                                         &
-                         dw_bl,                                                &
-                         rhokm_bl,                                             &
-                         surf_interp,                                          &
-                         rhokh_bl,                                             &
-                         tke_bl,                                               &
-                         ngstress_bl,                                          &
-                         bq_bl,                                                &
-                         bt_bl,                                                &
-                         moist_flux_bl,                                        &
-                         heat_flux_bl,                                         &
-                         dtrdz_tq_bl,                                          &
-                         fd_taux,                                              &
-                         fd_tauy,                                              &
-                         sea_u_current,                                        &
-                         sea_v_current,                                        &
-                         lmix_bl,                                              &
-                         gradrinr,                                             &
-                         z0m_eff,                                              &
-                         ustar,                                                &
-                         zh_nonloc,                                            &
-                         zhsc_2d,                                              &
-                         z_lcl,                                                &
-                         inv_depth,                                            &
-                         qcl_at_inv_top,                                       &
-                         shallow_flag,                                         &
-                         uw0_flux,                                             &
-                         vw0_flux,                                             &
-                         lcl_height,                                           &
-                         parcel_top,                                           &
-                         level_parcel_top,                                     &
-                         wstar_2d,                                             &
-                         thv_flux,                                             &
-                         parcel_buoyancy,                                      &
-                         qsat_at_lcl,                                          &
-                         bl_weight_1dbl,                                       &
-                         bl_type_ind,                                          &
-                         level_ent,                                            &
-                         level_ent_dsc,                                        &
-                         ent_we_lim,                                           &
-                         ent_t_frac,                                           &
-                         ent_zrzi,                                             &
-                         ent_we_lim_dsc,                                       &
-                         ent_t_frac_dsc,                                       &
-                         ent_zrzi_dsc,                                         &
-                         zht,                                                  &
-                         oblen,                                                &
-                         ndf_wth, undf_wth, map_wth,                           &
-                         ndf_w3, undf_w3, map_w3,                              &
-                         ndf_2d, undf_2d, map_2d,                              &
-                         ndf_tile, undf_tile, map_tile,                        &
-                         ndf_surf, undf_surf, map_surf,                        &
-                         ndf_bl, undf_bl, map_bl,                              &
+  subroutine bl_exp_code(nlayers, seg_len,                      &
+                         theta_in_wth,                          &
+                         rho_in_w3,                             &
+                         rho_in_wth,                            &
+                         wetrho_in_wth,                         &
+                         exner_in_w3,                           &
+                         exner_in_wth,                          &
+                         u_in_w3,                               &
+                         v_in_w3,                               &
+                         w_in_wth,                              &
+                         velocity_w2v,                          &
+                         m_v_n,                                 &
+                         m_cl_n,                                &
+                         m_ci_n,                                &
+                         height_w3,                             &
+                         height_wth,                            &
+                         dz_wth,                                &
+                         rdz_w3,                                &
+                         dtrdz_wth,                             &
+                         shear,                                 &
+                         delta,                                 &
+                         max_diff_smag,                         &
+                         zh_2d,                                 &
+                         ntml_2d,                               &
+                         cumulus_2d,                            &
+                         tile_fraction,                         &
+                         sd_orog_2d,                            &
+                         peak_to_trough_orog,                   &
+                         silhouette_area_orog,                  &
+                         tile_temperature,                      &
+                         rhostar_2d,                            &
+                         recip_l_mo_sea_2d,                     &
+                         t1_sd_2d,                              &
+                         q1_sd_2d,                              &
+                         dtl_mphys,                             &
+                         dmt_mphys,                             &
+                         sw_heating_rate,                       &
+                         lw_heating_rate,                       &
+                         cf_bulk,                               &
+                         cf_liquid,                             &
+                         rh_crit,                               &
+                         tnuc,                                  &
+                         tnuc_nlcl,                             &
+                         dsldzm,                                &
+                         mix_len_bm,                            &
+                         wvar,                                  &
+                         visc_m_blend,                          &
+                         visc_h_blend,                          &
+                         dw_bl,                                 &
+                         rhokm_bl,                              &
+                         surf_interp,                           &
+                         rhokh_bl,                              &
+                         tke_bl,                                &
+                         ngstress_bl,                           &
+                         bq_bl,                                 &
+                         bt_bl,                                 &
+                         moist_flux_bl,                         &
+                         heat_flux_bl,                          &
+                         dtrdz_tq_bl,                           &
+                         fd_taux,                               &
+                         fd_tauy,                               &
+                         sea_u_current,                         &
+                         sea_v_current,                         &
+                         lmix_bl,                               &
+                         gradrinr,                              &
+                         z0m_eff,                               &
+                         ustar,                                 &
+                         zh_nonloc,                             &
+                         zhsc_2d,                               &
+                         z_lcl,                                 &
+                         inv_depth,                             &
+                         qcl_at_inv_top,                        &
+                         shallow_flag,                          &
+                         uw0_flux,                              &
+                         vw0_flux,                              &
+                         lcl_height,                            &
+                         parcel_top,                            &
+                         level_parcel_top,                      &
+                         wstar_2d,                              &
+                         thv_flux,                              &
+                         parcel_buoyancy,                       &
+                         qsat_at_lcl,                           &
+                         bl_weight_1dbl,                        &
+                         bl_type_ind,                           &
+                         level_ent,                             &
+                         level_ent_dsc,                         &
+                         ent_we_lim,                            &
+                         ent_t_frac,                            &
+                         ent_zrzi,                              &
+                         ent_we_lim_dsc,                        &
+                         ent_t_frac_dsc,                        &
+                         ent_zrzi_dsc,                          &
+                         zht,                                   &
+                         oblen,                                 &
+                         cape_undilute_2d,                      &
+                         ndf_wth, undf_wth, map_wth,            &
+                         ndf_w3, undf_w3, map_w3,               &
+                         ndf_2d, undf_2d, map_2d,               &
+                         ndf_tile, undf_tile, map_tile,         &
+                         ndf_surf, undf_surf, map_surf,         &
+                         ndf_bl, undf_bl, map_bl,               &
                          ndf_ent, undf_ent, map_ent)
 
     !---------------------------------------
@@ -501,6 +508,7 @@ contains
 
     real(kind=r_def), pointer, intent(inout) :: zht(:)
     real(kind=r_def), pointer, intent(inout) :: oblen(:)
+    real(kind=r_def), pointer, intent(inout) :: cape_undilute_2d(:)
     !-----------------------------------------------------------------------
     ! Local variables for the kernel
     !-----------------------------------------------------------------------
@@ -1169,6 +1177,11 @@ contains
     if (.not. associated(oblen, empty_real_data) ) then
       do i = 1, seg_len
         oblen(map_2d(1,i)) = BL_diag%oblen(i)
+      end do
+    end if
+    if (.not. associated(cape_undilute_2d, empty_real_data) ) then
+      do i = 1, seg_len
+        cape_undilute_2d(map_2d(1,i)) = real(cape_undilute(i), r_def)
       end do
     end if
 
