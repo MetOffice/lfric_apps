@@ -68,10 +68,15 @@ document-api: api-documentation
 #
 unit-tests/%: export ADDITIONAL_EXTRACTION = $(CORE_ROOT_DIR)/components/science/unit-test/support
 unit-tests/%: export BIN_DIR ?= $(PROJECT_DIR)/test
-unit-tests/%: export FFLAGS += -D UNIT_TEST
+#
+# physics_schemes_interface is needed as it imports CASIM source
+#
 unit-tests/%: export IMPORT_PARTS = $(CORE_ROOT_DIR)/infrastructure \
-                                    $(CORE_ROOT_DIR)/components/science
+                                    $(CORE_ROOT_DIR)/components/science \
+                                    $(APPS_ROOT_DIR)/science/shared \
+                                    $(APPS_ROOT_DIR)/interfaces/physics_schemes_interface
 unit-tests/%: export META_FILE_DIR = rose-meta/socrates-radiation/HEAD
+unit-tests/%: export PRE_PROCESS_MACROS += LFRIC
 unit-tests/%: export PROGRAMS = socrates_interface_unit_tests
 unit-tests/%: export PROJECT = socrates_interface
 unit-tests/%: export SOURCE_DIR = source
