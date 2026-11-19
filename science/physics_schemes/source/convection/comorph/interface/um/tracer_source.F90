@@ -261,6 +261,7 @@ real(kind=real_cvprec), intent(in) :: layer_mass_cmpr                          &
 real(kind=real_cvprec), intent(in out) :: fields_cmpr                          &
                                           ( n_points_top,                      &
                                             n_fields_tot, k_bot_conv:k_bl_top )
+
 ! After this routine, the output entrained tracer values are scaled by the
 ! mass entrained from each level to obtain the vertically-homogenised
 ! resolved-scale source-terms.  This routine may modify the resulting
@@ -357,6 +358,103 @@ end do  ! i_tracer = 1, n_tracers
 
 return
 end subroutine tracer_homog_conv_bl
+
+
+! Subroutine to set parcel initial values of tracer fields
+subroutine tracer_gen( n_points, n_points_super, n_fields_tot,                 &
+                       fields_k, par_gen_mean, par_gen_core )
+
+use comorph_constants_mod, only: real_cvprec, min_float,                       &
+                                 n_tracers, n_cond_species, l_par_core,        &
+                                 i_cond_cl, i_cond_rain,                       &
+                                 i_cond_cf, i_cond_snow, i_cond_graup
+use comorph_um_namelist_mod, only: l_cv_numconcs
+use fields_type_mod, only: n_fields, i_qc_first
+
+implicit none
+
+! Number of points
+integer, intent(in) :: n_points
+
+! Size of input super-arrays (maybe larger than n_points,
+! as arrays are dimensioned with the max size they could need
+! on any level and reused for all levels)
+integer, intent(in) :: n_points_super
+
+! Total number of fields in the input super-arrays,
+! including tracers if they are used
+integer, intent(in) :: n_fields_tot
+
+! Primary model-fields at level k
+real(kind=real_cvprec), intent(in) :: fields_k                                 &
+                                      ( n_points_super, n_fields_tot )
+
+! In-parcel means of primary fields
+real(kind=real_cvprec), intent(in out) :: par_gen_mean                         &
+                                          ( n_points, n_fields_tot )
+! Parcel core primary fields
+real(kind=real_cvprec), intent(in out) :: par_gen_core                         &
+                                          ( n_points, n_fields_tot )
+
+! Address of each condensed water species number concentration in tracer array
+integer :: i_tr_n_cond(n_cond_species)
+
+! Loop counters
+integer :: ic, i_field, i_cond
+
+
+! For now, copy grid-mean tracer values into the parcel
+do i_field = n_fields+1, n_fields_tot
+  do ic = 1, n_points
+    par_gen_mean(ic,i_field) = fields_k(ic,i_field)
+  end do
+end do
+
+if ( l_cv_numconcs ) then
+  ! If running CoMorph with prognostic hydrometeor number concentrations,
+  ! need to set parcel initial number cosistent with mass where the
+  ! masses aren't equal to the grid-mean...
+
+  ! Setup indices for addressing the number concentration for each condensate
+  ! species in the tracer super-array
+  if ( i_cond_cl > 0    )  i_tr_n_cond(i_cond_cl)    = i_tr_n_cl
+  if ( i_cond_rain > 0  )  i_tr_n_cond(i_cond_rain)  = i_tr_n_rain
+  if ( i_cond_cf > 0    )  i_tr_n_cond(i_cond_cf)    = i_tr_n_cf
+  if ( i_cond_snow > 0  )  i_tr_n_cond(i_cond_snow)  = i_tr_n_snow
+  if ( i_cond_graup > 0 )  i_tr_n_cond(i_cond_graup) = i_tr_n_graup
+
+  ! Loop over active condensate species
+  do i_cond = 1, n_cond_species
+    if ( i_tr_n_cond(i_cond) > 0 ) then
+      ! If this species has a number concentration in the tracer array...
+      ! Set fields array address of the number concentration (in tracer sect)
+      i_field = n_fields + i_tr_n_cond(i_cond)
+      ! Scale parcel number conc up by ratio of parcel initial condensate mass
+      ! over grid-mean condensate mass.  This should account for when the
+      ! parcel has triggered from within cloud and so should pick-up
+      ! in-cloud hydrometeor number consistent with in-cloud mass.
+      do ic = 1, n_points
+        par_gen_mean(ic,i_field) = par_gen_mean(ic,i_field)                    &
+           * ( par_gen_mean(ic,i_qc_first-1+i_cond)                            &
+             / max( fields_k(ic,i_qc_first-1+i_cond), min_float ) )
+      end do
+    end if
+  end do
+
+end if  ! ( l_cv_numconcs )
+
+if ( l_par_core ) then
+  ! Set parcel core tracers equal to parcel mean tracers
+  do i_field = n_fields+1, n_fields_tot
+    do ic = 1, n_points
+      par_gen_core(ic,i_field) = par_gen_mean(ic,i_field)
+    end do
+  end do
+end if
+
+
+return
+end subroutine tracer_gen
 
 
 end module tracer_source_mod

@@ -173,7 +173,7 @@ do i_tracer = 1, n_tracers
       ! Add up vertical integral of tracer
       do ic2 = 1, cmpr(k) % n_points
         ic = index_ic_top(ic2,k)
-        par_bl_mean_tracer(ic) = par_bl_mean_tracer(ic)                      &
+        par_bl_mean_tracer(ic) = par_bl_mean_tracer(ic)                        &
           + fields_cmpr(ic2,i_field,k) * layer_mass_cmpr(ic2,k)
       end do
 
@@ -210,6 +210,62 @@ end do  ! i_tracer = 1, n_tracers
 
 return
 end subroutine tracer_homog_conv_bl
+
+
+! Subroutine to set parcel initial values of tracer fields
+subroutine tracer_gen( n_points, n_points_super, n_fields_tot,                 &
+                       fields_k, par_gen_mean, par_gen_core )
+
+use comorph_constants_mod, only: real_cvprec, n_tracers, l_par_core
+use fields_type_mod, only: n_fields
+
+implicit none
+
+! Number of points
+integer, intent(in) :: n_points
+
+! Size of input super-arrays (maybe larger than n_points,
+! as arrays are dimensioned with the max size they could need
+! on any level and reused for all levels)
+integer, intent(in) :: n_points_super
+
+! Total number of fields in the input super-arrays,
+! including tracers if they are used
+integer, intent(in) :: n_fields_tot
+
+! Primary model-fields at level k
+real(kind=real_cvprec), intent(in) :: fields_k                                 &
+                                      ( n_points_super, n_fields_tot )
+
+! In-parcel means of primary fields
+real(kind=real_cvprec), intent(in out) :: par_gen_mean                         &
+                                          ( n_points, n_fields_tot )
+! Parcel core primary fields
+real(kind=real_cvprec), intent(in out) :: par_gen_core                         &
+                                          ( n_points, n_fields_tot )
+
+! Loop counters
+integer :: ic, i_field
+
+! For now, copy grid-mean tracer values into the parcel
+do i_field = n_fields+1, n_fields_tot
+  do ic = 1, n_points
+    par_gen_mean(ic,i_field) = fields_k(ic,i_field)
+  end do
+end do
+
+if ( l_par_core ) then
+  ! Set parcel core tracers equal to parcel mean tracers
+  do i_field = n_fields+1, n_fields_tot
+    do ic = 1, n_points
+      par_gen_core(ic,i_field) = par_gen_mean(ic,i_field)
+    end do
+  end do
+end if
+
+
+return
+end subroutine tracer_gen
 
 
 end module tracer_source_mod
