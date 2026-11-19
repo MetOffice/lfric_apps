@@ -141,6 +141,7 @@ si_momentum_equation=.false.,
 use_multires_coupling=.false.,
 use_physics=.true.,
 use_wavedynamics=.true.,
+variable_cp=.false.,
 vector_invariant=.false.,
 /
 &helmholtz_solver

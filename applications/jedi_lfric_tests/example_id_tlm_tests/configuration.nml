@@ -142,6 +142,7 @@ theta_moist_source=.false.,
 use_multires_coupling=.false.,
 use_physics=.true.,
 use_wavedynamics=.true.,
+variable_cp=.false.,
 vector_invariant=.false.,
 /
 &helmholtz_solver

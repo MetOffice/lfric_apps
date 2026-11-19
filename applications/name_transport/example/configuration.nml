@@ -206,6 +206,7 @@ pert_width_scaling=1.0,
 horizontal_physics_predictor=.false.
 horizontal_transport_predictor=.false.
 use_multires_coupling=.false.
+variable_cp=.false.
 /
 &section_choice
 aerosol='none',

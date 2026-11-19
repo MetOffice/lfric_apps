@@ -74,6 +74,7 @@ solver_moisture_conservation=.true.,
 use_multires_coupling=.false.,
 use_physics=.true.,
 use_wavedynamics=.false.,
+variable_cp=.false.,
 vector_invariant=.false.,
 /
 &helmholtz_solver

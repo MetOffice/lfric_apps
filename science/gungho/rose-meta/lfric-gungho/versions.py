@@ -712,3 +712,18 @@ class vn32_t46(MacroUpgrade):
             )
 
         return config, self.reports
+
+
+class vn32_t891(MacroUpgrade):
+    """Upgrade macro for ticket #891 by Maureen Cohen."""
+
+    BEFORE_TAG = "vn3.2_t46"
+    AFTER_TAG = "vn3.2_t891"
+
+    def upgrade(self, config, meta_config=None):
+        # Commands From: rose-meta/lfric-gungho
+        """Add variable_cp to namelist formulation"""
+        self.add_setting(
+            config, ["namelist:formulation", "variable_cp"], ".false."
+        )
+        return config, self.reports
