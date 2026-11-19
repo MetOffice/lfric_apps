@@ -67,6 +67,7 @@ si_momentum_equation=.true.,
 theta_moist_source=.false.
 use_physics=.false.,
 use_wavedynamics=.true.,
+variable_cp=.false.,
 vector_invariant=.true.,
 /
 &helmholtz_solver

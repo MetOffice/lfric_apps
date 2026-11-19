@@ -59,6 +59,7 @@ rehabilitate=.true.,
 /
 &formulation
 use_multires_coupling=.false.,
+variable_cp=.false.,
 /
 &io
 file_convention='UGRID',
