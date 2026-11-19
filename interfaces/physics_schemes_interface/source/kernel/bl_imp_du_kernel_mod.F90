@@ -351,11 +351,12 @@ contains
 
       ! Calculate the molecular dissipation rate for frictional heating
 
-      ! first calculate tau
+      ! first update tau
       do k = 1, bl_levels-1
         tau_loc(k) = tau_star(k) + gamma2 * tau_loc(k) + &
                      gamma1 * rhokm_sp(k) * rdz_sp(k) *  &
-                      ( du_bl_sp(k) - du_bl_sp(k-1) )
+                     ( ( du_bl_sp(k) - du_star(k) ) -    &
+                       ( du_bl_sp(k-1) - du_star(k-1) ) )
       end do
 
       !================================================================
