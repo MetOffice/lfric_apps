@@ -26,6 +26,10 @@ module um_physics_init_mod
                                         crsw_file,                             &
                                         prec_file,                             &
                                         l_radaer,                              &
+                                        mode_setup,                            &
+                                        mode_setup_SUBCOCSSDU_7mode,           &
+                                        mode_setup_DUonly_2mode,               &
+                                        mode_setup_SolInsol,                   &
                                         easyaerosol_sw,                        &
                                         easyaerosol_lw,                        &
                                         murk, murk_prognostic,                 &
@@ -712,8 +716,27 @@ contains
       end select
 
       ! Initialisation of RADAER fields
+      ! For SolInsol, only have 5 modes
       if ( l_radaer ) then
-        n_radaer_mode = 6_i_def
+
+        select case (mode_setup)
+
+        case (mode_setup_SolInsol)
+
+          n_radaer_mode = 5_i_def
+
+        case ( mode_setup_SUBCOCSSDU_7mode,                                    &
+               mode_setup_DUonly_2mode)
+
+          n_radaer_mode = 6_i_def
+
+        case default
+          write( log_scratch_space, '(A,I0)' )                                 &
+             'Invalid mode setup, stopping', mode_setup
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+
+        end select
+
       else
         n_radaer_mode = 0_i_def
       end if
