@@ -813,15 +813,15 @@ subroutine create_model_data( modeldb,           &
                               checkpoint_stem_name )
         call combine_complex_prognostics( prognostic_fields )
 
+        ! Update factors for moist dynamics
+        call moist_dyn_factors_alg( moist_dyn_array%bundle, &
+                                    mr_array%bundle )
+
         if ( .not. shallow ) then
           call shallow_to_deep( modeldb%config,    &
                                 prognostic_fields, &
                                 moist_dyn_array%bundle )
         end if
-
-        ! Update factors for moist dynamics
-        call moist_dyn_factors_alg( moist_dyn_array%bundle, &
-                                    mr_array%bundle )
 
       case ( init_option_fd_start_dump )
 

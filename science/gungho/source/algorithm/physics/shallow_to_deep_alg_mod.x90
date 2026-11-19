@@ -44,6 +44,9 @@ contains
     integer(i_def) :: init_eos_height
     logical(l_def) :: regrav_interp
 
+    init_eos_height = config%initialization%init_eos_height()
+    regrav_interp   = config%initialization%regrav_interp()
+
     call prognostic_fields%get_field('u', u)
     call prognostic_fields%get_field('theta', theta)
     call prognostic_fields%get_field('exner', exner)
