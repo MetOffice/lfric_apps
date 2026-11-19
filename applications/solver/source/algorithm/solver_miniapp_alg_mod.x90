@@ -7,6 +7,7 @@
 !>@brief Barebones algorithm to help the development of miniapps
 module solver_miniapp_alg_mod
 
+  use config_mod,                     only : config_type
   use constants_mod,                  only : i_def,r_def
   use log_mod,                        only : log_event,         &
                                              LOG_LEVEL_INFO, LOG_LEVEL_ERROR, &
@@ -54,14 +55,19 @@ contains
 
   !> @details Constructs the linear_operator, preconditioner and solver from the
   !!          condiguration information
+  !> @param[in]    config Application configuration object
   !> @param[inout] prec the precondtioner object
   !> @param[inout] op the linear operator object
   !> @param[inout] solver the solver object
   !> @param[inout] fv_1  A prognostic field vector object
   !> @param[in] chi the coordinate field
   !> @param[in] panel_id 2D field giving the panel ID for cubed sphere panels
-  subroutine init_solver( prec, op, solver, fv_1, chi, panel_id )
+  subroutine init_solver( config, prec, op, solver, fv_1, chi, panel_id )
+
     implicit none
+
+    type(config_type), intent(in) :: config
+
     class( abstract_preconditioner_type ),  allocatable, intent(inout) :: prec
     class( abstract_linear_operator_type ), allocatable, intent(inout) :: op
     class( abstract_iterative_solver_type), allocatable, intent(inout) :: solver
@@ -92,7 +98,7 @@ contains
        ! need to select type because the compiler doesn't know we have just assigned its type.
        select type( op )
        type is ( dense_operator_type)
-          op = dense_operator_type( fv_1, qr, chi, panel_id )
+          op = dense_operator_type( config, fv_1, qr, chi, panel_id )
           ! don't forget to call the (copy) constructor on diag
           diag=fv_1
           call op%extract_diagonal(diag)
@@ -208,10 +214,13 @@ contains
   end subroutine init_solver
 
   !> @details An algorithm for developing miniapps
-  !> @param[inout] fv_1  A prognostic field vector object
-  subroutine solver_miniapp_alg(fv_1, chi, panel_id)
+  !> @param[in]    config Application configuration object
+  !> @param[inout] fv_1   A prognostic field vector object
+  subroutine solver_miniapp_alg(config, fv_1, chi, panel_id)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Prognostic fields
     type( field_vector_type ),        intent( inout ) :: fv_1
@@ -225,18 +234,18 @@ contains
     class( abstract_iterative_solver_type), allocatable :: solver
 
     call log_event( "solver miniapp: running algorithm", LOG_LEVEL_INFO )
-    call init_solver( prec, op, solver, fv_1, chi, panel_id )
+    call init_solver( config, prec, op, solver, fv_1, chi, panel_id )
 
     ! !choose a RHS use the copy constructor
     rhs = fv_1
     write(log_scratch_space, '(A,E16.8)') "apply the operator: ",rhs%norm()
     call log_event( log_scratch_space, LOG_LEVEL_INFO)
 
-    call op%apply(fv_1, rhs)
+    call op%apply(config, fv_1, rhs)
 
     ans = fv_1 ! copy constructor
     call ans%set_scalar(0.0_r_def)
-    call solver%apply(ans,rhs)
+    call solver%apply(config, ans, rhs)
     ! write out the answer
     write(log_scratch_space,'(A,E16.8,A,E16.8)') "solved=", ans%norm(), " initial=", fv_1%norm()
     call log_event(log_scratch_space, LOG_LEVEL_INFO)

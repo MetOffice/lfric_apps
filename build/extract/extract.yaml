@@ -29,6 +29,7 @@ casim:
     - src/generic_diagnostic_variables.F90
     - src/graupel_embryo.F90
     - src/graupel_wetgrowth.F90
+    - src/hail_diag_fast_mod.F90
     - src/homogeneous_freezing.F90
     - src/ice_accretion.F90
     - src/ice_deposition.F90
@@ -113,6 +114,8 @@ ukca:
     - src/control/core/top_level/ukca_iniasad.F90
     - src/control/core/top_level/ukca_init.F90
     - src/control/core/top_level/ukca_main1-ukca_main1.F90
+    - src/control/core/top_level/ukca_radaer_lfric_api_mod.F90
+    - src/control/core/top_level/ukca_radaer_lfric_init_mod.F90
     - src/control/core/top_level/ukca_setup_mod.F90
     - src/control/core/top_level/ukca_solang.F90
     - src/control/core/top_level/ukca_step_control_mod.F90
@@ -355,6 +358,10 @@ ukca:
     - src/science/radaer/spcrg3a_mod.F90
     - src/science/radaer/ukca_radaer_band_average.F90
     - src/science/radaer/ukca_radaer_compute_aod.F90
+    - src/science/radaer/ukca_radaer_lfric_list_mod.F90
+    - src/science/radaer/ukca_radaer_lfric_saved_mod.F90
+    - src/science/radaer/ukca_radaer_lfric_settings_mod.F90
+    - src/science/radaer/ukca_radaer_lfric_struct_mod.F90
     - src/science/radaer/ukca_radaer_lut_mod.F90
     - src/science/radaer/ukca_radaer_populate_lut_mod.F90
     - src/science/radaer/ukca_radaer_precalc_mod.F90

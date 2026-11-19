@@ -194,6 +194,7 @@ contains
     use tl_mol_conservative_alg_mod,      only: tl_mol_conservative_alg
     use tl_mol_advective_alg_mod,         only: tl_mol_advective_alg
     use tl_ffsl_control_alg_mod,          only: tl_ffsl_control_alg
+    use tl_vertical_sl_advective_alg_mod, only: tl_vertical_sl_advective_alg
 
     implicit none
 
@@ -303,19 +304,14 @@ contains
         ! Choose form of transport equation for vertical
         select case ( transport_metadata%get_equation_form() )
 
-        case ( equation_form_conservative )
-              call log_event(                                                  &
-                'TL: Vertical SL conservative not coded yet',                  &
-                LOG_LEVEL_ERROR                                                &
-        )
         case ( equation_form_advective )
-              call log_event(                                                  &
-                'TL: Vertical SL advective not coded yet',                     &
-                LOG_LEVEL_ERROR                                                &
-        )
+          call tl_vertical_sl_advective_alg(                                   &
+                  field_np1, field_n, ls_field_n, tl_transport_controller      &
+          )
+
         case default
           call log_event(                                                      &
-                  'Trying to solve unrecognised form of transport equation',   &
+                  'TL vertical SL is only coded for advective form transport', &
                   LOG_LEVEL_ERROR                                              &
           )
         end select

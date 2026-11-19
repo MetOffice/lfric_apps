@@ -27,6 +27,9 @@
         "ngarch": {
             "build_wallclock": 45,
         },
+        "jedi_lfric_tests": {
+            "build_wallclock": 45,
+        },
         "mesh": {
             "mesh_wallclock": 20,
             "mesh_memory": [6, "GB"],
@@ -51,10 +54,10 @@
         "linear_model": {
             "build_wallclock": 60,
         },
-        "lfric_coupled": {
-            "build_wallclock": 60,
-        },
         "ngarch": {
+            "build_wallclock": 45,
+        },
+        "jedi_lfric_tests": {
             "build_wallclock": 45,
         },
         "mesh": {

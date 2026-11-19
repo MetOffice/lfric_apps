@@ -3,7 +3,7 @@
 # The file LICENCE, distributed with this code, contains details of the terms
 # under which the code may be used.
 ##############################################################################
-export PROJECT_SOURCE = $(APPS_ROOT_DIR)/science/linear/source
+PROJECT_SOURCE = $(APPS_ROOT_DIR)/science/linear/source
 
 .PHONY: import-linear
 import-linear:

@@ -164,6 +164,10 @@ contains
     integer(kind=i_def), parameter :: stencil_size = 5
     integer(kind=i_def), parameter :: ncell = stencil_size*nlayers
 
+    real(kind=r_solver), parameter :: const_u = 1.0_r_solver
+    real(kind=r_solver), parameter :: const_r = 1.0_r_solver
+    real(kind=r_solver), parameter :: const_t = 1.0_r_solver
+
     this%smap_sizes(:) = 2
 
     allocate(this%div_star(ncell, ndf_w2, ndf_w3))
@@ -238,6 +242,9 @@ contains
                                  ncell,                &
                                  this%p3theta,         &
                                  this%w2_mask,         &
+                                 const_u,              &
+                                 const_t,              &
+                                 const_r,              &
                                  ndf_w3,               &
                                  undf_w3,              &
                                  this%map_w3,          &
@@ -297,6 +304,10 @@ contains
 
     integer(kind=i_def), parameter :: stencil_size = 4
     integer(kind=i_def), parameter :: ncell = stencil_size*nlayers
+
+    real(kind=r_solver), parameter :: const_u = 1.0_r_solver
+    real(kind=r_solver), parameter :: const_r = 1.0_r_solver
+    real(kind=r_solver), parameter :: const_t = 1.0_r_solver
 
     allocate(this%div_star(ncell, ndf_w2, ndf_w3))
     allocate(this%compound_div(ncell, ndf_w3, ndf_w2))
@@ -378,6 +389,9 @@ contains
                                  ncell,                &
                                  this%p3theta,         &
                                  this%w2_mask,         &
+                                 const_u,              &
+                                 const_t,              &
+                                 const_r,              &
                                  ndf_w3,               &
                                  undf_w3,              &
                                  this%map_w3,          &

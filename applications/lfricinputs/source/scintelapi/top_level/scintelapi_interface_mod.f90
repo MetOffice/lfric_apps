@@ -34,7 +34,7 @@ use field_list_mod,            only: init_field_list
 use generator_library_mod,     only: init_generator_lib
 use dependency_graph_list_mod, only: init_dependency_graph_list
 use lfricinp_lfric_driver_mod, only: lfricinp_initialise_lfric, model_clock,   &
-                                     lfric_nl_fname
+                                     lfric_nl_fname, lfricinp_setup_basics
 use lfricinp_setup_io_mod,     only: io_fname
 use lfricinp_read_command_line_args_mod, only: lfricinp_read_command_line_args
 
@@ -53,10 +53,12 @@ call io_config%load_namelist()
 ! Load date and time information
 call datetime % initialise()
 
+lfric_config = lfricinp_setup_basics(program_name_arg="scintelapi",           &
+                required_lfric_namelists = required_lfric_namelists)
+
 ! Initialise LFRic infrastructure
-lfric_config = lfricinp_initialise_lfric(                                      &
-     program_name_arg="scintelapi",                                            &
-     required_lfric_namelists = required_lfric_namelists,                      &
+call lfricinp_initialise_lfric(                                                &
+     config=lfric_config,                                                      &
      start_date = datetime % first_validity_time,                              &
      time_origin = datetime % first_validity_time,                             &
      first_step = datetime % first_step,                                       &

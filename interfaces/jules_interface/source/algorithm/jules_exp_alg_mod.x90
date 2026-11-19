@@ -90,7 +90,7 @@ contains
     type( field_collection_type ), intent(in)    :: turbulence_fields
     type( field_collection_type ), intent(in)    :: convection_fields
     type( field_collection_type ), intent(in)    :: cloud_fields
-    type( field_collection_type ), intent(in)    :: surface_fields
+    type( field_collection_type ), intent(inout) :: surface_fields
     type( field_collection_type ), intent(in)    :: soil_fields
     type( field_collection_type ), intent(in)    :: snow_fields
     type( field_collection_type ), intent(in)    :: aerosol_fields
@@ -219,7 +219,7 @@ contains
     ! local variables
     type(mesh_type),           pointer :: mesh
     type( field_type ) :: gross_prim_prod,  &
-                          z0h_eff, soil_respiration
+                          z0h_eff, soil_respiration, chr10m
     type( field_type ) :: mr_ice
 
     integer(i_def) :: stencil_depth, ncells, ncells_halo
@@ -371,7 +371,7 @@ contains
     height_w3  => get_height_fv(modeldb%config, mesh, W3)
 
     call initialise_diags_for_jules_exp(z0h_eff, gross_prim_prod, &
-                                        soil_respiration)
+                                        soil_respiration, chr10m, mesh)
 
     call zh%copy_field_properties(recip_l_mo_sea)
     call zh%copy_field_properties(rhostar)
@@ -447,11 +447,14 @@ contains
                                urbhwr, urbhgt, urbztm, urbdisp,                &
                                rhostar, recip_l_mo_sea,                        &
                                t1_sd_2d, q1_sd_2d,                             &
-                               gross_prim_prod, z0h_eff, ocn_cpl_point,        &
+                               gross_prim_prod, z0h_eff, chr10m, ocn_cpl_point,&
                                stencil_depth)
 
     ! Switch UM back to columns
     call um_sizes_init(1_i_def)
+    ! Add to surface fields collection for passing to implicit jules
+    call surface_fields%add_field(chr10m)
+
 
     if ( LPROF ) call stop_timing( id, 'jules.explicit' )
 

@@ -8,10 +8,8 @@
 !> @brief Module for computing a linear hydrostatially balanced reference state
 module reference_profile_mod
 
-use base_mesh_config_mod,           only : geometry,           &
-                                           geometry_spherical, &
-                                           topology,           &
-                                           topology_fully_periodic
+
+use base_mesh_config_mod,           only : geometry
 use constants_mod,                  only : r_def, i_def
 use coord_transform_mod,            only : xyz2llr
 use generate_global_gw_fields_mod,  only : generate_global_gw_fields
@@ -29,6 +27,8 @@ use idealised_config_mod,           only : test_cold_bubble_x,    &
                                            test_yz_cosine_hill
 use initial_pressure_config_mod,    only : surface_pressure
 use initial_temperature_config_mod, only : bvf_square, theta_surf
+use mesh_mod,                       only : geometry_spherical
+
 use planet_config_mod,              only : scaled_radius, gravity, Cp, Rd, &
                                            kappa, p_zero
 use formulation_config_mod,         only : shallow

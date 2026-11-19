@@ -42,7 +42,11 @@ implicit none
 integer :: bl_segment_size = imdi
 
 integer :: sw_seg_limit_size = imdi ! Segment size limit for shortwave fluxes
+integer :: sw_inc_seg_limit_size = imdi ! Segment size limit
+                                        ! for shortwave inc fluxes
 integer :: lw_seg_limit_size = imdi ! Segment size limit for longwave fluxes
+integer :: lw_inc_seg_limit_size = imdi ! Segment size limit
+                                        ! for longwave inc fluxes
 
 integer :: gw_seg_size = 32   ! Size of segments for optimising for cache
                               ! use and OpenMP

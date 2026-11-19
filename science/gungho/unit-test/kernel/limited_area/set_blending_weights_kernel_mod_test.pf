@@ -44,7 +44,8 @@ module set_blending_weights_kernel_mod_test
     use feign_config_mod,      only : feign_boundaries_config
     use boundaries_config_mod, only : lbc_method_onion_layer,                  &
                                       blend_frequency_inner,                   &
-                                      transport_overwrite_freq_none
+                                      transport_overwrite_freq_none,           &
+                                      lbc_bal_meth_keep_rho
     implicit none
 
     class(set_blending_weights_test_type), intent(inout) :: this
@@ -83,8 +84,10 @@ module set_blending_weights_kernel_mod_test
                                   edge_cells_ns=1,                             &
                                   inner_width_ew=1,                            &
                                   inner_width_ns=1,                            &
+                                  lbc_bal_meth=lbc_bal_meth_keep_rho,          &
                                   lbc_eos_height=100,                          &
                                   lbc_method=lbc_method_onion_layer,           &
+                                  lbc_sort_theta=.true.,                       &
                                   limited_area=.false.,                        &
                                   normal_only=.true.,                          &
                                   outer_width_ew=1,                            &

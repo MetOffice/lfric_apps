@@ -1,6 +1,6 @@
 {% do LOG.debug("Started in site/ncas/lfric_atm/tasks_lfric_atm.cylc") %}
 
-{% if task_ns.conf_name == "nwp_gal9_3n_1T-C192_MG" %}
+{% if task_ns.conf_name == "nwp_gal10_3n_1T-C192_MG" %}
 
     {% do task_dict.update({
         "xios_nodes": 4,
@@ -9,20 +9,20 @@
         "plot_str": "",
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9-C48_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10-C48_MG" %}
     {% do task_dict.update({
         "mpi_parts": 54,
         "plot_str": "",
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9-C224_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10-C224_MG" %}
 
     {% do task_dict.update({
         "wallclock": 20,
         "plot_str": "",
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9-C896_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10-C896_MG" %}
 
     {% do task_dict.update({
         "task_ranks_per_node": 64,
@@ -31,47 +31,47 @@
         "plot_str": "",
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_1T-C12" %}
+{% elif task_ns.conf_name == "nwp_gal10_1T-C12" %}
     {% do task_dict.update({
        "kgo_checks": 'None'
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_1T-C12" %}
+{% elif task_ns.conf_name == "nwp_gal10_1T-C12" %}
     {% do task_dict.update({
        "kgo_checks": 'None'
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_2T-C12" %}
+{% elif task_ns.conf_name == "nwp_gal10_2T-C12" %}
     {% do task_dict.update({
        "kgo_checks": 'None'
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_1T-C48_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_1T-C48_MG" %}
     {% do task_dict.update({
        "kgo_checks": 'None'
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_2T-C48_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_2T-C48_MG" %}
     {% do task_dict.update({
        "kgo_checks": 'None'
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_4T-C48_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_4T-C48_MG" %}
     {% do task_dict.update({
        "kgo_checks": 'None'
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_3n_1T-C192_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_3n_1T-C192_MG" %}
     {% do task_dict.update({
        "kgo_checks": 'None'
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_3n_2T-C192_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_3n_2T-C192_MG" %}
     {% do task_dict.update({
        "kgo_checks": 'None'
     }) %}
 
-{% elif task_ns.conf_name == "nwp_gal9_3n_4T-C192_MG" %}
+{% elif task_ns.conf_name == "nwp_gal10_3n_4T-C192_MG" %}
     {% do task_dict.update({
        "kgo_checks": 'None'
     }) %}

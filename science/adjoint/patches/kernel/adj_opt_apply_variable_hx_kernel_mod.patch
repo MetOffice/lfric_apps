@@ -13,7 +13,7 @@
 -  end interface opt_apply_variable_hx_code
 +  end interface adj_opt_apply_variable_hx_code
    type, public, extends(kernel_type) :: adj_opt_apply_variable_hx_kernel_type
-   type(ARG_TYPE) :: META_ARGS(10) = (/ &
+   type(ARG_TYPE) :: META_ARGS(11) = (/ &
 -    arg_type(gh_field, gh_real, gh_write, w3), &
 -    arg_type(gh_field, gh_real, gh_read, w2), &
 +    arg_type(gh_field, gh_real, gh_readwrite, w3), &
@@ -101,9 +101,9 @@
      enddo
 +    k = 0
 +    ik = cell * nlayers + k - nlayers + 1
-     div_u = div_u + lhs(map_w31 + k) * sgn
-     t_e(1) = t_e(1) + sgn * lhs(map_w31 + k)
-     t_e(2) = t_e(2) + sgn * lhs(map_w31 + k)
+     div_u = div_u + const_div * lhs(map_w31 + k)
+     t_e(1) = t_e(1) + const_theta * lhs(map_w31 + k)
+     t_e(2) = t_e(2) + const_theta * lhs(map_w31 + k)
      pressure(k + map_w31) = pressure(k + map_w31) + m3(ik,1,1) * lhs(map_w31 + k)
      rhs_p(k + map_w3(1)) = rhs_p(k + map_w3(1)) + lhs(map_w31 + k)
 -    lhs(map_w31 + k) = 0.0
@@ -197,9 +197,9 @@
      enddo
 +    k = 0
 +    ik = cell * nlayers + k - nlayers + 1
-     div_u = div_u + lhs(map_w31 + k) * sgn
-     t_e(1) = t_e(1) + sgn * lhs(map_w31 + k)
-     t_e(2) = t_e(2) + sgn * lhs(map_w31 + k)
+     div_u = div_u + const_div * lhs(map_w31 + k)
+     t_e(1) = t_e(1) + const_theta * lhs(map_w31 + k)
+     t_e(2) = t_e(2) + const_theta * lhs(map_w31 + k)
      pressure(k + map_w31) = pressure(k + map_w31) + m3(ik,1,1) * lhs(map_w31 + k)
      rhs_p(k + map_w3(1)) = rhs_p(k + map_w3(1)) + lhs(map_w31 + k)
 -    lhs(map_w31 + k) = 0.0

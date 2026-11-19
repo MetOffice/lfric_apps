@@ -503,7 +503,7 @@ use parkind1,          only: jprb, jpim
 implicit none
 integer, parameter :: prec = real_64
 character(len=*), parameter :: RoutineName='LSP_QCLEAR_64B'
-#include "lsp_subgrid_lsp_qclear.h"
+#include "include/lsp_subgrid_lsp_qclear.h"
 return
 end subroutine lsp_qclear_64b
 
@@ -527,7 +527,7 @@ use parkind1,          only: jprb, jpim
 implicit none
 integer, parameter :: prec = real_32
 character(len=*), parameter :: RoutineName='LSP_QCLEAR_32B'
-#include "lsp_subgrid_lsp_qclear.h"
+#include "include/lsp_subgrid_lsp_qclear.h"
 return
 end subroutine lsp_qclear_32b
 

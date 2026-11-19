@@ -49,6 +49,8 @@ module substep_transport_alg_mod
   public :: substep_transport_alg
   public :: adaptive_vhv_splitting_alg
 
+  integer(kind=i_def), parameter, public :: max_num_substeps = 3
+
 contains
 
   !> @brief Set up the number of substeps when substepping transport
@@ -215,13 +217,14 @@ contains
       ! Set number of substeps
       substeps = max( steps_courant, steps_lipschitz )
 
-      ! Limit this to 3 so model doesn't run forever...
-      if (substeps > 3) then
-        write(log_scratch_space, '(A,I4,A)')                                   &
+      ! Limit this so model doesn't run forever...
+      if (substeps > max_num_substeps) then
+        write(log_scratch_space, '(A,I4,A,I4,A)')                              &
             'Transport: Number of calculated substeps for stability is ',      &
-            substeps, '. Limiting this to 3 to avoid running indefinitely'
+            substeps, '. Limiting this to ', max_num_substeps, ' to avoid ' // &
+            'running indefinitely'
         call log_event(log_scratch_space, LOG_LEVEL_WARNING)
-        substeps = 3
+        substeps = max_num_substeps
       end if
 
     case ( substep_transport_off )
