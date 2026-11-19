@@ -82,6 +82,9 @@ if (local_rank == 0) then
   allocate( p_top_buffer(um_grid%num_p_points_x,um_grid%num_p_points_y) )
 end if
 
+l_q_top_buffer = .false.
+l_theta_top_buffer = .false.
+
 !---------------------------------------------------------------------------
 ! Main loop over requested stashcodes
 !---------------------------------------------------------------------------
