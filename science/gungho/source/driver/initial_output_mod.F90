@@ -32,12 +32,11 @@ contains
   !> @param[in,out] modeldb             Working data set of model.
   !> @param[in]     mesh                The primary mesh
   !> @param[in]     twod_mesh           The 2d mesh
-  !> @param[in]     io_context_name     The name of the IO context for writing
   !> @param[in]     nodal_output_on_w3  Flag that determines if vector fields
   !>                  should be projected to W3 for nodal output
   !>
   subroutine write_initial_output( modeldb, mesh, twod_mesh, &
-                                   io_context_name, nodal_output_on_w3 )
+                                   nodal_output_on_w3 )
 
 #ifdef USE_XIOS
     !>@todo This will be removed by #3321
@@ -50,16 +49,7 @@ contains
     class(modeldb_type),      intent(inout) :: modeldb
     type(mesh_type), pointer, intent(in)    :: mesh
     type(mesh_type), pointer, intent(in)    :: twod_mesh
-    character(*),             intent(in)    :: io_context_name
     logical(l_def),           intent(in)    :: nodal_output_on_w3
-#ifdef USE_XIOS
-    type(lfric_xios_context_type), pointer :: io_context
-    ! Call clock initial step before initial conditions output
-    if (modeldb%clock%is_initialisation() .and. use_xios_io) then
-      call modeldb%io_contexts%get_io_context(io_context_name, io_context)
-      call advance(io_context, modeldb%clock)
-    end if
-#endif
 
     if (write_initial) then
       if (modeldb%clock%is_initialisation() .and. write_diag) then

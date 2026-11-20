@@ -144,7 +144,7 @@ contains
 
     integer(kind=i_def)    :: i, fs
     integer(kind=tik)      :: id
-    character(len=str_def) :: name, prefix, field_name
+    character(len=str_def) :: name, field_name
 
     integer(kind=i_def),    allocatable :: fs_ids(:)
     character(len=str_def), allocatable :: fs_names(:)
@@ -193,14 +193,9 @@ contains
     fs_names = (/ "w0 ", "w2h", "w3 ", "wth" /)  ! Spaces to align lengths
     fs_ids = (/ W0, W2H, W3, Wtheta /)
     if (use_xios_io) then
-      if (modeldb%clock%is_initialisation()) then
-        prefix = "init_"
-      else
-        prefix = ""
-      end if
       tmp_write_ptr => write_field_generic
       do i = 1, SIZE(fs_names)
-        field_name = trim(prefix)//"height_"//trim(fs_names(i))
+        field_name = "height_"//trim(fs_names(i))
         fs = fs_ids(i)
         if (diagnostic_to_be_sampled(trim(field_name))) then
           height => get_height_fe(modeldb%config, mesh, fs)
@@ -237,26 +232,14 @@ contains
       tmp_write_ptr => write_field_generic
       call u_in_w2h%set_write_behaviour(tmp_write_ptr)
       call v_in_w2h%set_write_behaviour(tmp_write_ptr)
-      if (modeldb%clock%is_initialisation()) then
-        if (diagnostic_to_be_sampled("init_u_in_w2h")) then
-          call u_in_w2h%write_field("init_u_in_w2h")
-        end if
-        if (diagnostic_to_be_sampled("init_v_in_w2h")) then
-          call v_in_w2h%write_field("init_v_in_w2h")
-        end if
-        if (diagnostic_to_be_sampled("init_w_in_wth")) then
-          call w_in_wth%write_field("init_w_in_wth")
-        end if
-      else
-        if (diagnostic_to_be_sampled("u_in_w2h")) then
-          call u_in_w2h%write_field("u_in_w2h")
-        end if
-        if (diagnostic_to_be_sampled("v_in_w2h")) then
-          call v_in_w2h%write_field("v_in_w2h")
-        end if
-        if (diagnostic_to_be_sampled("w_in_wth")) then
-          call w_in_wth%write_field("w_in_wth")
-        end if
+      if (diagnostic_to_be_sampled("u_in_w2h")) then
+        call u_in_w2h%write_field("u_in_w2h")
+      end if
+      if (diagnostic_to_be_sampled("v_in_w2h")) then
+        call v_in_w2h%write_field("v_in_w2h")
+      end if
+      if (diagnostic_to_be_sampled("w_in_wth")) then
+        call w_in_wth%write_field("w_in_wth")
       end if
     else
       call write_vector_diagnostic(modeldb%config, mesh, 'u', u, &
