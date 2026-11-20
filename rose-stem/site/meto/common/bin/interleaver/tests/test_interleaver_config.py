@@ -28,7 +28,7 @@ class TestInterleaverConfig:
             ranks_per_node=6,
             rank_depth=4,
             omp_num_threads=1,
-            binding_start_core=0)
+            binding_start_core=168)
         }
 
         cfg = InterleaverConfig.from_env()
