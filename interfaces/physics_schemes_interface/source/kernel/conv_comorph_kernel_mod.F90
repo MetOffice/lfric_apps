@@ -791,7 +791,7 @@ contains
                                          glomap_mode_dust_and_clim,            &
                                          glomap_mode_ukca
 
-    use constants_mod,             only : i_def, i_um, r_def, r_um
+    use constants_mod,             only : i_def, i_um, r_def, r_um, rmdi
     use empty_data_mod,            only : empty_real_data
     use log_mod, only : log_event, log_scratch_space, LOG_LEVEL_ERROR
 !$  use omp_lib, only : omp_get_max_threads
