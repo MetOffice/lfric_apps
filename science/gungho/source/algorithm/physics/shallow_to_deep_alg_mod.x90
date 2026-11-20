@@ -1,0 +1,65 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright 2026 Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Adjust prognostic fields from shallow to deep
+module shallow_to_deep_alg_mod
+
+  use config_mod,                    only: config_type
+  use constants_mod,                 only: i_def, r_def, l_def
+  use log_mod,                       only: log_event,         &
+                                           log_scratch_space, &
+                                           LOG_LEVEL_INFO
+
+  ! Derived Types
+  use field_mod,                     only: field_type
+  use field_collection_mod,          only: field_collection_type
+
+  use map_fd_to_prognostics_alg_mod, only: hydrostatic_balance
+  use moist_dyn_mod,                 only: num_moist_factors
+
+  implicit none
+
+  private
+  public :: shallow_to_deep
+
+contains
+
+  subroutine shallow_to_deep( config, prognostic_fields, moist_dyn )
+
+    implicit none
+
+    type(config_type),            intent( in )    :: config
+    type(field_collection_type),  intent( inout ) :: prognostic_fields
+    type(field_type),             intent( inout ) :: moist_dyn(num_moist_factors)
+
+    ! Local dereferenced fields
+    type( field_type ), pointer :: u
+    type( field_type ), pointer :: theta
+    type( field_type ), pointer :: exner
+    type( field_type ), pointer :: rho
+
+    integer(i_def) :: init_eos_height
+    logical(l_def) :: regrav_interp
+
+    init_eos_height = config%initialization%init_eos_height()
+    regrav_interp   = config%initialization%regrav_interp()
+
+    call prognostic_fields%get_field('u', u)
+    call prognostic_fields%get_field('theta', theta)
+    call prognostic_fields%get_field('exner', exner)
+    call prognostic_fields%get_field('rho', rho)
+
+    call hydrostatic_balance( config, exner, rho, theta, u, moist_dyn, &
+                              init_eos_height, regrav_interp,          &
+                              recompute_rho=.false.,                   &
+                              exner_from_rho=.true. )
+
+    call log_event( "Gungho: Reset prognostics from shallow to deep", &
+                    LOG_LEVEL_INFO )
+
+  end subroutine shallow_to_deep
+
+end module shallow_to_deep_alg_mod
