@@ -20,13 +20,6 @@
 
 {% set azspice_tech = 'module load lfric/vn3.3-rc4' %}
 
-{% set azspice_um_tools = 'module load um_tools/2026.09.1/openmp' %}
-
-{% set azspice_nccmp = "module load csc/2025.3.20 ; "~
-                       "module load gcc/12.2.0 ; "~
-                       "module load mpich/4.2.3 ; "~
-                       "module load nccmp/1.9.1.0" %}
-
     [[AZSPICE_BASE]]
         platform = spice
         [[[environment]]]
@@ -124,17 +117,20 @@
     [[AZSPICE_WEIGHTS]]
         inherit = AZSPICE_BASE
         {{ generate_script("pre-script", ["module purge",
-                                          azspice_base,
-                                          azspice_compiler_gnu,
-                                          azspice_um_tools,
+                                          azspice_scitools,
+                                          "module load um_tools/2025.10.1/openmp",
                                           "module list 2>&1"]) }}
 
     [[AZSPICE_FULL_KGO]]
         inherit = AZSPICE_BASE
         {{ generate_script("pre-script", ["module purge",
                                           azspice_scitools,
-                                          azspice_um_tools,
-                                          azspice_nccmp,
+                                          "module load um_tools/2025.10.1/openmp",
+                                          "module load csc/2025.3.20",
+                                          "module load gcc/12.2.0",
+                                          "module load mpich/4.2.3",
+                                          "module load nccmp/1.9.1.0",
+                                          "export ROSE_PYTHONPATH=$PYTHONPATH",
                                           "module list 2>&1"]) }}
 
     [[AZSPICE_EXPORT-SOURCE]]
