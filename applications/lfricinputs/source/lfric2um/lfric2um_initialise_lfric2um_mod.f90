@@ -3,6 +3,8 @@
 ! For further details please refer to the file LICENCE
 ! which you should have received as part of this distribution.
 ! *****************************COPYRIGHT*******************************
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Github Copilot Enterprise (Claude Opus 5.5)
 module lfric2um_initialise_lfric2um_mod
 
 implicit none
@@ -21,6 +23,7 @@ subroutine lfric2um_initialise_lfric2um()
 ! lfric2um modules
 use lfric2um_namelists_mod,          only: lfric2um_config
 use lfric2um_regrid_weights_mod,     only: lfric2um_regrid_weightsfile_ctl
+use lfric2um_land_sea_mask_mod,      only: lfric2um_read_land_sea_mask
 
 ! lfricinputs modules
 use lfricinp_lfric_driver_mod,       only: local_rank
@@ -43,6 +46,10 @@ call lfricinp_set_grid_from_namelist(lfric2um_config%num_snow_layers, &
 if (local_rank == 0) then
   ! Read in weights files
   call lfric2um_regrid_weightsfile_ctl()
+
+  if (trim(lfric2um_config%um_land_sea_mask_file) /= 'unset') then
+    call lfric2um_read_land_sea_mask(lfric2um_config%um_land_sea_mask_file)
+  end if
 end if
 
 end subroutine lfric2um_initialise_lfric2um

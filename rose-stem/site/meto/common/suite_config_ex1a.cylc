@@ -3,6 +3,8 @@
 {# The file LICENCE, distributed with this code, contains etails of the terms #}
 {# under which the code may be used. #}
 {# ########################################################################### #}
+{# Some content in this file was generated or refactored with assistance from #}
+{# -  Met Office Github Copilot Enterprise (Claude Opus 5.5) #}
 {% do LOG.debug("Entered site/meto/common/suite_config_ex1a.cylc") %}
 
 {% if site_vars.ex_trustzone == "collab" %}
@@ -43,6 +45,18 @@
 
 {% set ex1a_perftools = 'module load perftools' %}
 
+    [[EX1A_DATA]]
+        platform = {{site_vars.host_ex}}
+        [[[environment]]]
+            {# BIG_DATA_DIR holds ancils and dump files #}
+{% if site_vars["ex_trustzone"] == "collab" %}
+            BIG_DATA_DIR = '/data/users/lfricadmin.mon/data'
+{% elif site_vars["host_ex"] == "exz" %}
+            BIG_DATA_DIR = '/common/internal/lfricdir/data'
+{% else %}
+            BIG_DATA_DIR = '/data/users/lfricadmin/data'
+{% endif %}
+
     [[EX1A_BASE]]
         platform = {{site_vars.host_ex}}
         [[[environment]]]
@@ -52,7 +66,7 @@
             OMP_STACKSIZE=1g
 
     [[EX1A_WEIGHTS]]
-        inherit = EX1A_BASE
+        inherit = EX1A_BASE,EX1A_DATA
 
     [[EX1A_BUILD]]
         [[[environment]]]
@@ -65,14 +79,6 @@
 
     [[EX1A_RUN]]
         [[[environment]]]
-            {# BIG_DATA_DIR holds ancils and dump files #}
-{% if site_vars["ex_trustzone"] == "collab" %}
-            BIG_DATA_DIR = '/data/users/lfricadmin.mon/data'
-{% elif site_vars["host_ex"] == "exz" %}
-            BIG_DATA_DIR = '/common/internal/lfricdir/data'
-{% else %}
-            BIG_DATA_DIR = '/data/users/lfricadmin/data'
-{% endif %}
             TARGET_PLATFORM = 'meto-ex1a'
             RUN_METHOD = 'mpiexec'
 
@@ -117,15 +123,15 @@
         {{ generate_script("pre-script", [ex1a_base, ex1a_compiler_cce]) }}
 
     [[EX1A_RUN_GNU]]
-        inherit=EX1A_BASE,EX1A_RUN,EX1A_GNU
+        inherit=EX1A_BASE,EX1A_RUN,EX1A_DATA,EX1A_GNU
         {{ generate_script("pre-script", [ex1a_base, ex1a_compiler_gnu, set_ulimit]) }}
 
     [[EX1A_RUN_CCE]]
-        inherit=EX1A_BASE,EX1A_RUN,EX1A_CCE
+        inherit=EX1A_BASE,EX1A_RUN,EX1A_DATA,EX1A_CCE
         {{ generate_script("pre-script", [ex1a_base, ex1a_compiler_cce, set_ulimit]) }}
 
     [[EX1A_RUN_VERNIER-GNU]]
-        inherit=EX1A_BASE,EX1A_RUN,EX1A_GNU
+        inherit=EX1A_BASE,EX1A_RUN,EX1A_DATA,EX1A_GNU
         {{ generate_script("pre-script", [ex1a_base, ex1a_compiler_gnu, set_ulimit]) }}
 
     [[EX1A_RUN_OASIS_GNU]]
@@ -136,18 +142,18 @@
                                           set_ulimit]) }}
 
     [[EX1A_RUN_VERNIER-CCE]]
-        inherit=EX1A_BASE,EX1A_RUN,EX1A_CCE
+        inherit=EX1A_BASE,EX1A_RUN,EX1A_DATA,EX1A_CCE
         {{ generate_script("pre-script", [ex1a_base, ex1a_compiler_cce, set_ulimit]) }}
 
     [[EX1A_RUN_OASIS_CCE]]
-        inherit=EX1A_BASE,EX1A_RUN,EX1A_CCE
+        inherit=EX1A_BASE,EX1A_RUN,EX1A_DATA,EX1A_CCE
         {{ generate_script("pre-script", [ex1a_base,
                                           ex1a_compiler_cce,
                                           ex1a_oasis,
                                           set_ulimit]) }}
 
     [[EX1A_RUN_COUPLED_CCE]]
-        inherit=EX1A_BASE,EX1A_RUN,EX1A_CCE
+        inherit=EX1A_BASE,EX1A_RUN,EX1A_DATA,EX1A_CCE
         {{ generate_script("pre-script", [ex1a_base,
                                           ex1a_compiler_cce,
                                           ex1a_coupled_cce,
@@ -156,7 +162,7 @@
                                           set_ulimit]) }}
 
     [[EX1A_RUN_PERFTOOLS-GNU]]
-        inherit=EX1A_BASE,EX1A_RUN,EX1A_GNU
+        inherit=EX1A_BASE,EX1A_RUN,EX1A_DATA,EX1A_GNU
         {{ generate_script("pre-script", [ex1a_base, ex1a_compiler_gnu, set_ulimit, ex1a_perftools]) }}
 
     [[EX1A_MESH]]
