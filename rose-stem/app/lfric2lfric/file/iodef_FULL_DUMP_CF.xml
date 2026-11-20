@@ -50,11 +50,17 @@
         <!-- Radiation fields -->
 
         <!-- Soil fields -->
+	<field id="restart_a_sat_frac" name="a_sat_frac" long_name="saturated_fraction_a_parameter" unit="1" domain_ref="face" operation="once" />
+        <field id="restart_c_sat_frac" name="c_sat_frac" long_name="saturated_fraction_c_parameter" unit="1" domain_ref="face" operation="once" />
+        <field id="restart_a_wet_frac" name="a_wet_frac" long_name="wet_fraction_a_parameter" unit="1" domain_ref="face" operation="once" />
+        <field id="restart_c_wet_frac" name="c_wet_frac" long_name="wet_fraction_c_parameter" unit="1" domain_ref="face" operation="once" />
         <field id="restart_soil_sat_frac" name="soil_sat_frac" long_name="soil_saturated_fraction" unit="1" domain_ref="face" operation="once" />
         <field id="restart_water_table" name="water_table" long_name="water_table_depth" unit="m" domain_ref="face" operation="once" />
         <field id="restart_wetness_under_soil" name="wetness_under_soil" long_name="wetness_below_soil_column" unit="1" domain_ref="face" operation="once" />
         <field id="restart_soil_temperature" name="soil_temperature" long_name="soil_temperature" unit="K" domain_ref="face" axis_ref="soil_levels" operation="once" />
         <field id="restart_soil_moisture" name="soil_moisture" long_name="soil_moisture_content" unit="kg kg-1" domain_ref="face" axis_ref="soil_levels" operation="once" />
+	<field id="restart_unfrozen_soil_moisture" name="unfrozen_soil_moisture" long_name="unfrozen_soil_moisture_proportion" unit="1" domain_ref="face" axis_ref="soil_levels" operation="once" />
+        <field id="restart_frozen_soil_moisture" name="frozen_soil_moisture" long_name="frozen_soil_moisture_proportion" unit="1" domain_ref="face" axis_ref="soil_levels" operation="once" />
 
         <!-- Snow fields -->
         <field id="restart_tile_snow_mass" name="tile_snow_mass" long_name="tile_snow_mass" unit="kg m-2" prec="8" domain_ref="face" axis_ref="surface_tiles" operation="once" />
