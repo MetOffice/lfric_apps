@@ -40,7 +40,10 @@ module end_of_transport_step_alg_mod
   use fv_divergence_z_kernel_mod,     only: fv_divergence_z_kernel_type
   use sci_geometric_constants_mod,    only: get_height_fv,        &
                                             get_face_selector_ew, &
-                                            get_face_selector_ns
+                                            get_face_selector_ns, &
+                                            get_dA_at_w2,         &
+                                            get_panel_id
+  use sci_mapping_constants_mod,      only: get_w3_to_w2_displacement
   use integer_field_mod,              only: integer_field_type
   use iterate_min_flux_kernel_mod,    only: iterate_min_flux_kernel_type
   use limited_area_lbc_alg_mod,       only: overwrite_blending_zone_rtran
@@ -433,6 +436,8 @@ contains
                                       only: theta_dispersion_factor_kernel_type
     use sci_w3_to_w2_average_kernel_mod, &
                                       only: w3_to_w2_average_kernel_type
+    use sci_w3_to_w2_correction_kernel_mod, &
+                                      only: w3_to_w2_correction_kernel_type
 
     implicit none
 
@@ -472,6 +477,13 @@ contains
     type(r_tran_field_type)               :: theta_factor_w2_shifted
     type(r_tran_field_type)               :: theta_factor_w3_shifted
     type(r_tran_field_type)               :: flux_correction
+    type(field_type)                      :: tf_w3_rdef
+    type(field_type)                      :: tf_w2_corr_rdef
+    type(r_tran_field_type)               :: tf_w2_corr
+    type(field_type),             pointer :: displacement
+    type(field_type),             pointer :: panel_id
+    type(field_type),             pointer :: dA_prime
+    type(field_type),             pointer :: dA_shifted
     type(function_space_type),    pointer :: w3_fs
     type(function_space_type),    pointer :: w2_fs
     type(function_space_type),    pointer :: sh_w3_fs
@@ -554,19 +566,40 @@ contains
                                                        height_wt,              &
                                                        logspace) )
       ! Separate invokes as on different meshes
-      call invoke( inject_wt_to_sh_w3_kernel_type(theta_factor_w3_shifted,     &
-                                                  theta_factor_wt),            &
+      call invoke( setval_X(theta_factor_w3_shifted, theta_factor_wt),         &
                    setval_c(theta_factor_w2_shifted, 0.0_r_tran),              &
                    w3_to_w2_average_kernel_type(theta_factor_w2_shifted,       &
                                                 theta_factor_w3_shifted,       &
                                                 rmultiplicity_shifted) )
+
+      ! Correct the averaging to W2 at cubed-sphere panel edges
+      if (prime_extrusion_mesh%is_geometry_spherical()                        &
+          .and. prime_extrusion_mesh%is_topology_periodic()) then
+        displacement => get_w3_to_w2_displacement(config, prime_extrusion_mesh)
+        panel_id => get_panel_id(prime_extrusion_mesh)
+        call tf_w3_rdef%initialise( sh_w3_fs, halo_depth=2 )
+        call tf_w2_corr_rdef%initialise( theta_factor_w2_shifted%get_function_space() )
+        call tf_w2_corr%initialise( theta_factor_w2_shifted%get_function_space() )
+        call invoke( real_to_real_x(tf_w3_rdef, theta_factor_w3_shifted),      &
+                     setval_c(tf_w2_corr_rdef, 0.0_r_def),                     &
+                     w3_to_w2_correction_kernel_type(tf_w2_corr_rdef,          &
+                                                     tf_w3_rdef, 1,            &
+                                                     displacement,             &
+                                                     panel_id, 1) )
+        call invoke( real_to_real_x(tf_w2_corr, tf_w2_corr_rdef),              &
+                     inc_X_plus_Y(theta_factor_w2_shifted, tf_w2_corr) )
+      end if
+
+      dA_prime => get_dA_at_w2(prime_extrusion_mesh)
+      dA_shifted => get_dA_at_w2(shifted_mesh)
       ! Can't combine these invokes as the W2 fields are on different meshes
       call invoke( setval_c(flux_correction, 0.0_r_tran),                      &
                    consistent_dispersion_kernel_type(flux_correction,          &
                                                      dry_flux,                 &
                                                      theta_factor_w2_shifted,  &
                                                      face_selector_ew,         &
-                                                     face_selector_ns),        &
+                                                     face_selector_ns,         &
+                                                     dA_prime, dA_shifted),    &
                    inc_X_plus_Y(flux, flux_correction) )
 
     end if

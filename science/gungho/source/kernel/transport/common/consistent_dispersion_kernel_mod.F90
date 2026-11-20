@@ -16,6 +16,7 @@ use argument_mod,                  only : arg_type, GH_FIELD,                  &
                                           GH_INTEGER, GH_REAL,                 &
                                           ANY_DISCONTINUOUS_SPACE_2,           &
                                           ANY_DISCONTINUOUS_SPACE_3,           &
+                                          ANY_SPACE_4, ANY_SPACE_5,            &
                                           CELL_COLUMN
 use fs_continuity_mod,             only : W2
 use constants_mod,                 only : r_tran, r_def, i_def
@@ -30,14 +31,18 @@ implicit none
 
 type, public, extends(kernel_type) :: consistent_dispersion_kernel_type
   private
-  type(arg_type) :: meta_args(5) = (/                                    &
+  type(arg_type) :: meta_args(7) = (/                                    &
        ! NB: This is to be used to write to a continuous W2 field, but using
        ! a discontinuous data pattern, so use discontinuous metadata
        arg_type(GH_FIELD, GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_2), &
        arg_type(GH_FIELD, GH_REAL,    GH_READ,  W2),                        &
        arg_type(GH_FIELD, GH_REAL,    GH_READ,  ANY_DISCONTINUOUS_SPACE_2), &
        arg_type(GH_FIELD, GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), &
-       arg_type(GH_FIELD, GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_3)  &
+       arg_type(GH_FIELD, GH_INTEGER, GH_READ,  ANY_DISCONTINUOUS_SPACE_3), &
+       ! NB: dA_prime and dA_shifted are in W2, but the other fluxes may be in
+       ! W2H, so they need their own DoF-maps
+       arg_type(GH_FIELD, GH_REAL,    GH_READ,  ANY_SPACE_5),               &
+       arg_type(GH_FIELD, GH_REAL,    GH_READ,  ANY_SPACE_4)                &
        /)
   integer :: operates_on = CELL_COLUMN
 contains
@@ -61,6 +66,8 @@ contains
 !!                                   to loop over in this column
 !> @param[in]     face_selector_ns   2D field indicating which N/S faces
 !!                                   to loop over in this column
+!> @param[in]     dA_prime           Face areas at W2 points on the prime mesh
+!> @param[in]     dA_shifted         Face areas at W2 points on the shifted mesh
 !> @param[in]     ndf_w2_shifted     Num of DoFs per cell for shifted W2
 !> @param[in]     undf_w2_shifted    Num of DoFs per partition for shifted W2
 !> @param[in]     map_w2_shifted     Base cell DoF-map for shifted W2
@@ -70,12 +77,20 @@ contains
 !> @param[in]     ndf_w3_2d          Num of DoFs for 2D W3 per cell
 !> @param[in]     undf_w3_2d         Num of DoFs for this partition for 2D W3
 !> @param[in]     map_w3_2d          Map for 2D W3
+!> @param[in]     ndf_dA_prime       Num DoFs per cell for dA_prime
+!> @param[in]     undf_dA_prime      Num DoFs in this partition for dA_prime
+!> @param[in]     map_dA_prime       Map of base cell DoFs for dA_prime
+!> @param[in]     ndf_dA_shifted     Num DoFs per cell for dA_shifted
+!> @param[in]     undf_dA_shifted    Num DoFs in this partition for dA_shifted
+!> @param[in]     map_dA_shifted     Map of base cell DoFs for dA_shifted
 subroutine consistent_dispersion_code( nlayers_shifted,    &
                                        flux_X_correction,  &
                                        dry_flux_prime,     &
                                        theta_factor,       &
                                        face_selector_ew,   &
                                        face_selector_ns,   &
+                                       dA_prime,           &
+                                       dA_shifted,         &
                                        ndf_w2_shifted,     &
                                        undf_w2_shifted,    &
                                        map_w2_shifted,     &
@@ -84,7 +99,13 @@ subroutine consistent_dispersion_code( nlayers_shifted,    &
                                        map_w2_prime,       &
                                        ndf_w3_2d,          &
                                        undf_w3_2d,         &
-                                       map_w3_2d )
+                                       map_w3_2d,          &
+                                       ndf_dA_prime,       &
+                                       undf_dA_prime,      &
+                                       map_dA_prime,       &
+                                       ndf_dA_shifted,     &
+                                       undf_dA_shifted,    &
+                                       map_dA_shifted )
 
   implicit none
 
@@ -93,6 +114,10 @@ subroutine consistent_dispersion_code( nlayers_shifted,    &
   integer(kind=i_def), intent(in)    :: undf_w2_prime, ndf_w2_prime
   integer(kind=i_def), intent(in)    :: undf_w2_shifted, ndf_w2_shifted
   integer(kind=i_def), intent(in)    :: undf_w3_2d, ndf_w3_2d
+  integer(kind=i_def), intent(in)    :: undf_dA_prime, ndf_dA_prime
+  integer(kind=i_def), intent(in)    :: undf_dA_shifted, ndf_dA_shifted
+  integer(kind=i_def), intent(in)    :: map_dA_prime(ndf_dA_prime)
+  integer(kind=i_def), intent(in)    :: map_dA_shifted(ndf_dA_shifted)
   integer(kind=i_def), intent(in)    :: map_w2_prime(ndf_w2_prime)
   integer(kind=i_def), intent(in)    :: map_w2_shifted(ndf_w2_shifted)
   integer(kind=i_def), intent(in)    :: map_w3_2d(ndf_w3_2d)
@@ -101,6 +126,8 @@ subroutine consistent_dispersion_code( nlayers_shifted,    &
   real(kind=r_tran),   intent(in)    :: theta_factor(undf_w2_shifted)
   integer(kind=i_def), intent(in)    :: face_selector_ew(undf_w3_2d)
   integer(kind=i_def), intent(in)    :: face_selector_ns(undf_w3_2d)
+  real(kind=r_def),    intent(in)    :: dA_prime(undf_dA_prime)
+  real(kind=r_def),    intent(in)    :: dA_shifted(undf_dA_shifted)
 
   ! Internal variables
   integer(kind=i_def) :: j, k, face
@@ -119,9 +146,15 @@ subroutine consistent_dispersion_code( nlayers_shifted,    &
 
     ! No contributions to bottom or top layers, so loop over internal layers
     do k = 1, nlayers_shifted - 2
+      ! Divide by face area on the prime mesh, and multiply by that on the
+      ! shifted mesh
       flux_X_correction(map_w2_shifted(face)+k) =                              &
         theta_factor(map_w2_shifted(face)+k)                                   &
-        * (dry_flux_prime(map_w2_prime(face)+k) - dry_flux_prime(map_w2_prime(face)+k-1))
+        * real(dA_shifted(map_dA_shifted(face)+k), r_tran)                     &
+        * (dry_flux_prime(map_w2_prime(face)+k)                                &
+           / real(dA_prime(map_dA_prime(face)+k), r_tran)                      &
+           - dry_flux_prime(map_w2_prime(face)+k-1)                            &
+           / real(dA_prime(map_dA_prime(face)+k-1), r_tran))
     end do
 
     ! Faces in top layer: zero contribution

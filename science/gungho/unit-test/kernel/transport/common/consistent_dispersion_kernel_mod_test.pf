@@ -57,6 +57,11 @@ contains
     integer(i_def), parameter :: nfaces_h  = 4
     integer(i_def), parameter :: ndf_w3_2d = 1
     integer(i_def), parameter :: undf_w3_2d = 1
+    ! dA_prime and dA_shifted are in W2 and have their own DoF maps
+    integer(i_def), parameter :: ndf_dA_prime = 6
+    integer(i_def), parameter :: undf_dA_prime = 4*nlayers_prime + nlayers_prime + 1
+    integer(i_def), parameter :: ndf_dA_shifted = 6
+    integer(i_def), parameter :: undf_dA_shifted = 4*nlayers_shifted + nlayers_shifted + 1
     integer(i_def), parameter :: undf_w2_prime = nfaces_h*nlayers_prime + nlayers_prime + 1
     integer(i_def), parameter :: undf_w2_shifted = nfaces_h*nlayers_shifted + nlayers_shifted + 1
 
@@ -64,11 +69,15 @@ contains
     integer(i_def), dimension(ndf_w2_prime)   :: map_w2_prime
     integer(i_def), dimension(ndf_w2_shifted) :: map_w2_shifted
     integer(i_def), dimension(ndf_w3_2d)      :: map_w3_2d
+    integer(i_def), dimension(ndf_dA_prime)   :: map_dA_prime
+    integer(i_def), dimension(ndf_dA_shifted) :: map_dA_shifted
 
     ! Fields
     real(r_tran), dimension(undf_w2_shifted) :: flux_X_correction
     real(r_tran), dimension(undf_w2_shifted) :: theta_factor
     real(r_tran), dimension(undf_w2_prime)   :: dry_flux_prime
+    real(r_def),  dimension(undf_dA_prime)   :: dA_prime
+    real(r_def),  dimension(undf_dA_shifted) :: dA_shifted
     real(r_tran), dimension(undf_w2_shifted) :: flux_answer
     integer(i_def), dimension(undf_w3_2d)    :: face_selector_ew
     integer(i_def), dimension(undf_w3_2d)    :: face_selector_ns
@@ -90,12 +99,17 @@ contains
     map_w2_prime(nfaces_h+1) = 1 + nfaces_h*nlayers_prime
     map_w2_prime(ndf_w2_prime) = map_w2_prime(nfaces_h+1) + 1
     map_w3_2d = (/ 1 /)
+    map_dA_prime(:) = map_w2_prime(:)
+    map_dA_shifted(:) = map_w2_shifted(:)
 
     ! ------------------------------------------------------------------------ !
     ! Set up initial fields
     ! ------------------------------------------------------------------------ !
 
     theta_factor(:) = 0.25_r_tran*deltaz*dtheta_dz
+
+    dA_prime(:) = 1.0_r_def
+    dA_shifted(:) = 1.0_r_def
 
     face_selector_ew(:) = 2
     face_selector_ns(:) = 2
@@ -125,6 +139,8 @@ contains
                                      theta_factor,            &
                                      face_selector_ew,        &
                                      face_selector_ns,        &
+                                     dA_prime,                &
+                                     dA_shifted,              &
                                      ndf_w2_shifted,          &
                                      undf_w2_shifted,         &
                                      map_w2_shifted,          &
@@ -133,7 +149,54 @@ contains
                                      map_w2_prime,            &
                                      ndf_w3_2d,               &
                                      undf_w3_2d,              &
-                                     map_w3_2d )
+                                     map_w3_2d,               &
+                                     ndf_dA_prime,            &
+                                     undf_dA_prime,           &
+                                     map_dA_prime,            &
+                                     ndf_dA_shifted,          &
+                                     undf_dA_shifted,         &
+                                     map_dA_shifted )
+
+    @assertEqual(flux_answer, flux_X_correction, tol)
+
+    ! Face area: with dA_shifted = 2 and dA_prime = 4, answer is halved
+    dA_prime(:) = 4.0_r_def
+    dA_shifted(:) = 2.0_r_def
+    do k = 1, nlayers_shifted - 2
+      do j = 1, nfaces_h
+        flux_answer(map_w2_shifted(j)+k) = 0.5_r_tran*(                        &
+          dry_flux_prime(map_w2_prime(j)+k) - dry_flux_prime(map_w2_prime(j)+k-1) ) &
+          * theta_factor(1)
+      end do
+    end do
+    flux_answer(map_w2_shifted(1:nfaces_h)) = 0.0_r_tran
+    do j = 1, nfaces_h
+      flux_answer(map_w2_shifted(j)+nlayers_shifted-1) = 0.0_r_tran
+    end do
+    flux_X_correction(:) = 0.0_r_tran
+    call consistent_dispersion_code( nlayers_shifted,         &
+                                     flux_X_correction,       &
+                                     dry_flux_prime,          &
+                                     theta_factor,            &
+                                     face_selector_ew,        &
+                                     face_selector_ns,        &
+                                     dA_prime,                &
+                                     dA_shifted,              &
+                                     ndf_w2_shifted,          &
+                                     undf_w2_shifted,         &
+                                     map_w2_shifted,          &
+                                     ndf_w2_prime,            &
+                                     undf_w2_prime,           &
+                                     map_w2_prime,            &
+                                     ndf_w3_2d,               &
+                                     undf_w3_2d,              &
+                                     map_w3_2d,               &
+                                     ndf_dA_prime,            &
+                                     undf_dA_prime,           &
+                                     map_dA_prime,            &
+                                     ndf_dA_shifted,          &
+                                     undf_dA_shifted,         &
+                                     map_dA_shifted )
 
     @assertEqual(flux_answer, flux_X_correction, tol)
 
