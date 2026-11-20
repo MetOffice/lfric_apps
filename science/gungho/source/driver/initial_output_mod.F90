@@ -32,12 +32,11 @@ contains
   !> @param[in,out] modeldb             Working data set of model.
   !> @param[in]     mesh                The primary mesh
   !> @param[in]     twod_mesh           The 2d mesh
-  !> @param[in]     io_context_name     The name of the IO context for writing
   !> @param[in]     nodal_output_on_w3  Flag that determines if vector fields
   !>                  should be projected to W3 for nodal output
   !>
   subroutine write_initial_output( modeldb, mesh, twod_mesh, &
-                                   io_context_name, nodal_output_on_w3 )
+                                   nodal_output_on_w3 )
 
 #ifdef USE_XIOS
     !>@todo This will be removed by #3321
