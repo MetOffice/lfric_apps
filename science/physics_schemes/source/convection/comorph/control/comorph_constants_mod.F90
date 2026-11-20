@@ -484,6 +484,9 @@ type :: cond_params_type
   ! to i_frzmlt
   integer :: i_cond_frzmlt = 0
 
+  ! Address of last other species which may collect this one
+  integer :: i_cond_collecting = 0
+
   ! Note that all the fields in this type which are set later
   ! depending on the values of other fields must be given default
   ! initialisation values, otherwise the use of the structure
@@ -816,6 +819,9 @@ integer :: i_cond_rain = 0
 integer :: i_cond_cf = 0
 integer :: i_cond_snow = 0
 integer :: i_cond_graup = 0
+
+! Address of last condensed water species which can be collected by others
+integer :: i_cond_collected = 0
 
 ! Latent heat of deposition / sublimation at the reference temperature
 real(kind=real_cvprec) :: L_sub_ref  ! = L_con_ref + L_fus_ref

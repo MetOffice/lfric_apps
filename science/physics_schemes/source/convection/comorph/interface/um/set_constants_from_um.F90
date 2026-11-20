@@ -40,6 +40,7 @@ use comorph_um_namelist_mod, only:                                             &
                       par_radius_evol_method_um => par_radius_evol_method,     &
                       n_dndraft_types_um        => n_dndraft_types,            &
                       l_core_ent_cmr_um         => l_core_ent_cmr,             &
+                      l_cv_snow_um              => l_cv_snow,                  &
                       core_ent_fac_um           => core_ent_fac,               &
                       par_gen_pert_fac_um       => par_gen_pert_fac,           &
                       par_gen_rhpert_um         => par_gen_rhpert,             &
@@ -70,7 +71,7 @@ use comorph_um_namelist_mod, only:                                             &
 use comorph_constants_mod, only: real_cvprec, nx_full, ny_full,                &
                                  k_bot_conv, k_top_conv, k_top_init,           &
                                  n_tracers, n_dndraft_types,                   &
-                                 l_cv_cloudfrac, l_tracer_scav,                &
+                                 l_cv_snow, l_cv_cloudfrac, l_tracer_scav,     &
                                  l_calc_cape, l_calc_mfw_cape, l_calc_ccb_cct, &
                                  l_spherical_coord, l_approx_dry_adiabat,      &
                                  comorph_timestep,                             &
@@ -119,6 +120,9 @@ k_bot_conv = 1
 k_top_conv = n_conv_levels
 k_top_init = bl_levels - 1
 n_tracers = ntra_fld
+
+! Set switch for comorph 2nd ice category from the namelist
+l_cv_snow = l_cv_snow_um
 
 ! For now, force CoMorph's cloud-fraction switch to be
 ! consistent with whether or not PC2 is on in the host-model.
