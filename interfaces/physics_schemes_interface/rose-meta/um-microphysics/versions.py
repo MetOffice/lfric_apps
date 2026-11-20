@@ -30,7 +30,6 @@ class vnXX_txxx(MacroUpgrade):
         return config, self.reports
 """
 
-
 class vn32_t709(MacroUpgrade):
     """Upgrade macro for ticket #709 by Ian Boutle."""
 
@@ -42,5 +41,20 @@ class vn32_t709(MacroUpgrade):
         self.add_setting(
             config, ["namelist:microphysics", "casim_activation"], "'fixed'"
         )
+
+        return config, self.reports
+
+class vn32_t241(MacroUpgrade):
+    # Upgrade macro for Issue#241 by Mike Whitall
+
+    BEFORE_TAG = "vn3.2_t709"
+    AFTER_TAG = "vn3.2_t241"
+
+    def upgrade(self, config, meta_config=None):
+        # Add settings
+
+        # Microphysics settings
+        nml = "namelist:microphysics"
+        self.add_setting(config, [nml,"fix_casim_tidy"], ".false.")
 
         return config, self.reports
