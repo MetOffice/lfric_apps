@@ -19,6 +19,11 @@ function main () {
     # Validate the environment
     utils::validate_env
 
+    # Set launcher (default is "")
+    if [ "${RUN_METHOD}" = "mpiexec" ] ; then
+        LAUNCHER=${RUN_METHOD}
+    fi
+
     # Work out the reuired ppn value
     utils::get_cores_per_node
 
@@ -30,6 +35,17 @@ function main () {
 
     # Build the command from the component parts
     utils::build_exec_command
+
+    # Test mode trap
+    if [ "${TEST_MODE}" = 0 ] ; then
+        if [ "${TEST_LAUNCH_EXE_EXEC}" = "${EXEC_COMMAND}" ] ; then
+            test_error=0
+        else
+            test_error=1
+            printf "Error: \n%s \n\t!= \n%s\n" "${TEST_LAUNCH_EXE_EXEC}" "${EXEC_COMMAND}" >&2
+        fi
+        exit ${test_error}
+    fi
 
     # Run the command and capture the output
     echo Execute command is:

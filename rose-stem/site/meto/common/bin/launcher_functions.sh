@@ -5,7 +5,7 @@ function exists_in_list () {
     local ITEM=$1
     local LIST=$2
 
-    for x in $LIST_ITEMS; do
+    for x in $LIST; do
         if [ "$x" = "$ITEM" ]; then
             return 0
         fi
@@ -37,16 +37,27 @@ function utils::set_default_env () {
     : "${RANKS_DEPTH_PAD:=1}"
     : "${XIOS_SERVER_MODE:="False"}"
     : "${MEMORY_PROFILE:="False"}"
-    : "${EXTRA_LAUNCH_OPTS:=""}"
+    : "${EXTRA_LAUNCHER_OPTS:=""}"
+    : "${TEST_LAUNCH_EXE_EXEC:=""}"
+    : "${TEST_MODE:=""}"
 
     # Set default values for UNSET env vars - preserves empty
     : "${XIOS_SERVER_EXEC_PATH="xios_server.exe"}"
     : "${PAT_EXE_EXTEN=""}"
+    : "${LAUNCHER=""}"
 
     # Depth value - default to OMP threads unless RANKS_DEPTH_PAD is larger
     : "${DEPTH_VAL:=${OMP_NUM_THREADS}}"
     if (( "${RANKS_DEPTH_PAD}" > "${OMP_NUM_THREADS}" )); then
         export DEPTH_VAL=${RANKS_DEPTH_PAD}
+    fi
+
+    # Test Mode
+    # if TEST_LAUNCH_EXE_EXEC is set, then it's value shall be the expected
+    # value to test the behaviour of `launch-exe` and the script will error
+    # if the value does not match.
+    if [ "${TEST_LAUNCH_EXE_EXEC}" != "" ]; then
+        export TEST_MODE=0
     fi
 
     # Set up Executable information
@@ -76,48 +87,39 @@ function utils::validate_env () {
 }
 
 # Determine cores per-node requirements
-# This is used when the CORES_PER_NODE override is set.
 function utils::get_cores_per_node () {
     # Set MPI ranks / PEs per Node from provided value
     # ================================================
-    # Output -> `SET_CORES_PER_NODE` (used for ppn)
+    # Output -> `MODEL_PPN` (used for ppn)
     # =============================================
-    # Set a default value based on cores per node and OpenMP
-    local CORES_PER_NODE_OVER_DEPTH
-    CORES_PER_NODE_OVER_DEPTH="$(( CORES_PER_NODE / DEPTH_VAL ))"
+    # Maximum number of MPI ranks that can fit on one node
+    local MAX_PPN=$(( CORES_PER_NODE / DEPTH_VAL ))
 
-    # Safety check: if CORES_PER_NODE does not cleanly divide by the supplied
-    # depth then we can't use the result as a ppn value
-    check_integer CORES_PER_NODE_OVER_DEPTH
-
-    # Override provided
-    # -----------------
-    if (( "${CORES_PER_NODE_OVERRIDE}" > "0" )) ; then
-        # Multiply by depth value for ppn
-        local REQUESTED_PPN="$(( CORES_PER_NODE_OVERRIDE * DEPTH_VAL ))"
-
-        # Check if this value is less than available cores per node
-        if (( "${REQUESTED_PPN}" <= "${CORES_PER_NODE}" )) ; then
-            export SET_CORES_PER_NODE="${CORES_PER_NODE_OVERRIDE}"
-            echo "LFRIC LAUNCHER INFO: Ranks per node has been set to the supplied override value ("${SET_CORES_PER_NODE}")" >&2
-        else
-            # If nothing appropriate can be set, fall back on the default
-            export SET_CORES_PER_NODE="${CORES_PER_NODE_OVER_DEPTH}"
-            echo "LFRIC LAUNCHER INFO: Ranks per node has defaulted to standard value of maximum ranks per node ("${SET_CORES_PER_NODE}")" >&2
-        fi
-
-    # No override provided
-    # --------------------
-    else
-        export SET_CORES_PER_NODE="${CORES_PER_NODE_OVER_DEPTH}"
+    # Keep PPN even, rounding down to avoid exceeding the node
+    if (( MAX_PPN % 2 != 0 )); then
+        (( MAX_PPN-- ))
     fi
 
-    # Required ranks for job smaller than requested
-    # ---------------------------------------------
-    # Set the cores per node to the same as the total ranks provided if too few
-    if (( "$((TOTAL_RANKS * DEPTH_VAL))" < "${SET_CORES_PER_NODE}" )) ; then
-        export SET_CORES_PER_NODE="${TOTAL_RANKS}"
-        echo "LFRIC LAUNCHER INFO: Ranks per node has been set equal to the required ranks for this job ("${SET_CORES_PER_NODE}")" >&2
+    # Default PPN
+    if (( TOTAL_RANKS <= MAX_PPN )); then
+        # Entire job fits on one node
+        export MODEL_PPN="${TOTAL_RANKS}"
+
+        echo "LFRIC LAUNCHER INFO: Ranks per node has been set equal to the required ranks for this job (${MODEL_PPN})" >&2
+    else
+        # Job requires multiple nodes
+        export MODEL_PPN="${MAX_PPN}"
+    fi
+
+    # Override PPN if supplied and valid
+    if (( CORES_PER_NODE_OVERRIDE > 0 )); then
+        if (( CORES_PER_NODE_OVERRIDE * DEPTH_VAL <= CORES_PER_NODE )); then
+            export MODEL_PPN="${CORES_PER_NODE_OVERRIDE}"
+
+            echo "LFRIC LAUNCHER INFO: Ranks per node set to supplied override value (${MODEL_PPN})" >&2
+        else
+            echo "LFRIC LAUNCHER INFO: Ranks per node defaulted to max possible ranks per node (${MODEL_PPN})" >&2
+        fi
     fi
 
 }
@@ -134,8 +136,16 @@ function utils::set_model_options () {
             export MODEL_LAUNCHER_OPTS="-n ${TOTAL_RANKS}"
             return 0
         elif [ "${TARGET_PLATFORM}" = "meto-ex1a" ]; then
-            export MODEL_LAUNCHER_OPTS="--cpu-bind=depth --np ${TOTAL_RANKS} --depth ${DEPTH_VAL} --ppn ${SET_CORES_PER_NODE}"
-            return 0
+            export MODEL_LAUNCHER_OPTS="--cpu-bind=depth --np ${TOTAL_RANKS} --depth ${DEPTH_VAL}"
+
+            # Legacy support:
+            # Job spans multiple nodes, or PPN was explicitly overridden.
+            if (( TOTAL_RANKS * DEPTH_VAL > MODEL_PPN || CORES_PER_NODE_OVERRIDE > 0 )); then
+                # XIOS with no dedicated XIOS nodes is the exception.
+                if [[ "${XIOS_SERVER_MODE}" != "True" || "${xios_nodes}" != "0" ]]; then
+                    export MODEL_LAUNCHER_OPTS+=" --ppn ${MODEL_PPN}"
+                fi
+            fi
         fi
     fi
 }
@@ -180,56 +190,64 @@ function get_xios_depth () {
 
 # Launcher options - XIOS
 function utils::set_xios_options () {
-    # Define the XIOS launcher options depending on run method and XIOS mode
-    local XIOS_CORES_PER_NODE
-    XIOS_CORES_PER_NODE="$(( (mpi_parts_xios / xios_nodes) + (mpi_parts_xios % xios_nodes > 0 ) ))"
 
-    if [ "${RUN_METHOD}" = "executable" ]; then
+    if [[ "${XIOS_SERVER_MODE}" = "False" || "${RUN_METHOD}" = "executable" ]]; then
         export XIOS_LAUNCHER_OPTS=""
         export XIOS_SERVER_EXEC_PATH=""
-        return 0
-    elif [ "${RUN_METHOD}" = "mpiexec" ]; then
-        if [ "${TARGET_PLATFORM}" = "meto-ex1a" ]; then
-            if [ "${XIOS_SERVER_MODE}" = "False" ]; then
-                export XIOS_LAUNCHER_OPTS=""
-                export XIOS_SERVER_EXEC_PATH=""
-                return 0
-            else
-                if [ "${xios_nodes}" = "0" ]; then
-                    export XIOS_LAUNCHER_OPTS=" : --cpu-bind=depth --np ${XIOS_SERVER_RANKS} "
-                    return 0
-                else
-                    # Calculate the depth - sets XIOS_DEPTH variable
-                    get_xios_depth
+        return
+    fi
 
-                    export XIOS_LAUNCHER_OPTS=" : --cpu-bind=depth --np ${XIOS_SERVER_RANKS}${XIOS_DEPTH} --ppn ${XIOS_CORES_PER_NODE} "
-                    return 0
-                fi
+    if [ "${RUN_METHOD}" = "mpiexec" ]; then
+
+        if [ "${TARGET_PLATFORM}" = "meto-ex1a" ]; then
+            if [ "${xios_nodes}" = "0" ]; then
+                export XIOS_LAUNCHER_OPTS=" : --cpu-bind=depth --np ${XIOS_SERVER_RANKS} "
+                return
+            else
+                # Define the XIOS launcher options depending on run method and XIOS mode
+                local XIOS_CORES_PER_NODE
+                XIOS_CORES_PER_NODE="$(( (mpi_parts_xios / xios_nodes) + (mpi_parts_xios % xios_nodes > 0 ) ))"
+
+                # Calculate the depth - sets XIOS_DEPTH variable
+                get_xios_depth
+
+                export XIOS_LAUNCHER_OPTS=" : --cpu-bind=depth --np ${XIOS_SERVER_RANKS}${XIOS_DEPTH} --ppn ${XIOS_CORES_PER_NODE} "
+                return
             fi
+
         elif [ "${TARGET_PLATFORM}" = "meto-azspice" ]; then
-            export XIOS_LAUNCHER_OPTS=" : -n ${XIOS_SERVER_RANKS} "
-            return 0
+            export XIOS_LAUNCHER_OPTS= ": -n ${XIOS_SERVER_RANKS} "
+            return
         fi
     fi
-    return 1
 }
 
 function utils::build_exec_command () {
     # Combines all the component parts for model, xios, and memory profiling to
     # create a single executable command
     if [ "${MEMORY_PROFILE}" = "False" ] ; then
-        export EXEC_COMMAND="${LAUNCHER} ${LAUNCHER_OPTS} ${EXEC_PATH} ${NAMELIST_FILE} ${XIOS_OPTS}${XIOS_SERVER_EXEC_PATH}"
+        if [ "${EXTRA_LAUNCHER_OPTS}" != "" ]; then
+            MODEL_LAUNCHER_OPTS="${MODEL_LAUNCHER_OPTS} ${EXTRA_LAUNCHER_OPTS}"
+        fi
+        export EXEC_COMMAND="${LAUNCHER} ${MODEL_LAUNCHER_OPTS} ${EXEC_PATH} ${NAMELIST_FILE} ${XIOS_LAUNCHER_OPTS}${XIOS_SERVER_EXEC_PATH}"
         return 0
     else
-        local XIOS_MEM_TIME
-        XIOS_MEM_TIME=""
-        if [ "$XIOS_OPTS" != "" ] ; then
+        # Set the XIOS memory profiling command
+        local XIOS_MEM_TIME=""
+        if [ "$XIOS_LAUNCHER_OPTS" != "" ] ; then
             XIOS_MEM_TIME="/usr/bin/time -f max_mem_xios_server_%Mkb "
         fi
+
+        # Warn users that their provided extras are being ignored
+        if [ "${EXTRA_LAUNCHER_OPTS}" != "" ]; then
+            echo "LFRIC LAUNCHER INFO: Overriding EXTRA_LAUNCHER_OPTS in favour of Memory Profiling (MEMORY_PROFILE = "${MEMORY_PROFILE}")"
+        fi
+
+        # Build the command
         if [ "${TARGET_PLATFORM}" = "meto-ex1a" ] ; then
-            export EXEC_COMMAND="${LAUNCHER} --line-buffer --label ${LAUNCHER_OPTS} /usr/bin/time -f max_mem_${EXEC_NAME}_%Mkb ${EXEC_PATH} ${NAMELIST_FILE} ${XIOS_OPTS}${XIOS_MEM_TIME}${XIOS_SERVER_EXEC_PATH}"
+            export EXEC_COMMAND="${LAUNCHER} --line-buffer --label ${MODEL_LAUNCHER_OPTS} /usr/bin/time -f max_mem_${EXEC_NAME}_%Mkb ${EXEC_PATH} ${NAMELIST_FILE} ${XIOS_LAUNCHER_OPTS}${XIOS_MEM_TIME}${XIOS_SERVER_EXEC_PATH}"
         else
-            export EXEC_COMMAND="${LAUNCHER} -l ${LAUNCHER_OPTS} /usr/bin/time -f max_mem_${EXEC_NAME}_%Mkb ${EXEC_PATH} ${NAMELIST_FILE} ${XIOS_OPTS}${XIOS_MEM_TIME}${XIOS_SERVER_EXEC_PATH}"
+            export EXEC_COMMAND="${LAUNCHER} -l ${MODEL_LAUNCHER_OPTS} /usr/bin/time -f max_mem_${EXEC_NAME}_%Mkb ${EXEC_PATH} ${NAMELIST_FILE}  ${XIOS_LAUNCHER_OPTS}${XIOS_MEM_TIME}${XIOS_SERVER_EXEC_PATH}"
         fi
     fi
 
