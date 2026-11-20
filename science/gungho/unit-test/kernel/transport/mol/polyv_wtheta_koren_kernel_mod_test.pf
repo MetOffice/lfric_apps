@@ -100,7 +100,8 @@ contains
                                  ageofair_reset_level = 10,                                &
                                  panel_edge_treatment = panel_edge_treatment_none,         &
                                  panel_edge_high_order = .false.,                          &
-                                 special_edges_monotone = (/1/)                            &
+                                 special_edges_monotone = (/1/),                           &
+                                 native_w2_wind_transport = .false.                        &
                                  )
 
   end subroutine setUp
