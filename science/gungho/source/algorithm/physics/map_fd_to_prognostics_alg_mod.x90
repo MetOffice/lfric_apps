@@ -75,7 +75,7 @@ module map_fd_to_prognostics_alg_mod
   implicit none
 
   private
-  public :: map_fd_to_prognostics, hydrostatic_balance, set_wind
+  public :: map_fe_to_prognostics, map_fd_to_prognostics, hydrostatic_balance, set_wind
 
 contains
 
@@ -232,6 +232,116 @@ contains
     call log_event( "Gungho: Set prognostic fields from FD fields", LOG_LEVEL_INFO )
 
   end subroutine map_fd_to_prognostics
+
+   subroutine map_fe_to_prognostics(config, prognostic_fields, mr, &
+                                   moist_dyn, fd_fields)
+
+    implicit none
+
+    ! FE Prognostic fields
+    type(config_type),            intent( in )    :: config
+    type(field_collection_type),  intent( inout ) :: prognostic_fields
+    type(field_type),             intent( inout ) :: mr(:)
+    type(field_type),             intent( inout ) :: moist_dyn(num_moist_factors)
+    type( field_collection_type), intent( inout ) :: fd_fields
+
+    ! Local dereferenced fields
+    type( field_type ), pointer :: theta
+    type( field_type ), pointer :: rho
+    type( field_type ), pointer :: u
+    type( field_type ), pointer :: exner
+
+    ! FD  fields
+    type( field_type ), pointer :: u_fe
+    type( field_type ), pointer :: rho_fe
+    type( field_type ), pointer :: exner_fe
+    type( field_type ), pointer :: theta_fe
+    type( field_type ), pointer :: m_v_fe
+    type( field_type ), pointer :: m_cl_fe
+    type( field_type ), pointer :: m_ci_fe
+    type( field_type ), pointer :: m_r_fe
+    type( field_type ), pointer :: m_g_fe
+    type( field_type ), pointer :: m_s_fe
+    type( field_type ), pointer :: dA
+
+    type(mesh_type), pointer :: mesh
+
+    type(integer_field_type), pointer :: face_selector_ew
+    type(integer_field_type), pointer :: face_selector_ns
+
+    integer(i_def) :: init_eos_height
+    logical(l_def) :: init_sort_theta
+    integer(i_def) :: init_exner_method
+    logical(l_def) :: read_w2h_wind
+    logical(l_def) :: regrav_interp
+
+    init_eos_height = config%initialization%init_eos_height()
+    init_sort_theta = config%initialization%init_sort_theta()
+    init_exner_method = config%initialization%init_exner_method()
+    read_w2h_wind    = config%initialization%read_w2h_wind()
+    regrav_interp    = config%initialization%regrav_interp()
+
+    call fd_fields%get_field('u', u_fe)
+    call fd_fields%get_field('rho', rho_fe)
+    call fd_fields%get_field('theta', theta_fe)
+    call fd_fields%get_field('m_v', m_v_fe)
+    call fd_fields%get_field('m_cl', m_cl_fe)
+    call fd_fields%get_field('m_ci', m_ci_fe)
+    call fd_fields%get_field('m_r', m_r_fe)
+    call fd_fields%get_field('m_g', m_g_fe)
+    call fd_fields%get_field('m_s', m_s_fe)
+
+    ! Prognostic (target) fields
+    call prognostic_fields%get_field('u', u)
+    call prognostic_fields%get_field('theta', theta)
+    call prognostic_fields%get_field('exner', exner)
+    call prognostic_fields%get_field('rho', rho)
+
+    ! Simple variables taken directly from um2lfric file or
+    ! initialised to zero
+    call invoke( setval_x(theta, theta_fe),    &
+                 setval_x(rho, rho_fe),        &
+                 setval_x(u, u_fe),            &
+                 setval_x(mr(imr_v), m_r_fe),   &
+                 setval_x(mr(imr_cl), m_cl_fe), &
+                 setval_x(mr(imr_s), m_s_fe),  &
+                 setval_x(mr(imr_r), m_r_fe),   &
+                 setval_x(mr(imr_ci), m_ci_fe),     &
+                 setval_x(mr(imr_g), m_g_fe))
+
+    ! Update factors for moist dynamics
+    call moist_dyn_factors_alg( moist_dyn, mr )
+    ! Remove any static instability
+
+    if (init_sort_theta) then
+      call invoke( sort_ref_kernel_type(theta) )
+    end if
+
+    ! Initialisation of exner
+    select case(init_exner_method)
+    case(init_exner_method_dump)
+      ! Read in Exner from start dump and do not recompute
+      call fd_fields%get_field('exner', exner_fe)
+      call invoke(setval_X(exner, exner_fe))
+    case(init_exner_method_hydrostatic)
+      ! Initialize hydrostatically balanced exner field
+      call hydrostatic_balance( config, exner, rho, theta, u, moist_dyn, &
+                                init_eos_height, regrav_interp,          &
+                                recompute_rho=.false.,                   &
+                                exner_from_rho=.true. )
+    end select
+
+    if ( perturb_init ) then
+      call log_event( "Gungho: Applying initial perturbation to theta",         &
+                      LOG_LEVEL_INFO )
+      call random_perturb_field( theta, perturb_magnitude )
+    end if
+
+   
+    call log_event( "Gungho: Set prognostic fields from FE fields", LOG_LEVEL_INFO )
+
+  end subroutine map_fe_to_prognostics
+
 
   !> @param[in] config  Application namelist configuration object
   !> @param[in,out] u   Wind (FE)

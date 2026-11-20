@@ -105,6 +105,7 @@ module gungho_setup_io_mod
                                        internal_flux_ancil_path
   use initialization_config_mod, only: init_option,               &
                                        init_option_fd_start_dump, &
+                                       init_option_fe_start_dump, &
                                        init_option_checkpoint_dump,&
                                        ancil_option,              &
                                        ancil_option_start_dump,   &
@@ -262,6 +263,7 @@ module gungho_setup_io_mod
 
     ! Setup dump-reading context information
     if( ((init_option == init_option_fd_start_dump .or. &
+         init_option == init_option_fe_start_dump .or. &
          ancil_option == ancil_option_start_dump) .and. &
          .not. checkpoint_read) .or. &
          orog_init_option == orog_init_option_start_dump) then
@@ -282,7 +284,8 @@ module gungho_setup_io_mod
         ancil_option == ancil_option_updating ) then
 
       ! Only read static ancils on cold start from UM
-      if (init_option == init_option_fd_start_dump .and. &
+       if ((init_option == init_option_fd_start_dump .or. &
+            init_option == init_option_fe_start_dump) .and. &
            .not. checkpoint_read) then
 
         ! Set orography ancil filename from namelist
@@ -660,7 +663,8 @@ module gungho_setup_io_mod
       end if
 
       ! single time file only needs reading on cold start
-      if (init_option == init_option_fd_start_dump .and. &
+      if ((init_option == init_option_fd_start_dump .or. &
+           init_option == init_option_fe_start_dump) .and. &
            .not. checkpoint_read) then
         write(ancil_fname,'(A)') trim(ancil_directory)//'/'// &
                                  trim(emiss_so2_nat_ancil_path)

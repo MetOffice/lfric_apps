@@ -17,7 +17,7 @@ module create_fd_prognostics_mod
   use lfric_xios_write_mod,           only : write_field_generic
   use function_space_collection_mod,  only : function_space_collection
   use field_collection_mod,           only : field_collection_type
-  use fs_continuity_mod,              only : W3, Wtheta, W2H
+  use fs_continuity_mod,              only : W3, Wtheta, W2H, W2
   use log_mod,                        only : log_event,      &
                                              LOG_LEVEL_INFO, &
                                              LOG_LEVEL_ERROR
@@ -35,7 +35,7 @@ module create_fd_prognostics_mod
                                              init_exner_method,           &
                                              init_exner_method_dump
   use nlsizes_namelist_mod,           only : sm_levels
-  use jules_control_init_mod,         only : n_land_tile, n_sea_ice_tile
+  use jules_control_init_mod,         only : n_land_tile, n_sea_ice_tile, n_surf_tile
   use jules_physics_init_mod,         only : snow_lev_tile
   use derived_config_mod,             only : l_couple_sea_ice
   use chemistry_config_mod,           only : chem_scheme,                 &
@@ -77,14 +77,18 @@ contains
     type( field_type ) :: h_wind_in_w2h ! Horizontal wind (i.e. on W2h dofs)
     type( field_type ) :: dry_rho_in_w3 ! Dry rho
     type( field_type ) :: exner_in_w3   ! Exner pressure
+    type( field_type ) :: u
+    type( field_type ) :: rho
     ! Vertical theta levels
     type( field_type ) :: upward_wind_in_wtheta ! W wind
-    type( field_type ) :: theta_in_wtheta ! Potential temp
-    type( field_type ) :: mv_in_wtheta    ! Vapour mix ratio
-    type( field_type ) :: mcl_in_wtheta   ! Cloud liquid mix ratio
-    type( field_type ) :: mcf_in_wtheta   ! Clould ice mix ratio
-    type( field_type ) :: mr_in_wtheta    ! Rain mix ratio
-
+    type( field_type ) :: theta ! Potential temp
+    type( field_type ) :: m_v    ! Vapour mix ratio
+    type( field_type ) :: m_cl   ! Cloud liquid mix ratio
+    type( field_type ) :: m_r    ! Rain mix ratio
+    type( field_type ) :: m_ci
+    type( field_type ) :: m_s
+    type( field_type ) :: m_g
+    
     call log_event( 'Physics: Creating Finite Difference prognostics...', LOG_LEVEL_INFO )
 
     ! Field collection created in gungho_model.f90
@@ -92,13 +96,20 @@ contains
     tmp_read_ptr => read_field_generic
     tmp_write_ptr => write_field_generic
     if ( read_w2h_wind )then
-       ! In this case we read in directly onto the W2H dofs
-       call h_wind_in_w2h%initialise( vector_space = &
-         function_space_collection%get_fs(mesh, 0, 0, W2H), &
-         name='h_wind')
-       call h_wind_in_w2h%set_read_behaviour(tmp_read_ptr)
-       call h_wind_in_w2h%set_write_behaviour(tmp_write_ptr)
-       call fd_field_collection%add_field(h_wind_in_w2h)
+!!$       ! In this case we read in directly onto the W2H dofs
+!!$       call h_wind_in_w2h%initialise( vector_space = &
+!!$         function_space_collection%get_fs(mesh, 0, 0, W2H), &
+!!$         name='h_wind')
+!!$       call h_wind_in_w2h%set_read_behaviour(tmp_read_ptr)
+!!$       call h_wind_in_w2h%set_write_behaviour(tmp_write_ptr)
+!!$       call fd_field_collection%add_field(h_wind_in_w2h)
+
+       call u%initialise( vector_space = &
+         function_space_collection%get_fs(mesh, 0, 0, W2), &
+         name='u')
+       call u%set_read_behaviour(tmp_read_ptr)
+       call u%set_write_behaviour(tmp_write_ptr)
+       call fd_field_collection%add_field(u)
 
     else
 
@@ -131,14 +142,23 @@ contains
 
     end if
 
-    call dry_rho_in_w3%initialise( vector_space = &
+!!$    call dry_rho_in_w3%initialise( vector_space = &
+!!$         function_space_collection%get_fs(mesh, 0, 0, W3),  &
+!!$         name='dry_rho_in_w3')
+!!$
+!!$    call dry_rho_in_w3%set_read_behaviour(tmp_read_ptr)
+!!$    call dry_rho_in_w3%set_write_behaviour(tmp_write_ptr)
+!!$
+!!$    call fd_field_collection%add_field(dry_rho_in_w3)
+
+    call rho%initialise( vector_space = &
          function_space_collection%get_fs(mesh, 0, 0, W3),  &
-         name='dry_rho_in_w3')
+         name='rho')
 
-    call dry_rho_in_w3%set_read_behaviour(tmp_read_ptr)
-    call dry_rho_in_w3%set_write_behaviour(tmp_write_ptr)
+    call rho%set_read_behaviour(tmp_read_ptr)
+    call rho%set_write_behaviour(tmp_write_ptr)
 
-    call fd_field_collection%add_field(dry_rho_in_w3)
+    call fd_field_collection%add_field(rho)
 
     if (init_exner_method == init_exner_method_dump) then
       call exner_in_w3%initialise( vector_space = &
@@ -155,59 +175,77 @@ contains
     ! Wtheta fields - theta levels
     !========================================================================
 
-    call upward_wind_in_wtheta%initialise( vector_space = &
+!!$    call upward_wind_in_wtheta%initialise( vector_space = &
+!!$         function_space_collection%get_fs(mesh, 0, 0, Wtheta), &
+!!$         name='upward_wind_in_wtheta')
+!!$
+!!$    call upward_wind_in_wtheta%set_read_behaviour(tmp_read_ptr)
+!!$    call upward_wind_in_wtheta%set_write_behaviour(tmp_write_ptr)
+!!$
+!!$    call fd_field_collection%add_field(upward_wind_in_wtheta)
+
+    call theta%initialise( vector_space = &
          function_space_collection%get_fs(mesh, 0, 0, Wtheta), &
-         name='upward_wind_in_wtheta')
+         name='theta')
 
-    call upward_wind_in_wtheta%set_read_behaviour(tmp_read_ptr)
-    call upward_wind_in_wtheta%set_write_behaviour(tmp_write_ptr)
+    call theta%set_read_behaviour(tmp_read_ptr)
+    call theta%set_write_behaviour(tmp_write_ptr)
 
-    call fd_field_collection%add_field(upward_wind_in_wtheta)
+    call fd_field_collection%add_field(theta)
 
-    call theta_in_wtheta%initialise( vector_space = &
+    call m_v%initialise( vector_space = &
          function_space_collection%get_fs(mesh, 0, 0, Wtheta), &
-         name='theta_in_wtheta')
+         name='m_v')
 
-    call theta_in_wtheta%set_read_behaviour(tmp_read_ptr)
-    call theta_in_wtheta%set_write_behaviour(tmp_write_ptr)
+    call m_v%set_read_behaviour(tmp_read_ptr)
+    call m_v%set_write_behaviour(tmp_write_ptr)
 
-    call fd_field_collection%add_field(theta_in_wtheta)
+    call fd_field_collection%add_field(m_v)
 
-    call mv_in_wtheta%initialise( vector_space = &
+    call m_cl%initialise( vector_space = &
          function_space_collection%get_fs(mesh, 0, 0, Wtheta), &
-         name='mv_in_wtheta')
+         name='m_cl')
 
-    call mv_in_wtheta%set_read_behaviour(tmp_read_ptr)
-    call mv_in_wtheta%set_write_behaviour(tmp_write_ptr)
+    call m_cl%set_read_behaviour(tmp_read_ptr)
+    call m_cl%set_write_behaviour(tmp_write_ptr)
 
-    call fd_field_collection%add_field(mv_in_wtheta)
+    call fd_field_collection%add_field(m_cl)
 
-    call mcl_in_wtheta%initialise( vector_space = &
+    call m_r%initialise( vector_space = &
          function_space_collection%get_fs(mesh, 0, 0, Wtheta), &
-         name='mcl_in_wtheta')
+         name='m_r')
 
-    call mcl_in_wtheta%set_read_behaviour(tmp_read_ptr)
-    call mcl_in_wtheta%set_write_behaviour(tmp_write_ptr)
+    call m_r%set_read_behaviour(tmp_read_ptr)
+    call m_r%set_write_behaviour(tmp_write_ptr)
 
-    call fd_field_collection%add_field(mcl_in_wtheta)
+    call fd_field_collection%add_field(m_r)
 
-    call mcf_in_wtheta%initialise( vector_space = &
+    call m_ci%initialise( vector_space = &
          function_space_collection%get_fs(mesh, 0, 0, Wtheta), &
-         name='mcf_in_wtheta')
+         name='m_ci')
 
-    call mcf_in_wtheta%set_read_behaviour(tmp_read_ptr)
-    call mcf_in_wtheta%set_write_behaviour(tmp_write_ptr)
+    call m_ci%set_read_behaviour(tmp_read_ptr)
+    call m_ci%set_write_behaviour(tmp_write_ptr)
 
-    call fd_field_collection%add_field(mcf_in_wtheta)
+    call fd_field_collection%add_field(m_ci)
 
-    call mr_in_wtheta%initialise( vector_space = &
+    call m_s%initialise( vector_space = &
          function_space_collection%get_fs(mesh, 0, 0, Wtheta), &
-         name='mr_in_wtheta')
+         name='m_s')
 
-    call mr_in_wtheta%set_read_behaviour(tmp_read_ptr)
-    call mr_in_wtheta%set_write_behaviour(tmp_write_ptr)
+    call m_s%set_read_behaviour(tmp_read_ptr)
+    call m_s%set_write_behaviour(tmp_write_ptr)
 
-    call fd_field_collection%add_field(mr_in_wtheta)
+    call fd_field_collection%add_field(m_s)
+
+    call m_g%initialise( vector_space = &
+         function_space_collection%get_fs(mesh, 0, 0, Wtheta), &
+         name='m_g')
+
+    call m_g%set_read_behaviour(tmp_read_ptr)
+    call m_g%set_write_behaviour(tmp_write_ptr)
+
+    call fd_field_collection%add_field(m_g)
 
     !========================================================================
     ! Physics fields
@@ -237,8 +275,8 @@ contains
     else if ( ( ancil_option == ancil_option_fixed ) .or. &
               ( ancil_option == ancil_option_updating ) ) then
       ! convection fields
-      call setup_ancil_field("dd_mf_cb", depository, fd_field_collection, &
-                             mesh, twod_mesh, twod=.true.)
+   !   call setup_ancil_field("dd_mf_cb", depository, fd_field_collection, &
+   !                          mesh, twod_mesh, twod=.true.)
       ! soil fields
       call setup_ancil_field("soil_sat_frac", depository, fd_field_collection, &
                              mesh, twod_mesh, twod=.true.)
@@ -257,23 +295,23 @@ contains
       call setup_ancil_field("surface_conductance", depository, &
                              fd_field_collection, mesh, twod_mesh, &
                              twod=.true.)
-      call setup_ancil_field("can_water_in", depository, &
+      call setup_ancil_field("canopy_water_in", depository, &
                              fd_field_collection, mesh, twod_mesh, &
-                             twod=.true., ndata=n_land_tile)
-      call setup_ancil_field("land_tile_temp", depository, &
+                             twod=.true., ndata=n_surf_tile)
+      call setup_ancil_field("tile_temperature", depository, &
                              fd_field_collection, mesh, twod_mesh, &
-                             twod=.true., ndata=n_land_tile)
-      if (sst_source == sst_source_start_dump) then
-        call setup_ancil_field("tstar_sea", depository, &
-                               fd_field_collection, mesh, twod_mesh, &
-                               twod=.true.)
-      end if
-      call setup_ancil_field("tstar_sea_ice", depository, &
-                             fd_field_collection, mesh, twod_mesh, &
-                             twod=.true., ndata=n_sea_ice_tile)
-      call setup_ancil_field("sea_ice_temperature", depository, &
-                             fd_field_collection, mesh, twod_mesh, &
-                             twod=.true., ndata=n_sea_ice_tile)
+                             twod=.true., ndata=n_surf_tile)
+!!$      if (sst_source == sst_source_start_dump) then
+!!$        call setup_ancil_field("tstar_sea", depository, &
+!!$                               fd_field_collection, mesh, twod_mesh, &
+!!$                               twod=.true.)
+!!$      end if
+!!$      call setup_ancil_field("tstar_sea_ice", depository, &
+!!$                             fd_field_collection, mesh, twod_mesh, &
+!!$                             twod=.true., ndata=n_sea_ice_tile)
+!!$      call setup_ancil_field("sea_ice_temperature", depository, &
+!!$                             fd_field_collection, mesh, twod_mesh, &
+!!$                             twod=.true., ndata=n_sea_ice_tile)
 
       ! For coupled models get the sea ice fraction and thickness from the
       ! dump
@@ -289,25 +327,25 @@ contains
       ! snow fields
       call setup_ancil_field("tile_snow_mass_in", depository, &
                              fd_field_collection, mesh, twod_mesh, &
-                             twod=.true., ndata=n_land_tile)
+                             twod=.true., ndata=n_surf_tile)
       call setup_ancil_field("n_snow_layers_in", depository, &
                              fd_field_collection, mesh, twod_mesh, &
-                             twod=.true., ndata=n_land_tile)
+                             twod=.true., ndata=n_surf_tile)
       call setup_ancil_field("snow_depth_in", depository, &
                              fd_field_collection, mesh, twod_mesh, &
-                             twod=.true., ndata=n_land_tile)
+                             twod=.true., ndata=n_surf_tile)
       call setup_ancil_field("tile_snow_rgrain_in", depository, &
                              fd_field_collection, mesh, twod_mesh, &
-                             twod=.true., ndata=n_land_tile)
+                             twod=.true., ndata=n_surf_tile)
       call setup_ancil_field("snow_soot", depository, &
                              fd_field_collection, mesh, twod_mesh, &
                              twod=.true.)
       call setup_ancil_field("snow_under_canopy_in", depository, &
                              fd_field_collection, mesh, twod_mesh, &
-                             twod=.true., ndata=n_land_tile)
+                             twod=.true., ndata=n_surf_tile)
       call setup_ancil_field("snowpack_density_in", depository, &
                              fd_field_collection, mesh, twod_mesh, &
-                             twod=.true., ndata=n_land_tile)
+                             twod=.true., ndata=n_surf_tile)
       call setup_ancil_field("snow_layer_thickness", depository, &
                              fd_field_collection, mesh, twod_mesh, &
                              twod=.true., ndata=snow_lev_tile)

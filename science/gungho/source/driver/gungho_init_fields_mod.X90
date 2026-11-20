@@ -87,7 +87,7 @@ module gungho_init_fields_mod
   use create_physics_prognostics_mod,     only : create_physics_prognostics
   use create_nudging_fields_mod,          only : create_nudging_fields
   use field_mapper_mod,                   only : field_mapper_type
-  use map_fd_to_prognostics_alg_mod,      only : map_fd_to_prognostics
+  use map_fd_to_prognostics_alg_mod,      only : map_fd_to_prognostics, map_fe_to_prognostics
   use gungho_init_prognostics_driver_mod, only : init_gungho_prognostics
   use init_gungho_lbcs_alg_mod,           only : init_lbcs_file_alg,    &
                                                  init_lbcs_analytic_alg
@@ -579,7 +579,7 @@ subroutine create_model_data( modeldb,           &
     if (use_physics) then
       ! Create FD prognostic fields
       select case ( prognostic_init_choice )
-        case ( init_option_fd_start_dump )
+        case ( init_option_fd_start_dump, init_option_fe_start_dump )
           call create_fd_prognostics(mesh, twod_mesh,       &
                                      fd_fields,             &
                                      depository)
@@ -865,10 +865,15 @@ subroutine create_model_data( modeldb,           &
         end if
 
       case ( init_option_fe_start_dump )
-        ! Initialise FE prognostic fields from an FE dump
-        ! Not yet supported
-        call log_event("Gungho: Prognostic initialisation from an FE dump not yet supported, "// &
-                          "stopping program! ",LOG_LEVEL_ERROR)
+         ! Initialise FE prognostic fields from an FE dump
+         call init_fd_prognostics_dump( fd_fields )
+
+                   call map_fe_to_prognostics( modeldb%config,         &
+                                      prognostic_fields,      &
+                                      mr_array%bundle,        &
+                                      moist_dyn_array%bundle, &
+                                      fd_fields )
+         
       case default
         ! No valid initialisation option selected
         call log_event("Gungho: No valid prognostic initialisation option selected, "// &
@@ -980,7 +985,8 @@ subroutine create_model_data( modeldb,           &
           if (.not. checkpoint_read) then
             ! These parts only need to happen on a new run
             call log_event( "Gungho: Reading ancillaries from file ", LOG_LEVEL_INFO )
-            if (init_option == init_option_fd_start_dump) then
+            if (init_option == init_option_fd_start_dump .or. &
+                init_option == init_option_fe_start_dump) then
                  call read_state( ancil_fields )
             end if
             call process_inputs_alg( modeldb%config, &

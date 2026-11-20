@@ -126,12 +126,12 @@ contains
     call invoke(         X_divideby_Y(u_physics, u, dA), &
                 extract_w_kernel_type(velocity_w2v, u_physics) )
 
-    call print_field_stats_alg(config, u_in_w3, LOG_LEVEL_INFO, &
-                               printmin=-150.0_r_def, printmax=150.0_r_def)
-    call print_field_stats_alg(config, v_in_w3, LOG_LEVEL_INFO, &
-                               printmin=-100.0_r_def, printmax=100.0_r_def)
-    call print_field_stats_alg(config, w_in_wth, LOG_LEVEL_INFO, &
-                               printmin=-10.0_r_def, printmax=10.0_r_def)
+!!$    call print_field_stats_alg(config, u_in_w3, LOG_LEVEL_INFO, &
+!!$                               printmin=-150.0_r_def, printmax=150.0_r_def)
+!!$    call print_field_stats_alg(config, v_in_w3, LOG_LEVEL_INFO, &
+!!$                               printmin=-100.0_r_def, printmax=100.0_r_def)
+!!$    call print_field_stats_alg(config, w_in_wth, LOG_LEVEL_INFO, &
+!!$                               printmin=-10.0_r_def, printmax=10.0_r_def)
 
     if (log_level() <= LOG_LEVEL_DEBUG) then
       call divergence_diagnostic_alg(divergence, l2, u, mesh)

@@ -36,6 +36,74 @@
     <file_definition src="./file_def_diags_ral.xml"/>
     <file_definition src="./file_def_initial_diags.xml"/>
 
+     <!-- Local file definitions -->
+    <file_definition type="one_file" time_counter="none">
+
+      <!-- File definition for writing an FD dump -->
+      <file id="lfric_fd_dump" name="lfric_fd_dump" output_freq="1ts" convention="UGRID" enabled=".FALSE." >
+      </file>
+
+      <!-- File definition for reading in from a UM2LFRic FD UGRID format dump  -->
+      <file id="read_lfric_fd_dump" name="lfric_fd_dump" mode="read" output_freq="1ts" convention="UGRID" cyclic="false" enabled=".FALSE.">
+	<field_group id="read_lfric_fd_dump_field_group" >
+
+	<field id="read_theta" name="theta" long_name="air_potential_temperature" standard_name="air_potential_temperature" unit="K" domain_ref="checkpoint_Wtheta" operation="once" />
+        <field id="read_rho" name="rho" long_name="air_density" standard_name="air_density" unit="kg m-3" domain_ref="checkpoint_W3" operation="once" />
+        <field id="read_exner" name="exner" long_name="exner_pressure" unit="1" domain_ref="checkpoint_W3" operation="once" />
+        <field id="read_u" name="u" long_name="U" unit="m s-1" domain_ref="checkpoint_W2" operation="once" />
+        <field id="read_m_v" name="m_v" long_name="m_v" unit="kg kg-1" domain_ref="checkpoint_Wtheta" operation="once" />
+        <field id="read_m_cl" name="m_cl" long_name="m_cl" unit="kg kg-1" domain_ref="checkpoint_Wtheta" operation="once" />
+        <field id="read_m_r" name="m_r" long_name="m_r" unit="kg kg-1" domain_ref="checkpoint_Wtheta" operation="once" />
+        <field id="read_m_ci" name="m_ci" long_name="m_ci" unit="kg kg-1" domain_ref="checkpoint_Wtheta" operation="once" />
+        <field id="read_m_s" name="m_s" long_name="m_s" unit="kg kg-1" domain_ref="checkpoint_Wtheta" operation="once" />
+	<field id="read_m_g" name="m_g" long_name="m_g" unit="kg kg-1" domain_ref="checkpoint_Wtheta" operation="once" />
+
+        <!-- Turbulence fields -->
+        <field id="read_zh" name="zh" long_name="boundary_layer_depth" unit="m" prec="8" domain_ref="face" operation="once" />
+
+        <!-- Surface fields -->
+        <field id="read_z0msea" name="z0msea" long_name="sea_surface_roughness_length" unit="m" domain_ref="face" operation="once" />
+        <field id="read_surface_conductance" name="surface_conductance" long_name="conductance" unit="m s-1" domain_ref="face" operation="once" />
+        <field id="read_tile_fraction" name="tile_fraction" long_name="tile_fraction" unit="1" domain_ref="face" axis_ref="surface_tiles" operation="once" />
+        <field id="read_tile_temperature" name="tile_temperature" long_name="tile_temperature" unit="K" domain_ref="face" axis_ref="surface_tiles" operation="once" />
+        <field id="read_canopy_water_in" name="canopy_water" long_name="canopy_water_content_on_tiles" unit="kg m-2" domain_ref="face" axis_ref="surface_tiles" operation="once" />
+        <field id="read_sea_ice_temperature" name="sea_ice_temperature" long_name="sea_ice_temperature" unit="K" domain_ref="face" axis_ref="sea_ice_categories" operation="once" />
+
+        <!-- Cloud fields -->
+        <field id="read_area_fraction" name="area_fraction" long_name="cloud_area_fraction" unit="1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_bulk_fraction" name="bulk_fraction" long_name="cloud_bulk_fraction" unit="1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_liquid_fraction" name="liquid_fraction" long_name="cloud_liquid_fraction" unit="1" grid_ref="full_level_face_grid" operation="once" />
+        <field id="read_frozen_fraction" name="frozen_fraction" long_name="cloud_frozen_fraction" unit="1" grid_ref="full_level_face_grid" operation="once" />
+
+        <!-- Orography fields -->
+
+        <!-- Radiation fields -->
+
+        <!-- Soil fields -->
+        <field id="read_soil_sat_frac" name="soil_sat_frac" long_name="soil_saturated_fraction" unit="1" domain_ref="face" operation="once" />
+        <field id="read_water_table" name="water_table" long_name="water_table_depth" unit="m" domain_ref="face" operation="once" />
+        <field id="read_wetness_under_soil" name="wetness_under_soil" long_name="wetness_below_soil_column" unit="1" domain_ref="face" operation="once" />
+        <field id="read_soil_temperature" name="soil_temperature" long_name="soil_temperature" unit="K" domain_ref="face" axis_ref="soil_levels" operation="once" />
+        <field id="read_soil_moisture" name="soil_moisture" long_name="soil_moisture_content" unit="kg kg-1" domain_ref="face" axis_ref="soil_levels" operation="once" />
+
+        <!-- Snow fields -->
+        <field id="read_tile_snow_mass_in" name="tile_snow_mass" long_name="tile_snow_mass" unit="kg m-2" prec="8" domain_ref="face" axis_ref="surface_tiles" operation="once" />
+        <field id="read_tile_snow_rgrain_in" name="tile_snow_rgrain" long_name="tile_snow_grain_size" unit="microns" prec="8" domain_ref="face" axis_ref="surface_tiles" operation="once" />
+        <field id="read_n_snow_layers_in" name="n_snow_layers" long_name="number_of_snow_layers" unit="1" prec="8" domain_ref="face" axis_ref="surface_tiles" operation="once" />
+        <field id="read_snow_depth_in" name="snow_depth" long_name="snow_depth_on_tiles" unit="m" prec="8" domain_ref="face" axis_ref="surface_tiles" operation="once" />
+        <field id="read_snowpack_density_in" name="snowpack_density" long_name="snowpack_density_on_tiles" unit="kg m-3" prec="8" domain_ref="face" axis_ref="surface_tiles" operation="once" />
+        <field id="read_snow_under_canopy_in" name="snow_under_canopy" long_name="snow_under_canopy_on_tiles" unit="m" prec="8" domain_ref="face" axis_ref="surface_tiles" operation="once" />
+        <field id="read_snow_layer_thickness" name="snow_layer_thickness" long_name="snow_layer_thickness_on_tiles" unit="m" prec="8" domain_ref="face" axis_ref="snow_layers_and_tiles" operation="once" />
+        <field id="read_snow_layer_ice_mass" name="snow_layer_ice_mass" long_name="snow_layer_ice_mass_on_tiles" unit="kg m-2" prec="8" domain_ref="face" axis_ref="snow_layers_and_tiles" operation="once" />
+        <field id="read_snow_layer_liq_mass" name="snow_layer_liq_mass" long_name="snow_layer_liquid_mass_on_tiles" unit="kg m-2" prec="8" domain_ref="face" axis_ref="snow_layers_and_tiles" operation="once" />
+        <field id="read_snow_layer_temp" name="snow_layer_temp" long_name="snow_layer_temperature_on_tiles" unit="K" prec="8" domain_ref="face" axis_ref="snow_layers_and_tiles" operation="once" />
+        <field id="read_snow_layer_rgrain" name="snow_layer_rgrain" long_name="snow_layer_grain_size_on_tiles" unit="microns" prec="8" domain_ref="face" axis_ref="snow_layers_and_tiles" operation="once" />
+        <field id="read_snow_soot" name="snow_soot" long_name="snow_soot_content" unit="kg kg-1" prec="8" domain_ref="face" operation="once" />
+
+       </field_group>
+      </file>
+
+    </file_definition>
   </context>
 
   <context id = "xios">

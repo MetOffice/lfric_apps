@@ -26,7 +26,7 @@ module init_ancils_mod
   use fs_continuity_mod,              only : W3, WTheta
   use pure_abstract_field_mod,        only : pure_abstract_field_type
   use lfric_xios_time_axis_mod,       only : time_axis_type
-  use jules_control_init_mod,         only : n_land_tile, n_sea_ice_tile
+  use jules_control_init_mod,         only : n_land_tile, n_sea_ice_tile, n_surf_tile
   use jules_physics_init_mod,         only : snow_lev_tile
   use jules_surface_types_mod,        only : npft
   use dust_parameters_mod,            only : ndiv
@@ -38,6 +38,7 @@ module init_ancils_mod
                                              sst_source_surf,       &
                                              init_option,           &
                                              init_option_fd_start_dump, &
+                                             init_option_fe_start_dump, &
                                              snow_source,               &
                                              snow_source_surf,          &
                                              sea_ice_source,            &
@@ -185,7 +186,8 @@ contains
     ! subroutine.
 
     !=====  LAND ANCILS  =====
-    if (init_option == init_option_fd_start_dump .and. &
+    if ((init_option == init_option_fd_start_dump .or. &
+         init_option == init_option_fe_start_dump) .and. &
          .not. checkpoint_read) then
       call setup_ancil_field("land_area_fraction", depository, ancil_fields, &
                               mesh, twod_mesh, twod=.true.)
@@ -205,8 +207,9 @@ contains
                               time_axis=pft_time_axis)
     call ancil_times_list%insert_item(pft_time_axis)
 
-    if ( l_urban2t .and. (init_option == init_option_fd_start_dump .and. &
-         .not. checkpoint_read) ) then
+    if ( l_urban2t .and. (init_option == init_option_fd_start_dump .or. &
+                          init_option == init_option_fe_start_dump) .and. &
+         .not. checkpoint_read) then
       call setup_ancil_field("urbwrr", depository, ancil_fields, &
                                 mesh, twod_mesh, twod=.true.)
       call setup_ancil_field("urbhwr", depository, ancil_fields, &
@@ -326,7 +329,8 @@ contains
     end if
 
     !=====  SOIL ANCILS  =====
-    if (init_option == init_option_fd_start_dump .and. &
+    if ((init_option == init_option_fd_start_dump .or. &
+         init_option == init_option_fe_start_dump) .and. &
          .not. checkpoint_read) then
       call setup_ancil_field("soil_albedo", depository, ancil_fields, mesh, &
                               twod_mesh, twod=.true.)
@@ -470,7 +474,8 @@ contains
     !=====  EMISSION ANCILS (dust only) =====
     if ( ( glomap_mode == glomap_mode_dust_and_clim .or. &
            glomap_mode == glomap_mode_ukca ) .and. &
-           init_option == init_option_fd_start_dump .and. &
+           (init_option == init_option_fd_start_dump .or. &
+            init_option == init_option_fe_start_dump) .and. &
            .not. checkpoint_read) then
 
       ! -- Single level ancils

@@ -8,6 +8,7 @@
 !!        3D equations.
 module semi_implicit_timestep_alg_mod
 
+  use sci_field_minmax_alg_mod,  only: log_field_minmax
   use config_mod,                only: config_type
   use constants_mod,             only: i_def, r_def, l_def, str_def, r_tran
   use fs_continuity_mod,         only: Wtheta, W2
@@ -787,6 +788,11 @@ contains
                  setval_X(self%state(igh_p), exner), &
                  setval_c(self%total_dry_flux, 0.0_r_tran) )
 
+    call log_field_minmax(LOG_LEVEL_INFO, 'theta', theta)
+    call log_field_minmax(LOG_LEVEL_INFO, 'rho', rho)
+    call log_field_minmax(LOG_LEVEL_INFO, 'exner', exner)
+    call log_field_minmax(LOG_LEVEL_INFO, 'u', u)
+    
     !--------------------------------------------------------------------
     ! Compute the semi-implicit operators
     !--------------------------------------------------------------------
