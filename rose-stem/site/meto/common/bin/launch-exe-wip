@@ -4,7 +4,7 @@ set -euo pipefail
 
 # Include statements
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/functions.sh"
+source "${SCRIPT_DIR}/launcher_functions.sh"
 
 
 function main () {
