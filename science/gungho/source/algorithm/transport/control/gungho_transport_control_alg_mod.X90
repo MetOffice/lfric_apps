@@ -270,6 +270,7 @@ contains
     type(field_type),              pointer :: rho_d_latest_ptr
     type(field_type),              target  :: rho_d_latest_trgt
     type(r_tran_field_type),       pointer :: flux_this_outer
+    type(r_tran_field_type)                :: flux_copy
 
     type(mesh_type),               pointer :: aerosol_mesh
     type(function_space_type),     pointer :: aerosol_w2_fs
@@ -368,6 +369,21 @@ contains
     call invoke( X_minus_Y( advection_inc(igh_d), fields_np1(igh_d),           &
                             advected_fields(igh_d) ) )
 
+    ! Check negative reference fields at this point
+    if (check_any_eqn_consistent()) then
+      safe_ref = transport_controller%check_reference_field(fail_on_neg=.false.)
+      if (.not. safe_ref) then
+        ! We will need to substep the transport of tracers
+        ! This can be prompted by re-initialising the flux precomputations
+        flux_precomputations => transport_controller%get_flux_precomputations()
+        flux_this_outer => flux_precomputations%get_total_ref_flux()
+        call flux_copy%initialise( flux_this_outer%get_function_space() )
+        call invoke( setval_X(flux_copy, flux_this_outer) )
+        call transport_controller%clear_flux_precomputations()
+        call transport_controller%initialise_flux_precomputations(flux_copy)
+      end if
+    end if
+
     ! Increment the whole time step's dry flux, which is to be used in the
     ! transport of tracers in the final outer step, if using the cheap update
     ! or the TR-BDF2 timestepper
@@ -392,11 +408,14 @@ contains
       call invoke( setval_X(total_dry_flux, flux_this_outer) )
     end if
 
+<<<<<<< HEAD
+=======
     ! Check negative reference fields at this point
     if (check_any_eqn_consistent()) then
       safe_ref = transport_controller%check_reference_field(fail_on_neg=.true.)
     end if
 
+>>>>>>> upstream/main
     ! ------------------------------------------------------------------------ !
     ! Transport wind field
     call log_event( "Transporting wind...", LOG_LEVEL_DEBUG)

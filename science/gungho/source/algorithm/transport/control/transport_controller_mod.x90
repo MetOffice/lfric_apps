@@ -124,6 +124,7 @@ module transport_controller_mod
     procedure, public  :: initialise_flux_precomputations
 
     procedure, public  :: finalise
+    procedure, public  :: clear_flux_precomputations
     final              :: destroy_transport_controller
 
   end type transport_controller_type
@@ -571,6 +572,17 @@ contains
 
   end subroutine finalise
 
+  !> Finalises the flux precomputations object
+  subroutine clear_flux_precomputations(self)
+
+    implicit none
+
+    class(transport_controller_type), intent(inout) :: self
+
+    call self%flux_precomputations%finalise()
+
+  end subroutine clear_flux_precomputations
+
   !> Finalise for the transport controller
   subroutine destroy_transport_controller(self)
 
@@ -809,7 +821,7 @@ contains
     if (self%outer_set) then
       call self%metadata%update_metadata(                                      &
               self%outer, self%adaptive_splitting, self%reference_splitting,   &
-              self%make_tracers_Advective                                      &
+              self%make_tracers_advective                                      &
       )
       call self%counter%initialise(                                            &
               self%metadata, self%dt_substep, self%num_substeps, self%outer    &
