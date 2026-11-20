@@ -34,8 +34,8 @@ lfric_core:
     ref: 10c46a577b5c3d226121c2c9d55581f3683f3963
 
 moci:
-    source: git@github.com:EdHone/moci.git
-    ref: csc-flags
+    source: git@github.com:MetOffice/moci.git
+    ref: 2026.07.1
 
 SimSys_Scripts:
     source: git@github.com:MetOffice/SimSys_Scripts.git
