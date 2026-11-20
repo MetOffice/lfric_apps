@@ -10,8 +10,8 @@
 !!          dispersion relation. This factor is
 !!              0.25 * dz * dtheta/dz
 !!          The kernel calculates the gradient of a Wtheta field at its native
-!!          points, either by fitting a quadratic through neighbouring points
-!!          or, if specified, exp(a0 + a1*z + a2*z**2).
+!!          points, using a centred difference of neighbouring points or, if
+!!          specified, a centred difference of log(theta) multiplied by theta.
 !!          Only implemented for the lowest-order elements.
 
 module theta_dispersion_factor_kernel_mod
@@ -81,7 +81,7 @@ subroutine theta_dispersion_factor_code( nlayers,    &
 
   ! Internal variables
   integer(kind=i_def) :: k
-  real(kind=r_tran)   :: z_k, z_km1, z_kp1, dz, z_w2, a1, a2
+  real(kind=r_tran)   :: z_k, z_km1, z_kp1, dz, a1
   real(kind=r_tran)   :: theta_km1, theta_k, theta_kp1, theta_factor
 
   ! -------------------------------------------------------------------------- !
@@ -106,34 +106,13 @@ subroutine theta_dispersion_factor_code( nlayers,    &
     dz = 0.5_r_tran*(z_kp1 - z_km1)
 
     if (.not. logspace .or. MIN(theta_kp1, theta_k, theta_km1) < EPS_R_TRAN) then
-      ! ---- Method for fitting a quadratic through neighbouring points ------ !
-      ! The point is the centre of the shifted mesh
-      ! ---------------------------------------------------------------------- !
-      z_w2 = 0.25_r_tran*(2.0_r_tran*z_k + z_kp1 + z_km1)
-      ! Fit quadratic in z to neighbouring theta values
-      theta_factor = 0.25_r_tran * dz *                                        &
-        ( theta_km1 * (2.0_r_tran*z_w2 - z_k - z_kp1)                          &
-                       / ((z_km1 - z_k) * (z_km1 - z_kp1))                     &
-        + theta_k * (2.0_r_tran*z_w2 - z_km1 - z_kp1)                          &
-                     / ((z_k - z_km1) * (z_k - z_kp1))                         &
-        + theta_kp1 * (2.0_r_tran*z_w2 - z_k - z_km1)                          &
-                       / ((z_kp1 - z_k) * (z_kp1 - z_km1)) )
-
+      ! Centred difference
+      theta_factor = 0.25_r_tran * dz * (theta_kp1 - theta_km1)                &
+                     / (z_kp1 - z_km1)
     else
-      ! ---- Method for fitting to an exponential of a quadratic ------------- !
-      ! The point is the theta point on the original mesh
-      ! ---------------------------------------------------------------------- !
-      ! Fit quadratic in z to neighbouring theta values
-      ! Expand theta = exp(a0 + a1*z + a2*z**2)
-      a1 =                                                                     &
-      ((log(theta_kp1)-log(theta_k))*(z_k**2.0_r_tran - z_km1**2.0_r_tran)     &
-       - (log(theta_k)-log(theta_km1))*(z_kp1**2.0_r_tran - z_k**2.0_r_tran))  &
-          / ((z_kp1 - z_k)*(z_k - z_km1)*(z_km1 - z_kp1))
-      a2 = - ((log(theta_kp1) - log(theta_k))*(z_k - z_km1)                    &
-              - (log(theta_k) - log(theta_km1))*(z_kp1 - z_k))                 &
-              / ((z_kp1 - z_k)*(z_k - z_km1)*(z_km1 - z_kp1))
-
-      theta_factor = 0.25_r_tran * dz * (a1 + 2.0_r_tran*a2*z_k) * theta_k
+      ! Centred difference in log space
+      theta_factor = 0.25_r_tran * dz * theta_k                                &
+                     * (log(theta_kp1) - log(theta_km1)) / (z_kp1 - z_km1)
     end if
 
     dtheta(map_wt(1)+k) = theta_factor

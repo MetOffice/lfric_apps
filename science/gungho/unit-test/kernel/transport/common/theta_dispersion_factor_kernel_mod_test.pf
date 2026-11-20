@@ -91,7 +91,7 @@ contains
 
     dtheta_answer(:) = 0.25_r_tran*deltaz*dtheta_dz
 
-    ! Approximately equal as reconstruction uses logarithm
+    ! Centred difference is exact for a linear profile
     @assertEqual(dtheta_answer, dtheta, tol)
 
   end subroutine test_all
