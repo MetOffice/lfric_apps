@@ -57,6 +57,8 @@ module wind_transport_alg_mod
                                             topology,           &
                                             topology_fully_periodic
   use integer_field_mod,              only: integer_field_type
+  use sin_kernel_mod,                 only: sin_kernel_type
+  use arcsin_kernel_mod,              only: arcsin_kernel_type
 
   implicit none
 
@@ -124,7 +126,8 @@ contains
     integer(tik)                        :: id_to, id_from
     type(field_type)                    :: ones
     type(field_type),           pointer :: da
-    type(field_type)                    :: chi1_n, chi1_d, chi2_n, chi2_d, chi1_d_w2, chi2_d_w2
+    type(field_type)                    :: chi1_n, chi2_n, chi2_d, chi1_d_w2, chi2_d_w2
+    type(field_type)                    :: sin_chi1_n, sin_chi1_d, sin_chi1_d_w2
     integer(kind=i_def), parameter      :: stencil_depth = 1_i_def
     type(field_type)                    :: u_w2_inc_with_metrics
     type(integer_field_type), pointer   :: face_selector_ew
@@ -193,6 +196,7 @@ contains
           ! so are initialised here to avoid problems
           call chi1_d_w2%initialise( w2_fs )
           call chi2_d_w2%initialise( w2_fs )
+          call sin_chi1_d_w2%initialise( w2_fs )
 
           if ( geometry == geometry_spherical ) then
             ! For the metric terms we need to transport the (horizontal)
@@ -202,28 +206,31 @@ contains
             w3_fs => function_space_collection%get_fs( mesh, k_h, k_v, W3 )
             call chi1_n%initialise( w3_fs )
             call chi2_n%initialise( w3_fs )
-            call chi1_d%initialise( w3_fs )
+            call sin_chi1_n%initialise( w3_fs )
+            call sin_chi1_d%initialise( w3_fs )
             call chi2_d%initialise( w3_fs )
             call ones%initialise( w3_fs )
             call invoke( setval_c( ones, 1.0_r_def ),                      &
                          setval_c( chi1_n, 0.0_r_def ) ,                   &
                          setval_c( chi2_n, 0.0_r_def ),                    &
                          sample_field_kernel_type( chi1_n, ones, chi(1) ), &
-                         sample_field_kernel_type( chi2_n, ones, chi(2) ) )
-            call transport_field( chi1_d, chi1_n, transport_controller,    &
+                         sample_field_kernel_type( chi2_n, ones, chi(2) ), &
+                         sin_kernel_type( sin_chi1_n, chi1_n ) )
+            call transport_field( sin_chi1_d, sin_chi1_n, transport_controller,&
                                   transport_metadata )
             call transport_field( chi2_d, chi2_n, transport_controller,    &
                                   transport_metadata )
-            call log_field_minmax( LOG_LEVEL_DEBUG, 'chi1_d', chi1_d )
+            call log_field_minmax( LOG_LEVEL_DEBUG, 'sin_chi1_d', sin_chi1_d )
             call log_field_minmax( LOG_LEVEL_DEBUG, 'chi2_d', chi2_d )
             ! Now compute chi1_d & chi2_d on W2 points for using later
             rmultiplicity_w2 => get_rmultiplicity_fv(W2, mesh%get_id())
-            call invoke( setval_c( chi1_d_w2, 0.0_r_def ) ,                   &
+            call invoke( setval_c( sin_chi1_d_w2, 0.0_r_def ) ,               &
                          setval_c( chi2_d_w2, 0.0_r_def ),                    &
                          sample_field_kernel_type(                            &
-                                   chi1_d_w2, rmultiplicity_w2, chi1_d),      &
+                                   sin_chi1_d_w2, rmultiplicity_w2, sin_chi1_d),&
                          sample_field_kernel_type(                            &
-                                   chi2_d_w2, rmultiplicity_w2, chi2_d) )
+                                   chi2_d_w2, rmultiplicity_w2, chi2_d),      &
+                         arcsin_kernel_type( chi1_d_w2, sin_chi1_d_w2 ) )
 
           end if
 
