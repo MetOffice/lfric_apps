@@ -26,11 +26,7 @@
                   {{site_vars["scripts_platform"]|upper}}_WEIGHTS, \
                   {{resource_family|upper}}
 {% if task_ns.application == "lfric2lfric" %}
-        {% if task_values["src_mesh"] == 'C896_MG' %}
-	    script = rose task-run --app-key=generate_weights -O lfric2lfric_C896
-	{% else %}
-            script = rose task-run --app-key=generate_weights -O lfric2lfric
-	{% endif %}
+        script = rose task-run --app-key=generate_weights -O lfric2lfric
 {% else %}
         script = rose task-run --app-key=generate_weights
 {% endif %}

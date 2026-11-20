@@ -86,10 +86,8 @@ class INTER:
 def run_exe(arg, outfile, style):
     """Run ESMF regrid"""
     model = ' ESMF_RegridWeightGen ' + arg + ' -w ' + outfile
-    # Temporarily run without mpiexec due to environment issues
-    # nproc = os.environ.get('MPIRUN_N_JOBS')
-    # cmd = 'mpiexec -n ' + nproc + model
-    cmd = model
+    nproc = os.environ.get('MPIRUN_N_JOBS')
+    cmd = 'mpiexec -n ' + nproc + model
     print(cmd)
     retcode = subprocess.call(cmd, shell=True)
     if retcode != 0:
