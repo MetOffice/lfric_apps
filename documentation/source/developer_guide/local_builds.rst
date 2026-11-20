@@ -4,6 +4,8 @@
     under which the code may be used.
    -----------------------------------------------------------------------------
 
+.. _command_line_builds:
+
 LFRic Apps Command Line Builds
 ==============================
 
