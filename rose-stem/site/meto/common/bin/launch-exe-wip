@@ -1,0 +1,151 @@
+# VALIDATION LISTS
+VALID_PLATFORMS="meto-azspice meto-ex1a"
+VALID_RUN_METHODS="executable mpiexec"
+
+# Helper functions
+
+# Check if item exists in a space-separated list
+function exists_in_list () {
+    local ITEM=$1
+    local LIST=$2
+
+    for x in $LIST_ITEMS; do
+        if [ "$x" = "$ITEM" ]; then
+            return 0
+        fi
+    done
+
+    echo "LFRIC LAUNCHER ERROR: ${ITEM}" not found in a supplied list of valid options: "${LIST}" >&2
+    exit 1
+}
+
+# Check if the variable is a positive integer
+function check_integer () {
+    # Function takes the variable name unexpanded (without dollar sign) for
+    # better error reporting - can give the variable name with error
+    local VAR="${!1}"
+
+    if [[ ! "$VAR" =~ ^[0-9]+$ ]]; then
+        echo "LFRIC LAUNCHER ERROR: $1 must be a non-negative integer, got: '$VAR'" >&2
+        exit 1
+    fi
+}
+
+# Set default values for required variables
+function set_default_env () {
+    # Set default values for UNSET OR EMPTY env vars (overrides "")
+    : "${TOTAL_RANKS:=1}"
+    : "${OMP_NUM_THREADS:=1}"
+    : "${CORES_PER_NODE_OVERRIDE:=0}"
+    : "${RANKS_DEPTH_PAD:=1}"
+    : "${XIOS_SERVER_MODE:="False"}"
+    : "${MEMORY_PROFILE:="False"}"
+
+    # Set default values for UNSET env vars - preserves empty
+    : "${XIOS_SERVER_EXEC_PATH="xios_server.exe"}"
+    : "${PAT_EXE_EXTEN=""}"
+
+    # Set up Executable information
+    : "${EXEC_PATH:="${BIN_DIR}/${EXEC_NAME}${PAT_EXE_EXTEN}"}"
+
+}
+
+
+# Validate environment variables
+function validate_env () {
+
+    # Values must match a set of pre-determined options
+    exists_in_list "${TARGET_PLATFORM}" "${VALID_PLATFORMS}"
+    exists_in_list "${RUN_METHOD}" "${VALID_RUN_METHODS}"
+
+    # Values must be an integer but we don't care about their size
+    check_integer CORES_PER_NODE
+    check_integer OMP_NUM_THREADS
+    check_integer XIOS_SERVER_RANKS
+    check_integer xios_nodes
+    check_integer mpi_parts_xios
+    check_integer RANKS_DEPTH_PAD
+    check_integer TOTAL_RANKS
+    check_integer CORES_PER_NODE_OVERRIDE
+
+}
+
+
+# Determine cores per-node requirements
+# This is used when the CORES_PER_NODE override is set.
+function get_cores_per_node () {
+# Set some default values based on cores per node, hyperthreads and OpenMP
+  local STANDARD_CORES_PER_NODE="$(( CORES_PER_NODE ))"
+  local POTENTIAL_CORES_PER_NODE="$(( STANDARD_CORES_PER_NODE / DEPTH_VAL ))"
+
+  # Set MPI ranks / PEs per Node from provided value
+  # ================================================
+  # Output -> `SET_CORES_PER_NODE` (used for ppn)
+  # ============================================
+  # Under-commited nodes
+  # --------------------
+  # Note:
+  # This section does not check whether the provided override value fits
+  # squarely into NUMA regions. As it was provided by the user, it should only
+  # meet the minimum requirements of being less than max ppn. Any other tuning
+  # is the responsibility of the user.
+  #
+  if (( "${CORES_PER_NODE_OVERRIDE}" > "0" )) ; then
+    # Multiply by depth value for ppn
+    local REQUESTED_PPN="$(( CORES_PER_NODE_OVERRIDE * DEPTH_VAL ))"
+    # Check if this value is less than standard cores per node
+    if (( "${REQUESTED_PPN}" <= "${STANDARD_CORES_PER_NODE}" )) ; then
+      SET_CORES_PER_NODE="${CORES_PER_NODE_OVERRIDE}"
+    else
+      # If nothing appropriate can be set, fall back on the default
+      SET_CORES_PER_NODE="${POTENTIAL_CORES_PER_NODE}"
+      echo "LFRIC LAUNCHER INFO: Ranks per node has defaulted to standard value of maximum ranks per node ("${POTENTIAL_CORES_PER_NODE}")" >&2
+    fi
+
+  # Utilise whole node
+  # ------------------
+  else
+    # Check if potential ppn divides over the NUMA
+    if [ $(( POTENTIAL_CORES_PER_NODE % NUMA_REGIONS_PER_NODE )) -eq 0 ] ; then
+      SET_CORES_PER_NODE="${POTENTIAL_CORES_PER_NODE}"
+    else
+      # Not a factor of potential ppn
+      # Iterate from 1 rank to 1 node of ranks to find maximum ppn
+      for ((TEST_PPN=1; TEST_PPN<=STANDARD_CORES_PER_NODE; TEST_PPN++)) ; do
+        # check if the index will divide cleanly over NUMA
+        if [ $(( TEST_PPN % NUMA_REGIONS_PER_NODE )) -eq 0 ] ; then
+          # If it does, multiply by depth value to get total ppn
+          TEST_SET_CORES="$(( TEST_PPN * DEPTH_VAL ))"
+          # While less than or equal to 1 whole node, set as ppn value
+          if [ $TEST_SET_CORES -le $STANDARD_CORES_PER_NODE ] ; then
+            SET_CORES_PER_NODE=$TEST_PPN
+          fi
+        fi
+      done
+    fi
+  fi
+
+  # Required ranks for job smaller than requested
+  # ---------------------------------------------
+  # Set the cores per node to the same as the total ranks provided if too few
+  if (( "$((TOTAL_RANKS * DEPTH_VAL))" < "${SET_CORES_PER_NODE}" )) ; then
+    SET_CORES_PER_NODE="${TOTAL_RANKS}"
+  fi
+
+}
+
+# Launcher options - model
+function model_options () {
+
+}
+
+# Launcher options - XIOS
+function xios_options () {
+
+}
+
+# Launcher options - additional commands
+function extra_options () {
+
+}
+
