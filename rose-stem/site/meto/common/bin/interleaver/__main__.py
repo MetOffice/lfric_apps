@@ -3,10 +3,10 @@
 
 Reads a generic multi-executable configuration (see InterleaverConfig.from_env),
 loads the PBS node allocation and writes, in CYLC_TASK_WORK_DIR:
-  my_nodes_uniq.txt   - Unique allocated nodes, in first-seen order
-  my_nodes_place.txt  - MPMD hostfile (one hostname per rank, MPMD order)
-  my_cpu_bind.txt     - CPU range per rank, for inspection
-  my_mpmd_layout.txt  - One line per executable for building mpiexec:
+  nodes_uniq.txt   - Unique allocated nodes, in first-seen order
+  nodes_place.txt  - MPMD hostfile (one hostname per rank, MPMD order)
+  cpu_bind.txt     - CPU range per rank, for inspection
+  mpmd_layout.txt  - One line per executable for building mpiexec:
                         name first_rank total_ranks ranks_per_node
                         binding_start_core rank_depth omp_num_threads
 """
@@ -18,7 +18,9 @@ from pathlib import Path
 # Parsing/validation of the environment-driven configuration.
 from interleaver.config import InterleaverConfig, ConfigError
 # The two layout strategies and their error type.
-from interleaver.placements import StandardPlacement, AsymmetricStripedPlacement, PlacementError
+from interleaver.placements import PlacementError
+# Dict containing all the available placement patterns
+from interleaver.constants import PLACEMENT_PATTERNS
 
 def main() -> int:
     """Parse config, select placement strategy, generate and write files.
@@ -55,17 +57,20 @@ def main() -> int:
         # apart and we'd be wasting (and paying for) idle nodes.
         if len(nodes) != config.required_nodes:
             raise ConfigError(
-                f"Placement requires {config.required_nodes} nodes, "
+                f"Requested placement requires {config.required_nodes} nodes, "
                 f"but PBS_NODEFILE contains {len(nodes)}"
             )
 
         # Step 3: pick the placement strategy. validate() has already rejected
         # unknown pattern names, so anything other than the asymmetric pattern
         # here is guaranteed to be "standard".
-        if config.placement_pattern == "asymmetric_two_block":
-            placement = AsymmetricStripedPlacement(config, nodes)
-        else:
-            placement = StandardPlacement(config, nodes)
+        placement = PLACEMENT_PATTERNS.get(config.placement_pattern, default=None)
+
+        if not placement:
+            raise PlacementError(f"Selected placement not found as supported: "
+                                 f"{config.placement_pattern} not in "
+                                 f"{PLACEMENT_PATTERNS.keys()}")
+
         # Confirm the chosen strategy gives every executable enough nodes.
         placement.validate()
 

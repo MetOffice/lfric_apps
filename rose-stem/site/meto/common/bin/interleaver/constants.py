@@ -1,4 +1,4 @@
-
+from interleaver.placements import StandardPlacement, AsymmetricStripedPlacement
 
 # The complete list of placement strategies that PLACEMENT_PATTERN may name.
 #   "standard"             - every executable runs on every node, and they are
@@ -8,11 +8,12 @@
 #                            block of nodes, and any SEPARATE_EXECUTABLES each
 #                            get their own contiguous block of nodes after it
 #                            (see AsymmetricStripedPlacement).
-# Keep this tuple in sync with the strategy selection in __main__.py.
-PLACEMENT_PATTERNS = ("standard", "asymmetric_two_block")
+PLACEMENT_PATTERNS = {"standard": StandardPlacement,
+                      "asymmetric_two_block": AsymmetricStripedPlacement}
 
-# ERRORS
-
+# ==============================================================================
+# Custom Error types
+# ==============================================================================
 # A dedicated exception type for anything wrong with the configuration that
 # the workflow supplied. It subclasses ValueError because, semantically, these
 # are "bad value" problems. __main__ catches this specifically so that config

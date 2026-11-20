@@ -40,7 +40,7 @@ def interleaver_env(monkeypatch):
     monkeypatch.setenv('XIOS_RANKS_PER_NODE', '6')
     monkeypatch.setenv('XIOS_RANK_DEPTH', '4')
     monkeypatch.setenv('XIOS_OMP_NUM_THREADS', '1')
-    monkeypatch.setenv('XIOS_BINDING_START_CORE', '0')
+    monkeypatch.setenv('XIOS_BINDING_START_CORE', '168')
 
 
 @pytest.fixture(scope='function')
@@ -62,7 +62,7 @@ def striped_interleaver_env(monkeypatch):
     monkeypatch.setenv('XIOS_RANKS_PER_NODE', '6')
     monkeypatch.setenv('XIOS_RANK_DEPTH', '4')
     monkeypatch.setenv('XIOS_OMP_NUM_THREADS', '1')
-    monkeypatch.setenv('XIOS_BINDING_START_CORE', '0')
+    monkeypatch.setenv('XIOS_BINDING_START_CORE', '168')
     # exec specifics - NEMO
     monkeypatch.setenv('NEMO_TOTAL_RANKS', '192')
     monkeypatch.setenv('NEMO_RANKS_PER_NODE', '96')
