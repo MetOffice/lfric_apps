@@ -143,11 +143,11 @@ contains
       fsenum = W2H
     else if (grid_ref == node_grid) then
       fsenum = W0
-    else if (domain_ref == "checkpoint_Wtheta") then
+    else if (domain_ref == "legacy_Wtheta") then
       fsenum = Wtheta
-    else if (domain_ref == "checkpoint_W3") then
+    else if (domain_ref == "legacy_W3") then
       fsenum = W3
-    else if (domain_ref == "checkpoint_W2") then
+    else if (domain_ref == "legacy_W2") then
       fsenum = W2
     else
       fsenum = 0 ! silence compiler warning
@@ -195,9 +195,9 @@ contains
           ! only domain - must not happen except for face domain
           if (domain_ref == 'face') then
             flavour = planar
-          else if (domain_ref == "checkpoint_Wtheta" .or. &
-                   domain_ref == "checkpoint_W3" .or.     &
-                   domain_ref == "checkpoint_W2"          ) then
+          else if (domain_ref == "legacy_Wtheta" .or. &
+                   domain_ref == "legacy_W3" .or.     &
+                   domain_ref == "legacy_W2"          ) then
             flavour = vanilla
           else
             write(log_scratch_space, *)                                       &

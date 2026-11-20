@@ -1,4 +1,4 @@
-{% set gadi_base = 'module load /g/data/access/ngm/modules/envs/lfric/202603/oneapi-openmpi' %}
+{% set gadi_base = 'module load /g/data/access/ngm/modules/envs/lfric/202608/oneapi-openmpi' %}
 {% set gadi_base_coupled = 'module load /g/data/access/ngm/modules/envs/lfric-coupled/202511/oneapi-openmpi' %}
 
 {% set gadi_plot = 'module load /g/data/access/ngm/modules/analysis3/21.10' %}
@@ -22,6 +22,8 @@
             ROSE_LAUNCHER   = mpiexec
 
     [[GADI_BUILD_COMMON_INTEL]]
+        [[[environment]]]
+            USE_TIMING_WRAPPER=true
         [[[directives]]]
           -l jobfs=2GB
           -q=normal

@@ -180,7 +180,6 @@ contains
     use function_space_mod,            only: function_space_type
     use intermesh_mappings_alg_mod,    only: map_scalar_intermesh
     use mesh_collection_mod,           only: mesh_collection
-    use mesh_mod,                      only: mesh_type
     use multires_coupling_config_mod,  only: aerosol_mesh_name
 
     implicit none

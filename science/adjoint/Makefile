@@ -73,17 +73,20 @@ document-latex: ALWAYS
 ##############################################################################
 # Unit tests
 #
+unit-tests/%: export ADDITIONAL_EXTRACTION = \
+                         $(CORE_ROOT_DIR)/components/science/unit-test/support
 unit-tests/%: export BIN_DIR ?= $(PROJECT_DIR)/test
 unit-tests/%: export EXTERNAL_STATIC_LIBRARIES += pfunit
 unit-tests/%: export IMPORT_PARTS  = $(CORE_ROOT_DIR)/infrastructure \
                                      $(CORE_ROOT_DIR)/components/science \
                                      $(APPS_ROOT_DIR)/science/gungho \
                                      $(APPS_ROOT_DIR)/science/linear
-unit-tests/%: export PROGRAMS = adjoint_unit_tests
-unit-tests/%: export PROJECT = adjoint
-unit-tests/%: export SOURCE_DIR = source
-unit-tests/%: export TEST_DIR = unit-test
-unit-tests/%: export WORKING_DIR := $(WORKING_DIR)/unit-tests
+unit-tests/%: export META_FILE_DIR = rose-meta/lfric-adjoint/HEAD
+unit-tests/%: export PROGRAMS      = adjoint_unit_tests
+unit-tests/%: export PROJECT       = adjoint
+unit-tests/%: export SOURCE_DIR    = source
+unit-tests/%: export TEST_DIR      = unit-test
+unit-tests/%: export WORKING_DIR  := $(WORKING_DIR)/unit-tests
 unit-tests: extract_meta unit-tests/run
 unit-tests/build: extract_meta unit-tests/build
 

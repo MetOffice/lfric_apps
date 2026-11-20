@@ -1,0 +1,20 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2024 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered site/pawsey/variables.cylc") %}
+
+{% do site_vars.update({"known_applications": ["lfric_atm",
+                                               "gungho_model",
+                                               "mesh" ]}) %}
+
+{% do site_vars.update({"site_platforms": ["setonix"]}) %}
+
+{% do site_vars.update({"scripts_platform": "setonix"}) %}
+
+{% do site_vars.update({"mesh_build": {"setonix": "gnu_fast-debug-64bit"} }) %}
+
+{% include "site/pawsey/common/default_directives.cylc" %}
+
+{% do LOG.debug("Finished in site/pawsey/variables.cylc") %}

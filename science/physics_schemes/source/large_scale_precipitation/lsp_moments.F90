@@ -49,7 +49,7 @@ use vectlib_mod,      only: powr_v    => powr_v_interface,                     &
 implicit none
 character(len=*), parameter :: RoutineName='LSP_MOMENTS_64B'
 integer, parameter :: prec = real_64
-#include "lsp_moments.h"
+#include "include/lsp_moments.h"
 return
 end subroutine lsp_moments_64b
 
@@ -73,7 +73,7 @@ use vectlib_mod,      only: powr_v    => powr_v_interface,                     &
 implicit none
 character(len=*), parameter :: RoutineName='LSP_MOMENTS_32B'
 integer, parameter :: prec = real_32
-#include "lsp_moments.h"
+#include "include/lsp_moments.h"
 return
 end subroutine lsp_moments_32b
 

@@ -70,7 +70,10 @@ module gungho_model_mod
   use minmax_tseries_mod,         only : minmax_tseries,      &
                                          minmax_tseries_init, &
                                          minmax_tseries_final
-  use mesh_mod,                   only : mesh_type
+  use mesh_mod,                   only : mesh_type, &
+                                         geometry_planar, &
+                                         geometry_spherical, &
+                                         topology_periodic
   use mesh_collection_mod,        only : mesh_collection
   use clock_mod,                  only : clock_type
   use model_clock_mod,            only : model_clock_type
@@ -83,9 +86,12 @@ module gungho_model_mod
                                          final_runtime_constants
   use timestep_method_mod,        only : timestep_method_type, &
                                          get_timestep_method_from_collection
+  use timing_mod,                 only : start_timing, stop_timing, &
+                                         tik, LPROF
   use rk_alg_timestep_mod,        only : rk_timestep_type
   use semi_implicit_timestep_alg_mod, &
                                   only : semi_implicit_timestep_type
+  use tr_bdf2_timestep_alg_mod,   only : tr_bdf2_timestep_type
   use setup_orography_alg_mod,    only : setup_orography_alg
   use idealised_config_mod,       only : perturb_init, perturb_seed
   use initial_temperature_config_mod, only : perturb, perturb_random
@@ -106,11 +112,12 @@ module gungho_model_mod
   use um_clock_init_mod,           only : um_clock_init
   use um_control_init_mod,         only : um_control_init
   use um_domain_init_mod,          only : um_domain_init
-  use um_domain_init_mod,          only : um_domain_init
   use um_sizes_init_mod,           only : um_sizes_init
   use um_physics_init_mod,         only : um_physics_init
+  use um_radaer_init_mod,          only : um_radaer_init
   use um_radaer_lut_init_mod,      only : um_radaer_lut_init
   use um_ukca_init_mod,            only : um_ukca_init
+  use ukca_diag_setup_mod,         only: ukca_diag_setup
   use jules_timestep_alg_mod,      only : jules_timestep_type
   use stochastic_physics_config_mod, only : use_spt, &
                                             use_skeb
@@ -278,6 +285,7 @@ contains
 #ifdef UM_PHYSICS
     integer(i_def) :: i
 #endif
+    logical :: legacy
 
     DT = clock%get_seconds_per_step()
     call set_variable("DT", DT, tolerant=.true.)
@@ -291,8 +299,12 @@ contains
       to_process_nudging_fields = .false.
     end if
 
+
     call persistor%init(clock)
-    call process_gungho_prognostics(persistor)
+
+    legacy = ( (config%base_mesh%geometry() == geometry_planar) .and. &
+               (config%base_mesh%topology() == topology_periodic) )
+    call process_gungho_prognostics(persistor, legacy)
     ! Add the temperature_correction_rate to the appropriate files
     if(checkpoint_write) then
       if ( encorr_usage /= encorr_usage_none ) then
@@ -319,8 +331,10 @@ contains
                             id_as_name=.true.)
           end do
         end if
-
-        if(l_esm_couple) then
+#endif
+      end if
+#ifdef UM_PHYSICS
+      if(l_esm_couple) then
           call add_field( persistor%ckp_out, "lf_taux", mode=CHECKPOINTING, operation="once", &
                           id_as_name=.true.)
           call add_field( persistor%ckp_out, "lf_tauy", mode=CHECKPOINTING, operation="once", &
@@ -351,9 +365,8 @@ contains
                           id_as_name=.true.)
           call add_field( persistor%ckp_out, "lf_pensolar", mode=CHECKPOINTING, operation="once", &
                           id_as_name=.true.)
-        end if
-#endif
       end if
+#endif
     end if
     if (checkpoint_read .or. init_option == init_option_checkpoint_dump) then
       if ( encorr_usage /= encorr_usage_none ) then
@@ -416,8 +429,7 @@ contains
       end if
     end if
 
-
-    if (limited_area) call process_lbc_fields(persistor)
+    if (limited_area) call process_lbc_fields(persistor, legacy)
     if (use_physics) then
       call process_physics_prognostics(persistor)
       if (to_process_nudging_fields)   &
@@ -442,6 +454,7 @@ contains
                                           radiation_socrates, &
                                           surface,            &
                                           surface_jules
+    use aerosol_config_mod,         only: l_radaer
 #endif
     use config_mod,                 only: config_type
 
@@ -482,9 +495,6 @@ contains
       ! Initialisation of UM physics variables
       call um_physics_init()
 
-      ! Read all the radaer lut namelist files
-      call um_radaer_lut_init()
-
       ! Initialisation of Jules high-level variables
       call jules_control_init()
 
@@ -495,8 +505,20 @@ contains
 
       ! Initialisation of UKCA physics variables
       call um_ukca_init(ncells_ukca, model_clock)
+      ! This is the way into the UKCA repo
+
+      if ( l_radaer ) then
+
+        ! Read all the radaer lut namelist files
+        call um_radaer_lut_init()
+
+        ! Initialisation of UKCA RADAER variables
+        call um_radaer_init()
+
+      end if
 
     end if
+
 #endif
   end subroutine basic_initialisations
 
@@ -507,13 +529,12 @@ contains
   !>
   subroutine initialise_infrastructure( io_context_name, modeldb )
 
-    use base_mesh_config_mod, only: geometry_planar, &
-                                    geometry_spherical
-
 #ifdef UM_PHYSICS
     use formulation_config_mod,    only: use_physics
     use section_choice_config_mod, only: radiation, &
                                          radiation_socrates
+    use chemistry_config_mod,      only: chemistry_is_loaded, &
+                                         chem_scheme_strattrop
 #endif
 
     implicit none
@@ -563,6 +584,8 @@ contains
     character(str_def), allocatable :: twod_names(:)
     character(str_def), allocatable :: shifted_names(:)
     character(str_def), allocatable :: double_names(:)
+    integer(i_def)                  :: stretching_method
+    real(r_def)                     :: stretching_height
 
     character(str_def), allocatable :: meshes_to_check(:)
 
@@ -602,6 +625,8 @@ contains
     integer(i_def) :: random_seed_size, proc_rank, big_int, perturb_seed_in
     integer(i_def), allocatable :: ranseed(:)
 
+    integer(tik)   :: id_mesh
+
     !=======================================================================
     ! 0.0 Extract configuration variables
     !=======================================================================
@@ -620,14 +645,16 @@ contains
       chain_mesh_tags = modeldb%config%multigrid%chain_mesh_tags()
     end if
 
-    prime_mesh_name  = modeldb%config%base_mesh%prime_mesh_name()
-    geometry         = modeldb%config%base_mesh%geometry()
-    topology         = modeldb%config%base_mesh%topology()
-    prepartitioned   = modeldb%config%base_mesh%prepartitioned()
-    domain_height    = modeldb%config%extrusion%domain_height()
-    extrusion_method = modeldb%config%extrusion%method()
-    number_of_layers = modeldb%config%extrusion%number_of_layers()
-    scaled_radius    = modeldb%config%planet%scaled_radius()
+    prime_mesh_name   = modeldb%config%base_mesh%prime_mesh_name()
+    geometry          = modeldb%config%base_mesh%geometry()
+    topology          = modeldb%config%base_mesh%topology()
+    prepartitioned    = modeldb%config%base_mesh%prepartitioned()
+    domain_height     = modeldb%config%extrusion%domain_height()
+    extrusion_method  = modeldb%config%extrusion%method()
+    stretching_method = modeldb%config%extrusion%stretching_method()
+    stretching_height = modeldb%config%extrusion%stretching_height()
+    number_of_layers  = modeldb%config%extrusion%number_of_layers()
+    scaled_radius     = modeldb%config%planet%scaled_radius()
 
     if (prepartitioned) then
       tile_size_x = 1
@@ -652,6 +679,8 @@ contains
     !=======================================================================
     ! 1.1 Determine the required meshes
     !=======================================================================
+
+    if ( LPROF ) call start_timing(id_mesh, 'gungho_driver.mesh_init')
 
     ! 1.1a Meshes that require a prime/2d extrusion
     ! ---------------------------------------------------------
@@ -912,6 +941,7 @@ contains
       end if
     end if
 
+    if ( LPROF ) call stop_timing(id_mesh, 'gungho_driver.mesh_init')
 
     !=======================================================================
     ! 2.0 Initialise FEM / Coordinates
@@ -1046,6 +1076,8 @@ contains
                               orography_mesh%get_mesh_name(), &
                               chi_inventory,                  &
                               panel_id_inventory,             &
+                              stretching_height,              &
+                              stretching_method,              &
                               surface_altitude )
 
 
@@ -1067,7 +1099,15 @@ contains
                              dt)
       end if
       ! Initialisation of UM variables related to the mesh
-      call um_domain_init(mesh)
+      call um_domain_init(modeldb%config, mesh)
+
+      ! Setup UKCA diagnostics list based on requested diags,
+      ! only for strattrop scheme at present.
+      if ( modeldb%config%namelist_exists('chemistry') ) then
+        if ( modeldb%config%chemistry%chem_scheme() ==             &
+               chem_scheme_strattrop )                             &
+          call ukca_diag_setup(modeldb%values)
+      end if
     end if
 #endif
 
@@ -1128,6 +1168,7 @@ contains
     use timestepping_config_mod, only: method,                 &
                                        method_semi_implicit,   &
                                        method_rk,              &
+                                       method_tr_bdf2,         &
                                        method_no_timestepping, &
                                        method_jules
 
@@ -1171,49 +1212,25 @@ contains
 
     if (write_minmax_tseries) then
       call minmax_tseries_init('u')
-      call minmax_tseries(u, 'u', mesh)
+      call minmax_tseries(modeldb%config, mesh, u, 'u')
     end if
 
     select case( method )
       case( method_semi_implicit )  ! Semi-Implicit
         ! Initialise the semi-implicit timestep method
         allocate( timestep_method, source=semi_implicit_timestep_type(modeldb) )
-        ! Add to the model database
-        call modeldb%values%add_key_value('timestep_method', &
-                        timestep_method)
-        ! Output initial conditions
-        if ( write_conservation_diag ) then
-          call conservation_algorithm( modeldb%config, rho, u, theta, &
-                                       mr, exner )
-          if ( use_moisture ) then
-            call moisture_conservation_alg( modeldb%config, rho, mr, &
-                                            'Before timestep' )
-          end if
-        end if
+
+      case( method_tr_bdf2 )         ! TR-BDF2
+        ! Initialise the TR-BDF2 timestep method
+        allocate( timestep_method, source=tr_bdf2_timestep_type(modeldb) )
 
       case( method_rk )             ! RK
         ! Initialise the Runge-Kutta timestep method
         allocate( timestep_method, source=rk_timestep_type(modeldb) )
-        ! Add to the model database
-        call modeldb%values%add_key_value('timestep_method', &
-                        timestep_method)
-
-        ! Output initial conditions
-        if ( write_conservation_diag ) then
-          call conservation_algorithm( modeldb%config, rho, u, theta, &
-                                       mr, exner )
-          if ( use_moisture ) then
-            call moisture_conservation_alg( modeldb%config, rho, mr, &
-                                            'Before timestep' )
-          end if
-        end if
 
       case( method_no_timestepping )
         ! Initialise a null-timestep method
         allocate( timestep_method, source=no_timestep_type() )
-        ! Add to the model database
-        call modeldb%values%add_key_value('timestep_method', &
-                        timestep_method)
         write( log_scratch_space, &
                     '(A, A)' ) 'CAUTION: Running with no timestepping. ' // &
                     ' Prognostic fields not evolved'
@@ -1223,15 +1240,23 @@ contains
       case( method_jules )  ! jules
         ! Initialise the jules timestep method
         allocate( timestep_method, source=jules_timestep_type(modeldb) )
-        ! Add to the model database
-        call modeldb%values%add_key_value('timestep_method', &
-                      timestep_method)
 #endif
 
       case default
         call log_event("Gungho: Incorrect time stepping option chosen, "// &
                         "stopping program! ",LOG_LEVEL_ERROR)
     end select
+
+    ! Add to the model database
+    call modeldb%values%add_key_value('timestep_method', timestep_method)
+
+    ! Output initial conditions
+    if ( write_conservation_diag ) then
+      call conservation_algorithm(modeldb%config, rho, u, theta, mr, exner)
+      if ( use_moisture ) then
+        call moisture_conservation_alg(modeldb%config, rho, mr, 'Before timestep')
+      end if
+    end if
 
   end subroutine initialise_model
 

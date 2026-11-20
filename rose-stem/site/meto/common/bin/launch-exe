@@ -73,7 +73,7 @@ if [ "${TARGET_PLATFORM}" = "meto-ex1a" ] ; then
   DEPTH_VAL=${OMP_NUM_THREADS}
 
   # If the depth padding is present, and it is greater than the thread qty,
-  # we will use it instead. There may be occations where users use a pad, and 
+  # we will use it instead. There may be occations where users use a pad, and
   # threads where there are memory concerns
   if (( "${RANKS_DEPTH_PAD}" > "${OMP_NUM_THREADS}" )); then
     DEPTH_VAL=${RANKS_DEPTH_PAD}
@@ -153,14 +153,23 @@ if [ "${RUN_METHOD}" = "mpiexec" ] ; then
         XIOS_CORES_PER_NODE="$(( (mpi_parts_xios / xios_nodes) + (mpi_parts_xios % xios_nodes > 0 ) ))"
 
         XIOS_FRACTIONAL_DEPTH="$(( CORES_PER_NODE / XIOS_CORES_PER_NODE ))"
-        if (( "${XIOS_FRACTIONAL_DEPTH}" >= 128 )) ; then
-          XIOS_DEPTH=" --depth 128"
-        elif (( "${XIOS_FRACTIONAL_DEPTH}" >= 64 )) ; then
-          XIOS_DEPTH=" --depth 64"
-        elif (( "${XIOS_FRACTIONAL_DEPTH}" >= 32 )) ; then
-          XIOS_DEPTH=" --depth 32"
-        elif (( "${XIOS_FRACTIONAL_DEPTH}" >= 16 )) ; then
-          XIOS_DEPTH=" --depth 16"
+        # Milan = 128, Genoa = 192
+        if (( "${XIOS_FRACTIONAL_DEPTH}" >= "$(( CORES_PER_NODE ))" )) ; then
+          XIOS_DEPTH=" --depth $(( CORES_PER_NODE ))"
+        # Milan = 64, Genoa = 96
+        elif (( "${XIOS_FRACTIONAL_DEPTH}" >= "$(( CORES_PER_NODE / 2 ))" )) ; then
+          XIOS_DEPTH=" --depth $(( CORES_PER_NODE / 2 ))"
+        # Milan = 32, Genoa = 48
+        elif (( "${XIOS_FRACTIONAL_DEPTH}" >= "$(( CORES_PER_NODE / 4 ))" )) ; then
+          XIOS_DEPTH=" --depth $(( CORES_PER_NODE / 4 ))"
+        # Milan = 16, Genoa = 24
+        elif (( "${XIOS_FRACTIONAL_DEPTH}" >= "$(( CORES_PER_NODE / 8 ))" )) ; then
+          XIOS_DEPTH=" --depth $(( CORES_PER_NODE / 8 ))"
+        # Milan = 8, Genoa = 12
+        elif (( "${XIOS_FRACTIONAL_DEPTH}" >= "$(( CORES_PER_NODE / 16 ))" )) ; then
+          XIOS_DEPTH=" --depth $(( CORES_PER_NODE / 16 ))"
+        # Milan = 8, Genoa = 8 - To better fit onto Genoa hardware this is needed
+        # Duplication here for Milan but no negative effects
         elif (( "${XIOS_FRACTIONAL_DEPTH}" >= 8 )) ; then
           XIOS_DEPTH=" --depth 8"
         elif (( "${XIOS_FRACTIONAL_DEPTH}" >= 4 )) ; then
@@ -181,7 +190,7 @@ if [ "${RUN_METHOD}" = "mpiexec" ] ; then
     LAUNCHER_OPTS="-n ${TOTAL_RANKS}"
     if [[ ! -z "${XIOS_SERVER_MODE}" && "${XIOS_SERVER_MODE}" = "True" ]] ; then
       XIOS_OPTS=" : -n ${XIOS_SERVER_RANKS} "
-    fi    
+    fi
   fi
 elif [ "${RUN_METHOD}" = "executable" ] ; then
   LAUNCHER_OPTS=""

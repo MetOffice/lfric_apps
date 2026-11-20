@@ -32,19 +32,19 @@ contains
       logical(kind=l_def), intent(in) :: logspace
       type(field_type), intent(in) :: field_new, field_old, ls_field_old, vert_flux_coeffs
       integer(kind=i_def), intent(inout), allocatable, dimension(:,:,:) :: stencil
-      integer(kind=i_def) cell
-      integer(kind=i_def) loop0_start, loop0_stop
-      integer(kind=i_def) nlayers_field_new
+      integer(kind=i_def) :: cell
+      integer(kind=i_def) :: loop0_start, loop0_stop
+      integer(kind=i_def) :: nlayers_field_new
       real(kind=r_def), pointer, dimension(:) :: vert_flux_coeffs_data
       real(kind=r_def), pointer, dimension(:) :: ls_field_old_data
       real(kind=r_def), pointer, dimension(:) :: field_old_data
       real(kind=r_def), pointer, dimension(:) :: field_new_data
-      type(field_proxy_type) field_new_proxy, field_old_proxy, ls_field_old_proxy, vert_flux_coeffs_proxy
+      type(field_proxy_type) :: field_new_proxy, field_old_proxy, ls_field_old_proxy, vert_flux_coeffs_proxy
       integer(kind=i_def), pointer :: map_adspc1_field_new(:,:), map_adspc2_vert_flux_coeffs(:,:), &
 &map_w3(:,:)
-      integer(kind=i_def) ndf_adspc1_field_new, undf_adspc1_field_new, ndf_w3, undf_w3, ndf_adspc2_vert_flux_coeffs, &
+      integer(kind=i_def) :: ndf_adspc1_field_new, undf_adspc1_field_new, ndf_w3, undf_w3, ndf_adspc2_vert_flux_coeffs, &
 &undf_adspc2_vert_flux_coeffs
-      integer(kind=i_def) max_halo_depth_mesh
+      integer(kind=i_def) :: max_halo_depth_mesh
       type(mesh_type), pointer :: mesh
       !
       ! Initialise field and/or operator proxies

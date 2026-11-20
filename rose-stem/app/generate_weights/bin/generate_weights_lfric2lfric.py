@@ -39,7 +39,7 @@ class INTER:
         self.src_grid_name = os.environ.get('SRC_MESH_NAME')
         self.dst_grid_type = os.environ.get('DST_GRID_TYPE')
         self.dst_grid_name = os.environ.get('DST_MESH_NAME')
-        
+
     def set_arguments(self):
         """Set ESMF regrid command line options"""
         options = ' -s ' + self.src_grid_name + ".nc"
@@ -86,8 +86,10 @@ class INTER:
 def run_exe(arg, outfile, style):
     """Run ESMF regrid"""
     model = ' ESMF_RegridWeightGen ' + arg + ' -w ' + outfile
-    nproc = os.environ.get('MPIRUN_N_JOBS')
-    cmd = 'mpiexec -n ' + nproc + model
+    # Temporarily run without mpiexec due to environment issues
+    # nproc = os.environ.get('MPIRUN_N_JOBS')
+    # cmd = 'mpiexec -n ' + nproc + model
+    cmd = model
     print(cmd)
     retcode = subprocess.call(cmd, shell=True)
     if retcode != 0:

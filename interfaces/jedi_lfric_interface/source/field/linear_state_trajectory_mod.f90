@@ -209,7 +209,8 @@ subroutine get_linear_state( self, req_time, req_linear_state )
       time_weight = [1.0_r_def , 0.0_r_def]
       time_index = [i_item, i_item]
       exit
-    elseif (time_difference < 0) then
+    end if
+    if (time_difference < 0) then
       call time_difference%get_duration(time_difference_secs)
       call self%time_step%get_duration(time_step_secs)
       time_weight(1)= real(-1*time_difference_secs)/real(time_step_secs)

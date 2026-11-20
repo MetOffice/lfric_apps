@@ -178,6 +178,8 @@ transport_efficiency=.false.,
 run_log_level='info',
 /
 &mixed_solver
+chebyshev_lmax=2.5
+chebyshev_lmin=1.0
 fail_on_non_converged=.true.
 gcrk=6,
 guess_np1=.false.,
@@ -282,6 +284,7 @@ min_value=0.0,0.0,-99999999.0,0.0,0.0,
 min_val_abs_tol=-1.0e-12
 min_val_max_iterations=10
 min_val_method='iterative'
+native_w2_wind_transport=.false.,
 oned_reconstruction=.false.
 operators='fv'
 panel_edge_high_order=.true.,

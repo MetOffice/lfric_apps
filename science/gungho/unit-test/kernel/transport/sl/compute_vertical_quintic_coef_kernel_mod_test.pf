@@ -55,6 +55,13 @@ contains
                                                 quintic_indices_wt_3, quintic_indices_wt_4, &
                                                 quintic_indices_wt_5, quintic_indices_wt_6
 
+    integer(kind=i_def), parameter :: d_stencil_max = 1
+    integer(kind=i_def), parameter :: t_stencil_max = 1
+    integer(kind=i_def), dimension(4)                         :: d_stencil_sizes
+    integer(kind=i_def), dimension(4)                         :: t_stencil_sizes
+    integer(kind=i_def), dimension(ndf_w2v, d_stencil_max, 4) :: d_stencil_map
+    integer(kind=i_def), dimension(ndf_wt,  t_stencil_max, 4) :: t_stencil_map
+
     ! Set tolerance
     if ( r_tran == real64 ) then
       tol = 1.0e-12_r_tran
@@ -70,6 +77,10 @@ contains
     map_wc(1) = 1
     map_wm(1) = 1
     map_wm(2) = 2
+    d_stencil_sizes(:) = 1
+    t_stencil_sizes(:) = 1
+    d_stencil_map(:,:,:) = 1
+    t_stencil_map(:,:,:) = 1
 
     ! Set up data
     theta_height = (/0.0_r_tran, 1.0_r_tran, 2.0_r_tran, 3.0_r_tran, &
@@ -78,17 +89,19 @@ contains
                     -0.1_r_tran, 0.0_r_tran, 0.0_r_tran /)
 
     ! Get W3 coefficients
-    call compute_vertical_quintic_coef_code( nlayers,                                    &
-                                             dep_pts_z,                                  &
-                                             theta_height,                               &
-                                             quintic_coef_w3_1, quintic_coef_w3_2,       &
-                                             quintic_coef_w3_3, quintic_coef_w3_4,       &
-                                             quintic_coef_w3_5, quintic_coef_w3_6,       &
-                                             quintic_indices_w3_1, quintic_indices_w3_2, &
-                                             quintic_indices_w3_3, quintic_indices_w3_4, &
-                                             quintic_indices_w3_5, quintic_indices_w3_6, &
-                                             ndf_w2v, undf_w2v, map_w2v,                 &
-                                             ndf_wt, undf_wt, map_wt,                    &
+    call compute_vertical_quintic_coef_code( nlayers,                                       &
+                                             dep_pts_z,                                     &
+                                             d_stencil_sizes, d_stencil_max, d_stencil_map, &
+                                             theta_height,                                  &
+                                             t_stencil_sizes, t_stencil_max, t_stencil_map, &
+                                             quintic_coef_w3_1, quintic_coef_w3_2,          &
+                                             quintic_coef_w3_3, quintic_coef_w3_4,          &
+                                             quintic_coef_w3_5, quintic_coef_w3_6,          &
+                                             quintic_indices_w3_1, quintic_indices_w3_2,    &
+                                             quintic_indices_w3_3, quintic_indices_w3_4,    &
+                                             quintic_indices_w3_5, quintic_indices_w3_6,    &
+                                             ndf_w2v, undf_w2v, map_w2v,                    &
+                                             ndf_wt, undf_wt, map_wt,                       &
                                              ndf_wc, undf_wc, map_wc )
 
     ! Test selection of the indices (indices are also tested in sl_support_mod_test)
@@ -108,17 +121,19 @@ contains
     @assertEqual(0.0_r_tran,  quintic_coef_w3_6(6), tol)
 
     ! Get Wtheta coefficients
-    call compute_vertical_quintic_coef_code( nlayers,                                    &
-                                             dep_pts_z,                                  &
-                                             theta_height,                               &
-                                             quintic_coef_wt_1, quintic_coef_wt_2,       &
-                                             quintic_coef_wt_3, quintic_coef_wt_4,       &
-                                             quintic_coef_wt_5, quintic_coef_wt_6,       &
-                                             quintic_indices_wt_1, quintic_indices_wt_2, &
-                                             quintic_indices_wt_3, quintic_indices_wt_4, &
-                                             quintic_indices_wt_5, quintic_indices_wt_6, &
-                                             ndf_w2v, undf_w2v, map_w2v,                 &
-                                             ndf_wt, undf_wt, map_wt,                    &
+    call compute_vertical_quintic_coef_code( nlayers,                                       &
+                                             dep_pts_z,                                     &
+                                             d_stencil_sizes, d_stencil_max, d_stencil_map, &
+                                             theta_height,                                  &
+                                             t_stencil_sizes, t_stencil_max, t_stencil_map, &
+                                             quintic_coef_wt_1, quintic_coef_wt_2,          &
+                                             quintic_coef_wt_3, quintic_coef_wt_4,          &
+                                             quintic_coef_wt_5, quintic_coef_wt_6,          &
+                                             quintic_indices_wt_1, quintic_indices_wt_2,    &
+                                             quintic_indices_wt_3, quintic_indices_wt_4,    &
+                                             quintic_indices_wt_5, quintic_indices_wt_6,    &
+                                             ndf_w2v, undf_w2v, map_w2v,                    &
+                                             ndf_wt, undf_wt, map_wt,                       &
                                              ndf_wm, undf_wm, map_wm )
 
     ! Test selection of the indices (indices are also tested in sl_support_mod_test)
