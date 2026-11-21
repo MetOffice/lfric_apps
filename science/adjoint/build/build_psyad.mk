@@ -15,10 +15,7 @@
 #
 # Kernels which need adjointing...
 #
-KERNEL_LIST = kernel/inter_function_space/sci_average_w2b_to_w2_kernel_mod.f90 \
-              kernel/inter_function_space/sci_combine_multidata_field_kernel_mod.f90 \
-              kernel/inter_function_space/combine_w2_field_kernel_mod.f90 \
-              kernel/inter_function_space/sci_extract_w_kernel_mod.f90 \
+KERNEL_LIST = kernel/inter_function_space/sci_extract_w_kernel_mod.f90 \
               kernel/inter_function_space/w2_to_w1_projection_kernel_mod.f90 \
               kernel/inter_function_space/sample_field_kernel_mod.f90 \
               kernel/inter_function_space/sample_flux_kernel_mod.f90 \
@@ -32,9 +29,6 @@ KERNEL_LIST = kernel/inter_function_space/sci_average_w2b_to_w2_kernel_mod.f90 \
 
 # Variables per kernel...
 #
-ACTIVE_sci_average_w2b_to_w2_kernel_mod        := field_w2 field_w2_broken
-ACTIVE_sci_combine_multidata_field_kernel_mod  := field1_in field2_in field_out
-ACTIVE_combine_w2_field_kernel_mod             := uvw w uv
 ACTIVE_sci_extract_w_kernel_mod                := velocity_w2v u_physics
 ACTIVE_w2_to_w1_projection_kernel_mod          := v_w1 u_w2 vu res_dot_product wind
 ACTIVE_sample_field_kernel_mod                 := field_1 field_2 f_at_node
