@@ -495,6 +495,20 @@ contains
           call log_event(log_scratch_space, LOG_LEVEL_ERROR)
         end if
 
+        if ( ( trim(field_names(i)) == 'theta' .or.                            &
+               trim(field_names(i)) == 'potential_temperature' ) .and.         &
+             equation_form(i) == equation_form_advective .and.                 &
+             vertical_method(i) == split_method_ffsl ) then
+          write( log_scratch_space, '(A)') trim(field_names(i)) //             &
+            ' variable is set to use FFSL for vertical transport with the '//  &
+            'advective form of the transport equation. This will lead to '  // &
+            'checkerboard patterning in the vertical velocity, due to the ' // &
+            'use of a shifted mesh without a dispersion correction, which ' // &
+            'is not implemented for the advective form of the transport '   // &
+            'equation. Use SL as the vertical scheme instead.'
+          call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+        end if
+
         ! For 3D unity transport, require all transported fields to use the
         ! same FFSL-FFSL splitting
         if ( ffsl_unity_3d ) then
@@ -502,11 +516,6 @@ contains
             call log_event(                                                    &
               '3D unity transport can only be used when all variables '        &
               // 'are transported with the same splitting', LOG_LEVEL_ERROR)
-          else if ( vertical_method(i) /= split_method_ffsl                    &
-                    .or. horizontal_method(i) /= split_method_ffsl ) then
-            call log_event(                                                    &
-              '3D unity transport can only be used when all variables '        &
-              // 'are using FFSL for vertical and horizontal transport', LOG_LEVEL_ERROR)
           end if
         end if
 
