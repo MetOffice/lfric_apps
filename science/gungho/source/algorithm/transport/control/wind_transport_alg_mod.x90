@@ -58,7 +58,7 @@ module wind_transport_alg_mod
                                             topology_fully_periodic
   use integer_field_mod,              only: integer_field_type
   use sin_kernel_mod,                 only: sin_kernel_type
-  use arcsin_kernel_mod,              only: arcsin_kernel_type
+  use r_tran_field_mod,               only: r_tran_field_type
 
   implicit none
 
@@ -126,10 +126,11 @@ contains
     integer(tik)                        :: id_to, id_from
     type(field_type)                    :: ones
     type(field_type),           pointer :: da
-    type(field_type)                    :: chi1_n, chi2_n, chi2_d, chi1_d_w2, chi2_d_w2
+    type(field_type)                    :: chi1_n, chi2_n, chi2_d, chi2_d_w2
     type(field_type)                    :: sin_chi1_n, sin_chi1_d, sin_chi1_d_w2
     integer(kind=i_def), parameter      :: stencil_depth = 1_i_def
     type(field_type)                    :: u_w2_inc_with_metrics
+    type(r_tran_field_type),    pointer :: transporting_wind
     type(integer_field_type), pointer   :: face_selector_ew
     type(integer_field_type), pointer   :: face_selector_ns
     logical(kind=l_def)                 :: geometry_is_spherical,    &
@@ -194,7 +195,6 @@ contains
 
           ! These are passed into a kernel even in non-spherical geometry
           ! so are initialised here to avoid problems
-          call chi1_d_w2%initialise( w2_fs )
           call chi2_d_w2%initialise( w2_fs )
           call sin_chi1_d_w2%initialise( w2_fs )
 
@@ -229,14 +229,16 @@ contains
                          sample_field_kernel_type(                            &
                                    sin_chi1_d_w2, rmultiplicity_w2, sin_chi1_d),&
                          sample_field_kernel_type(                            &
-                                   chi2_d_w2, rmultiplicity_w2, chi2_d),      &
-                         arcsin_kernel_type( chi1_d_w2, sin_chi1_d_w2 ) )
+                                   chi2_d_w2, rmultiplicity_w2, chi2_d) )
 
           end if
 
           call u_w2_inc%initialise( w2_fs, halo_depth=2 )
           call u_w2_inc_with_metrics%initialise( w2_fs )
           mm_w2 => get_mass_matrix_fv(W2, mesh%get_id())
+          transporting_wind => transport_controller%get_transporting_wind()
+          ! The metrics kernel accesses the wind through a stencil, so needs
+          ! a halo of depth 2
           geometry_is_spherical = ( geometry == geometry_spherical )
           topology_is_fully_periodic = (topology == topology_fully_periodic )
           call invoke( name="combine_ws_to_w2_winds",                           &
@@ -250,7 +252,8 @@ contains
                        apply_wind_metrics_kernel_type(                          &
                                        u_w2_inc_with_metrics,                   &
                                        u_w2_inc, stencil_depth, da, chi,        &
-                                       chi1_d_w2, chi2_d_w2,                    &
+                                       sin_chi1_d_w2, chi2_d_w2,                &
+                                       transporting_wind,                       &
                                        geometry_is_spherical,                   &
                                        topology_is_fully_periodic ),            &
                        setval_c(rhs_u, 0.0_r_def),                              &

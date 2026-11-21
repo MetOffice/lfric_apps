@@ -20,7 +20,7 @@ module apply_wind_metrics_kernel_mod
                                     CELL_COLUMN,           &
                                     STENCIL, CROSS2D,      &
                                     GH_EVALUATOR
-  use constants_mod,          only: r_def, i_def, l_def
+  use constants_mod,          only: r_def, r_tran, i_def, l_def, PI
   use fs_continuity_mod,      only: W2, Wchi
   use kernel_mod,             only: kernel_type
   use reference_element_mod,  only: B, T, N, E, S, W
@@ -36,11 +36,12 @@ module apply_wind_metrics_kernel_mod
   !> Psy layer.
   type, public, extends(kernel_type) :: apply_wind_metrics_kernel_type
     private
-    type(arg_type) :: meta_args(8) = (/                                        &
+    type(arg_type) :: meta_args(9) = (/                                        &
          arg_type(GH_FIELD,   GH_REAL,    GH_INC,  W2),                        &
          arg_type(GH_FIELD,   GH_REAL,    GH_READ, W2, STENCIL(CROSS2D)),      &
          arg_type(GH_FIELD,   GH_REAL,    GH_READ, W2),                        &
          arg_type(GH_FIELD*3, GH_REAL,    GH_READ, Wchi),                      &
+         arg_type(GH_FIELD,   GH_REAL,    GH_READ, W2),                        &
          arg_type(GH_FIELD,   GH_REAL,    GH_READ, W2),                        &
          arg_type(GH_FIELD,   GH_REAL,    GH_READ, W2),                        &
          arg_type(GH_SCALAR,  GH_LOGICAL, GH_READ),                            &
@@ -73,8 +74,9 @@ contains
 !! @param[in]     chi1                       First coordinate field in Wchi
 !! @param[in]     chi2                       Second coordinate field in Wchi
 !! @param[in]     chi3                       Third coordinate field in Wchi
-!! @param[in]     chi1_d                     First departure coordinate in W2
+!! @param[in]     sin_chi1_d                 Sine of first departure coordinate in W2
 !! @param[in]     chi2_d                     Second departure coordinate in W2
+!! @param[in]     wind                       Transporting wind in W2
 !! @param[in]     geometry_is_spherical      Check on the geometry
 !! @param[in]     topology_is_fully_periodic Check on the topology
 !! @param[in]     ndf_w2                     Number of degrees of freedom per cell for W2
@@ -93,7 +95,8 @@ subroutine apply_wind_metrics_code(nlayers,                    &
                                    stencil_map,                &
                                    da,                         &
                                    chi1, chi2, chi3,           &
-                                   chi1_d, chi2_d,             &
+                                   sin_chi1_d, chi2_d,         &
+                                   wind,                       &
                                    geometry_is_spherical,      &
                                    topology_is_fully_periodic, &
                                    ndf_w2, undf_w2, map_w2,    &
@@ -126,8 +129,9 @@ subroutine apply_wind_metrics_code(nlayers,                    &
   real(kind=r_def), dimension(undf_w2), intent(inout) :: metrics_uvw
   real(kind=r_def), dimension(undf_w2), intent(in)    :: da
   real(kind=r_def), dimension(undf_wx), intent(in)    :: chi1, chi2, chi3
-  real(kind=r_def), dimension(undf_w2), intent(in)    :: chi1_d
+  real(kind=r_def), dimension(undf_w2), intent(in)    :: sin_chi1_d
   real(kind=r_def), dimension(undf_w2), intent(in)    :: chi2_d
+  real(kind=r_tran), intent(in) :: wind(undf_w2)
 
   ! Internal variables
   integer(kind=i_def) :: k, df, nm1, dfx, id, kmin
@@ -135,6 +139,7 @@ subroutine apply_wind_metrics_code(nlayers,                    &
   integer(kind=i_def), parameter :: dir(6) = (/ 1, 2, 1, 2, 3, 3 /)
   real(kind=r_def) :: u_av, v_av
   real(kind=r_def) :: rot_mat(3,3), chi_uvw(2), chi_d_uvw(2), deltaAD, denom
+  real(kind=r_def) :: u_wind, d_a, d_b, lon_a
   real(kind=r_def) :: uvw_lhs(3), uvw_rhs(3)
   real(kind=r_def) :: dx_z, dy_z, dz_z
 
@@ -194,7 +199,7 @@ subroutine apply_wind_metrics_code(nlayers,                    &
       ! Loop over all dofs ignoring the top w dof as this will be done by the layer above and the
       ! top of the model dof will be fixed by the boundary conditions
       do df = 1, ndf_w2 - 1
-        ! Need rotation matrix on u, v & w points and hence need chi1, chi2, chi1_d, chi2_d w2 points
+        ! Need rotation matrix on u, v & w points and hence need chi1, chi2, sin_chi1_d, chi2_d w2 points
         chi_uvw = 0.0_r_def
         do dfx = 1, ndf_wx
           chi_uvw(1) = chi_uvw(1) + chi1(map_wx(dfx))*basis_wx(1, dfx, df)
@@ -208,10 +213,33 @@ subroutine apply_wind_metrics_code(nlayers,                    &
         end if
 
         do k = kmin, nlayers-1
-          chi_d_uvw(1) = chi1_d(map_w2(df)+k)
-          chi_d_uvw(2) = chi2_d(map_w2(df)+k)
+          ! Zonal transporting wind at this point
+          u_wind = 0.0_r_def
+          do id = 1,4
+            u_wind = u_wind + 0.25_r_def*real(wind(av_ids(1,id,df)+k), r_def)
+          end do
 
-          deltaAD = chi_uvw(1) - chi_d_uvw(1)
+          ! asin gives the departure longitude in [-pi/2, pi/2]. The other
+          ! solution is pi - asin. The departure point is upstream, so the
+          ! correct solution gives chi1 - chi1_d with the sign of the wind.
+          ! If that doesn't decide it, take the smallest angle
+          lon_a = asin(max(-1.0_r_def, min(1.0_r_def, sin_chi1_d(map_w2(df)+k))))
+          d_a = chi_uvw(1) - lon_a
+          d_a = d_a - 2.0_r_def*PI*nint(d_a/(2.0_r_def*PI))
+          d_b = chi_uvw(1) - (PI - lon_a)
+          d_b = d_b - 2.0_r_def*PI*nint(d_b/(2.0_r_def*PI))
+          if ( (d_a*u_wind >= 0.0_r_def) .neqv. (d_b*u_wind >= 0.0_r_def) ) then
+            if ( d_a*u_wind >= 0.0_r_def ) then
+              deltaAD = d_a
+            else
+              deltaAD = d_b
+            end if
+          else if ( abs(d_a) <= abs(d_b) ) then
+            deltaAD = d_a
+          else
+            deltaAD = d_b
+          end if
+          chi_d_uvw(2) = chi2_d(map_w2(df)+k)
 
           if ( shallow ) then
             ! Shallow atmosphere

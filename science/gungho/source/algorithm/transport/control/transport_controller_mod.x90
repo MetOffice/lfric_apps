@@ -248,7 +248,8 @@ contains
     allocate(self%ref_field_rtran)
 
     w2_fs => wind_n_rdef%get_function_space()
-    call self%transporting_wind%initialise(w2_fs)
+    ! Halo depth of 2 is needed for the stencil in the wind metrics kernel
+    call self%transporting_wind%initialise(w2_fs, halo_depth=2)
     call self%wind_n_rtran%initialise(w2_fs)
     call invoke( real_to_real_x(self%wind_n_rtran, wind_n_rdef) )
 
