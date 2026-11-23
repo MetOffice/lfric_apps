@@ -40,11 +40,13 @@ function utils::set_default_env () {
     : "${EXTRA_LAUNCHER_OPTS:=""}"
     : "${TEST_LAUNCH_EXE_EXEC:=""}"
     : "${TEST_MODE:=""}"
+    : "${NAMELIST_FILE="${EXTRA_NAMELIST_FILES:=configuration.nml}"}"
 
     # Set default values for UNSET env vars - preserves empty
     : "${XIOS_SERVER_EXEC_PATH="xios_server.exe"}"
     : "${PAT_EXE_EXTEN=""}"
     : "${LAUNCHER=""}"
+    : "${BIN_DIR="."}"  # default to current directory
 
     # Depth value - default to OMP threads unless RANKS_DEPTH_PAD is larger
     : "${DEPTH_VAL:=${OMP_NUM_THREADS}}"
@@ -59,11 +61,6 @@ function utils::set_default_env () {
     if [ "${TEST_LAUNCH_EXE_EXEC}" != "" ]; then
         export TEST_MODE=0
     fi
-
-    # Set up Executable information
-    : "${EXEC_PATH:="${BIN_DIR}/${EXEC_NAME}${PAT_EXE_EXTEN}"}"
-    : "${NAMELIST_FILE="${EXTRA_NAMELIST_FILES:=configuration.nml}"}"
-
 }
 
 # Validate environment variables
@@ -83,6 +80,22 @@ function utils::validate_env () {
     check_integer RANKS_DEPTH_PAD
     check_integer TOTAL_RANKS
     check_integer CORES_PER_NODE_OVERRIDE
+
+    # This line will cause a fault if EXEC_NAME is not set.
+    : "${EXEC_NAME:?LFRIC LAUNCHER ERROR: EXEC_NAME must name an executable to run.}"
+}
+
+# This function exists to set variables that are derived from required
+# settings but are not themselves required to be set by the user.
+function utils::set_derived_vars () {
+
+    # Set launcher (default is "")
+    if [ "${RUN_METHOD}" = "mpiexec" ] ; then
+        export LAUNCHER=${RUN_METHOD}
+    fi
+
+    # Set executable path (if not already set or if empty)
+    : "${EXEC_PATH:="${BIN_DIR}/${EXEC_NAME}${PAT_EXE_EXTEN}"}"
 
 }
 

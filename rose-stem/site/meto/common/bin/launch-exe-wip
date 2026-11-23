@@ -11,20 +11,22 @@ function main () {
     # VALIDATION LISTS
     local VALID_PLATFORMS="meto-azspice meto-ex1a"
     local VALID_RUN_METHODS="executable mpiexec"
-    local BOOL_VALUES="True true False false"
+    local BOOL_VALUES="True False"
 
-    # Set the default environment
+    # 1. Set the default environment
+    # ------------------------------
     utils::set_default_env
 
-    # Validate the environment
+    # 2. Validate the environment
+    # ---------------------------
     utils::validate_env
 
-    # Set launcher (default is "")
-    if [ "${RUN_METHOD}" = "mpiexec" ] ; then
-        LAUNCHER=${RUN_METHOD}
-    fi
+    # 3. Set derived variables
+    # ------------------------
+    utils::set_derived_vars
 
-    # Work out the reuired ppn value
+
+    # Work out the required ppn value
     utils::get_cores_per_node
 
     # Set the model launcher options
