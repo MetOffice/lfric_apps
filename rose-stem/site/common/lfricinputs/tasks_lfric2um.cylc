@@ -67,7 +67,7 @@
         "target_grid_res": "N1280",
         "target_grid_levs": "70",
         "target_grid_type": "global",
-        "source_dump": "/data/users/charlotte.turner/lfric2um_r2o/source_files/lfric2um_startdump_r2o_C448L70.nc",
+        "source_dump": "$BIG_DATA_DIR/lfric2um/apps3.2/lfric2um_startdump_r2o_C448L70.nc",
         "namelist_src": "um_grid.nml",
         "memory_plot_ex": true,
         "kgo_checks": "",
