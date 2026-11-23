@@ -140,7 +140,7 @@ subroutine adj_opt_apply_variable_hx_code_real64(cell,                    &
   integer(kind=i_def)            :: k, ik
   real(kind=real64), dimension(2) :: t_e
   real(kind=real64)               :: div_u
-  real(kind=real64), dimension(0:nlayers-1) :: t_e1_vec, t_e2_vec
+  real(kind=real64), dimension(1:nlayers-2) :: t_e1_vec, t_e2_vec
   integer(kind=i_def) :: map_w21
   integer(kind=i_def) :: map_w22
   integer(kind=i_def) :: map_w23
@@ -240,10 +240,10 @@ subroutine adj_opt_apply_variable_hx_code_real64(cell,                    &
                      pt2(ik-1,2,5)*t_e1_vec(k)
     x(map_w26+k) = x(map_w26+k)                     &
                    + mt_inv(map_wt1+k)*p3t(ik,1,1)* &
-                     pt2(ik-1,1,6)*t_e1_vec(k)
+                     pt2(ik,1,6)*t_e1_vec(k)
     x(map_w25+k) = x(map_w25+k)                     &
                    + mt_inv(map_wt1+k)*p3t(ik,1,1)* &
-                     pt2(ik-1,1,5)*t_e1_vec(k)
+                     pt2(ik,1,5)*t_e1_vec(k)
   end do
 
   k = 0
@@ -271,10 +271,10 @@ subroutine adj_opt_apply_variable_hx_code_real64(cell,                    &
                    pt2(ik+1,1,5)*t_e(2)
   x(map_w26+k) = x(map_w26+k)                     &
                  + mt_inv(map_wt2+k)*p3t(ik,1,2)* &
-                   pt2(ik+1,2,6)*t_e(2)
+                   pt2(ik,2,6)*t_e(2)
   x(map_w25+k) = x(map_w25+k)                     &
                  + mt_inv(map_wt2+k)*p3t(ik,1,2)* &
-                   pt2(ik+1,2,5)*t_e(2)
+                   pt2(ik,2,5)*t_e(2)
 
   x(map_w26+k) = x(map_w26+k)                   &
                + mt_inv(map_wt1+k)*p3t(ik,1,1)* &
@@ -337,7 +337,7 @@ subroutine adj_opt_apply_variable_hx_code_real32(cell,                    &
   integer(kind=i_def)            :: k, ik
   real(kind=real32), dimension(2) :: t_e
   real(kind=real32)               :: div_u
-  real(kind=real32), dimension(0:nlayers-1) :: t_e1_vec, t_e2_vec
+  real(kind=real32), dimension(1:nlayers-2) :: t_e1_vec, t_e2_vec
   integer(kind=i_def) :: map_w21
   integer(kind=i_def) :: map_w22
   integer(kind=i_def) :: map_w23
@@ -437,10 +437,10 @@ subroutine adj_opt_apply_variable_hx_code_real32(cell,                    &
                      pt2(ik-1,2,5)*t_e1_vec(k)
     x(map_w26+k) = x(map_w26+k)                     &
                    + mt_inv(map_wt1+k)*p3t(ik,1,1)* &
-                     pt2(ik-1,1,6)*t_e1_vec(k)
+                     pt2(ik,1,6)*t_e1_vec(k)
     x(map_w25+k) = x(map_w25+k)                     &
                    + mt_inv(map_wt1+k)*p3t(ik,1,1)* &
-                     pt2(ik-1,1,5)*t_e1_vec(k)
+                     pt2(ik,1,5)*t_e1_vec(k)
   end do
 
   k = 0
@@ -468,10 +468,10 @@ subroutine adj_opt_apply_variable_hx_code_real32(cell,                    &
                    pt2(ik+1,1,5)*t_e(2)
   x(map_w26+k) = x(map_w26+k)                     &
                  + mt_inv(map_wt2+k)*p3t(ik,1,2)* &
-                   pt2(ik+1,2,6)*t_e(2)
+                   pt2(ik,2,6)*t_e(2)
   x(map_w25+k) = x(map_w25+k)                     &
                  + mt_inv(map_wt2+k)*p3t(ik,1,2)* &
-                   pt2(ik+1,2,5)*t_e(2)
+                   pt2(ik,2,5)*t_e(2)
 
   x(map_w26+k) = x(map_w26+k)                   &
                + mt_inv(map_wt1+k)*p3t(ik,1,1)* &

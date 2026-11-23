@@ -140,6 +140,22 @@ contains
     ! ./timestepping
     use atlt_si_timestep_alg_mod,                   only : atlt_si_timestep_alg
 
+
+    use adjt_sci_average_w2b_to_w2_alg_mod, only : adjt_sci_average_w2b_to_w2_alg
+    use adjt_sci_combine_multidata_field_alg_mod, only : adjt_sci_combine_multidata_field_alg
+    use adjt_combine_w2_field_alg_mod, only : adjt_combine_w2_field_alg
+    use adjt_sci_extract_w_alg_mod, only : adjt_sci_extract_w_alg
+    use adjt_w2_to_w1_projection_alg_mod, only : adjt_w2_to_w1_projection_alg
+    use adjt_sample_field_alg_mod, only : adjt_sample_field_alg
+    use adjt_sample_flux_alg_mod, only : adjt_sample_flux_alg
+    use adjt_split_w2_field_alg_mod, only : adjt_split_w2_field_alg
+    use adjt_strong_curl_alg_mod, only : adjt_strong_curl_alg
+    use adjt_stabilise_bl_u_alg_mod, only : adjt_stabilise_bl_u_alg
+    use adjt_apply_mixed_lu_operator_alg_mod, only : adjt_apply_mixed_lu_operator_alg
+    use adjt_apply_mixed_operator_alg_mod, only : adjt_apply_mixed_operator_alg
+    use adjt_opt_apply_variable_hx_alg_mod, only : adjt_opt_apply_variable_hx_alg
+    use adjt_apply_elim_mixed_lp_operator_alg_mod, only : adjt_apply_elim_mixed_lp_operator_alg
+
     implicit none
 
     ! Arguments
@@ -163,6 +179,20 @@ contains
 
     call log_event( "TESTING generated adjoint kernels", LOG_LEVEL_INFO )
     call run_gen_adj_kernel_tests( mesh, chi, panel_id )
+    call adjt_sci_average_w2b_to_w2_alg( mesh, chi, panel_id )
+    call adjt_sci_combine_multidata_field_alg( mesh, chi, panel_id )
+    call adjt_combine_w2_field_alg( mesh, chi, panel_id )
+    call adjt_sci_extract_w_alg( mesh, chi, panel_id )
+    call adjt_w2_to_w1_projection_alg( mesh, chi, panel_id )
+    call adjt_sample_field_alg( mesh, chi, panel_id )
+    call adjt_sample_flux_alg( mesh, chi, panel_id )
+    call adjt_split_w2_field_alg( mesh, chi, panel_id )
+    call adjt_strong_curl_alg( mesh, chi, panel_id )
+    call adjt_stabilise_bl_u_alg( mesh, chi, panel_id )
+    call adjt_apply_mixed_lu_operator_alg( mesh, chi, panel_id )
+    call adjt_apply_mixed_operator_alg( mesh, chi, panel_id )
+    call adjt_opt_apply_variable_hx_alg( mesh, chi, panel_id )
+    call adjt_apply_elim_mixed_lp_operator_alg( mesh, chi, panel_id )
 
     call log_event( "TESTING adjoint kernels", LOG_LEVEL_INFO )
 

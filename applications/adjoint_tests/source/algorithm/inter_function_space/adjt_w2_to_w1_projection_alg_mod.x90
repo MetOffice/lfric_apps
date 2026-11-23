@@ -1,0 +1,94 @@
+module adjt_w2_to_w1_projection_alg_mod
+  implicit none
+  public
+
+  contains
+  subroutine adjt_w2_to_w1_projection_alg(mesh, chi, panel_id)
+    use field_mod, only : field_type
+    use function_space_mod, only : function_space_type
+    use mesh_mod, only : mesh_type
+    use function_space_collection_mod, only : function_space_collection
+    use w2_to_w1_projection_kernel_mod, only : w2_to_w1_projection_kernel_type
+    use adj_w2_to_w1_projection_kernel_mod, only : adj_w2_to_w1_projection_kernel_type
+    use finite_element_config_mod, only : element_order_h, element_order_v
+    use fs_continuity_mod, only : w1, w2
+    use quadrature_xyoz_mod, only : quadrature_xyoz_type
+    use constants_mod, only : i_def, r_def
+    use quadrature_rule_gaussian_mod, only : quadrature_rule_gaussian_type
+    use setop_random_kernel_mod, only : setop_random_kernel_type
+    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space, log_level_debug
+    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+    type(mesh_type), pointer, intent(in) :: mesh
+    type(field_type), dimension(3), intent(in), optional :: chi
+    type(field_type), intent(in), optional :: panel_id
+    TYPE(function_space_type), POINTER :: vector_space_w1_ptr
+    TYPE(function_space_type), POINTER :: vector_space_w2_ptr
+    type(field_type) :: v_w1
+    type(field_type) :: u_w2
+    type(quadrature_xyoz_type) :: qr_xyoz
+    type(quadrature_rule_gaussian_type) :: quadrature_rule
+    type(field_type) :: v_w1_input
+    type(field_type) :: u_w2_input
+    real(kind=r_def) :: v_w1_inner_prod
+    real(kind=r_def) :: u_w2_inner_prod
+    real(kind=r_def) :: v_w1_sf
+    real(kind=r_def) :: u_w2_sf
+    real(kind=r_def) :: inner1
+    real(kind=r_def) :: v_w1_v_w1_input_inner_prod
+    real(kind=r_def) :: u_w2_u_w2_input_inner_prod
+    real(kind=r_def) :: inner2
+    real(kind=r_def) :: MachineTol
+    real(kind=r_def) :: relative_diff
+    real(kind=r_def), parameter :: eps = 1.0e-30_r_def
+
+    vector_space_w1_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w1)
+    vector_space_w2_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2)
+    call v_w1%initialise(vector_space=vector_space_w1_ptr, name='v_w1')
+    call u_w2%initialise(vector_space=vector_space_w2_ptr, name='u_w2')
+    qr_xyoz = quadrature_xyoz_type(element_order_h + 3, element_order_h + 3, element_order_v + 3, quadrature_rule)
+    call v_w1_input%initialise(vector_space=vector_space_w1_ptr, name='v_w1_input')
+    call u_w2_input%initialise(vector_space=vector_space_w2_ptr, name='u_w2_input')
+    v_w1_inner_prod = 0.0_r_def
+    u_w2_inner_prod = 0.0_r_def
+    ! Initialise arguments and call the tangent-linear kernel.
+    call invoke(setval_random(v_w1), setval_x(v_w1_input, v_w1), setval_random(u_w2), setval_x(u_w2_input, u_w2), &
+&w2_to_w1_projection_kernel_type(v_w1, u_w2, qr_xyoz), x_innerproduct_x(v_w1_inner_prod, v_w1), x_innerproduct_x(u_w2_inner_prod, &
+&u_w2))
+    write( log_scratch_space, * ) "adjt_w2_to_w1_projection_alg inner products:"
+    call log_event( log_scratch_space, log_level_debug )
+    write( log_scratch_space, * ) "u_w2 inner product = ", u_w2_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+    write( log_scratch_space, * ) "v_w1 inner product = ", v_w1_inner_prod
+    call log_event( log_scratch_space, log_level_debug )
+    u_w2_sf = 1.0_r_def / (u_w2_inner_prod + eps)
+    v_w1_sf = 1.0_r_def / (v_w1_inner_prod + eps)
+    inner1 = 0.0_r_def
+    inner1 = inner1 + u_w2_inner_prod * u_w2_sf
+    inner1 = inner1 + v_w1_inner_prod * v_w1_sf
+    call invoke( inc_a_times_X( u_w2_sf, u_w2 ), &
+                 inc_a_times_X( v_w1_sf, v_w1 ) )
+    v_w1_v_w1_input_inner_prod = 0.0_r_def
+    u_w2_u_w2_input_inner_prod = 0.0_r_def
+    call invoke(adj_w2_to_w1_projection_kernel_type(v_w1, u_w2, qr_xyoz), x_innerproduct_y(v_w1_v_w1_input_inner_prod, v_w1, &
+&v_w1_input), x_innerproduct_y(u_w2_u_w2_input_inner_prod, u_w2, u_w2_input))
+    inner2 = 0.0_r_def
+    inner2 = inner2 + v_w1_v_w1_input_inner_prod
+    inner2 = inner2 + u_w2_u_w2_input_inner_prod
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
+    relative_diff = ABS(inner1 - inner2) / MachineTol
+    if (relative_diff < overall_tolerance) then
+      ! PSyclone CodeBlock (unsupported code) reason:
+      !  - Unsupported statement: Write_Stmt
+      WRITE(log_scratch_space, *) "PASSED w2_to_w1_projection_kernel_type:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, log_level_info)
+    else
+      ! PSyclone CodeBlock (unsupported code) reason:
+      !  - Unsupported statement: Write_Stmt
+      WRITE(log_scratch_space, *) "FAILED w2_to_w1_projection_kernel_type:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, log_level_error)
+    end if
+
+  end subroutine adjt_w2_to_w1_projection_alg
+
+end module adjt_w2_to_w1_projection_alg_mod
