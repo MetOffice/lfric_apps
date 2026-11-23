@@ -64,9 +64,9 @@ contains
 !! @param[in]     nlayers     Number of layers
 !! @param[in,out] field_out   Output multidata field
 !! @param[in]     n           Number of data points in field_out
-!! @param[in]     field1_in   First input multidata field
+!! @param[in,out] field1_in   First input multidata field
 !! @param[in]     n1          Number of data points in field1_in
-!! @param[in]     field2_in   Second input multidata field
+!! @param[in,out] field2_in   Second input multidata field
 !! @param[in]     n2          Number of data points in field2_in
 !! @param[in]     ndata_first Data layout (data- or layer-first)
 !! @param[in]     ndf         Number of dofs per cell for field_out

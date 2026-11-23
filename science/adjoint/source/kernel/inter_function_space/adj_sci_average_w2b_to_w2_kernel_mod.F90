@@ -49,7 +49,7 @@ contains
 !>
 !> @param[in] nlayers Number of layers in the mesh
 !> @param[in,out] field_w2 Field in the W2 space to be returned.
-!> @param[in] field_w2_broken Original field in W2 broken to be used.
+!> @param[in,out] field_w2_broken Original field in W2 broken to be used.
 !> @param[in] rmultiplicity_w2 Reciprocal of nodal multiplicity field for W2
 !> @param[in] ndf_w2 Number of degrees of freedom per cell for W2
 !> @param[in] undf_w2 Number of (local) unique degrees of freedom for W2

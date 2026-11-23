@@ -60,8 +60,8 @@ contains
 !> @brief Combine W2h and W2v fields into a single W2 field
 !> @param[in]     nlayers           Number of layers in the mesh
 !> @param[in,out] uvw               Full W2 field
-!> @param[in]     uv                Input W2h field
-!> @param[in]     w                 Input W2v field
+!> @param[in,out] uv                Input W2h field
+!> @param[in,out] w                 Input W2v field
 !> @param[in]     face_selector_ew  2D field indicating which W/E faces
 !!                                  to loop over in this column
 !> @param[in]     face_selector_ns  2D field indicating which N/S faces
