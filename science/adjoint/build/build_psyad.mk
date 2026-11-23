@@ -15,13 +15,11 @@
 #
 # Kernels which need adjointing...
 #
-KERNEL_LIST = kernel/solver/apply_mixed_operator_kernel_mod.f90 \
-              kernel/solver/opt_apply_variable_hx_kernel_mod.f90 \
+KERNEL_LIST = kernel/solver/opt_apply_variable_hx_kernel_mod.f90 \
               kernel/solver/apply_elim_mixed_lp_operator_kernel_mod.f90
 
 # Variables per kernel...
 #
-ACTIVE_apply_mixed_operator_kernel_mod         := u_e t_col lhs_p lhs_w lhs_uv exner wind_w wind_uv
 ACTIVE_opt_apply_variable_hx_kernel_mod        := lhs x pressure rhs_p \
                                                   div_u t_e t_e1_vec t_e2_vec
 ACTIVE_apply_elim_mixed_lp_operator_kernel_mod := theta exner u lhs_exner \
