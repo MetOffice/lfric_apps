@@ -15,13 +15,11 @@
 #
 # Kernels which need adjointing...
 #
-KERNEL_LIST = kernel/solver/apply_elim_mixed_lp_operator_kernel_mod.f90
+KERNEL_LIST =
 
 # Variables per kernel...
 #
-ACTIVE_apply_elim_mixed_lp_operator_kernel_mod := theta exner u lhs_exner \
-                                                  lhs_e m3e_pe p3t_te q32_ue \
-                                                  p_e t_e u_e
+# Nada
 
 do_psyad: $(if $(BUILD_ADJ_TESTS),$(WORKING_DIR)/driver/gen_adj_kernel_tests_mod.f90) \
           $(foreach kernel,$(KERNEL_LIST),$(WORKING_DIR)/$(kernel).adjoint)

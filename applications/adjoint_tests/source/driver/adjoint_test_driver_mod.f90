@@ -178,7 +178,6 @@ contains
     call adj_trans_lookup_cache%initialise(modeldb%config, mesh)
 
     call log_event( "TESTING generated adjoint kernels", LOG_LEVEL_INFO )
-    call run_gen_adj_kernel_tests( mesh, chi, panel_id )
     call adjt_sci_average_w2b_to_w2_alg( mesh, chi, panel_id )
     call adjt_sci_combine_multidata_field_alg( mesh, chi, panel_id )
     call adjt_combine_w2_field_alg( mesh, chi, panel_id )

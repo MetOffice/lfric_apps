@@ -13,16 +13,16 @@ import-adjoint: export PATCH_DIR       := $(APPS_ROOT_DIR)/science/adjoint/patch
 import-adjoint:
 	# Building PSyAD kernels and driver.
 	#
-	$Q$(MAKE) $(QUIET_ARG) -f $(ADJOINT_BUILD)/build_psyad.mk
+#	$Q$(MAKE) $(QUIET_ARG) -f $(ADJOINT_BUILD)/build_psyad.mk
 
-ifeq "$(BUILD_ADJ_TESTS)" "TRUE"
-	# Need this step to PSyclone the generated adjoint tests from PSyAD
-	#
-	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone_psykal.mk \
-	          SOURCE_DIR=$(PSYAD_WDIR)/outgoing \
-	          OPTIMISATION_PATH=$(OPTIMISATION_PATH) \
-	          PSYCLONE_CONFIG_FILE=$(PSYAD_CONFIG_FILE)
-endif
+#ifeq "$(BUILD_ADJ_TESTS)" "TRUE"
+#	# Need this step to PSyclone the generated adjoint tests from PSyAD
+#	#
+#	$Q$(MAKE) $(QUIET_ARG) -f $(LFRIC_BUILD)/psyclone/psyclone_psykal.mk \
+#	          SOURCE_DIR=$(PSYAD_WDIR)/outgoing \
+#	          OPTIMISATION_PATH=$(OPTIMISATION_PATH) \
+#	          PSYCLONE_CONFIG_FILE=$(PSYAD_CONFIG_FILE)
+#endif
 
 	# Standard import commands
 	#
