@@ -4,7 +4,7 @@
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
 
-!> @brief Adjust prognostic fields from shallow to deep
+!> @brief Adjust prognostic fields from shallow to deep gravity
 module shallow_to_deep_alg_mod
 
   use config_mod,                    only: config_type
@@ -27,13 +27,24 @@ module shallow_to_deep_alg_mod
 
 contains
 
+  !> @details Adjust Exner pressure to be in hydrostatic balance with
+  !>          true (deep) gravity, whilst preserving absolute
+  !>          temperature. If regrav_interp=.true., then absolute
+  !>          temperature is preserved with respect to geopotential
+  !>          height, otherwise it is preserved with respect to
+  !>          physical height.
+  !> @param[in]     config             The application configuration object
+  !> @param[in,out] prognostic_fields  Collection of prognostic fields
+  !> @param[in,out] moist_dyn          Moist dynamical factors
+
   subroutine shallow_to_deep( config, prognostic_fields, moist_dyn )
 
     implicit none
 
-    type(config_type),            intent( in )    :: config
-    type(field_collection_type),  intent( inout ) :: prognostic_fields
-    type(field_type),             intent( inout ) :: moist_dyn(num_moist_factors)
+    type( config_type ), intent( in )    :: config
+    type( field_collection_type ), &
+                         intent( inout ) :: prognostic_fields
+    type( field_type ),  intent( inout ) :: moist_dyn( num_moist_factors )
 
     ! Local dereferenced fields
     type( field_type ), pointer :: u
@@ -41,16 +52,16 @@ contains
     type( field_type ), pointer :: exner
     type( field_type ), pointer :: rho
 
-    integer(i_def) :: init_eos_height
-    logical(l_def) :: regrav_interp
+    integer( i_def ) :: init_eos_height
+    logical( l_def ) :: regrav_interp
 
     init_eos_height = config%initialization%init_eos_height()
     regrav_interp   = config%initialization%regrav_interp()
 
-    call prognostic_fields%get_field('u', u)
-    call prognostic_fields%get_field('theta', theta)
-    call prognostic_fields%get_field('exner', exner)
-    call prognostic_fields%get_field('rho', rho)
+    call prognostic_fields%get_field( 'u', u )
+    call prognostic_fields%get_field( 'theta', theta )
+    call prognostic_fields%get_field( 'exner', exner )
+    call prognostic_fields%get_field( 'rho', rho )
 
     call hydrostatic_balance( config, exner, rho, theta, u, moist_dyn, &
                               init_eos_height, regrav_interp,          &
