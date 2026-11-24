@@ -13,7 +13,7 @@ module adjt_combine_w2_field_alg_mod
   use function_space_collection_mod,     only : function_space_collection
   use finite_element_config_mod,         only : element_order_h, element_order_v
   use fs_continuity_mod,                 only : W2h, W2v, W3, W2
-  use constants_mod,                     only : i_def, r_def
+  use constants_mod,                     only : i_def, r_def, EPS
   use log_mod,                           only : log_event,         &
                                                 log_scratch_space, &
                                                 LOG_LEVEL_ERROR,   &
@@ -77,7 +77,6 @@ module adjt_combine_w2_field_alg_mod
     real(kind=r_def)            :: machine_tol
     real(kind=r_def)            :: relative_diff
     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
-    real(kind=r_def), parameter :: eps = 1.0e-30_r_def
 
     vector_space_w2_ptr => function_space_collection%get_fs(mesh, element_order_h, &
                                                             element_order_v, W2)
@@ -117,9 +116,9 @@ module adjt_combine_w2_field_alg_mod
     write( log_scratch_space, * ) "w inner product = ", w_inner_prod
     call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
 
-    uvw_sf = 1.0_r_def / (uvw_inner_prod + eps)
-    uv_sf = 1.0_r_def / (uv_inner_prod + eps)
-    w_sf = 1.0_r_def / (w_inner_prod + eps)
+    uvw_sf = 1.0_r_def / (uvw_inner_prod + EPS)
+    uv_sf = 1.0_r_def / (uv_inner_prod + EPS)
+    w_sf = 1.0_r_def / (w_inner_prod + EPS)
 
     inner1 = 0.0_r_def
     inner1 = inner1 + uvw_inner_prod * uvw_sf
