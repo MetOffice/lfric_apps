@@ -70,13 +70,13 @@ real(kind=real_hmprec), parameter :: third = 1.0_real_hmprec                   &
 integer :: i, j, k
 
 
-!$OMP PARALLEL DEFAULT(NONE) PRIVATE( i, j, k, z1_plus_z2 )                    &
-!$OMP SHARED( nx_full, ny_full, k_bot_conv, k_top_conv,                        &
+!$OMP parallel default(none) private( i, j, k, z1_plus_z2 )                    &
+!$OMP shared( nx_full, ny_full, k_bot_conv, k_top_conv,                        &
 !$OMP         layer_mass, height_half, l_spherical_coord, rrs_sq, r_surf,      &
 !$OMP         rho_dry )
 
 ! Calculate dz
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
 do k = k_bot_conv, k_top_conv
   do j = 1, ny_full
     do i = 1, nx_full
@@ -85,7 +85,7 @@ do k = k_bot_conv, k_top_conv
     end do
   end do
 end do
-!$OMP END DO
+!$OMP end do
 
 
 ! Next part depends on whether we're doing this in
@@ -134,15 +134,15 @@ if ( l_spherical_coord ) then
   ! dz / r_surf < EPS.
 
   ! Precalculate 1 / r_surf^2 term
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
   do j = 1, ny_full
     do i = 1, nx_full
       rrs_sq(i,j) = one / ( r_surf(i,j) * r_surf(i,j) )
     end do
   end do
-!$OMP END DO
+!$OMP end do
 
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
   do k = k_bot_conv, k_top_conv
     ! Precalculate z(k-1/2) + z(k+1/2)
     do j = 1, ny_full
@@ -164,13 +164,13 @@ if ( l_spherical_coord ) then
       end do
     end do
   end do
-!$OMP END DO
+!$OMP end do
 
 end if  ! ( l_spherical_coord )
 
 
 ! Scale by density to get dry-mass on layer
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
 do k = k_bot_conv, k_top_conv
   do j = 1, ny_full
     do i = 1, nx_full
@@ -178,9 +178,9 @@ do k = k_bot_conv, k_top_conv
     end do
   end do
 end do
-!$OMP END DO
+!$OMP end do
 
-!$OMP END PARALLEL
+!$OMP end parallel
 
 
 return

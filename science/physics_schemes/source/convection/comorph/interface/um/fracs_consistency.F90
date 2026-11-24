@@ -86,8 +86,8 @@ real(kind=real_umphys), parameter :: qc_incloud_max = 5.0e-3  ! 5 g kg-1
 integer :: i, j, k
 
 
-!$OMP PARALLEL DEFAULT(NONE) PRIVATE( i, j, k, qcl, qcf, qc )                  &
-!$OMP SHARED( l_mcr_qcf2, tdims,                                               &
+!$OMP parallel default(none) private( i, j, k, qcl, qcf, qc )                  &
+!$OMP shared( l_mcr_qcf2, tdims,                                               &
 !$OMP         cf_liquid_star, cf_frozen_star, bulk_cf_star,                    &
 !$OMP         qcl_star, qcf_star, qcf2_star,                                   &
 !$OMP         l_mcr_precfrac, l_mcr_qgraup, l_subgrid_graupel_frac,            &
@@ -100,7 +100,7 @@ integer :: i, j, k
 if ( l_mcr_qcf2 ) then
   ! Version of checks with 2nd ice category
 
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
   do k = 1, tdims%k_end
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
@@ -116,12 +116,12 @@ if ( l_mcr_qcf2 ) then
       end do
     end do
   end do
-!$OMP END DO
+!$OMP end do
 
 else  ! .NOT. l_mcr_qcf2
   ! Version of checks with no 2nd ice category
 
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
   do k = 1, tdims%k_end
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
@@ -137,11 +137,11 @@ else  ! .NOT. l_mcr_qcf2
       end do
     end do
   end do
-!$OMP END DO
+!$OMP end do
 
 end if  ! .NOT. l_mcr_qcf2
 
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
 do k = 1, tdims%k_end
   do j = tdims%j_start, tdims%j_end
     do i = tdims%i_start, tdims%i_end
@@ -156,7 +156,7 @@ do k = 1, tdims%k_end
     end do
   end do
 end do
-!$OMP END DO NOWAIT
+!$OMP end do nowait
 
 ! If using prognostic precip fraction, check that the in-precip-fraction
 ! value of qrain doesn't become implausibly large.  Increase
@@ -164,7 +164,7 @@ end do
 if ( l_mcr_precfrac ) then
   if ( l_mcr_qgraup .and. l_subgrid_graupel_frac ) then
     ! Graupel included in the prognostic precip fraction as well as rain
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
     do k = 1, tdims%k_end
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
@@ -174,10 +174,10 @@ if ( l_mcr_precfrac ) then
         end do
       end do
     end do
-!$OMP END DO NOWAIT
+!$OMP end do nowait
   else
     ! Only rain included in the prognostic precip fraction
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
     do k = 1, tdims%k_end
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
@@ -187,11 +187,11 @@ if ( l_mcr_precfrac ) then
         end do
       end do
     end do
-!$OMP END DO NOWAIT
+!$OMP end do nowait
   end if
 end if
 
-!$OMP END PARALLEL
+!$OMP end parallel
 
 
 return

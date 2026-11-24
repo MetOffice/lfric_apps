@@ -69,8 +69,8 @@ real(kind=real_umphys), intent(in out) ::                                      &
 integer :: i, j, k
 
 
-!$OMP PARALLEL DEFAULT(NONE) PRIVATE( i, j, k )                                &
-!$OMP SHARED( i_call, l_mcr_qgraup, l_subgrid_graupel_frac,                    &
+!$OMP parallel default(none) private( i, j, k )                                &
+!$OMP shared( i_call, l_mcr_qgraup, l_subgrid_graupel_frac,                    &
 !$OMP         tdims, n_conv_levels,                                            &
 !$OMP         q_prec_b4, qrain_star, qgraup_star, precfrac_star,               &
 !$OMP         cca_bulk, rain_area_min )
@@ -85,7 +85,7 @@ case (i_call_save_before_conv)
   ! (what counts as precip here depends on whether or not graupel
   !  is included in the precip fraction).
   if ( l_mcr_qgraup .and. l_subgrid_graupel_frac ) then
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
     do k = 1, n_conv_levels
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
@@ -93,9 +93,9 @@ case (i_call_save_before_conv)
         end do
       end do
     end do
-!$OMP END DO NOWAIT
+!$OMP end do nowait
   else
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
     do k = 1, n_conv_levels
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
@@ -103,7 +103,7 @@ case (i_call_save_before_conv)
         end do
       end do
     end do
-!$OMP END DO NOWAIT
+!$OMP end do nowait
   end if
 
 case (i_call_diff_to_get_incs)
@@ -114,7 +114,7 @@ case (i_call_diff_to_get_incs)
   ! (what counts as precip here depends on whether or not graupel
   !  is included in the precip fraction).
   if ( l_mcr_qgraup .and. l_subgrid_graupel_frac ) then
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
     do k = 1, n_conv_levels
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
@@ -133,9 +133,9 @@ case (i_call_diff_to_get_incs)
         end do
       end do
     end do
-!$OMP END DO NOWAIT
+!$OMP end do nowait
   else
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
     do k = 1, n_conv_levels
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
@@ -154,12 +154,12 @@ case (i_call_diff_to_get_incs)
         end do
       end do
     end do
-!$OMP END DO NOWAIT
+!$OMP end do nowait
   end if
 
 end select  ! CASE(i_call)
 
-!$OMP END PARALLEL
+!$OMP end parallel
 
 
 return

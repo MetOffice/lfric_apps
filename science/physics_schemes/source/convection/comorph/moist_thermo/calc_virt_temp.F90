@@ -154,8 +154,8 @@ integer :: i, j, k
 call calc_virt_temp_dry_3d( lb_T, ub_T, temperature, lb_v, ub_v, q_vap,        &
                             virt_temp )
 
-!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE( i, j, k, q_tot )     &
-!$OMP SHARED( nx_full, ny_full, k_bot_conv, k_top_conv, virt_temp,             &
+!$OMP parallel do default(none) schedule(static) private( i, j, k, q_tot )     &
+!$OMP shared( nx_full, ny_full, k_bot_conv, k_top_conv, virt_temp,             &
 !$OMP         lb_v, ub_v, q_vap,  lb_l, ub_l, q_cl,   lb_r, ub_r, q_rain,      &
 !$OMP         lb_f, ub_f, q_cf,   lb_s, ub_s, q_snow, lb_g, ub_g, q_graup )
 do k = k_bot_conv, k_top_conv
@@ -174,7 +174,7 @@ do k = k_bot_conv, k_top_conv
     end do
   end do
 end do
-!$OMP END PARALLEL DO
+!$OMP end parallel do
 
 return
 end subroutine calc_virt_temp_3d

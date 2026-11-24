@@ -88,12 +88,12 @@ lb_t = lbound(fields % temperature)
 ub_t = ubound(fields % temperature)
 
 ! Loop over levels
-!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC)                               &
-!$OMP SHARED( nx_full, ny_full, k_bot_conv, k_top_conv, k_top_init,            &
+!$OMP parallel do default(none) schedule(static)                               &
+!$OMP shared( nx_full, ny_full, k_bot_conv, k_top_conv, k_top_init,            &
 !$OMP         grid, fields, virt_temp, l_init_poss, l_cv_snow,                 &
 !$OMP         lb_z, ub_z, lb_p, ub_p, lb_v, ub_v, lb_l, ub_l, lb_r, ub_r,      &
 !$OMP         lb_f, ub_f, lb_s, ub_s, lb_g, ub_g, lb_t, ub_t )                 &
-!$OMP PRIVATE( i, j, k )
+!$OMP private( i, j, k )
 do k = k_bot_conv, k_top_init
 
   ! Initialise mask of points to false
@@ -167,7 +167,7 @@ do k = k_bot_conv, k_top_init
   end if
 
 end do  ! k = k_bot_conv, k_top_init
-!$OMP END PARALLEL DO
+!$OMP end parallel do
 
 
 return

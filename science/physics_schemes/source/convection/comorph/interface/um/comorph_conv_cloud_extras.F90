@@ -106,14 +106,14 @@ logical :: l_cc (row_length,rows,0:n_conv_levels+1)
 integer :: i, j, k
 
 
-!$OMP PARALLEL DEFAULT(NONE) PRIVATE( i, j, k, rhodz )                         &
-!$OMP SHARED( row_length, rows, n_conv_levels, l_mr_physics, l_cc,             &
+!$OMP parallel default(none) private( i, j, k, rhodz )                         &
+!$OMP shared( row_length, rows, n_conv_levels, l_mr_physics, l_cc,             &
 !$OMP         cclwp0, ccb0, cct0, lcbase0, lctop, cca0, ccw0, cca_bulk,        &
 !$OMP         r_rho_levels, r_theta_levels, rho_dry_th, rho_wet_th,            &
 !$OMP         cca_2d, cca, ccw, cclwp, ccb, cct, lcbase, lcca )
 
 ! Initialise base and top levels to zero
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
 do j = 1, rows
   do i = 1, row_length
     ccb(i,j)    = 0
@@ -122,13 +122,13 @@ do j = 1, rows
     lctop(i,j)  = 0
   end do
 end do
-!$OMP END DO NOWAIT
+!$OMP end do nowait
 
 ! Find the base and top heights based on where the
 ! bulk convective cloud fraction is non-zero...
 
 ! Set flag for nonzero CCA
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
 do k = 1, n_conv_levels
   do j = 1, rows
     do i = 1, row_length
@@ -136,21 +136,21 @@ do k = 1, n_conv_levels
     end do
   end do
 end do
-!$OMP END DO NOWAIT
+!$OMP end do nowait
 ! Set false at upper and lower boundaries, so we find cloud-base at k=1
 ! or cloud-top at n_conv_levels
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
 do j = 1, rows
   do i = 1, row_length
     l_cc(i,j,0) = .false.
     l_cc(i,j,n_conv_levels+1) = .false.
   end do
 end do
-!$OMP END DO
+!$OMP end do
 
 ! The loop over levels k must be sequential;
 ! therefore we have the loop over rows j outermost so we can OMP parallelise it
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
 do j = 1, rows
   do k = 1, n_conv_levels
     do i = 1, row_length
@@ -169,11 +169,11 @@ do j = 1, rows
     end do
   end do
 end do  ! j = 1, rows
-!$OMP END DO
+!$OMP end do
 
 ! Set the 2-D CCA value to the max value in the column
 ! k-loop can't be safely parallelised, so j-loop is outermost.
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
 do j = 1, rows
   do i = 1, row_length
     cca_2d(i,j) = 0.0
@@ -184,10 +184,10 @@ do j = 1, rows
     end do
   end do
 end do  ! j = 1, rows
-!$OMP END DO NOWAIT
+!$OMP end do nowait
 
 ! Set value of CCA at lowest cloud-base
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
 do j = 1, rows
   do i = 1, row_length
     if ( lcbase(i,j) > 0 ) then
@@ -197,11 +197,11 @@ do j = 1, rows
     end if
   end do
 end do
-!$OMP END DO NOWAIT
+!$OMP end do nowait
 
 ! Update the prognostics using MAX of the new diagnostic values and the
 ! existing values passed in...
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
 do k = 1, n_conv_levels
   do j = 1, rows
     do i = 1, row_length
@@ -218,12 +218,12 @@ do k = 1, n_conv_levels
     end do
   end do
 end do
-!$OMP END DO
+!$OMP end do
 
 ! Update prognostics for base and top levels...
 ! First update the 3D flag for nonzero CCA to account for any pre-existing
 ! cca0 (so far only set to true where latest diagnosed cca is nonzero)
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
 do k = 1, n_conv_levels
   do j = 1, rows
     do i = 1, row_length
@@ -239,9 +239,9 @@ do k = 1, n_conv_levels
     end do
   end do
 end do
-!$OMP END DO
+!$OMP end do
 ! Reset prognostic ccb and cct based on latest mask of convective cloud points
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
 do j = 1, rows
   do k = 1, n_conv_levels
     do i = 1, row_length
@@ -254,9 +254,9 @@ do j = 1, rows
     end do
   end do
 end do  ! j = 1, rows
-!$OMP END DO NOWAIT
+!$OMP end do nowait
 ! Set prog lowest cloud-base to min of new and existing values if both set
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
 do j = 1, rows
   do i = 1, row_length
     if ( lcbase(i,j) > 0 ) then
@@ -268,7 +268,7 @@ do j = 1, rows
     end if
   end do
 end do
-!$OMP END DO NOWAIT
+!$OMP end do nowait
 
 ! Calculate column-integrated convective cloud water path (in kg per m2).
 ! Note: this attempts to replicate the calculation of cclwp in the
@@ -284,7 +284,7 @@ end do
 ! Vertical integral; the j-loop over rows is outermost here,
 ! so that we can OMP paralellise it (we can't parallelise the k-loop).
 if ( l_mr_physics ) then
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
   do j = 1, rows
     do i = 1, row_length
       rhodz = (r_rho_levels(i,j,2)-r_theta_levels(i,j,0)) * rho_dry_th(i,j,1)
@@ -299,9 +299,9 @@ if ( l_mr_physics ) then
       end do
     end do
   end do  ! j = 1, rows
-!$OMP END DO NOWAIT
+!$OMP end do nowait
 else  ! ( l_mr_physics )
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
   do j = 1, rows
     do i = 1, row_length
       rhodz = (r_rho_levels(i,j,2)-r_theta_levels(i,j,0)) * rho_wet_th(i,j,1)
@@ -316,10 +316,10 @@ else  ! ( l_mr_physics )
       end do
     end do
   end do  ! j = 1, rows
-!$OMP END DO NOWAIT
+!$OMP end do nowait
 end if  ! ( l_mr_physics )
 
-!$OMP END PARALLEL
+!$OMP end parallel
 
 
 return

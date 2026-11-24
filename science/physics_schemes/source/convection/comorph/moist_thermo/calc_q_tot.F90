@@ -128,71 +128,71 @@ real(kind=real_hmprec), intent(out) :: q_tot                                   &
 ! Loop counters
 integer :: i, j
 
-!$OMP PARALLEL DEFAULT(NONE) PRIVATE( i, j )                                   &
-!$OMP SHARED( nx_full, ny_full, l_cv_snow,                                     &
+!$OMP parallel default(none) private( i, j )                                   &
+!$OMP shared( nx_full, ny_full, l_cv_snow,                                     &
 !$OMP         q_tot, q_cl, q_rain, q_cf, q_snow, q_graup, q_vap )
 
 ! Initialise using liquid cloud
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
 do j = 1, ny_full
   do i = 1, nx_full
     q_tot(i,j) = q_cl(i,j)
   end do
 end do
-!$OMP END DO
+!$OMP end do
 
 ! Add on mixing ratios of optional hydrometeor species...
 
 if ( l_cv_rain ) then
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
   do j = 1, ny_full
     do i = 1, nx_full
       q_tot(i,j) = q_tot(i,j) + q_rain(i,j)
     end do
   end do
-!$OMP END DO
+!$OMP end do
 end if
 
 if ( l_cv_cf ) then
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
   do j = 1, ny_full
     do i = 1, nx_full
       q_tot(i,j) = q_tot(i,j) + q_cf(i,j)
     end do
   end do
-!$OMP END DO
+!$OMP end do
 end if
 
 if ( l_cv_snow ) then
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
   do j = 1, ny_full
     do i = 1, nx_full
       q_tot(i,j) = q_tot(i,j) + q_snow(i,j)
     end do
   end do
-!$OMP END DO
+!$OMP end do
 end if
 
 if ( l_cv_graup ) then
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
   do j = 1, ny_full
     do i = 1, nx_full
       q_tot(i,j) = q_tot(i,j) + q_graup(i,j)
     end do
   end do
-!$OMP END DO
+!$OMP end do
 end if
 
 ! Add on water-vapour
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
 do j = 1, ny_full
   do i = 1, nx_full
     q_tot(i,j) = q_tot(i,j) + q_vap(i,j)
   end do
 end do
-!$OMP END DO
+!$OMP end do
 
-!$OMP END PARALLEL
+!$OMP end parallel
 
 return
 end subroutine calc_q_tot_2d

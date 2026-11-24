@@ -71,10 +71,10 @@ end do
 ! (turbulence fields are not nessecarily available above level
 !  k_top_init+1, so only loop up to there).
 !
-!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC)                               &
-!$OMP SHARED(  k_bot_conv, k_top_init, cmpr, turb, comorph_diags,              &
+!$OMP parallel do default(none) schedule(static)                               &
+!$OMP shared(  k_bot_conv, k_top_init, cmpr, turb, comorph_diags,              &
 !$OMP          i_wind_u, i_q_vap )                                             &
-!$OMP PRIVATE( k, lb, ub, i_turb, i_field, ic, i_diag, turb_cmpr, pert_cmpr )
+!$OMP private( k, lb, ub, i_turb, i_field, ic, i_diag, turb_cmpr, pert_cmpr )
 do k = k_bot_conv, k_top_init+1
 
   ! Compress turbulence fields into super-array
@@ -119,7 +119,7 @@ do k = k_bot_conv, k_top_init+1
   end if
 
 end do  ! k = k_bot_conv, k_top_init+1
-!$OMP END PARALLEL DO
+!$OMP end parallel do
 
 
 ! Deallocate compression indices
@@ -132,9 +132,9 @@ call cmpr_dealloc( cmpr )
 ! So no need to do any compression / decompression.
 
 if ( comorph_diags % turb_radius % flag ) then
-!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC)                               &
-!$OMP SHARED(  turb, comorph_diags, nx_full, ny_full, k_bot_conv, k_top_init ) &
-!$OMP PRIVATE( i, j, k )
+!$OMP parallel do default(none) schedule(static)                               &
+!$OMP shared(  turb, comorph_diags, nx_full, ny_full, k_bot_conv, k_top_init ) &
+!$OMP private( i, j, k )
   do k = k_bot_conv, k_top_init
     do j = 1, ny_full
       do i = 1, nx_full
@@ -143,7 +143,7 @@ if ( comorph_diags % turb_radius % flag ) then
       end do
     end do
   end do
-!$OMP END PARALLEL DO
+!$OMP end parallel do
 end if
 
 

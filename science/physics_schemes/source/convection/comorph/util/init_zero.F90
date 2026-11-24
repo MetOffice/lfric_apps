@@ -65,8 +65,8 @@ real(kind=real_hmprec), parameter :: zero = 0.0_real_hmprec
 ! Loop counters
 integer :: i, j, k
 
-!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE( i, j, k )            &
-!$OMP SHARED( nx_full, ny_full, k_bot_conv, k_top_conv, field )
+!$OMP parallel do default(none) schedule(static) private( i, j, k )            &
+!$OMP shared( nx_full, ny_full, k_bot_conv, k_top_conv, field )
 do k = k_bot_conv, k_top_conv
   do j = 1, ny_full
     do i = 1, nx_full
@@ -74,7 +74,7 @@ do k = k_bot_conv, k_top_conv
     end do
   end do
 end do
-!$OMP END PARALLEL DO
+!$OMP end parallel do
 
 return
 end subroutine init_zero_3d

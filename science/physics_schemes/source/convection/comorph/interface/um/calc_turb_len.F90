@@ -142,8 +142,8 @@ real(kind=real_umphys) ::                                                      &
 integer :: i, j, k
 
 
-!$OMP PARALLEL DEFAULT(NONE) PRIVATE( i, j, k, ppnrate )                       &
-!$OMP SHARED( pdims, tdims, bl_levels, par_radius_init_method,                 &
+!$OMP parallel default(none) private( i, j, k, ppnrate )                       &
+!$OMP shared( pdims, tdims, bl_levels, par_radius_init_method,                 &
 !$OMP         turb_len, rhokm, rho_wet_th, bl_w_var, w_fac, qfac, rainfac,     &
 !$OMP         mv_bl_mean, m_v, z_rho, zh_eff, ktop, ls_rain, ls_snow,          &
 !$OMP         par_radius_knob_max, par_radius_knob, par_radius_ppn_max,        &
@@ -152,7 +152,7 @@ integer :: i, j, k
 !$OMP         l_resdep_precipramp, dx_ref, delta_x, delta_y, dxfac,            &
 !$OMP         par_radius_amp_um )
 
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
 do k = 1, bl_levels-1
   do j = pdims%j_start, pdims%j_end
     do i = pdims%i_start, pdims%i_end
@@ -163,15 +163,15 @@ do k = 1, bl_levels-1
     end do
   end do
 end do
-!$OMP END DO NOWAIT
-!$OMP DO SCHEDULE(STATIC)
+!$OMP end do nowait
+!$OMP do schedule(static)
 do j = pdims%j_start, pdims%j_end
   do i = pdims%i_start, pdims%i_end
     ! rhokm isn't defined on theta-level bl_levels, so set to zero.
     turb_len(i,j,bl_levels) = 0.0
   end do
 end do
-!$OMP END DO
+!$OMP end do
 
 ! Ideally we would just use the turbulence-based length-scale here;
 ! however, the BL scheme often predicts entirely non-turbulent
@@ -190,7 +190,7 @@ end do
 ! length-scale to be applied wherever the atmosphere is
 ! moist unstable (and hence triggers convection), but the
 ! BL scheme hasn't given us any turbulence to trigger from.
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
 do k = 1, bl_levels
   do j = pdims%j_start, pdims%j_end
     do i = pdims%i_start, pdims%i_end
@@ -203,7 +203,7 @@ do k = 1, bl_levels
     end do
   end do
 end do
-!$OMP END DO NOWAIT
+!$OMP end do nowait
 
 ! If using one of the precip-rate dependent parcel radius scaling options...
 if ( par_radius_init_method == rain_dependence .or.                            &
@@ -212,7 +212,7 @@ if ( par_radius_init_method == rain_dependence .or.                            &
      par_radius_init_method == linear_qfacrain_dep ) then
 
   ! Initialise scaling factors to 1
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
   do j = pdims%j_start, pdims%j_end
     do i = pdims%i_start, pdims%i_end
       w_fac(i,j)   = 1.0
@@ -221,7 +221,7 @@ if ( par_radius_init_method == rain_dependence .or.                            &
       dxfac(i,j)   = 1.0
     end do
   end do
-!$OMP END DO NOWAIT
+!$OMP end do nowait
 
   ! If using precip dependence normalised by BL-mean q
   ! (or w-dependent extension of that)
@@ -232,7 +232,7 @@ if ( par_radius_init_method == rain_dependence .or.                            &
 
     ! Vertical integral; the j-loop over rows is outermost here,
     ! so that we can OMP paralellise it (we can't parallelise the k-loop).
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
     do j = pdims%j_start, pdims%j_end
       do i = pdims%i_start, pdims%i_end
         mv_bl_mean(i,j) = m_v(i,j,1)*z_rho(i,j,2)
@@ -252,10 +252,10 @@ if ( par_radius_init_method == rain_dependence .or.                            &
         mv_bl_mean(i,j) = mv_bl_mean(i,j) / z_rho(i,j,ktop(i,j))
       end do
     end do  ! j = pdims%j_start, pdims%j_end
-!$OMP END DO
+!$OMP end do
 
     if (par_radius_init_method == linear_qfacrain_dep) then
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
       do j = pdims%j_start, pdims%j_end
         do i = pdims%i_start, pdims%i_end
           ! Trying something that matches 1/q at qsat=0.01 and 0.02 and is
@@ -264,15 +264,15 @@ if ( par_radius_init_method == rain_dependence .or.                            &
           qfac(i,j) = 2.0+1.25*max( -1.0, 100.0*(0.5*refqsat-mv_bl_mean(i,j)) )
         end do
       end do
-!$OMP END DO
+!$OMP end do
     else  ! par_radius_init_method not linear_qfacrain_dep
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
       do j = pdims%j_start, pdims%j_end
         do i = pdims%i_start, pdims%i_end
           qfac(i,j) = refqsat/mv_bl_mean(i,j)
         end do
       end do
-!$OMP END DO
+!$OMP end do
     end if ! par_radius_init_method
 
   end if ! qfacrain_dependence
@@ -281,16 +281,16 @@ if ( par_radius_init_method == rain_dependence .or.                            &
     ! Optionally scale the precip rate dependence by horizontal grid-length.
     ! This accounts for typical resolved precip rates getting higher at
     ! smaller grid-sizes.
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
     do j = pdims%j_start, pdims%j_end
       do i = pdims%i_start, pdims%i_end
         dxfac(i,j) = max( delta_x(i,j), delta_y(i,j) ) / dx_ref
       end do
     end do
-!$OMP END DO
+!$OMP end do
   end if
 
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
   do j = pdims%j_start, pdims%j_end
     do i = pdims%i_start, pdims%i_end
       ppnrate = dxfac(i,j) * qfac(i,j) * (ls_rain(i,j) + ls_snow(i,j))
@@ -298,13 +298,13 @@ if ( par_radius_init_method == rain_dependence .or.                            &
                                   min( 1.0, ppnrate/par_radius_ppn_max )
     end do
   end do
-!$OMP END DO
+!$OMP end do
 
   ! Second a w-dependence
   if ( par_radius_init_method == w_dependence ) then
     ! Vertical max calculation; the j-loop over rows is outermost here,
     ! so that we can OMP paralellise it (we can't parallelise the k-loop).
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
     do j = pdims%j_start, pdims%j_end
       do i = pdims%i_start, pdims%i_end
         w_max(i,j) = 0.0
@@ -322,32 +322,32 @@ if ( par_radius_init_method == rain_dependence .or.                            &
         w_fac(i,j) = 1.0 + max( 0.0, w_max(i,j)-w_cape_limit ) * 3.0
       end do
     end do  ! j = pdims%j_start, pdims%j_end
-!$OMP END DO
+!$OMP end do
   end if  ! w_dependence
 
   ! Enhance par_radius_amp, if requested
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
   do j = pdims%j_start, pdims%j_end
     do i = pdims%i_start, pdims%i_end
       par_radius_amp_um(i,j) = par_radius_knob*max( w_fac(i,j), rainfac(i,j) )
     end do
   end do
-!$OMP END DO NOWAIT
+!$OMP end do nowait
 
 else
 
   ! Set factor to unity when not using any of the above options
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
   do j = pdims%j_start, pdims%j_end
     do i = pdims%i_start, pdims%i_end
       par_radius_amp_um(i,j) = 1.0
     end do
   end do
-!$OMP END DO NOWAIT
+!$OMP end do nowait
 
 end if  ! Using any kind of precip-dependendent parcel radius scaling
 
-!$OMP END PARALLEL
+!$OMP end parallel
 
 return
 end subroutine calc_turb_len
