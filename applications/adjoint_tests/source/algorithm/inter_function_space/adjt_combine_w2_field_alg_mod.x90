@@ -125,15 +125,14 @@ module adjt_combine_w2_field_alg_mod
     inner1 = inner1 + uv_inner_prod * uv_sf
     inner1 = inner1 + w_inner_prod * w_sf
 
-    call invoke( inc_a_times_X( uvw_sf, uvw ), &
-                 inc_a_times_X( uv_sf, uv ),   &
-                 inc_a_times_X( w_sf, w ) )
-
     uvw_uvw_input_inner_prod = 0.0_r_def
     uv_uv_input_inner_prod = 0.0_r_def
     w_w_input_inner_prod = 0.0_r_def
 
-    call invoke( adj_combine_w2_field_kernel_type(uvw, uv, w,                          &
+    call invoke( inc_a_times_X( uvw_sf, uvw ),                                         &
+                 inc_a_times_X( uv_sf, uv ),                                           &
+                 inc_a_times_X( w_sf, w ),                                             &
+                 adj_combine_w2_field_kernel_type(uvw, uv, w,                          &
                                                   face_selector_ew, face_selector_ns), &
                  x_innerproduct_y(uvw_uvw_input_inner_prod,                            &
                                   uvw, uvw_input),                                     &

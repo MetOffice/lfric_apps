@@ -28,7 +28,7 @@ module adjt_sample_field_alg_mod
   contains
 
   !=============================================================================
-  !> @brief Adjoint test for adj_combine_w2_field_kernel
+  !> @brief Adjoint test for adj_sample_field_kernel
   !> @param[in] mesh      A mesh object
   subroutine adjt_sample_field_alg(mesh)
 
@@ -99,12 +99,13 @@ module adjt_sample_field_alg_mod
     inner1 = 0.0_r_def
     inner1 = inner1 + field_1_inner_prod * field_1_sf
     inner1 = inner1 + field_2_inner_prod * field_2_sf
-    call invoke( inc_a_times_X( field_1_sf, field_1 ), &
-                 inc_a_times_X( field_2_sf, field_2 ) )
 
     field_1_field_1_input_inner_prod = 0.0_r_def
     field_2_field_2_input_inner_prod = 0.0_r_def
-    call invoke( adj_sample_field_kernel_type(field_1, rmultiplicity, field_2), &
+
+    call invoke( inc_a_times_X( field_1_sf, field_1 ),                          &
+                 inc_a_times_X( field_2_sf, field_2 ),                          &
+                 adj_sample_field_kernel_type(field_1, rmultiplicity, field_2), &
                  x_innerproduct_y(field_1_field_1_input_inner_prod,             &
                                   field_1, field_1_input),                      &
                  x_innerproduct_y(field_2_field_2_input_inner_prod,             &
