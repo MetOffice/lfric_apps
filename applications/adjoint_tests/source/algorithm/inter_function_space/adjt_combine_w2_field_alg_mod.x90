@@ -7,11 +7,11 @@
 !> @brief Module containing standard adjoint test for adj_combine_w2_field_kernel
 module adjt_combine_w2_field_alg_mod
 
+  use config_mod,                        only : config_type
   use field_mod,                         only : field_type
   use function_space_mod,                only : function_space_type
   use mesh_mod,                          only : mesh_type
   use function_space_collection_mod,     only : function_space_collection
-  use finite_element_config_mod,         only : element_order_h, element_order_v
   use fs_continuity_mod,                 only : W2h, W2v, W3, W2
   use constants_mod,                     only : i_def, r_def, EPS
   use log_mod,                           only : log_event,         &
@@ -32,8 +32,9 @@ module adjt_combine_w2_field_alg_mod
 
   !=============================================================================
   !> @brief Adjoint test for adj_combine_w2_field_kernel
+  !> @param[in] config    Application namelist configuration object
   !> @param[in] mesh      A mesh object
-  subroutine adjt_combine_w2_field_alg(mesh)
+  subroutine adjt_combine_w2_field_alg(config, mesh)
 
     use combine_w2_field_kernel_mod,     only : combine_w2_field_kernel_type
     use adj_combine_w2_field_kernel_mod, only : adj_combine_w2_field_kernel_type
@@ -41,6 +42,7 @@ module adjt_combine_w2_field_alg_mod
     implicit none
 
     ! Arguments
+    type(config_type),        intent(in) :: config
     type(mesh_type), pointer, intent(in) :: mesh
 
     ! Arguments for forward and adjoint calls
@@ -59,6 +61,8 @@ module adjt_combine_w2_field_alg_mod
     type(function_space_type), pointer :: vector_space_w2_ptr
     type(function_space_type), pointer :: vector_space_w2h_ptr
     type(function_space_type), pointer :: vector_space_w2v_ptr
+    integer(kind=i_def)                :: element_order_h
+    integer(kind=i_def)                :: element_order_v
 
     ! Inner products
     real(kind=r_def) :: uvw_inner_prod
@@ -78,6 +82,8 @@ module adjt_combine_w2_field_alg_mod
     real(kind=r_def)            :: relative_diff
     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
 
+    element_order_h = config%finite_element%element_order_h()
+    element_order_v = config%finite_element%element_order_v()
     vector_space_w2_ptr => function_space_collection%get_fs(mesh, element_order_h, &
                                                             element_order_v, W2)
     vector_space_w2h_ptr => function_space_collection%get_fs(mesh,element_order_h, &

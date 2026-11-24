@@ -1,20 +1,30 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Module containing standard adjoint test for adj_sci_extract_w_kernel
 module adjt_sci_extract_w_alg_mod
+
+  use field_mod, only : field_type
+  use function_space_mod, only : function_space_type
+  use mesh_mod, only : mesh_type
+  use function_space_collection_mod, only : function_space_collection
+  use finite_element_config_mod, only : element_order_h, element_order_v
+  use fs_continuity_mod, only : w2, wtheta
+  use constants_mod, only : i_def, r_def
+  use setop_random_kernel_mod, only : setop_random_kernel_type
+  use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space, log_level_debug
   implicit none
   public
 
   contains
   subroutine adjt_sci_extract_w_alg(mesh, chi, panel_id)
-    use field_mod, only : field_type
-    use function_space_mod, only : function_space_type
-    use mesh_mod, only : mesh_type
-    use function_space_collection_mod, only : function_space_collection
+
     use sci_extract_w_kernel_mod, only : extract_w_kernel_type
     use adj_sci_extract_w_kernel_mod, only : adj_extract_w_kernel_type
-    use finite_element_config_mod, only : element_order_h, element_order_v
-    use fs_continuity_mod, only : w2, wtheta
-    use constants_mod, only : i_def, r_def
-    use setop_random_kernel_mod, only : setop_random_kernel_type
-    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space, log_level_debug
+
     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
     type(mesh_type), pointer, intent(in) :: mesh
     type(field_type), dimension(3), intent(in), optional :: chi

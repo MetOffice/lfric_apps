@@ -225,11 +225,11 @@ contains
     call atlt_bl_inc_alg( mesh )
 
     ! ./inter_function_space
-    call adjt_combine_w2_field_alg( mesh )
-    call adjt_sample_field_alg( mesh )
-    call adjt_sample_flux_alg( mesh )
-    call adjt_sci_average_w2b_to_w2_alg( mesh )
-    call adjt_sci_combine_multidata_field_alg( mesh )
+    call adjt_combine_w2_field_alg( modeldb%config, mesh )
+    call adjt_sample_field_alg( modeldb%config, mesh )
+    call adjt_sample_flux_alg( modeldb%config, mesh )
+    call adjt_sci_average_w2b_to_w2_alg( modeldb%config, mesh )
+    call adjt_sci_combine_multidata_field_alg( modeldb%config, mesh )
     call adjt_sci_convert_hdiv_field_alg( modeldb%config, mesh, chi, panel_id )
 
     ! ./algebra
@@ -239,7 +239,7 @@ contains
     call adjt_transpose_matrix_vector_alg( mesh )
 
     ! ./solver
-    call adjt_apply_elim_mixed_lp_operator_alg( mesh )
+    call adjt_apply_elim_mixed_lp_operator_alg( modeldb%config, mesh )
     call adjt_apply_mixed_u_operator_alg( modeldb%config, mesh )
     call adjt_apply_mixed_wp_operator_alg( modeldb%config, mesh )
     call adjt_schur_backsub_alg( modeldb%config, mesh )

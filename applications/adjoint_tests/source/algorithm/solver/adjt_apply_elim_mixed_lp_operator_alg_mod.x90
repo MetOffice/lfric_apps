@@ -7,11 +7,11 @@
 !> @brief Module containing standard adjoint test for adj_apply_elim_mixed_lp_operator_kernel
 module adjt_apply_elim_mixed_lp_operator_alg_mod
 
+  use config_mod,                        only : config_type
   use field_mod,                         only : field_type
   use function_space_mod,                only : function_space_type
   use mesh_mod,                          only : mesh_type
   use function_space_collection_mod,     only : function_space_collection
-  use finite_element_config_mod,         only : element_order_h, element_order_v
   use fs_continuity_mod,                 only : W2, W3, Wtheta
   use r_solver_field_mod,                only : r_solver_field_type
   use r_solver_operator_mod,             only : r_solver_operator_type
@@ -31,8 +31,9 @@ module adjt_apply_elim_mixed_lp_operator_alg_mod
   contains
   !=============================================================================
   !> @brief Adjoint test for adj_apply_elim_mixed_lp_operator_kernel
+  !> @param[in] config    Application namelist configuration object
   !> @param[in] mesh      A mesh object
-  subroutine adjt_apply_elim_mixed_lp_operator_alg(mesh)
+  subroutine adjt_apply_elim_mixed_lp_operator_alg(config, mesh)
 
     use apply_elim_mixed_lp_operator_kernel_mod,     only : apply_elim_mixed_lp_operator_kernel_type
     use adj_apply_elim_mixed_lp_operator_kernel_mod, only : adj_apply_elim_mixed_lp_operator_kernel_type
@@ -40,6 +41,7 @@ module adjt_apply_elim_mixed_lp_operator_alg_mod
     implicit none
 
     ! Arguments
+    type(config_type),        intent(in) :: config
     type(mesh_type), pointer, intent(in) :: mesh
 
     ! Arguments for tl and adj calls
@@ -62,6 +64,8 @@ module adjt_apply_elim_mixed_lp_operator_alg_mod
     type(function_space_type), pointer :: vector_space_w2_ptr
     type(function_space_type), pointer :: vector_space_w3_ptr
     type(function_space_type), pointer :: vector_space_wtheta_ptr
+    integer(kind=i_def)                :: element_order_h
+    integer(kind=i_def)                :: element_order_v
 
     ! Inner products
     real(kind=r_def)    :: lhs_exner_inner_prod
@@ -84,6 +88,8 @@ module adjt_apply_elim_mixed_lp_operator_alg_mod
     real(kind=r_solver)            :: relative_diff
     real(kind=r_solver), parameter :: overall_tolerance = 1500.0_r_solver
 
+    element_order_h = config%finite_element%element_order_h()
+    element_order_v = config%finite_element%element_order_v()
     vector_space_w2_ptr => function_space_collection%get_fs(mesh, element_order_h, &
                                                             element_order_v, W2)
     vector_space_w3_ptr => function_space_collection%get_fs(mesh, element_order_h, &

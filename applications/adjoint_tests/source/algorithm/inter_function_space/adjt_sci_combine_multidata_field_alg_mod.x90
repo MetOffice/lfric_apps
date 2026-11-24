@@ -7,11 +7,11 @@
 !> @brief Module containing standard adjoint test for adj_sci_combine_multidata_field_kernel
 module adjt_sci_combine_multidata_field_alg_mod
 
+  use config_mod,                        only : config_type
   use field_mod,                         only : field_type
   use function_space_mod,                only : function_space_type
   use mesh_mod,                          only : mesh_type
   use function_space_collection_mod,     only : function_space_collection
-  use finite_element_config_mod,         only : element_order_h, element_order_v
   use fs_continuity_mod,                 only : W3
   use constants_mod,                     only : i_def, l_def, r_def, EPS
   use log_mod,                           only : log_event,         &
@@ -29,8 +29,9 @@ module adjt_sci_combine_multidata_field_alg_mod
 
   !=============================================================================
   !> @brief Adjoint test for adj_sci_combine_multidata_field_kernel
+  !> @param[in] config    Application namelist configuration object
   !> @param[in] mesh      A mesh object
-  subroutine adjt_sci_combine_multidata_field_alg(mesh)
+  subroutine adjt_sci_combine_multidata_field_alg(config, mesh)
 
     use sci_combine_multidata_field_kernel_mod,     only : combine_multidata_field_kernel_type
     use adj_sci_combine_multidata_field_kernel_mod, only : adj_combine_multidata_field_kernel_type
@@ -38,6 +39,7 @@ module adjt_sci_combine_multidata_field_alg_mod
     implicit none
 
     ! Arguments
+    type(config_type),        intent(in) :: config
     type(mesh_type), pointer, intent(in) :: mesh
 
     ! Arguments for tl and adj calls
@@ -54,10 +56,12 @@ module adjt_sci_combine_multidata_field_alg_mod
     type(field_type) :: field1_in_input
     type(field_type) :: field2_in_input
 
-    ! Pointers for initialising fields
+    ! Variables for initialising fields
     type(function_space_type), pointer :: vector_space_w3_ptr
     type(function_space_type), pointer :: vector_space_w3_n1_ptr
     type(function_space_type), pointer :: vector_space_w3_n2_ptr
+    integer(kind=i_def)                :: element_order_h
+    integer(kind=i_def)                :: element_order_v
 
     ! Inner products
     real(kind=r_def) :: field_out_inner_prod
@@ -81,6 +85,8 @@ module adjt_sci_combine_multidata_field_alg_mod
     n1 = 4_i_def
     n2 = 2_i_def
     ndata_first = .false._l_def
+    element_order_h = config%finite_element%element_order_h()
+    element_order_v = config%finite_element%element_order_v()
     vector_space_w3_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, &
                                                             W3, n, ndata_first = ndata_first)
     vector_space_w3_n1_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, &
