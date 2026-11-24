@@ -122,22 +122,22 @@ logical, parameter :: l_print_turb_perts_exceeded = .false.
 integer :: i, j, k
 
 
-!$OMP PARALLEL DEFAULT(NONE)                                                   &
-!$OMP PRIVATE( i, j, k, interp, qsat_rh, max_qw, min_w, min_w_var )            &
-!$OMP SHARED( bl_levels, tdims, pdims, qsat, temperature, p_layer_centres,     &
+!$OMP parallel default(none)                                                   &
+!$OMP private( i, j, k, interp, qsat_rh, max_qw, min_w, min_w_var )            &
+!$OMP shared( bl_levels, tdims, pdims, qsat, temperature, p_layer_centres,     &
 !$OMP         z_rho, z_theta, ftl, fqw, fu_rh, fv_rh, w_var_ratio, w_var_rh )
 
 ! Calculate qsat (max allowed perturbation to q scales with qsat).
 ! Note that making max allowed q pert scale with q runs into problems
 ! when q goes negative in some runs!  Using qsat to avoid this...
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
 do k = 1, bl_levels
   call qsat_wat_mix( qsat(:,:,k), temperature(:,:,k), p_layer_centres(:,:,k),  &
                      tdims%i_len, tdims%j_len )
 end do
-!$OMP END DO
+!$OMP end do
 
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
 do k = 1, bl_levels
   if ( k==1 ) then
     ! Bottom rho-level; just use qsat from 1st theta-level
@@ -175,9 +175,9 @@ do k = 1, bl_levels
     end do
   end do
 end do  ! k = 1, bl_levels
-!$OMP END DO NOWAIT
+!$OMP end do nowait
 
-!$OMP END PARALLEL
+!$OMP end parallel
 
 #if !defined(LFRIC)
 if ( l_print_turb_perts_exceeded ) then

@@ -80,15 +80,15 @@ integer :: i, j, k
 ! Store physics constants in host-model precision
 Rd_over_cpd = real( R_dry / cp_dry, real_hmprec )
 
-!$OMP PARALLEL DEFAULT(NONE)                                                   &
-!$OMP PRIVATE( i, j, k, dtvdz )                                                &
-!$OMP SHARED( nx_full, ny_full, k_bot_conv, k_top_conv,                        &
+!$OMP parallel default(none)                                                   &
+!$OMP private( i, j, k, dtvdz )                                                &
+!$OMP shared( nx_full, ny_full, k_bot_conv, k_top_conv,                        &
 !$OMP         virt_temp_full, virt_temp_half, height_full, height_half,        &
 !$OMP         pressure_full, pressure_half, theta_v_full, Rd_over_cpd )
 
   ! Dry adiabat conserves potential temperature
   ! Scale virtual temperature by pressure^(-R/cp)
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
 do k = k_bot_conv, k_top_conv
   do j = 1, ny_full
     do i = 1, nx_full
@@ -97,23 +97,23 @@ do k = k_bot_conv, k_top_conv
     end do
   end do
 end do
-!$OMP END DO
+!$OMP end do
 
 ! Set values at top and bottom by just copying the values from the nearest
 ! full level, since we can't interpolate (these values will only be used
 ! if convection tries to go beyond the top / bottom, in which case something
 ! has already gone wrong!)
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
 do j = 1, ny_full
   do i = 1, nx_full
     virt_temp_half(i,j,k_bot_conv)   = theta_v_full(i,j,k_bot_conv)
     virt_temp_half(i,j,k_top_conv+1) = theta_v_full(i,j,k_top_conv)
   end do
 end do
-!$OMP END DO NOWAIT
+!$OMP end do nowait
 
 ! Set all other half-levels using linear interpolation initially
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
 do k = k_bot_conv+1, k_top_conv
   do j = 1, ny_full
     do i = 1, nx_full
@@ -127,11 +127,11 @@ do k = k_bot_conv+1, k_top_conv
     end do
   end do
 end do
-!$OMP END DO
+!$OMP end do
 
 ! Dry adiabat conserves potential temperature
 ! Scale by pressure^(R/cp) to retrieve virtual temperature
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
 do k = k_bot_conv, k_top_conv+1
   do j = 1, ny_full
     do i = 1, nx_full
@@ -140,9 +140,9 @@ do k = k_bot_conv, k_top_conv+1
     end do
   end do
 end do
-!$OMP END DO NOWAIT
+!$OMP end do nowait
 
-!$OMP END PARALLEL
+!$OMP end parallel
 
 
 return

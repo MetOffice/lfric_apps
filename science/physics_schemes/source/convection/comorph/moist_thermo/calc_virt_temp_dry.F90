@@ -106,8 +106,8 @@ integer :: i, j, k
 R_vap_on_R_dry = real(R_vap,real_hmprec)                                       &
                / real(R_dry,real_hmprec)
 
-!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE( i, j, k )            &
-!$OMP SHARED( nx_full, ny_full, k_bot_conv, k_top_conv,                        &
+!$OMP parallel do default(none) schedule(static) private( i, j, k )            &
+!$OMP shared( nx_full, ny_full, k_bot_conv, k_top_conv,                        &
 !$OMP         virt_temp_dry, temperature, q_vap, R_vap_on_R_dry )
 do k = k_bot_conv, k_top_conv
   do j = 1, ny_full
@@ -117,7 +117,7 @@ do k = k_bot_conv, k_top_conv
     end do
   end do
 end do
-!$OMP END PARALLEL DO
+!$OMP end parallel do
 
 return
 end subroutine calc_virt_temp_dry_3d

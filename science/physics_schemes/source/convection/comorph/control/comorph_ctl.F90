@@ -486,14 +486,14 @@ end do
 ! convection tends to be highly unevenly distributed in space.
 ! Use of dynamic scheduling should help with this.
 
-!$OMP  PARALLEL DEFAULT(NONE)                                                  &
-!$OMP  SHARED(  n_segments, seg_n_points, seg_ij_last,                         &
+!$OMP  parallel default(none)                                                  &
+!$OMP  shared(  n_segments, seg_n_points, seg_ij_last,                         &
 !$OMP           n_fields_tot, l_tracer,                                        &
 !$OMP           grid, turb, cloudfracs, fields_np1,                            &
 !$OMP           layer_mass, virt_temp_n, virt_temp_np1, virt_temp_half,        &
 !$OMP           l_init_poss, comorph_diags )                                   &
-!$OMP  PRIVATE( i_seg )
-!$OMP DO SCHEDULE(DYNAMIC)
+!$OMP  private( i_seg )
+!$OMP do schedule(dynamic)
 do i_seg = 1, n_segments
 
   ! Call main comorph routine; calls various other routines to diagnose
@@ -508,8 +508,8 @@ do i_seg = 1, n_segments
                      virt_temp_half, l_init_poss, comorph_diags )
 
 end do  ! i_seg = 1, n_segments
-!$OMP END DO NOWAIT
-!$OMP END PARALLEL
+!$OMP end do nowait
+!$OMP end parallel
 
 
 ! Copy primary fields output from comorph if requested as diagnostics

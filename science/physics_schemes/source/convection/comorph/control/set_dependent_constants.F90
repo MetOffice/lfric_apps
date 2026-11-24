@@ -170,7 +170,7 @@ do i_cond = 1, n_cond_species
     cond_params(i_cond)%pt % i_cond_frzmlt = i_cond_snow
   case ( i_graup )
     cond_params(i_cond)%pt % i_cond_frzmlt = i_cond_graup
-  case DEFAULT
+  case default
     call raise_fatal( routinename,                                             &
            "Freezing or melting condensed water species i_frzmlt "           //&
            "is set to an unrecognised species indicator."           //newline//&

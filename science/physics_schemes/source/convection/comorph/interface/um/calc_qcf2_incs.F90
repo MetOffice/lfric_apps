@@ -70,8 +70,8 @@ real(kind=real_umphys) :: dqcf
 integer :: i, j, k
 
 
-!$OMP PARALLEL DEFAULT(NONE) PRIVATE( i, j, k, dqcf )                          &
-!$OMP SHARED( tdims, i_call,                                                   &
+!$OMP parallel default(none) private( i, j, k, dqcf )                          &
+!$OMP shared( tdims, i_call,                                                   &
 !$OMP         m_cf, m_cf2, qcf_star, qcf2_star, qcf_inc, qcf2_inc )
 
 select case ( i_call )
@@ -79,7 +79,7 @@ select case ( i_call )
 case ( i_call_combine_in_qcf2 )
   ! Put all the ice-cloud mass in the qcf2 field to pass into comorph
 
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
   do k = 1, tdims%k_end
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
@@ -88,12 +88,12 @@ case ( i_call_combine_in_qcf2 )
       end do
     end do
   end do
-!$OMP END DO NOWAIT
+!$OMP end do nowait
 
 case ( i_call_subtract_qcf )
   ! Subtract qcf off from qcf2 again after the call to comorph
 
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
   do k = 1, tdims%k_end
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
@@ -109,7 +109,7 @@ case ( i_call_subtract_qcf )
       end do
     end do
   end do
-!$OMP END DO NOWAIT
+!$OMP end do nowait
 
 case ( i_call_repartition )
   ! Calculations so far have put the convection increment to
@@ -118,7 +118,7 @@ case ( i_call_repartition )
   ! Now repartition the increment between crystals and aggregates
   ! so that we detrain only aggregates:
 
-!$OMP DO SCHEDULE(STATIC)
+!$OMP do schedule(static)
   do k = 1, tdims%k_end
     do j = tdims%j_start, tdims%j_end
       do i = tdims%i_start, tdims%i_end
@@ -135,11 +135,11 @@ case ( i_call_repartition )
       end do
     end do
   end do
-!$OMP END DO NOWAIT
+!$OMP end do nowait
 
 end select
 
-!$OMP END PARALLEL
+!$OMP end parallel
 
 
 return
