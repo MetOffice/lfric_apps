@@ -19,7 +19,6 @@ KERNEL_LIST =
 
 # Variables per kernel...
 #
-# Nada
 
 do_psyad: $(if $(BUILD_ADJ_TESTS),$(WORKING_DIR)/driver/gen_adj_kernel_tests_mod.f90) \
           $(foreach kernel,$(KERNEL_LIST),$(WORKING_DIR)/$(kernel).adjoint)

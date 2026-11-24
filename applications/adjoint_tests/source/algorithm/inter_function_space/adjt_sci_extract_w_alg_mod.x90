@@ -27,7 +27,7 @@ module adjt_sci_extract_w_alg_mod
   contains
 
   !=============================================================================
-  !> @brief Adjoint test for adj_sci_combine_multidata_field_kernel
+  !> @brief Adjoint test for adj_sci_extract_w_kernel
   !> @param[in] config    Application namelist configuration object
   !> @param[in] mesh      A mesh object
   subroutine adjt_sci_extract_w_alg(config, mesh)

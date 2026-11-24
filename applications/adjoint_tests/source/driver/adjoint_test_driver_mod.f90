@@ -54,6 +54,7 @@ contains
     use adjt_sci_combine_multidata_field_alg_mod,   only : adjt_sci_combine_multidata_field_alg
     use adjt_sci_convert_hdiv_field_alg_mod,        only : adjt_sci_convert_hdiv_field_alg
     use adjt_sci_extract_w_alg_mod,                 only : adjt_sci_extract_w_alg
+    use adjt_split_w2_field_alg_mod,                only : adjt_split_w2_field_alg
 
     ! ./solver
     use adjt_apply_elim_mixed_lp_operator_alg_mod,  only : adjt_apply_elim_mixed_lp_operator_alg
@@ -148,7 +149,6 @@ contains
 
 
     use adjt_w2_to_w1_projection_alg_mod, only : adjt_w2_to_w1_projection_alg
-    use adjt_split_w2_field_alg_mod, only : adjt_split_w2_field_alg
     use adjt_strong_curl_alg_mod, only : adjt_strong_curl_alg
     use adjt_stabilise_bl_u_alg_mod, only : adjt_stabilise_bl_u_alg
     use adjt_apply_mixed_lu_operator_alg_mod, only : adjt_apply_mixed_lu_operator_alg
@@ -178,7 +178,6 @@ contains
 
 
     call adjt_w2_to_w1_projection_alg( mesh, chi, panel_id )
-    call adjt_split_w2_field_alg( mesh, chi, panel_id )
     call adjt_strong_curl_alg( mesh, chi, panel_id )
     call adjt_stabilise_bl_u_alg( mesh, chi, panel_id )
     call adjt_apply_mixed_lu_operator_alg( mesh, chi, panel_id )
@@ -231,6 +230,7 @@ contains
     call adjt_sci_combine_multidata_field_alg( modeldb%config, mesh )
     call adjt_sci_convert_hdiv_field_alg( modeldb%config, mesh, chi, panel_id )
     call adjt_sci_extract_w_alg( modeldb%config, mesh )
+    call adjt_split_w2_field_alg( modeldb%config, mesh )
 
     ! ./algebra
     call adjt_matrix_vector_alg( mesh )
