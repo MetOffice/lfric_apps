@@ -23,11 +23,9 @@
   <field_definition src="$METADATA/lfric_dictionary.xml"/>
   <field_definition src="$METADATA/field_def_diags.xml"/>
   <field_definition src="$METADATA/field_def_lbc_diags.xml"/>
-  <field_definition src="$METADATA/field_def_initial_diags.xml"/>
 
   <!-- Include file definitions -->
   <file_definition src="./file_def_diags_nwp.xml"/>
-  <file_definition src="./file_def_initial.xml"/>
   <file_definition src="./file_def_ancil.xml"/>
   <file_definition src="./file_def_check_restart.xml"/>
 
