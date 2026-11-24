@@ -53,6 +53,7 @@ contains
     use adjt_sci_average_w2b_to_w2_alg_mod,         only : adjt_sci_average_w2b_to_w2_alg
     use adjt_sci_combine_multidata_field_alg_mod,   only : adjt_sci_combine_multidata_field_alg
     use adjt_sci_convert_hdiv_field_alg_mod,        only : adjt_sci_convert_hdiv_field_alg
+    use adjt_sci_extract_w_alg_mod,                 only : adjt_sci_extract_w_alg
 
     ! ./solver
     use adjt_apply_elim_mixed_lp_operator_alg_mod,  only : adjt_apply_elim_mixed_lp_operator_alg
@@ -146,7 +147,6 @@ contains
     use atlt_si_timestep_alg_mod,                   only : atlt_si_timestep_alg
 
 
-    use adjt_sci_extract_w_alg_mod, only : adjt_sci_extract_w_alg
     use adjt_w2_to_w1_projection_alg_mod, only : adjt_w2_to_w1_projection_alg
     use adjt_split_w2_field_alg_mod, only : adjt_split_w2_field_alg
     use adjt_strong_curl_alg_mod, only : adjt_strong_curl_alg
@@ -177,7 +177,6 @@ contains
     call adj_trans_lookup_cache%initialise(modeldb%config, mesh)
 
 
-    call adjt_sci_extract_w_alg( mesh, chi, panel_id )
     call adjt_w2_to_w1_projection_alg( mesh, chi, panel_id )
     call adjt_split_w2_field_alg( mesh, chi, panel_id )
     call adjt_strong_curl_alg( mesh, chi, panel_id )
@@ -231,6 +230,7 @@ contains
     call adjt_sci_average_w2b_to_w2_alg( modeldb%config, mesh )
     call adjt_sci_combine_multidata_field_alg( modeldb%config, mesh )
     call adjt_sci_convert_hdiv_field_alg( modeldb%config, mesh, chi, panel_id )
+    call adjt_sci_extract_w_alg( modeldb%config, mesh )
 
     ! ./algebra
     call adjt_matrix_vector_alg( mesh )
