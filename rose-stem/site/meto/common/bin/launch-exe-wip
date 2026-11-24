@@ -9,9 +9,10 @@ source "${SCRIPT_DIR}/launcher_functions.sh"
 
 function main () {
     # VALIDATION LISTS
+    local BOOL_VALUES="True False"
     local VALID_PLATFORMS="meto-azspice meto-ex1a"
     local VALID_RUN_METHODS="executable mpiexec"
-    local BOOL_VALUES="True False"
+    local VALID_INTERLEAVING_METHODS="uniform asymmetric"
 
     # 1. Set the default environment
     # ------------------------------
@@ -26,17 +27,22 @@ function main () {
     utils::set_derived_vars
 
 
-    # Work out the required ppn value
-    utils::get_cores_per_node
+    if [ "${INTERLEAVE_EXECS}" = "True" ]; then
+        # Generate interleaving configuration
+        utils::interleave
+    else
+        # Work out the required ppn value
+        utils::get_cores_per_node
 
-    # Set the model launcher options
-    utils::set_model_options
+        # Set the model launcher options
+        utils::set_model_options
 
-    # Set the XIOS launcher options
-    utils::set_xios_options
+        # Set the XIOS launcher options
+        utils::set_xios_options
 
-    # Build the command from the component parts
-    utils::build_exec_command
+        # Build the command from the component parts
+        utils::build_exec_command
+    fi
 
     # Test mode trap
     if [ "${TEST_MODE}" = 0 ] ; then
