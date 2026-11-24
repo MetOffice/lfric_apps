@@ -26,10 +26,34 @@ SCRIPT_OPTIONS_DICT = {}
 
 # ## Local.py options for boundary layer ##
 
+SCRIPT_OPTIONS_DICT["bdy_expl2"+str(FILE_EXTEN)] = {
+    "ignore_dependencies_for": [
+        "visc_h", "bl_type_5", "bl_type_6", "cu_over_orog", "cumulus",
+        "l_shallow", "ntml", "sigma_h", "topbl", "zh_local"],
+    "safe_pure_calls" : ["qsat", "qsat_wat", "qsat_mix", "qsat_wat_mix"],
+    "opt_order": ['i', 'ii', 'l'],
+}
+
+
+# bdy_impl3 does not require an override
+
 SCRIPT_OPTIONS_DICT["bdy_impl4"+str(FILE_EXTEN)] = {
     "ignore_dependencies_for": [
         "dqw", "dtl", "qw", "tl",
         ],
+}
+
+SCRIPT_OPTIONS_DICT["dust_calc_emiss_frac"+str(FILE_EXTEN)] = {
+    "ignore_dependencies_for": [
+        "dust_emiss_frac",
+        ],
+}
+
+SCRIPT_OPTIONS_DICT["dust_srce"+str(FILE_EXTEN)] = {
+    "ignore_dependencies_for": [
+        "dust_flux_tot",
+        ],
+    "opt_order": ['m', 'n', 'l']
 }
 
 SCRIPT_OPTIONS_DICT["ex_flux_tq"+str(FILE_EXTEN)] = {
@@ -54,6 +78,7 @@ SCRIPT_OPTIONS_DICT["fm_drag"+str(FILE_EXTEN)] = {
         "tau_fd_x",
         "tau_fd_y"
         ],
+        "opt_order": ['i', 'ii', 'l']
 }
 
 SCRIPT_OPTIONS_DICT["imp_mix"+str(FILE_EXTEN)] = {
@@ -68,6 +93,16 @@ SCRIPT_OPTIONS_DICT["imp_mix"+str(FILE_EXTEN)] = {
     "max_threads_parse": True,
 }
 
+SCRIPT_OPTIONS_DICT["kmkhz_9c_wtrac"+str(FILE_EXTEN)] = {
+    "opt_order": ['i', 'ii', 'l']
+}
+
+SCRIPT_OPTIONS_DICT["kmkhz_9c"+str(FILE_EXTEN)] = {
+    "ignore_dependencies_for": [
+        ],
+    "safe_pure_calls" : ["qsat", "qsat_wat", "qsat_mix", "qsat_wat_mix"],
+}
+
 SCRIPT_OPTIONS_DICT["tr_mix"+str(FILE_EXTEN)] = {
     "ignore_dependencies_for": [
         "f_field",
@@ -75,4 +110,5 @@ SCRIPT_OPTIONS_DICT["tr_mix"+str(FILE_EXTEN)] = {
         "surf_dep_flux",
         "gamma_rhokh_rdz"
         ],
+    "opt_order": ['i', 'ii', 'k']
 }
