@@ -41,12 +41,14 @@ function utils::set_default_env () {
     : "${TEST_LAUNCH_EXE_EXEC:=""}"
     : "${TEST_MODE:=""}"
     : "${NAMELIST_FILE="${EXTRA_NAMELIST_FILES:=configuration.nml}"}"
+    : "${INTERLEAVE_EXECS:="False"}"
 
     # Set default values for UNSET env vars - preserves empty
     : "${XIOS_SERVER_EXEC_PATH="xios_server.exe"}"
     : "${PAT_EXE_EXTEN=""}"
     : "${LAUNCHER=""}"
     : "${BIN_DIR="."}"  # default to current directory
+    : "${EXECUTABLES=""}"
 
     # Depth value - default to OMP threads unless RANKS_DEPTH_PAD is larger
     : "${DEPTH_VAL:=${OMP_NUM_THREADS}}"
@@ -83,6 +85,67 @@ function utils::validate_env () {
 
     # This line will cause a fault if EXEC_NAME is not set.
     : "${EXEC_NAME:?LFRIC LAUNCHER ERROR: EXEC_NAME must name an executable to run.}"
+
+    # Validate interleaving vars now (early)
+    if [ "${INTERLEAVE_EXECS}" = "True" ]; then
+        utils::validate_interleaving_vars
+    fi
+
+}
+
+function utils::validate_interleaving_vars () {
+    # Interleaving requires the following variables:
+    # EXECUTABLES               A space-separated list of executable names in MPMD order. Names are case-insensitive.
+
+    # For each name listed in EXECUTABLES, the following are required (all uppercase):
+    # <EXEC>_RANKS_PER_NODE     The number of MPI ranks to give the executable.
+    # <EXEC>_RANK_DEPTH         The number of CPUs to allocate to each MPI rank.
+    # <EXEC>_OMP_NUM_THREADS    The number of OpenMP threads the executable will use.
+    # <EXEC>_PATH               The path to use for the executable.
+    # <EXEC>_TOTAL_RANKS        The total number of ranks the executable will use.
+
+    # 0. Validate that we are on a valid platform for interleaving
+    # ------------------------------------------------------------
+    if [ "${TARGET_PLATFORM}" != "meto-ex1a" ]; then
+        echo "LFRIC LAUNCHER ERROR: Interleaving is only valid on the EX platform" >&2
+        exit 1
+    fi
+
+    # 1. Validate that we are using a valid method
+    # --------------------------------------------
+    # Set default interleaving method to "uniform"
+    : "${INTERLEAVING_METHOD:="uniform"}"
+
+    # Validate that the method is allowed
+    exists_in_list "${INTERLEAVING_METHOD}" "${VALID_INTERLEAVING_METHODS}"
+
+    if [ "${INTERLEAVING_METHOD}" != "uniform" ]; then
+        echo "LFRIC LAUNCHER ERROR: Only uniform interleaving currently supported" >&2
+        exit 1
+    fi
+
+    # 2. Validate the required variables exist with values
+    # ----------------------------------------------------
+    # Assert that we have executables to interleave
+    : "${EXECUTABLES:=?LFRIC LAUNCHER ERROR: No executables defined in EXECUTABLES but INTERLEAVE_EXECS is True}"
+
+    # Assert that the required env vars for interleaving are set
+    for name in ${EXECUTABLES}; do
+        check_integer "${name^^}_RANKS_PER_NODE"
+        check_integer "${name^^}_RANK_DEPTH"
+        check_integer "${name^^}_OMP_NUM_THREADS"
+        check_integer "${name^^}_TOTAL_RANKS"
+        # Check if path is empty or unset
+        : "${!"${name^^}_PATH":=?LFRIC LAUNCHER ERROR: No path set for ${name} executable (use "${"${name^^}_PATH"}")}"
+    done
+
+    # Assert that an output directory exists
+    # (default to CYLC_TASK_WORK_DIR, which can default to BIN_DIR)
+    : "${INTERLEAVER_FILES:="${CYLC_TASK_WORK_DIR:="${BIN_DIR}"}"}"
+
+    # And the files that interleaving depends on (defaults for if empty or unset)
+    : "${HOSTFILE:="${INTERLEAVER_FILES}/hostfile.txt"}"
+    : "${BINDINGS_FILE:="${INTERLEAVER_FILES}/cpu_bind.txt"}"
 }
 
 # This function exists to set variables that are derived from required
@@ -96,7 +159,6 @@ function utils::set_derived_vars () {
 
     # Set executable path (if not already set or if empty)
     : "${EXEC_PATH:="${BIN_DIR}/${EXEC_NAME}${PAT_EXE_EXTEN}"}"
-
 }
 
 # Determine cores per-node requirements
@@ -253,7 +315,7 @@ function utils::build_exec_command () {
 
         # Warn users that their provided extras are being ignored
         if [ "${EXTRA_LAUNCHER_OPTS}" != "" ]; then
-            echo "LFRIC LAUNCHER INFO: Overriding EXTRA_LAUNCHER_OPTS in favour of Memory Profiling (MEMORY_PROFILE = "${MEMORY_PROFILE}")"
+            echo "LFRIC LAUNCHER INFO: Overriding EXTRA_LAUNCHER_OPTS in favour of Memory Profiling (MEMORY_PROFILE = "${MEMORY_PROFILE}")" >&2
         fi
 
         # Build the command
