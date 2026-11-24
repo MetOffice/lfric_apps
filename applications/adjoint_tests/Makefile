@@ -22,8 +22,8 @@ export PROJECT_DIR := $(realpath $(dir $(lastword $(MAKEFILE_LIST))))
 
 # Use custom PSyclone configuration.
 export PSYCLONE_CONFIG_FILE := $(PROJECT_DIR)/build/psyclone.cfg
-export BUILD_ADJ_TESTS   := TRUE
 export PSYAD_CONFIG_FILE := $(PSYCLONE_CONFIG_FILE)
+export BUILD_ADJ_TESTS   := TRUE
 
 export EXTRA_ROSE_META = jules
 export META_DIR = $(WORKING_DIR)/../rose-meta
