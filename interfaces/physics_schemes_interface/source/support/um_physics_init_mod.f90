@@ -1520,6 +1520,11 @@ contains
 
       ! Options used in Casim and old scheme
       l_mcr_qrain    = .true.
+      l_mcr_precfrac = l_mcr_precfrac_in  ! Switch for prognostic precip frac
+      if ( l_mcr_precfrac ) then
+        ! Switch for extra checks on precip fraction
+        l_improve_precfrac_checks = l_improve_precfrac_checks_in
+      end if
       l_mphys_nonshallow = .true.
       l_rain         = .true.
       l_subgrid_qcl_mp = turb_gen_mixph
@@ -1549,8 +1554,6 @@ contains
         ! for sedimentation vs process-rates in WB microphysics
         l_proc_fluxes = l_proc_fluxes_in
 
-        ! Namelist switch for prognostic precip fraction
-        l_mcr_precfrac = l_mcr_precfrac_in
         if ( l_mcr_precfrac ) THEN
           ! Set option for method of updating the precip fraction
           select case ( update_precfrac_opt )
@@ -1559,8 +1562,6 @@ contains
           case ( update_precfrac_opt_correl )
             i_update_precfrac = i_sg_correl
           end select
-          ! Switch for extra checks on precip fraction
-          l_improve_precfrac_checks = l_improve_precfrac_checks_in
         end if
 
         select case (graupel_scheme)

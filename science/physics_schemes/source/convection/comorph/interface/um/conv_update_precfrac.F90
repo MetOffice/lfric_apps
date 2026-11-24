@@ -27,6 +27,7 @@ use atm_fields_bounds_mod, only: tdims
 use calc_conv_incs_mod, only: i_call_save_before_conv, i_call_diff_to_get_incs
 use mphys_inputs_mod, only: l_mcr_qgraup, l_subgrid_graupel_frac
 use comorph_um_namelist_mod, only: rain_area_min
+use mphys_inputs_mod, only: i_update_precfrac, i_sg_correl, l_casim
 
 implicit none
 
@@ -65,6 +66,11 @@ real(kind=real_umphys), intent(in out) ::                                      &
                                         tdims%j_start:tdims%j_end,             &
                                         1:tdims%k_end )
 
+! Updated value of precip mass
+real(kind=real_umphys) :: q_prec_aft ( tdims%i_start:tdims%i_end,              &
+                                       tdims%j_start:tdims%j_end,              &
+                                       1:tdims%k_end )
+
 ! Loop counters
 integer :: i, j, k
 
@@ -72,8 +78,8 @@ integer :: i, j, k
 !$OMP PARALLEL DEFAULT(NONE) PRIVATE( i, j, k )                                &
 !$OMP SHARED( i_call, l_mcr_qgraup, l_subgrid_graupel_frac,                    &
 !$OMP         tdims, n_conv_levels,                                            &
-!$OMP         q_prec_b4, qrain_star, qgraup_star, precfrac_star,               &
-!$OMP         cca_bulk, rain_area_min )
+!$OMP         q_prec_b4, q_prec_aft, qrain_star, qgraup_star, precfrac_star,   &
+!$OMP         cca_bulk, rain_area_min, i_update_precfrac, l_casim )
 
 ! Which call to this routine are we in?
 select case (i_call)
@@ -89,7 +95,8 @@ case (i_call_save_before_conv)
     do k = 1, n_conv_levels
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
-          q_prec_b4(i,j,k) = qrain_star(i,j,k) + qgraup_star(i,j,k)
+          q_prec_b4(i,j,k) = max( qrain_star(i,j,k), 0.0 )                     &
+                           + max( qgraup_star(i,j,k), 0.0 )
         end do
       end do
     end do
@@ -99,7 +106,7 @@ case (i_call_save_before_conv)
     do k = 1, n_conv_levels
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
-          q_prec_b4(i,j,k) = qrain_star(i,j,k)
+          q_prec_b4(i,j,k) = max( qrain_star(i,j,k), 0.0 )
         end do
       end do
     end do
@@ -109,8 +116,7 @@ case (i_call_save_before_conv)
 case (i_call_diff_to_get_incs)
   ! 2nd call: subtract values before convection to get increments...
 
-  ! New precip fraction is weighted towards the convective cloud
-  ! fraction where the precip is produced.
+  ! Store the precip mixing ratio after convection
   ! (what counts as precip here depends on whether or not graupel
   !  is included in the precip fraction).
   if ( l_mcr_qgraup .and. l_subgrid_graupel_frac ) then
@@ -118,18 +124,8 @@ case (i_call_diff_to_get_incs)
     do k = 1, n_conv_levels
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
-          ! Where convection has produced precip...
-          if ( qrain_star(i,j,k)+qgraup_star(i,j,k) > q_prec_b4(i,j,k) ) then
-            ! Calculate precip-mass weighted new precip fraction:
-            precfrac_star(i,j,k)                                               &
-              = ( q_prec_b4(i,j,k) * precfrac_star(i,j,k)                      &
-                + ( qrain_star(i,j,k)+qgraup_star(i,j,k) - q_prec_b4(i,j,k) )  &
-                  * cca_bulk(i,j,k) )                                          &
-              / ( qrain_star(i,j,k) + qgraup_star(i,j,k) )
-          end if
-          if ( qrain_star(i,j,k)+qgraup_star(i,j,k) > 0.0 ) then
-            precfrac_star(i,j,k) = max( precfrac_star(i,j,k), rain_area_min )
-          end if
+          q_prec_aft(i,j,k) = max( qrain_star(i,j,k), 0.0 )                    &
+                            + max( qgraup_star(i,j,k), 0.0 )
         end do
       end do
     end do
@@ -139,23 +135,64 @@ case (i_call_diff_to_get_incs)
     do k = 1, n_conv_levels
       do j = tdims%j_start, tdims%j_end
         do i = tdims%i_start, tdims%i_end
-          ! Where convection has produced precip...
-          if ( qrain_star(i,j,k) > q_prec_b4(i,j,k) ) then
-            ! Calculate rain-mass weighted new rain fraction:
-            precfrac_star(i,j,k)                                               &
-              = ( q_prec_b4(i,j,k) * precfrac_star(i,j,k)                      &
-                + ( qrain_star(i,j,k) - q_prec_b4(i,j,k) )                     &
-                  * cca_bulk(i,j,k) )                                          &
-              / qrain_star(i,j,k)
-          end if
-          if ( qrain_star(i,j,k) > 0.0 ) then
-            precfrac_star(i,j,k) = max( precfrac_star(i,j,k), rain_area_min )
-          end if
+          q_prec_aft(i,j,k) = max( qrain_star(i,j,k), 0.0 )
         end do
       end do
     end do
 !$OMP END DO NOWAIT
   end if
+
+  ! New precip fraction is weighted towards the convective cloud
+  ! fraction where the precip is produced.
+  if ( l_casim .or. i_update_precfrac==i_sg_correl ) then
+    ! Use precip-mass-weighted mean of 1/sqrt(area) (default option with CASIM)
+
+  !$OMP DO SCHEDULE(STATIC)
+    do k = 1, n_conv_levels
+      do j = tdims%j_start, tdims%j_end
+        do i = tdims%i_start, tdims%i_end
+          ! Where convection has produced precip...
+          if ( q_prec_aft(i,j,k) > q_prec_b4(i,j,k) ) then
+            ! Calculate precip-mass weighted new precip fraction:
+            precfrac_star(i,j,k)                                               &
+              = ( q_prec_aft(i,j,k)                                            &
+                / ( q_prec_b4(i,j,k)                                           &
+                    / sqrt(max(precfrac_star(i,j,k), rain_area_min))           &
+                  + ( q_prec_aft(i,j,k) - q_prec_b4(i,j,k) )                   &
+                    / sqrt(max(cca_bulk(i,j,k), rain_area_min)) )              &
+                )**2
+          end if
+        end do
+      end do
+    end do
+  !$OMP END DO NOWAIT
+
+  else  ! not CASIM and i_update_precfrac==i_homog_areas
+    ! Use precip-mass-weighted mean of area (original version)
+
+  !$OMP DO SCHEDULE(STATIC)
+    do k = 1, n_conv_levels
+      do j = tdims%j_start, tdims%j_end
+        do i = tdims%i_start, tdims%i_end
+          ! Where convection has produced precip...
+          if ( q_prec_aft(i,j,k) > q_prec_b4(i,j,k) ) then
+            ! Calculate precip-mass weighted new precip fraction:
+            precfrac_star(i,j,k)                                               &
+              = ( q_prec_b4(i,j,k)                                             &
+                  * precfrac_star(i,j,k)                                       &
+                + ( q_prec_aft(i,j,k) - q_prec_b4(i,j,k) )                     &
+                  * cca_bulk(i,j,k) )                                          &
+              / q_prec_aft(i,j,k)
+          end if
+          if ( q_prec_aft(i,j,k) > 0.0 ) then
+            precfrac_star(i,j,k) = max( precfrac_star(i,j,k), rain_area_min )
+          end if
+        end do
+      end do
+    end do
+  !$OMP END DO NOWAIT
+
+  end if  ! not CASIM and i_update_precfrac==i_homog_areas
 
 end select  ! CASE(i_call)
 
