@@ -1393,6 +1393,32 @@
         "plot_str": "plot_scm.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
     }) %}
 
+{% elif task_ns.conf_name == "scm_solinsol_land-BiP2x2-50000x50000" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["l70_40km","solinsol","dice2"],
+        "resolution": "BiP2x2-50000x50000",
+        "DT": 600,
+        "tsteps": 432,
+        "crun": 2,
+        "wallclock": 5,
+        "kgo_checks": ["checksum"],
+        "plot_str": "plot_scm.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
+    }) %}
+
+{% elif task_ns.conf_name == "scm_solinsol_sea-BiP2x2-50000x50000" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["l85_85km","solinsol","toga"],
+        "resolution": "BiP2x2-50000x50000",
+        "DT": 1200,
+        "tsteps": 432,
+        "crun": 2,
+        "wallclock": 5,
+        "kgo_checks": ["checksum"],
+        "plot_str": "plot_scm.py $NODAL_DATA_DIR/lfric_diagnostics.nc  $PLOT_DIR",
+    }) %}
+
 {% elif task_ns.conf_name == "scm_hd209458b-BiP2x2-50000x50000" %}
 
     {% do task_dict.update({
