@@ -185,13 +185,14 @@ contains
     ! Perform semi-implicit timestep (i.e., forward code)
     ! --------------------------------------------------------------------------
 
-    call tl_semi_implicit_alg_init( mesh, u, rho, theta, exner, mr,   &
-                                    ls_u, ls_rho, ls_theta, ls_exner, &
-                                    ls_mr, ls_moist_dyn, modeldb, (num_steps == 1) )
+    call tl_semi_implicit_alg_init( modeldb%config, mesh, modeldb%clock, &
+                                    u, rho, theta, exner, mr, ls_u, ls_rho, &
+                                    ls_theta, ls_exner, ls_mr, ls_moist_dyn, &
+                                    (num_steps == 1) )
 
     call compute_si_operators_common( modeldb%config, ls_theta, ls_rho, ls_exner, &
                                       ls_moist_dyn )
-    call compute_helmholtz_operators( modeldb%clock, stepper_siqn )
+    call compute_helmholtz_operators( modeldb%config, modeldb%clock, stepper_siqn )
 
     do i = 1, num_steps
       call tl_semi_implicit_alg_step( modeldb, u, rho, theta, exner, mr, moist_dyn,          &

@@ -38,7 +38,9 @@ type :: config
   integer(kind=int64), allocatable :: stash_list(:)
   integer(kind=int64), allocatable :: lbtim_list(:)
   integer(kind=int64), allocatable :: lbproc_list(:)
+  integer(kind=int64), allocatable :: num_ice_cats
   integer(kind=int64), allocatable :: num_snow_layers
+  integer(kind=int64), allocatable :: num_snow_layers_and_tiles
   integer(kind=int64), allocatable :: num_surface_types
   integer(kind=int64) :: um_version_int = um_imdi
   integer(kind=int64) :: dump_validity_time(6) = um_imdi
@@ -117,7 +119,9 @@ character(len=fnamelen) :: um_land_sea_mask_file = 'unset'
 integer(kind=int64) :: stash_list(max_stash_list)
 integer(kind=int64) :: lbtim_list(max_stash_list)
 integer(kind=int64) :: lbproc_list(max_stash_list)
+integer(kind=int64) :: num_ice_cats = um_imdi
 integer(kind=int64) :: num_snow_layers = um_imdi
+integer(kind=int64) :: num_snow_layers_and_tiles = um_imdi
 integer(kind=int64) :: num_surface_types = um_imdi
 integer(kind=int64) :: um_version_int = um_imdi
 integer(kind=int64) :: dump_validity_time(6) = um_imdi
@@ -132,7 +136,8 @@ namelist /configure_lfric2um/ output_filename,                                 &
                               weights_file_face_centre_to_p_land_mask_bilinear,&
                           weights_file_face_centre_to_p_land_mask_neareststod, &
                               um_land_sea_mask_file,                           &
-                              stash_list, num_snow_layers, num_surface_types,  &
+                              stash_list, num_ice_cats, num_snow_layers,       &
+                              num_snow_layers_and_tiles, num_surface_types,    &
                               lbtim_list,                                      &
                               lbproc_list,                                     &
                               um_version_int,                                  &
@@ -197,9 +202,21 @@ if (trim(target_grid_namelist) == 'unset') then
   call log_event(self%message, LOG_LEVEL_ERROR)
 end if
 
+if (num_ice_cats == um_imdi) then
+  self%status = 1
+  self%message='Number of ice categories is unset'
+  call log_event(self%message, LOG_LEVEL_INFO)
+end if
+
 if (num_snow_layers == um_imdi) then
   self%status = 1
   self%message='Number of snow layers is unset'
+  call log_event(self%message, LOG_LEVEL_INFO)
+end if
+
+if (num_snow_layers_and_tiles == um_imdi) then
+  self%status = 1
+  self%message='Number of snow layers and tiles is unset'
   call log_event(self%message, LOG_LEVEL_INFO)
 end if
 
@@ -236,7 +253,9 @@ self%weights_file_face_centre_to_p_land_mask_bilinear =                        &
 self%weights_file_face_centre_to_p_land_mask_neareststod =                     &
                             weights_file_face_centre_to_p_land_mask_neareststod
 self%um_land_sea_mask_file = um_land_sea_mask_file
+self%num_ice_cats = num_ice_cats
 self%num_snow_layers = num_snow_layers
+self%num_snow_layers_and_tiles = num_snow_layers_and_tiles
 self%num_surface_types = num_surface_types
 self%um_version_int = um_version_int
 self%dump_validity_time(:) = dump_validity_time(:)
@@ -246,9 +265,9 @@ self%num_fields=0
 do i_stash = 1, max_stash_list
   if (stash_list(i_stash) == um_imdi) then
     exit
-  else
-    self%num_fields = self%num_fields + 1
   end if
+
+  self%num_fields = self%num_fields + 1
 end do
 
 if (self%num_fields <= 0) then

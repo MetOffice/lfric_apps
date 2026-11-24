@@ -59,6 +59,24 @@
         "kgo_checks": "",
     }) %}
 
+{% elif task_ns.conf_name == "lfric2um-r2o-C448L70_N1280L70" %}
+
+    {% do task_dict.update({
+        "opt_confs": ["r2o"],
+        "resolution": "C448",
+        "mesh_name": "dynamics",
+        "source_grid_res": "C448",
+        "source_grid_levs": "70",
+        "source_grid_type": "global",
+        "target_grid_res": "N1280",
+        "target_grid_levs": "70",
+        "target_grid_type": "global",
+        "source_dump": "$BIG_DATA_DIR/lfric2um/apps3.2/lfric2um_startdump_r2o_C448L70.nc",
+        "namelist_src": "um_grid.nml",
+        "memory_plot_ex": true,
+        "kgo_checks": "",
+    }) %}
+
 {% elif task_ns.conf_name == "lfric2um-umlam-C48L70_N512L70" %}
 
     {% do task_dict.update({

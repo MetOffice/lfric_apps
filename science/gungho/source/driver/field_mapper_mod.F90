@@ -36,10 +36,10 @@ module field_mapper_mod
 
     type(field_collection_type), pointer :: depository
     type(field_collection_type), pointer :: prognostic
-    type(field_collection_type), pointer :: adv_all_outer
-    type(field_collection_type), pointer :: adv_last_outer
-    type(field_collection_type), pointer :: con_all_outer
-    type(field_collection_type), pointer :: con_last_outer
+    type(field_collection_type), pointer :: pos_all_outer
+    type(field_collection_type), pointer :: pos_last_outer
+    type(field_collection_type), pointer :: gen_all_outer
+    type(field_collection_type), pointer :: gen_last_outer
     type(field_collection_type), pointer :: derived
     type(field_collection_type), pointer :: radiation
     type(field_collection_type), pointer :: microphysics
@@ -122,10 +122,10 @@ contains
   !> @param[in,out] depository Main collection of all fields in memory
   !> @param[in,out] moisture_fields Collection of moisture field arrays
   !> @param[in,out] prognostic_fields The prognostic variables in the model
-  !> @param[in,out] adv_tracer_all_outer Collection of fields that need to be advected every outer iteration
-  !> @param[in,out] adv_tracer_last_outer Collection of fields that need to be advected at final outer iteration
-  !> @param[in,out] con_tracer_all_outer Second collection of fields that need to be advected every outer iteration
-  !> @param[in,out] con_tracer_last_outer Second collection of fields that need to be advected at final outer iteration
+  !> @param[in,out] gen_tracer_all_outer Collection of fields that need to be advected every outer iteration
+  !> @param[in,out] gen_tracer_last_outer Collection of fields that need to be advected at final outer iteration
+  !> @param[in,out] pos_tracer_all_outer Second collection of fields that need to be advected every outer iteration
+  !> @param[in,out] pos_tracer_last_outer Second collection of fields that need to be advected at final outer iteration
   !> @param[in,out] derived_fields Collection of FD fields derived from FE fields
   !> @param[in,out] radiation_fields Collection of fields for radiation scheme
   !> @param[in,out] microphysics_fields Collection of fields for microphys scheme
@@ -146,10 +146,10 @@ contains
     depository_fields,     &
     moisture_fields,       &
     prognostic_fields,     &
-    adv_tracer_all_outer,  &
-    adv_tracer_last_outer, &
-    con_tracer_all_outer,  &
-    con_tracer_last_outer, &
+    gen_tracer_all_outer,  &
+    gen_tracer_last_outer, &
+    pos_tracer_all_outer,  &
+    pos_tracer_last_outer, &
     derived_fields,        &
     radiation_fields,      &
     microphysics_fields,   &
@@ -173,10 +173,10 @@ contains
     type(field_collection_type), target, intent(inout) :: depository_fields
     type(field_collection_type), target, intent(inout) :: moisture_fields
     type(field_collection_type), target, intent(inout) :: prognostic_fields
-    type(field_collection_type), target, intent(inout) :: adv_tracer_all_outer
-    type(field_collection_type), target, intent(inout) :: adv_tracer_last_outer
-    type(field_collection_type), target, intent(inout) :: con_tracer_all_outer
-    type(field_collection_type), target, intent(inout) :: con_tracer_last_outer
+    type(field_collection_type), target, intent(inout) :: gen_tracer_all_outer
+    type(field_collection_type), target, intent(inout) :: gen_tracer_last_outer
+    type(field_collection_type), target, intent(inout) :: pos_tracer_all_outer
+    type(field_collection_type), target, intent(inout) :: pos_tracer_last_outer
     type(field_collection_type), target, intent(inout) :: derived_fields
     type(field_collection_type), target, intent(inout) :: radiation_fields
     type(field_collection_type), target, intent(inout) :: microphysics_fields
@@ -198,10 +198,10 @@ contains
     self%depository => depository_fields
     self%moisture => moisture_fields
     self%prognostic => prognostic_fields
-    self%adv_all_outer => adv_tracer_all_outer
-    self%adv_last_outer => adv_tracer_last_outer
-    self%con_all_outer => con_tracer_all_outer
-    self%con_last_outer => con_tracer_last_outer
+    self%gen_all_outer => gen_tracer_all_outer
+    self%gen_last_outer => gen_tracer_last_outer
+    self%pos_all_outer => pos_tracer_all_outer
+    self%pos_last_outer => pos_tracer_last_outer
     self%derived => derived_fields
     self%radiation => radiation_fields
     self%microphysics => microphysics_fields
@@ -267,14 +267,14 @@ contains
     select case(adv_coll)
     case(adv_coll_dict%none)
       coll_ptr => null()
-    case(adv_coll_dict%all_adv)
-      coll_ptr => self%adv_all_outer
-    case(adv_coll_dict%last_adv)
-      coll_ptr => self%adv_last_outer
-    case(adv_coll_dict%all_con)
-      coll_ptr => self%con_all_outer
-    case(adv_coll_dict%last_con)
-      coll_ptr => self%con_last_outer
+    case(adv_coll_dict%all_gen)
+      coll_ptr => self%gen_all_outer
+    case(adv_coll_dict%last_gen)
+      coll_ptr => self%gen_last_outer
+    case(adv_coll_dict%all_pos)
+      coll_ptr => self%pos_all_outer
+    case(adv_coll_dict%last_pos)
+      coll_ptr => self%pos_last_outer
     case default
       coll_ptr => null()
       call log_event('unexpected advected collection enumerator', log_level_error)

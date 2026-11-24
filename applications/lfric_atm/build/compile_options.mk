@@ -43,3 +43,10 @@ $(info Disable warnings-turned-error caused by undeclared external functions - s
 %mpi_mod.o: private FFLAGS_EXTRA = $(FFLAGS_INTEL_EXTERNALS)
 socrates/src/radiance_core/%.o: private FFLAGS_EXTRA = $(FFLAGS_INTEL_EXTERNALS)
 socrates/src/interface_core/%.o: private FFLAGS_EXTRA = $(FFLAGS_INTEL_EXTERNALS)
+
+ifdef COUPLED
+ifeq ("$(COUPLED)","True")
+$(info Disabling inlining for lfric_xios modules for LFRic_Atm Coupled Builds)
+lfric_xios_%.o: private FFLAGS_EXTRA = -hipa0
+endif
+endif

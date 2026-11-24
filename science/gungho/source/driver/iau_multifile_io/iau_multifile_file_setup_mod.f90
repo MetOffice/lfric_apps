@@ -13,7 +13,7 @@ module iau_multifile_file_setup_mod
   use driver_modeldb_mod,    only: modeldb_type
   use field_collection_mod,  only: field_collection_type
   use file_mod,              only: file_type, FILE_MODE_READ
-  use lfric_xios_file_mod,   only: lfric_xios_file_type, OPERATION_ONCE
+  use lfric_xios_file_mod,   only: lfric_xios_file_type, OPERATION_ONCE, CONVENTION_UGRID
   use linked_list_mod,       only: linked_list_type
 
   ! Configuration modules
@@ -63,6 +63,7 @@ contains
         io_mode=FILE_MODE_READ, &
         freq=1, &
         operation=OPERATION_ONCE, &
+        file_convention=CONVENTION_UGRID, &
         fields_in_file=multifile_fields))
 
     end if ! use_xios_io

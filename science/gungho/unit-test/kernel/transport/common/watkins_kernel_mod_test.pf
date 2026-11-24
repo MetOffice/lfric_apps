@@ -27,6 +27,7 @@ contains
 
     real(kind=r_tran),   parameter   :: tol = 1.0e-6_r_tran
     real(kind=r_tran),   parameter   :: dt = 2.0_r_tran
+    integer(kind=i_def), parameter   :: num_substeps = 1
 
     integer(kind=i_def)              :: nlayers
     integer(kind=i_def)              :: ndf_w2v, ndf_w3, ndf_w3_2d
@@ -160,6 +161,7 @@ contains
                        wind,                &
                        dt,                  &
                        detj_at_w3,          &
+                       num_substeps,        &
                        ndf_w2v,             &
                        undf_w2v,            &
                        map_w2v,             &
@@ -261,6 +263,7 @@ contains
                        wind,                &
                        dt,                  &
                        detj_at_w3,          &
+                       num_substeps,        &
                        ndf_w2v,             &
                        undf_w2v,            &
                        map_w2v,             &

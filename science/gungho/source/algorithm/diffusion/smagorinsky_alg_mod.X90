@@ -200,7 +200,7 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
 
       ! delta is calculated in sci_calc_delta_at_wtheta_kernel_mod.F90
       ! in lfric core as the mininum of the cell horizontal edge lengths
-      delta => get_delta_at_wtheta(mesh)
+      delta => get_delta_at_wtheta(config, mesh)
 
       if (smag_l_calc == smag_l_calc_use_geo) then
         ! Use geometric mean mixing length
@@ -286,16 +286,17 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
     ! ======================================================================== !
     ! Potential temperature:
     call smagorinsky_tracer_alg(                                               &
-        dtheta, theta, visc_h_ptr, rho_in_sh_w2h, rho_in_wth, dt               &
+        config, dtheta, theta, visc_h_ptr, rho_in_sh_w2h, rho_in_wth, dt       &
     )
 
     if (use_moisture) then
       ! Water vapour and cloud liquid:
       call smagorinsky_tracer_alg(                                             &
-          dmr_v, mr(imr_v), visc_h_ptr, rho_in_sh_w2h, rho_in_wth, dt          &
+          config, dmr_v, mr(imr_v), visc_h_ptr, rho_in_sh_w2h, rho_in_wth, dt  &
       )
       call smagorinsky_tracer_alg(                                             &
-          dmr_cl, mr(imr_cl), visc_h_ptr, rho_in_sh_w2h, rho_in_wth, dt        &
+          config, dmr_cl, mr(imr_cl), visc_h_ptr, rho_in_sh_w2h, rho_in_wth,   &
+          dt                                                                   &
       )
     end if
 
@@ -399,6 +400,7 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
   end subroutine smagorinsky_alg
 
   !> @details Performs Smagorinsky diffusion on a Wtheta tracer field
+  !> @param[in]     config      Application configuration object
   !> @param[in,out] increment   The diffusion increment for the tracer
   !> @param[in]     tracer      The tracer field to be diffused
   !> @param[in]     visc_h      The horizontal viscosity field
@@ -407,11 +409,12 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
   !> @param[in]     rho_in_wth  The density field at Wtheta points. Unused if
   !!                            not using conservative diffusion.
   !> @param[in]     dt          Timestep length
-  subroutine smagorinsky_tracer_alg(                                           &
-      increment, tracer, visc_h, rho_in_w2h, rho_in_wth, dt                    &
-  )
+  subroutine smagorinsky_tracer_alg( config, increment, tracer, visc_h, &
+                                     rho_in_w2h, rho_in_wth, dt )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Arguments
     type(field_type), intent(inout) :: increment
@@ -446,10 +449,10 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
       shifted_mesh_id = shifted_mesh%get_id()
       w3_sh_fs => function_space_collection%get_fs(shifted_mesh, 0, 0, W3)
       w2h_sh_fs => function_space_collection%get_fs(shifted_mesh, 0, 0, W2H)
-      dA => get_dA_at_w2(shifted_mesh)
-      volume => get_detj_at_w3_fv(shifted_mesh)
+      dA => get_dA_at_w2(config, shifted_mesh)
+      volume => get_detj_at_w3_fv(config, shifted_mesh)
       rmult => get_rmultiplicity_fv(W2H, shifted_mesh_id)
-      dx_at_w2 => get_dx_at_w2(shifted_mesh)
+      dx_at_w2 => get_dx_at_w2(config, shifted_mesh)
 
       call tracer_shifted%initialise(w3_sh_fs)
       call increment_shifted%initialise(w3_sh_fs)
@@ -470,7 +473,7 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
       )
 
     else
-      dx_at_w2 => get_dx_at_w2(mesh)
+      dx_at_w2 => get_dx_at_w2(config, mesh)
 
       ! Non-conservative Smagorinsky diffusion, using Laplacian directly
       call invoke(                                                             &
@@ -545,7 +548,7 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
     shifted_mesh => mesh_collection%get_mesh(mesh, SHIFTED)
 
     panel_id => get_panel_id( mesh )
-    dx_at_w2 => get_dx_at_w2( mesh )
+    dx_at_w2 => get_dx_at_w2( config, mesh )
     height_w1 => get_height_fv(config, mesh, W1)
 
     face_selector_ew => get_face_selector_ew(mesh)
@@ -554,13 +557,13 @@ subroutine smagorinsky_alg( config, dtheta_io, du_io, mr, theta, u,   &
     if (conservative_diffusion) then
       height_wth => get_height_fv(config, mesh, Wtheta)
       height_w3 => get_height_fv(config, mesh, W3)
-      dA_at_w2 => get_dA_at_w2( mesh )
-      detj_at_w2 => get_detj_at_w2_fv( mesh )
+      dA_at_w2 => get_dA_at_w2(config, mesh)
+      detj_at_w2 => get_detj_at_w2_fv(config, mesh)
       rmult => get_rmultiplicity_fv(W2H, mesh%get_id())
 
-      dx_at_sh_w2 => get_dx_at_w2( shifted_mesh )
-      dA_at_sh_w2 => get_dA_at_w2( shifted_mesh )
-      detj_at_sh_w2 => get_detj_at_w3_fv( shifted_mesh )
+      dx_at_sh_w2 => get_dx_at_w2(config, shifted_mesh)
+      dA_at_sh_w2 => get_dA_at_w2(config, shifted_mesh)
+      detj_at_sh_w2 => get_detj_at_w3_fv( config, shifted_mesh )
 
       fullstress = config%mixing%fullstress()
 
