@@ -68,7 +68,7 @@ module adjt_sample_field_alg_mod
     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
 
 
-    vector_space_w0_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w0)
+    vector_space_w0_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,W0)
     call field_1%initialise(vector_space=vector_space_w0_ptr, name='field_1')
     call rmultiplicity%initialise(vector_space=vector_space_w0_ptr, name='rmultiplicity')
     call field_2%initialise(vector_space=vector_space_w0_ptr, name='field_2')

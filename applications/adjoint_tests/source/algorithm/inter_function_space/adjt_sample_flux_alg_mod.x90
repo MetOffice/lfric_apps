@@ -21,7 +21,9 @@ module adjt_sample_flux_alg_mod
                                                 LOG_LEVEL_INFO
 
   implicit none
-  public
+
+  private
+  public :: adjt_sample_flux_alg
 
   contains
 

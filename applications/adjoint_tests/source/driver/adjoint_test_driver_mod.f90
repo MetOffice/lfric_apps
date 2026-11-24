@@ -50,6 +50,7 @@ contains
     use adjt_combine_w2_field_alg_mod,              only : adjt_combine_w2_field_alg
     use adjt_sample_field_alg_mod,                  only : adjt_sample_field_alg
     use adjt_sample_flux_alg_mod,                   only : adjt_sample_flux_alg
+    use adjt_sci_average_w2b_to_w2_alg_mod,         only : adjt_sci_average_w2b_to_w2_alg
     use adjt_sci_convert_hdiv_field_alg_mod,        only : adjt_sci_convert_hdiv_field_alg
 
     ! ./solver
@@ -144,7 +145,6 @@ contains
     use atlt_si_timestep_alg_mod,                   only : atlt_si_timestep_alg
 
 
-    use adjt_sci_average_w2b_to_w2_alg_mod, only : adjt_sci_average_w2b_to_w2_alg
     use adjt_sci_combine_multidata_field_alg_mod, only : adjt_sci_combine_multidata_field_alg
     use adjt_sci_extract_w_alg_mod, only : adjt_sci_extract_w_alg
     use adjt_w2_to_w1_projection_alg_mod, only : adjt_w2_to_w1_projection_alg
@@ -176,7 +176,6 @@ contains
     call adj_solver_lookup_cache%initialise(mesh)
     call adj_trans_lookup_cache%initialise(modeldb%config, mesh)
 
-    call adjt_sci_average_w2b_to_w2_alg( mesh, chi, panel_id )
     call adjt_sci_combine_multidata_field_alg( mesh, chi, panel_id )
     call adjt_sci_extract_w_alg( mesh, chi, panel_id )
     call adjt_w2_to_w1_projection_alg( mesh, chi, panel_id )
@@ -229,6 +228,7 @@ contains
     call adjt_combine_w2_field_alg( mesh )
     call adjt_sample_field_alg( mesh )
     call adjt_sample_flux_alg( mesh )
+    call adjt_sci_average_w2b_to_w2_alg( mesh )
     call adjt_sci_convert_hdiv_field_alg( modeldb%config, mesh, chi, panel_id )
 
     ! ./algebra
