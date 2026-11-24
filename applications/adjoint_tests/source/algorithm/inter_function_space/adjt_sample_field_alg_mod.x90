@@ -87,11 +87,11 @@ module adjt_sample_field_alg_mod
                  x_innerproduct_x(field_2_inner_prod, field_2) )
 
     write( log_scratch_space, * ) "adjt_sample_field_alg inner products:"
-    call log_event( log_scratch_space, log_level_debug )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
     write( log_scratch_space, * ) "field_1 inner product = ", field_1_inner_prod
-    call log_event( log_scratch_space, log_level_debug )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
     write( log_scratch_space, * ) "field_2 inner product = ", field_2_inner_prod
-    call log_event( log_scratch_space, log_level_debug )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
 
     field_1_sf = 1.0_r_def / (field_1_inner_prod + EPS)
     field_2_sf = 1.0_r_def / (field_2_inner_prod + EPS)

@@ -1,32 +1,58 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Module containing standard adjoint test for adj_sample_flux_kernel
 module adjt_sample_flux_alg_mod
+
+  use field_mod,                         only : field_type
+  use function_space_mod,                only : function_space_type
+  use mesh_mod,                          only : mesh_type
+  use function_space_collection_mod,     only : function_space_collection
+  use finite_element_config_mod,         only : element_order_h, element_order_v
+  use fs_continuity_mod,                 only : W0, W2
+  use constants_mod,                     only : i_def, r_def, EPS
+  use log_mod,                           only : log_event,         &
+                                                log_scratch_space, &
+                                                LOG_LEVEL_ERROR,   &
+                                                LOG_LEVEL_DEBUG,   &
+                                                LOG_LEVEL_INFO
+
   implicit none
   public
 
   contains
-  subroutine adjt_sample_flux_alg(mesh, chi, panel_id)
-    use field_mod, only : field_type
-    use function_space_mod, only : function_space_type
-    use mesh_mod, only : mesh_type
-    use function_space_collection_mod, only : function_space_collection
-    use sample_flux_kernel_mod, only : sample_flux_kernel_type
+
+  !=============================================================================
+  !> @brief Adjoint test for adj_sample_flux_kernel
+  !> @param[in] mesh      A mesh object
+  subroutine adjt_sample_flux_alg(mesh)
+
+    use sample_flux_kernel_mod,     only : sample_flux_kernel_type
     use adj_sample_flux_kernel_mod, only : adj_sample_flux_kernel_type
-    use finite_element_config_mod, only : element_order_h, element_order_v
-    use fs_continuity_mod, only : w0, w2
-    use constants_mod, only : i_def, r_def
-    use setop_random_kernel_mod, only : setop_random_kernel_type
-    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space, log_level_debug
-    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+
+    implicit none
+
+    ! Arguments
     type(mesh_type), pointer, intent(in) :: mesh
-    type(field_type), dimension(3), intent(in), optional :: chi
-    type(field_type), intent(in), optional :: panel_id
-    TYPE(function_space_type), POINTER :: vector_space_w0_ptr
-    TYPE(function_space_type), POINTER :: vector_space_w2_ptr
+
+    ! Arguments for forward and adjoint calls
     type(field_type) :: flux
     type(field_type) :: u
     type(field_type) :: rmultiplicity
     type(field_type) :: q
+
+    ! Copies of input fields used in inner products
     type(field_type) :: flux_input
     type(field_type) :: u_input
+
+    ! Variables for initialising fields
+    type(function_space_type), pointer :: vector_space_w0_ptr
+    type(function_space_type), pointer :: vector_space_w2_ptr
+
+    ! Inner products
     real(kind=r_def) :: flux_inner_prod
     real(kind=r_def) :: u_inner_prod
     real(kind=r_def) :: flux_sf
@@ -35,56 +61,72 @@ module adjt_sample_flux_alg_mod
     real(kind=r_def) :: flux_flux_input_inner_prod
     real(kind=r_def) :: u_u_input_inner_prod
     real(kind=r_def) :: inner2
-    real(kind=r_def) :: MachineTol
-    real(kind=r_def) :: relative_diff
-    real(kind=r_def), parameter :: eps = 1.0e-30_r_def
 
-    vector_space_w0_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w0)
-    vector_space_w2_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2)
+    ! Test parameters and variables
+    real(kind=r_def)            :: machine_tol
+    real(kind=r_def)            :: relative_diff
+    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+
+    vector_space_w0_ptr => function_space_collection%get_fs(mesh, element_order_h, &
+                                                            element_order_v, W0)
+    vector_space_w2_ptr => function_space_collection%get_fs(mesh, element_order_h, &
+                                                            element_order_v, W2)
     call flux%initialise(vector_space=vector_space_w2_ptr, name='flux')
     call u%initialise(vector_space=vector_space_w2_ptr, name='u')
     call rmultiplicity%initialise(vector_space=vector_space_w2_ptr, name='rmultiplicity')
     call q%initialise(vector_space=vector_space_w0_ptr, name='q')
     call flux_input%initialise(vector_space=vector_space_w2_ptr, name='flux_input')
     call u_input%initialise(vector_space=vector_space_w2_ptr, name='u_input')
+
     u_inner_prod = 0.0_r_def
+    flux_inner_prod = 0.0_r_def
+
     ! Initialise arguments and call the tangent-linear kernel.
-    call invoke(setval_random(flux), setval_x(flux_input, flux), setval_random(u), setval_x(u_input, u), &
-&setval_random(rmultiplicity), setval_random(q), &
-&sample_flux_kernel_type(flux, u, rmultiplicity, q), x_innerproduct_x(flux_inner_prod, flux), x_innerproduct_x(u_inner_prod, u))
+    call invoke( setval_random(flux), setval_x(flux_input, flux),    &
+                 setval_random(u), setval_x(u_input, u),             &
+                 setval_random(rmultiplicity),                       &
+                 setval_random(q),                                   &
+                 sample_flux_kernel_type(flux, u, rmultiplicity, q), &
+                 x_innerproduct_x(flux_inner_prod, flux),            &
+                 x_innerproduct_x(u_inner_prod, u) )
+
     write( log_scratch_space, * ) "adjt_sample_flux_alg inner products:"
-    call log_event( log_scratch_space, log_level_debug )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
     write( log_scratch_space, * ) "flux inner product = ", flux_inner_prod
-    call log_event( log_scratch_space, log_level_debug )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
     write( log_scratch_space, * ) "u inner product = ", u_inner_prod
-    call log_event( log_scratch_space, log_level_debug )
-    u_sf = 1.0_r_def / (u_inner_prod + eps)
-    flux_sf = 1.0_r_def / (flux_inner_prod + eps)
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    u_sf = 1.0_r_def / (u_inner_prod + EPS)
+    flux_sf = 1.0_r_def / (flux_inner_prod + EPS)
+
     inner1 = 0.0_r_def
     inner1 = inner1 + flux_inner_prod * flux_sf
     inner1 = inner1 + u_inner_prod * u_sf
-    call invoke( inc_a_times_X( flux_sf, flux ), &
-                 inc_a_times_X( u_sf, u ) )
+
     flux_flux_input_inner_prod = 0.0_r_def
     u_u_input_inner_prod = 0.0_r_def
-    call invoke(adj_sample_flux_kernel_type(flux, u, rmultiplicity, q), &
-&x_innerproduct_y(flux_flux_input_inner_prod, flux, flux_input), x_innerproduct_y(u_u_input_inner_prod, u, u_input))
+    call invoke( inc_a_times_X( flux_sf, flux ),                         &
+                 inc_a_times_X( u_sf, u ),                               &
+                 adj_sample_flux_kernel_type(flux, u, rmultiplicity, q), &
+                 x_innerproduct_y(flux_flux_input_inner_prod,            &
+                                  flux, flux_input),                     &
+                 x_innerproduct_y(u_u_input_inner_prod,                  &
+                                  u, u_input) )
+
     inner2 = 0.0_r_def
     inner2 = inner2 + flux_flux_input_inner_prod
     inner2 = inner2 + u_u_input_inner_prod
+
     ! Test the inner-product values for equality, allowing for the precision of the active variables
-    MachineTol = SPACING(MAX(ABS(inner1), ABS(inner2)))
-    relative_diff = ABS(inner1 - inner2) / MachineTol
+    machine_tol = spacing(max(abs(inner1), abs(inner2)))
+    relative_diff = abs(inner1 - inner2) / machine_tol
     if (relative_diff < overall_tolerance) then
-      ! PSyclone CodeBlock (unsupported code) reason:
-      !  - Unsupported statement: Write_Stmt
-      WRITE(log_scratch_space, *) "PASSED sample_flux_kernel_type:", inner1, inner2, relative_diff
-      call log_event(log_scratch_space, log_level_info)
+      write(log_scratch_space, *) "PASSED sample_flux_kernel_type:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
     else
-      ! PSyclone CodeBlock (unsupported code) reason:
-      !  - Unsupported statement: Write_Stmt
-      WRITE(log_scratch_space, *) "FAILED sample_flux_kernel_type:", inner1, inner2, relative_diff
-      call log_event(log_scratch_space, log_level_error)
+      write(log_scratch_space, *) "FAILED sample_flux_kernel_type:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
     end if
 
   end subroutine adjt_sample_flux_alg

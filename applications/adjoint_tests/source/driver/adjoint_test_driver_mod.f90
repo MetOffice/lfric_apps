@@ -36,7 +36,7 @@ contains
   !> @param[in,out]  modeldb  The model database
   subroutine run( modeldb )
 
-    ! Handwritten kernel tests
+    ! Kernel tests
     ! ./
     use adjt_sci_psykal_builtin_alg_mod,            only : adjt_convert_cart2sphere_vector_alg
 
@@ -49,6 +49,7 @@ contains
     ! ./inter_function_space
     use adjt_combine_w2_field_alg_mod,              only : adjt_combine_w2_field_alg
     use adjt_sample_field_alg_mod,                  only : adjt_sample_field_alg
+    use adjt_sample_flux_alg_mod,                   only : adjt_sample_flux_alg
     use adjt_sci_convert_hdiv_field_alg_mod,        only : adjt_sci_convert_hdiv_field_alg
 
     ! ./solver
@@ -67,7 +68,7 @@ contains
     ! ./linear_physics
     use atlt_bl_inc_alg_mod,                        only : atlt_bl_inc_alg
 
-    ! Handwritten algorithm tests
+    ! Algorithm tests
     ! ./interpolation
     use adjt_interpolation_alg_mod,                 only : adjt_interp_w3wth_to_w2_alg, &
                                                            adjt_interp_w2_to_w3wth_alg
@@ -147,7 +148,6 @@ contains
     use adjt_sci_combine_multidata_field_alg_mod, only : adjt_sci_combine_multidata_field_alg
     use adjt_sci_extract_w_alg_mod, only : adjt_sci_extract_w_alg
     use adjt_w2_to_w1_projection_alg_mod, only : adjt_w2_to_w1_projection_alg
-    use adjt_sample_flux_alg_mod, only : adjt_sample_flux_alg
     use adjt_split_w2_field_alg_mod, only : adjt_split_w2_field_alg
     use adjt_strong_curl_alg_mod, only : adjt_strong_curl_alg
     use adjt_stabilise_bl_u_alg_mod, only : adjt_stabilise_bl_u_alg
@@ -180,7 +180,6 @@ contains
     call adjt_sci_combine_multidata_field_alg( mesh, chi, panel_id )
     call adjt_sci_extract_w_alg( mesh, chi, panel_id )
     call adjt_w2_to_w1_projection_alg( mesh, chi, panel_id )
-    call adjt_sample_flux_alg( mesh, chi, panel_id )
     call adjt_split_w2_field_alg( mesh, chi, panel_id )
     call adjt_strong_curl_alg( mesh, chi, panel_id )
     call adjt_stabilise_bl_u_alg( mesh, chi, panel_id )
@@ -229,6 +228,7 @@ contains
     ! ./inter_function_space
     call adjt_combine_w2_field_alg( mesh )
     call adjt_sample_field_alg( mesh )
+    call adjt_sample_flux_alg( mesh )
     call adjt_sci_convert_hdiv_field_alg( modeldb%config, mesh, chi, panel_id )
 
     ! ./algebra

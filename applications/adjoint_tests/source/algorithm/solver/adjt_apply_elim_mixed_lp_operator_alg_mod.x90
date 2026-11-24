@@ -127,15 +127,15 @@ module adjt_apply_elim_mixed_lp_operator_alg_mod
                  x_innerproduct_x(exner_inner_prod, exner) )
 
     write( log_scratch_space, * ) "adjt_apply_elim_mixed_lp_operator inner products:"
-    call log_event( log_scratch_space, log_level_debug )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
     write( log_scratch_space, * ) "lhs_exner inner product = ", lhs_exner_inner_prod
-    call log_event( log_scratch_space, log_level_debug )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
     write( log_scratch_space, * ) "u inner product = ", u_inner_prod
-    call log_event( log_scratch_space, log_level_debug )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
     write( log_scratch_space, * ) "theta inner product = ", theta_inner_prod
-    call log_event( log_scratch_space, log_level_debug )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
     write( log_scratch_space, * ) "exner inner product = ", exner_inner_prod
-    call log_event( log_scratch_space, log_level_debug )
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
 
     lhs_exner_sf = 1.0_r_solver / real(lhs_exner_inner_prod + EPS, kind = r_solver)
     u_sf = 1.0_r_solver / real(u_inner_prod + EPS, kind = r_solver)
