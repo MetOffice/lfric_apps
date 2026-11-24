@@ -28,6 +28,7 @@ module wind_transport_alg_mod
   use sci_geometric_constants_mod,    only: get_coordinates,      &
                                             get_panel_id,         &
                                             get_da_at_w2,         &
+                                            get_height_fv,        &
                                             get_face_selector_ew, &
                                             get_face_selector_ns
   use log_mod,                        only: log_event,       &
@@ -51,12 +52,23 @@ module wind_transport_alg_mod
   use transport_metadata_mod,         only: transport_metadata_type
   use split_w2_to_ws_kernel_mod,      only: split_w2_to_ws_kernel_type
   use combine_ws_to_w2_kernel_mod,    only: combine_ws_to_w2_kernel_type
-  use apply_wind_metrics_kernel_mod,  only: apply_wind_metrics_kernel_type
+  use apply_w2_area_and_slope_kernel_mod,                                      &
+                                      only: apply_w2_area_and_slope_kernel_type
+  use wind_metric_increment_w3_kernel_mod,                                     &
+                                      only: wind_metric_increment_w3_kernel_type
+  use wind_metric_increment_to_w2h_kernel_mod,                                 &
+      only: wind_metric_increment_to_w2h_kernel_type
+  use wind_metric_increment_to_wtheta_kernel_mod,                              &
+      only: wind_metric_increment_to_wtheta_kernel_type
   use base_mesh_config_mod,           only: geometry,           &
                                             geometry_spherical, &
                                             topology,           &
                                             topology_fully_periodic
+  use config_mod,                     only: config_type
   use integer_field_mod,              only: integer_field_type
+  use planet_config_mod,              only: scaled_radius
+  use r_tran_field_mod,               only: r_tran_field_type
+  use sci_chi_transform_mod,          only: get_to_stretch
 
   implicit none
 
@@ -89,7 +101,6 @@ contains
     use matrix_vector_kernel_mod,         only: matrix_vector_kernel_type
     use sci_average_w2b_to_w2_kernel_mod, only: average_w2b_to_w2_kernel_type
     use sci_field_minmax_alg_mod,         only: log_field_minmax
-    use sample_field_kernel_mod,          only: sample_field_kernel_type
 
     implicit none
 
@@ -122,15 +133,18 @@ contains
     type(function_space_type),  pointer :: w2b_fs
     logical(kind=l_def)                 :: optimised_conversion
     integer(tik)                        :: id_to, id_from
-    type(field_type)                    :: ones
     type(field_type),           pointer :: da
-    type(field_type)                    :: chi1_n, chi1_d, chi2_n, chi2_d, chi1_d_w2, chi2_d_w2
-    integer(kind=i_def), parameter      :: stencil_depth = 1_i_def
-    type(field_type)                    :: u_w2_inc_with_metrics
+    type(field_type)                    :: u_w2_inc_scaled
+    type(field_type)                    :: uv_w2h_star, uv_w2h_trans
+    type(field_type)                    :: w_wt_star, w_wt_trans
+    type(field_type),           pointer :: height_w3
+    type(field_type),           pointer :: rmultiplicity_w2h
+    type(r_tran_field_type),    pointer :: transporting_wind
+    type(config_type),          pointer :: config
     type(integer_field_type), pointer   :: face_selector_ew
     type(integer_field_type), pointer   :: face_selector_ns
-    logical(kind=l_def)                 :: geometry_is_spherical,    &
-                                           topology_is_fully_periodic
+    logical(kind=l_def)                 :: cubed_sphere
+    real(kind=r_def)                    :: dt_metric
 
 
     if ( LPROF ) call start_timing( id_to, 'transport.wind' )
@@ -182,56 +196,63 @@ contains
                                                   face_selector_ew,     &
                                                   face_selector_ns ) )
 
-          call transport_field( uv_w2h_np1, uv_w2h_n, transport_controller,   &
-                                transport_metadata )
-          call transport_field( w_wt_np1, w_wt_n, transport_controller,     &
-                                transport_metadata )
-
           w2_fs => function_space_collection%get_fs( mesh, k_h, k_v, W2 )
 
-          ! These are passed into a kernel even in non-spherical geometry
-          ! so are initialised here to avoid problems
-          call chi1_d_w2%initialise( w2_fs )
-          call chi2_d_w2%initialise( w2_fs )
-
           if ( geometry == geometry_spherical ) then
-            ! For the metric terms we need to transport the (horizontal)
-            ! spherical coordinate field to get the values at the departure points
-            ! Transport lambda & phi for lat-lon or alpha & beta for cubed sphere
-            ! (not currently implemented)
-            w3_fs => function_space_collection%get_fs( mesh, k_h, k_v, W3 )
-            call chi1_n%initialise( w3_fs )
-            call chi2_n%initialise( w3_fs )
-            call chi1_d%initialise( w3_fs )
-            call chi2_d%initialise( w3_fs )
-            call ones%initialise( w3_fs )
-            call invoke( setval_c( ones, 1.0_r_def ),                      &
-                         setval_c( chi1_n, 0.0_r_def ) ,                   &
-                         setval_c( chi2_n, 0.0_r_def ),                    &
-                         sample_field_kernel_type( chi1_n, ones, chi(1) ), &
-                         sample_field_kernel_type( chi2_n, ones, chi(2) ) )
-            call transport_field( chi1_d, chi1_n, transport_controller,    &
+            ! Strang splitting of the metric terms: apply them over half a
+            ! time step before and after transporting the wind components
+            cubed_sphere = ( topology == topology_fully_periodic )
+            if ( cubed_sphere .and. get_to_stretch() ) then
+              call log_event(                                                  &
+                      'Native wind transport metric terms are not valid ' //   &
+                      'for stretched cubed-sphere meshes', LOG_LEVEL_ERROR     &
+              )
+            end if
+
+            config => transport_controller%get_config()
+            transporting_wind => transport_controller%get_transporting_wind()
+            height_w3 => get_height_fv( config, mesh, W3 )
+            rmultiplicity_w2h => get_rmultiplicity_fv( W2h, mesh%get_id() )
+            dt_metric = 0.5_r_def                                              &
+                        * real( transport_controller%get_dt_substep(), r_def ) &
+                        * real( transport_controller%get_num_substeps(), r_def )
+
+            call uv_w2h_star%initialise( w2h_fs )
+            call uv_w2h_trans%initialise( w2h_fs )
+            call w_wt_star%initialise( wt_fs )
+            call w_wt_trans%initialise( wt_fs )
+
+            call apply_wind_metric_terms( uv_w2h_star, w_wt_star,              &
+                                          uv_w2h_n, w_wt_n,                    &
+                                          transporting_wind, dA,               &
+                                          chi(1), chi(2),                      &
+                                          height_w3, rmultiplicity_w2h,        &
+                                          dt_metric, cubed_sphere, k_h, k_v )
+
+            call transport_field( uv_w2h_trans, uv_w2h_star,                   &
+                                  transport_controller, transport_metadata )
+            call transport_field( w_wt_trans, w_wt_star,                       &
+                                  transport_controller, transport_metadata )
+
+            call apply_wind_metric_terms( uv_w2h_np1, w_wt_np1,                &
+                                          uv_w2h_trans, w_wt_trans,            &
+                                          transporting_wind, dA,               &
+                                          chi(1), chi(2),                      &
+                                          height_w3, rmultiplicity_w2h,        &
+                                          dt_metric, cubed_sphere, k_h, k_v )
+
+          else
+
+            call transport_field( uv_w2h_np1, uv_w2h_n, transport_controller,  &
                                   transport_metadata )
-            call transport_field( chi2_d, chi2_n, transport_controller,    &
+            call transport_field( w_wt_np1, w_wt_n, transport_controller,      &
                                   transport_metadata )
-            call log_field_minmax( LOG_LEVEL_DEBUG, 'chi1_d', chi1_d )
-            call log_field_minmax( LOG_LEVEL_DEBUG, 'chi2_d', chi2_d )
-            ! Now compute chi1_d & chi2_d on W2 points for using later
-            rmultiplicity_w2 => get_rmultiplicity_fv(W2, mesh%get_id())
-            call invoke( setval_c( chi1_d_w2, 0.0_r_def ) ,                   &
-                         setval_c( chi2_d_w2, 0.0_r_def ),                    &
-                         sample_field_kernel_type(                            &
-                                   chi1_d_w2, rmultiplicity_w2, chi1_d),      &
-                         sample_field_kernel_type(                            &
-                                   chi2_d_w2, rmultiplicity_w2, chi2_d) )
 
           end if
 
-          call u_w2_inc%initialise( w2_fs, halo_depth=2 )
-          call u_w2_inc_with_metrics%initialise( w2_fs )
+          call u_w2_inc%initialise( w2_fs )
+          call u_w2_inc_scaled%initialise( w2_fs )
           mm_w2 => get_mass_matrix_fv(W2, mesh%get_id())
-          geometry_is_spherical = ( geometry == geometry_spherical )
-          topology_is_fully_periodic = (topology == topology_fully_periodic )
           call invoke( name="combine_ws_to_w2_winds",                           &
                        X_minus_Y( uv_w2h_inc, uv_w2h_np1, uv_w2h_n ),           &
                        X_minus_Y( w_wt_inc,   w_wt_np1,   w_wt_n ),             &
@@ -240,14 +261,11 @@ contains
                                                     w_wt_inc,                   &
                                                     face_selector_ew,           &
                                                     face_selector_ns),          &
-                       apply_wind_metrics_kernel_type(                          &
-                                       u_w2_inc_with_metrics,                   &
-                                       u_w2_inc, stencil_depth, da, chi,        &
-                                       chi1_d_w2, chi2_d_w2,                    &
-                                       geometry_is_spherical,                   &
-                                       topology_is_fully_periodic ),            &
+                       apply_w2_area_and_slope_kernel_type(                     &
+                                       u_w2_inc_scaled,                         &
+                                       u_w2_inc, da, chi(3) ),                  &
                        setval_c(rhs_u, 0.0_r_def),                              &
-                       matrix_vector_kernel_type(rhs_u, u_w2_inc_with_metrics,  &
+                       matrix_vector_kernel_type(rhs_u, u_w2_inc_scaled,        &
                        mm_w2),                                                  &
                        enforce_bc_kernel_type(rhs_u) )
 
@@ -386,5 +404,80 @@ contains
     if ( LPROF ) call stop_timing( id_from, 'transport.wind' )
 
   end subroutine wind_transport_alg
+
+  !=============================================================================
+  !> @brief Applies the metric terms to the native W2 wind components.
+  !> @details Computes the change in the horizontal and vertical wind
+  !!          components over time dt_metric due to the change of the
+  !!          coordinate frame along the transporting wind. This is evaluated
+  !!          at W3 points and then averaged to the W2H and Wtheta points.
+  !> @param[in,out] uv_w2h_out         Horizontal wind with metric terms
+  !> @param[in,out] w_wt_out           Vertical wind with metric terms
+  !> @param[in]     uv_w2h_in          Horizontal wind to apply terms to
+  !> @param[in]     w_wt_in            Vertical wind to apply terms to
+  !> @param[in]     transporting_wind  Transporting wind in W2
+  !> @param[in]     dA                 Area element in W2
+  !> @param[in]     chi_1              First native coordinate field
+  !> @param[in]     chi_2              Second native coordinate field
+  !> @param[in]     height_w3          Height above the surface radius in W3
+  !> @param[in]     rmultiplicity_w2h  Reciprocal multiplicity of W2H DoFs
+  !> @param[in]     dt_metric          Time over which the terms are applied
+  !> @param[in]     cubed_sphere       Whether coordinates are alpha-beta-r
+  !> @param[in]     k_h                Horizontal element order of transport
+  !> @param[in]     k_v                Vertical element order of transport
+  subroutine apply_wind_metric_terms(uv_w2h_out, w_wt_out,                     &
+                                     uv_w2h_in, w_wt_in,                       &
+                                     transporting_wind, dA, chi_1, chi_2,      &
+                                     height_w3, rmultiplicity_w2h,             &
+                                     dt_metric, cubed_sphere, k_h, k_v)
+
+    implicit none
+
+    ! Arguments
+    type(field_type),        intent(inout) :: uv_w2h_out
+    type(field_type),        intent(inout) :: w_wt_out
+    type(field_type),        intent(in)    :: uv_w2h_in
+    type(field_type),        intent(in)    :: w_wt_in
+    type(r_tran_field_type), intent(in)    :: transporting_wind
+    type(field_type),        intent(in)    :: dA
+    type(field_type),        intent(in)    :: chi_1
+    type(field_type),        intent(in)    :: chi_2
+    type(field_type),        intent(in)    :: height_w3
+    type(field_type),        intent(in)    :: rmultiplicity_w2h
+    real(kind=r_def),        intent(in)    :: dt_metric
+    logical(kind=l_def),     intent(in)    :: cubed_sphere
+    integer(kind=i_def),     intent(in)    :: k_h, k_v
+
+    ! Internal variables
+    type(mesh_type),          pointer :: mesh
+    type(function_space_type), pointer :: w3_fs, w2h_fs
+    type(field_type)                  :: d_uv1_w3, d_uv2_w3, d_w_w3
+    type(field_type)                  :: d_uv_w2h
+
+    mesh => uv_w2h_in%get_mesh()
+    w3_fs => function_space_collection%get_fs( mesh, k_h, k_v, W3 )
+    w2h_fs => function_space_collection%get_fs( mesh, k_h, k_v, W2h )
+    call d_uv1_w3%initialise( w3_fs )
+    call d_uv2_w3%initialise( w3_fs )
+    call d_w_w3%initialise( w3_fs )
+    call d_uv_w2h%initialise( w2h_fs )
+
+    ! The GH_INC kernel loops into the halo, so its target must be set to
+    ! zero by setval_c (which PSyclone extends into the halo) rather than
+    ! copied from uv_w2h_in
+    call invoke( name="apply_wind_metric_terms",                               &
+                 wind_metric_increment_w3_kernel_type(                         &
+                         d_uv1_w3, d_uv2_w3, d_w_w3,                           &
+                         uv_w2h_in, w_wt_in, transporting_wind, dA,            &
+                         chi_1, chi_2, height_w3,                              &
+                         dt_metric, scaled_radius, cubed_sphere ),             &
+                 setval_c( d_uv_w2h, 0.0_r_def ),                              &
+                 wind_metric_increment_to_w2h_kernel_type(                     &
+                         d_uv_w2h, d_uv1_w3, d_uv2_w3, rmultiplicity_w2h ),    &
+                 X_plus_Y( uv_w2h_out, uv_w2h_in, d_uv_w2h ),                  &
+                 wind_metric_increment_to_wtheta_kernel_type(                  &
+                         w_wt_out, w_wt_in, d_w_w3 ) )
+
+  end subroutine apply_wind_metric_terms
 
 end module wind_transport_alg_mod

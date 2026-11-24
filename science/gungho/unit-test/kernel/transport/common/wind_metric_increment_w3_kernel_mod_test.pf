@@ -1,0 +1,231 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the kernel that computes the metric increments to the wind at W3
+!! points, for lon-lat and cubed-sphere coordinates.
+module wind_metric_increment_w3_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def, r_tran, l_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_lonlat_mid_latitude
+  public :: test_lonlat_equator
+  public :: test_cubed_sphere_aligned
+  public :: test_cubed_sphere_rotated
+  public :: test_zero_transporting_wind
+
+  integer(kind=i_def), parameter :: nlayers = 2
+  real(kind=r_def),    parameter :: tol     = 1.0e-12_r_def
+
+contains
+
+  !---------------------------------------------------------------------------
+  ! Runs the kernel for a single column. The chi coordinates are set up so
+  ! that the cell is 0.02 wide in each coordinate, centred on (centre_1,
+  ! centre_2). If rotated is true then chi1 varies along xi2 and chi2 varies
+  ! along minus xi1 (as for some cubed-sphere panels). The transported wind
+  ! has components (15, 5, 0.5) and the transporting wind has horizontal
+  ! components (20*scale, -10*scale) in the cell frame.
+  !---------------------------------------------------------------------------
+  subroutine run_kernel(cubed_sphere, centre_1, centre_2, rotated, scale,    &
+                        d_uv1_w3, d_uv2_w3, d_w_w3)
+
+    use wind_metric_increment_w3_kernel_mod, only: wind_metric_increment_w3_code
+
+    implicit none
+
+    logical(kind=l_def), intent(in)  :: cubed_sphere
+    real(kind=r_def),    intent(in)  :: centre_1, centre_2
+    logical(kind=l_def), intent(in)  :: rotated
+    real(kind=r_def),    intent(in)  :: scale
+    real(kind=r_def),    intent(out) :: d_uv1_w3(nlayers)
+    real(kind=r_def),    intent(out) :: d_uv2_w3(nlayers)
+    real(kind=r_def),    intent(out) :: d_w_w3(nlayers)
+
+    integer(kind=i_def), parameter :: ndf_w3  = 1
+    integer(kind=i_def), parameter :: ndf_w2h = 4
+    integer(kind=i_def), parameter :: ndf_wt  = 2
+    integer(kind=i_def), parameter :: ndf_w2  = 6
+    integer(kind=i_def), parameter :: ndf_wx  = 8
+    integer(kind=i_def), parameter :: undf_w3  = nlayers
+    integer(kind=i_def), parameter :: undf_w2h = 4*nlayers
+    integer(kind=i_def), parameter :: undf_wt  = nlayers + 1
+    integer(kind=i_def), parameter :: undf_w2  = 4*nlayers + nlayers + 1
+    integer(kind=i_def), parameter :: undf_wx  = 8
+
+    integer(kind=i_def) :: map_w3(ndf_w3), map_w2h(ndf_w2h), map_wt(ndf_wt)
+    integer(kind=i_def) :: map_w2(ndf_w2), map_wx(ndf_wx)
+
+    real(kind=r_def)  :: uv_w2h(undf_w2h), w_wt(undf_wt)
+    real(kind=r_tran) :: transporting_wind(undf_w2)
+    real(kind=r_def)  :: da(undf_w2), chi1(undf_wx), chi2(undf_wx)
+    real(kind=r_def)  :: height_w3(undf_w3)
+    real(kind=r_def)  :: basis_wx(1,ndf_wx,ndf_w3)
+    real(kind=r_def)  :: diff_basis_wx(3,ndf_wx,ndf_w3)
+
+    real(kind=r_def), parameter :: half_width = 0.01_r_def
+    real(kind=r_def) :: sign_1(ndf_wx), sign_2(ndf_wx), sign_3(ndf_wx)
+    integer(kind=i_def) :: df
+
+    ! Reference vertices ordered SWB, SEB, NEB, NWB, SWT, SET, NET, NWT
+    sign_1 = (/ -1.0_r_def,  1.0_r_def,  1.0_r_def, -1.0_r_def,              &
+                -1.0_r_def,  1.0_r_def,  1.0_r_def, -1.0_r_def /)
+    sign_2 = (/ -1.0_r_def, -1.0_r_def,  1.0_r_def,  1.0_r_def,              &
+                -1.0_r_def, -1.0_r_def,  1.0_r_def,  1.0_r_def /)
+    sign_3 = (/ -1.0_r_def, -1.0_r_def, -1.0_r_def, -1.0_r_def,              &
+                 1.0_r_def,  1.0_r_def,  1.0_r_def,  1.0_r_def /)
+
+    map_w3  = (/ 1 /)
+    map_w2h = (/ 1, 3, 5, 7 /)
+    map_wt  = (/ 1, 2 /)
+    map_w2  = (/ 1, 3, 5, 7, 9, 10 /)
+    do df = 1, ndf_wx
+      map_wx(df) = df
+    end do
+
+    do df = 1, ndf_wx
+      basis_wx(1,df,1)      = 0.125_r_def
+      diff_basis_wx(1,df,1) = 0.25_r_def*sign_1(df)
+      diff_basis_wx(2,df,1) = 0.25_r_def*sign_2(df)
+      diff_basis_wx(3,df,1) = 0.25_r_def*sign_3(df)
+      if ( rotated ) then
+        chi1(df) = centre_1 + half_width*sign_2(df)
+        chi2(df) = centre_2 - half_width*sign_1(df)
+      else
+        chi1(df) = centre_1 + half_width*sign_1(df)
+        chi2(df) = centre_2 + half_width*sign_2(df)
+      end if
+    end do
+
+    ! Transporting wind: xi1 component 20*scale, xi2 component -10*scale
+    ! (S and N DoFs are positive along minus xi2)
+    da(:) = 1.0_r_def
+    transporting_wind(:) = 0.0_r_tran
+    transporting_wind(1:2) = real(20.0_r_def*scale, r_tran)
+    transporting_wind(5:6) = real(20.0_r_def*scale, r_tran)
+    transporting_wind(3:4) = real(10.0_r_def*scale, r_tran)
+    transporting_wind(7:8) = real(10.0_r_def*scale, r_tran)
+
+    ! Transported wind: xi1 component 15, xi2 component 5, vertical 0.5
+    uv_w2h(1:2) = 15.0_r_def
+    uv_w2h(5:6) = 15.0_r_def
+    uv_w2h(3:4) = - 5.0_r_def
+    uv_w2h(7:8) = - 5.0_r_def
+    w_wt(:)     = 0.5_r_def
+
+    height_w3(:) = 1000.0_r_def
+
+    d_uv1_w3(:) = 0.0_r_def
+    d_uv2_w3(:) = 0.0_r_def
+    d_w_w3(:)   = 0.0_r_def
+
+    call wind_metric_increment_w3_code( nlayers,                             &
+                                        d_uv1_w3, d_uv2_w3, d_w_w3,          &
+                                        uv_w2h, w_wt, transporting_wind, da, &
+                                        chi1, chi2, height_w3,               &
+                                        300.0_r_def, 6371229.0_r_def,        &
+                                        cubed_sphere,                        &
+                                        ndf_w3, undf_w3, map_w3,             &
+                                        ndf_w2h, undf_w2h, map_w2h,          &
+                                        ndf_wt, undf_wt, map_wt,             &
+                                        ndf_w2, undf_w2, map_w2,             &
+                                        ndf_wx, undf_wx, map_wx,             &
+                                        basis_wx, diff_basis_wx )
+
+  end subroutine run_kernel
+
+  !---------------------------------------------------------------------------
+  @Test
+  subroutine test_lonlat_mid_latitude()
+
+    implicit none
+
+    real(kind=r_def) :: d_uv1(nlayers), d_uv2(nlayers), d_w(nlayers)
+
+    call run_kernel( .false._l_def, 0.3_r_def, 0.6_r_def, .false._l_def,     &
+                     1.0_r_def, d_uv1, d_uv2, d_w )
+
+    @assertEqual(spread(2.750074463778807e-03_r_def, 1, nlayers), d_uv1, tol)
+    @assertEqual(spread(-9.427205574493997e-03_r_def, 1, nlayers), d_uv2, tol)
+    @assertEqual(spread(1.176982183157573e-02_r_def, 1, nlayers), d_w,   tol)
+
+  end subroutine test_lonlat_mid_latitude
+
+  !---------------------------------------------------------------------------
+  @Test
+  subroutine test_lonlat_equator()
+
+    implicit none
+
+    real(kind=r_def) :: d_uv1(nlayers), d_uv2(nlayers), d_w(nlayers)
+
+    call run_kernel( .false._l_def, 0.3_r_def, 0.0_r_def, .false._l_def,     &
+                     1.0_r_def, d_uv1, d_uv2, d_w )
+
+    @assertEqual(spread(-4.707928732630293e-04_r_def, 1, nlayers), d_uv1, tol)
+    @assertEqual(spread(2.353964366315147e-04_r_def, 1, nlayers), d_uv2, tol)
+    @assertEqual(spread(1.176982183157573e-02_r_def, 1, nlayers), d_w,   tol)
+
+  end subroutine test_lonlat_equator
+
+  !---------------------------------------------------------------------------
+  @Test
+  subroutine test_cubed_sphere_aligned()
+
+    implicit none
+
+    real(kind=r_def) :: d_uv1(nlayers), d_uv2(nlayers), d_w(nlayers)
+
+    call run_kernel( .true._l_def, 0.3_r_def, -0.2_r_def, .false._l_def,     &
+                     1.0_r_def, d_uv1, d_uv2, d_w )
+
+    @assertEqual(spread(-1.544949227920416e-03_r_def, 1, nlayers), d_uv1, tol)
+    @assertEqual(spread(-1.951229456698450e-03_r_def, 1, nlayers), d_uv2, tol)
+    @assertEqual(spread(1.167185107967366e-02_r_def, 1, nlayers), d_w,   tol)
+
+  end subroutine test_cubed_sphere_aligned
+
+  !---------------------------------------------------------------------------
+  ! The cell has xi1 = -beta and xi2 = +alpha, so with alpha = -0.2 and
+  ! beta = -0.3 the answer should match the aligned case
+  !---------------------------------------------------------------------------
+  @Test
+  subroutine test_cubed_sphere_rotated()
+
+    implicit none
+
+    real(kind=r_def) :: d_uv1(nlayers), d_uv2(nlayers), d_w(nlayers)
+
+    call run_kernel( .true._l_def, -0.2_r_def, -0.3_r_def, .true._l_def,     &
+                     1.0_r_def, d_uv1, d_uv2, d_w )
+
+    @assertEqual(spread(-1.544949227920416e-03_r_def, 1, nlayers), d_uv1, tol)
+    @assertEqual(spread(-1.951229456698450e-03_r_def, 1, nlayers), d_uv2, tol)
+    @assertEqual(spread(1.167185107967366e-02_r_def, 1, nlayers), d_w,   tol)
+
+  end subroutine test_cubed_sphere_rotated
+
+  !---------------------------------------------------------------------------
+  @Test
+  subroutine test_zero_transporting_wind()
+
+    implicit none
+
+    real(kind=r_def) :: d_uv1(nlayers), d_uv2(nlayers), d_w(nlayers)
+
+    call run_kernel( .true._l_def, 0.3_r_def, -0.2_r_def, .false._l_def,     &
+                     0.0_r_def, d_uv1, d_uv2, d_w )
+
+    @assertEqual(spread(0.0_r_def, 1, nlayers), d_uv1, tol)
+    @assertEqual(spread(0.0_r_def, 1, nlayers), d_uv2, tol)
+    @assertEqual(spread(0.0_r_def, 1, nlayers), d_w,   tol)
+
+  end subroutine test_zero_transporting_wind
+
+end module wind_metric_increment_w3_kernel_mod_test

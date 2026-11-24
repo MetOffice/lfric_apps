@@ -1,0 +1,65 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the kernel that adds the vertical wind metric increment from W3 to
+!! Wtheta points.
+module wind_metric_increment_to_wtheta_kernel_mod_test
+
+  use constants_mod, only : i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_wind_metric_increment_to_wtheta
+
+contains
+
+  !---------------------------------------------------------------------------
+  ! Interior points get the average of the increments above and below, while
+  ! the bottom and top points are unchanged
+  !---------------------------------------------------------------------------
+  @Test
+  subroutine test_wind_metric_increment_to_wtheta()
+
+    use wind_metric_increment_to_wtheta_kernel_mod, &
+        only: wind_metric_increment_to_wtheta_code
+
+    implicit none
+
+    real(kind=r_def), parameter :: tol = 1.0e-14_r_def
+
+    integer(kind=i_def), parameter :: nlayers = 3
+    integer(kind=i_def), parameter :: ndf_wt  = 2
+    integer(kind=i_def), parameter :: undf_wt = nlayers + 1
+    integer(kind=i_def), parameter :: ndf_w3  = 1
+    integer(kind=i_def), parameter :: undf_w3 = nlayers
+
+    integer(kind=i_def) :: map_wt(ndf_wt), map_w3(ndf_w3)
+
+    real(kind=r_def) :: w_wt_out(undf_wt), w_wt_in(undf_wt)
+    real(kind=r_def) :: d_w_w3(undf_w3)
+    real(kind=r_def) :: answer(undf_wt)
+
+    map_wt = (/ 1, 2 /)
+    map_w3 = (/ 1 /)
+
+    w_wt_in  = (/ 0.1_r_def, 0.2_r_def, 0.3_r_def, 0.4_r_def /)
+    d_w_w3   = (/ 1.0_r_def, 2.0_r_def, 4.0_r_def /)
+    w_wt_out = 0.0_r_def
+
+    call wind_metric_increment_to_wtheta_code( nlayers,                      &
+                                               w_wt_out, w_wt_in, d_w_w3,    &
+                                               ndf_wt, undf_wt, map_wt,      &
+                                               ndf_w3, undf_w3, map_w3 )
+
+    answer = (/ 0.1_r_def, 1.7_r_def, 3.3_r_def, 0.4_r_def /)
+
+    @assertEqual(answer, w_wt_out, tol)
+
+  end subroutine test_wind_metric_increment_to_wtheta
+
+end module wind_metric_increment_to_wtheta_kernel_mod_test

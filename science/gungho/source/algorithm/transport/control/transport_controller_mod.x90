@@ -107,6 +107,7 @@ module transport_controller_mod
     procedure, public  :: get_config
     procedure, public  :: get_cheap_update_step
     procedure, public  :: get_num_substeps
+    procedure, public  :: get_dt_substep
     procedure, public  :: get_ref_field
     procedure, public  :: get_wind_npdt
     procedure, public  :: get_transporting_wind
@@ -1016,6 +1017,20 @@ contains
     num_substeps = self%num_substeps
 
   end function get_num_substeps
+
+  !> @brief Returns the time step of each transport substep
+  !> @return The substep time step
+  function get_dt_substep(self) result(dt_substep)
+
+    implicit none
+
+    class(transport_controller_type), intent(in) :: self
+
+    real(kind=r_tran) :: dt_substep
+
+    dt_substep = self%dt_substep
+
+  end function get_dt_substep
 
   !> @brief Initialises the flux precomputations object from a reference flux
   !> @param[in] ref_flux     The reference flux field

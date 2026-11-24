@@ -618,6 +618,12 @@ contains
           write( log_scratch_space, '(A)' ) 'Native wind transport on global spherical domains is not supported'
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end if
+        if ( geometry == geometry_spherical .and.                              &
+             coord_system /= coord_system_native ) then
+          write( log_scratch_space, '(A)' )                                    &
+              'Native wind transport on spherical domains requires native coordinates'
+          call log_event( log_scratch_space, LOG_LEVEL_ERROR )
+        end if
         do i = 1, profile_size
           if ( field_names(i) == "wind" ) then
             if ( ( horizontal_method(i) /= split_method_sl  .or. &

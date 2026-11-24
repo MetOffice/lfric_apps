@@ -1,0 +1,100 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> Test the kernel that scales a W2 wind by the area element and applies the
+!! vertical slope correction.
+module apply_w2_area_and_slope_kernel_mod_test
+
+  use constants_mod,         only : i_def, r_def
+  use funit
+
+  implicit none
+
+  private
+  public :: test_apply_w2_area_and_slope
+
+contains
+
+  !---------------------------------------------------------------------------
+  ! Test that the wind is scaled by the area element and then the vertical
+  ! slope correction is applied.
+  !---------------------------------------------------------------------------
+  @Test
+  subroutine test_apply_w2_area_and_slope()
+
+    use apply_w2_area_and_slope_kernel_mod, only: apply_w2_area_and_slope_code
+
+    implicit none
+
+    real(kind=r_def), parameter :: tol = 1.0e-10_r_def
+
+    integer(kind=i_def), parameter :: nlayers = 3
+    integer(kind=i_def), parameter :: ndf_w2  = 6
+    integer(kind=i_def), parameter :: undf_w2 = 5*nlayers + 1
+    integer(kind=i_def), parameter :: ndf_wx  = 1
+    integer(kind=i_def), parameter :: undf_wx = nlayers + 1
+
+    integer(kind=i_def) :: map_w2(ndf_w2)
+    integer(kind=i_def) :: map_wx(ndf_wx)
+
+    real(kind=r_def) :: uvw(undf_w2), da(undf_w2), scaled_uvw(undf_w2)
+    real(kind=r_def) :: chi3(undf_wx)
+    real(kind=r_def) :: diff_basis_wx(3,ndf_wx,ndf_w2)
+
+    real(kind=r_def) :: answer(undf_w2)
+
+    integer(kind=i_def) :: k
+
+    ! Dof map: W, S, E, N each hold nlayers dofs, B/T share nlayers+1 dofs
+    map_w2 = (/ 1, 1+nlayers, 1+2*nlayers, 1+3*nlayers, 1+4*nlayers,         &
+                2+4*nlayers /)
+    map_wx(1) = 1
+
+    ! Wind field, distinct per dof/layer
+    do k = 0, nlayers - 1
+      uvw(1 +k)  = 1.0_r_def + 2.0_r_def*real(k,r_def) ! W
+      uvw(4 +k)  = 2.0_r_def + 2.0_r_def*real(k,r_def) ! S
+      uvw(7 +k)  = 1.5_r_def + 1.0_r_def*real(k,r_def) ! E
+      uvw(10+k)  = 0.5_r_def + 0.5_r_def*real(k,r_def) ! N
+    end do
+    do k = 0, nlayers
+      uvw(13+k)  = 10.0_r_def + 10.0_r_def*real(k,r_def) ! B/T
+    end do
+
+    da(:) = 2.0_r_def
+
+    chi3 = 1.0_r_def
+
+    diff_basis_wx = 0.0_r_def
+    diff_basis_wx(1,1,1) = 2.0_r_def
+    diff_basis_wx(2,1,1) = 3.0_r_def
+    diff_basis_wx(3,1,1) = 1.0_r_def
+
+    scaled_uvw(:) = 0.0_r_def
+
+    call apply_w2_area_and_slope_code( nlayers,                              &
+                                       scaled_uvw, uvw, da, chi3,            &
+                                       ndf_w2, undf_w2, map_w2,              &
+                                       ndf_wx, undf_wx, map_wx,              &
+                                       diff_basis_wx )
+
+    ! W, S, E, N: scaled_uvw = uvw * da
+    answer(1:12) = (/ 2.0_r_def,  6.0_r_def,  10.0_r_def, &
+                      4.0_r_def,  8.0_r_def,  12.0_r_def, &
+                      3.0_r_def,  5.0_r_def,  7.0_r_def,  &
+                      1.0_r_def,  2.0_r_def,  3.0_r_def  /)
+
+    ! B/T: base level zeroed, interior levels slope-corrected, top zeroed
+    answer(13) = 0.0_r_def
+    answer(14) = 44.0_r_def
+    answer(15) = 65.5_r_def
+    answer(16) = 0.0_r_def
+
+    @assertEqual(answer, scaled_uvw, tol)
+
+  end subroutine test_apply_w2_area_and_slope
+
+end module apply_w2_area_and_slope_kernel_mod_test
