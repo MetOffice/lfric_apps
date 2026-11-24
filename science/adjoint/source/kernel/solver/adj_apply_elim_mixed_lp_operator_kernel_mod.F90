@@ -135,7 +135,7 @@ subroutine adj_apply_elim_mixed_lp_operator_code(cell,                    &
     end do
 
     u_e = const_r*matmul(transpose(q32_rho(ik,:,:)), lhs_e)
-    t_e = matmul(transpose(p3theta(ik,:,:)), lhs_e)
+    t_e = -matmul(transpose(p3theta(ik,:,:)), lhs_e)
     p_e = matmul(transpose(m3exner(ik,:,:)), lhs_e)
 
     do df = ndf_w2, 1, -1
