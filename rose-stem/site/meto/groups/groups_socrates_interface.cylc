@@ -8,9 +8,9 @@
 {# Azspice Groups #}
 {% do site_groups.update({
     "socrates_interface_azspice_developer": [
+        "socrates_interface_azspice_unit_tests",
     ],
     "socrates_interface_azspice": [
-        "socrates_interface_azspice_unit_tests",
         "socrates_interface_azspice_developer",
     ],
     "socrates_interface_azspice_unit_tests": [
@@ -21,9 +21,9 @@
 {# EX1A Groups #}
 {% do site_groups.update({
     "socrates_interface_ex1a_developer": [
+        "socrates_interface_ex1a_unit_tests",
     ],
     "socrates_interface_ex1a": [
-        "socrates_interface_ex1a_unit_tests",
         "socrates_interface_ex1a_developer",
     ],
     "socrates_interface_ex1a_unit_tests": [

@@ -34,7 +34,6 @@ contains
 
     use sci_chi_transform_mod,     only : init_chi_transforms
     use feign_config_mod,          only : feign_finite_element_config
-    use mixing_config_mod,         only : method_3d_smag
     use finite_element_config_mod, only : cellshape_quadrilateral, &
                                           coord_system_xyz, coord_space_wchi
 

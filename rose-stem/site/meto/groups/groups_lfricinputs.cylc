@@ -121,17 +121,21 @@
         "lfricinputs_um2lfric-var_seuk_lam_ex1a_gnu_fast-debug-64bit",
         "lfricinputs_um2lfric-var_seuk_lam_ex1a_gnu_full-debug-64bit",
     ],
-    "lfric2um_ex1a_C224": [
+    "lfric2um_ex1a_nwp_gal9_C224": [
         "lfricinputs_lfric2um-nwp_gal9-C224L70_N320L70_ex1a_gnu_full-debug-64bit",
         "lfricinputs_lfric2um-nwp_gal9-C224L70_N320L70_ex1a_gnu_fast-debug-64bit",
     ],
-    "lfric2um_ex1a_N320": [
+    "lfric2um_ex1a_nwp_gal9_N320": [
         "lfricinputs_lfric2um-nwp_gal9-C896L70_N320L70_ex1a_gnu_full-debug-64bit",
         "lfricinputs_lfric2um-nwp_gal9-C896L70_N320L70_ex1a_gnu_fast-debug-64bit",
     ],
-    "lfric2um_ex1a_C896": [
+    "lfric2um_ex1a_nwp_gal9_C896": [
         "lfricinputs_lfric2um-nwp_gal9-C896L70_N1280L70_ex1a_gnu_full-debug-64bit",
         "lfricinputs_lfric2um-nwp_gal9-C896L70_N1280L70_ex1a_gnu_fast-debug-64bit",
+    ],
+    "lfric2um_ex1a_r2o_C448": [
+        "lfricinputs_lfric2um-r2o-C448L70_N1280L70_ex1a_gnu_full-debug-64bit",
+        "lfricinputs_lfric2um-r2o-C448L70_N1280L70_ex1a_gnu_fast-debug-64bit",
     ],
     }) %}
 
@@ -250,9 +254,14 @@
         "lfricinputs_lfric2um-umlam-C48L70_N512L70_ex1a_gnu_fast-debug-64bit",
     ],
     "lfric2um_ex1a_weekly": [
+<<<<<<< HEAD
         "lfric2um_ex1a_C224",
         "lfric2um_ex1a_N320",
         "lfric2um_ex1a_C896",
+=======
+        "lfric2um_ex1a_nwp_gal9_C224",
+        "lfric2um_ex1a_r2o_C448",
+>>>>>>> origin/main
     ],
     "scintelapi_ex1a_developer": [
         "lfricinputs_scintelapi-basic-C48L38_C48L38_ex1a_gnu_fast-debug-64bit",

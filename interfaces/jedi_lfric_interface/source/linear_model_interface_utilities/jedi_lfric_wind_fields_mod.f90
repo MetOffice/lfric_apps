@@ -12,6 +12,7 @@
 !>
 module jedi_lfric_wind_fields_mod
 
+  use config_mod,                    only : config_type
   use base_mesh_config_mod,          only : geometry, topology
   use constants_mod,                 only : str_def, i_def
   use field_collection_mod,          only : field_collection_type
@@ -129,11 +130,13 @@ contains
   !>         the W2 field is created and populated, the scaler winds are
   !>         removed as they are no longer required.
   !>
+  !> @param [in]      config       Application configuration object
   !> @param [in, out] linear_state a field collection the includes scalar winds
-  subroutine setup_vector_wind( linear_state )
+  subroutine setup_vector_wind( config, linear_state )
 
     implicit none
 
+    type(config_type),           intent(in)    :: config
     type(field_collection_type), intent(inout) :: linear_state
 
     ! Local
@@ -166,8 +169,8 @@ contains
       call vector_wind%initialise(fs, "u")
 
       ! Interpolate cell-centre to edge
-      call interp_w3wth_to_w2_alg(vector_wind, u_in_w3, v_in_w3, w_in_wth, &
-                                  geometry, topology)
+      call interp_w3wth_to_w2_alg( config, vector_wind, u_in_w3, &
+                                   v_in_w3, w_in_wth )
 
       ! Remove the scalar winds
       call linear_state%remove_field("u_in_w3")

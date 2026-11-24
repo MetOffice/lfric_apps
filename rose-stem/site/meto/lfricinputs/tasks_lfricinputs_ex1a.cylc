@@ -32,6 +32,12 @@
         "wallclock": 30,
     }) %}
 
+{% elif task_ns.conf_name == "lfric2um-r2o-C448L70_N1280L70" %}
+
+    {% do task_dict.update({
+        "mpi_parts": 192,
+    }) %}
+
 {% elif task_ns.conf_name == "um2lfric-nwp_gal9-N320L70_C224L70" %}
 
     {% do task_dict.update({

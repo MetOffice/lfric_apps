@@ -110,7 +110,7 @@ contains
     else
       ! Compute vorticity in W2 as the strong curl of the projected W1 winds
       if (use_fe) then
-        qr => get_qr_fe()
+        qr => get_qr_fe(config)
       else
         qr => get_qr_fv()
       end if
