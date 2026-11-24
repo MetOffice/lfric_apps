@@ -339,9 +339,9 @@ else if (lookup_int(lbvc) == 65) then ! Standard hybrid height levels
 
     ! if exner above top level
     if (level_number >  integer_constants(ih_model_levels)) then
-      lookup_real_tmp(bulev) = level_dep_c(level_number+1, ldc_zsea_theta)     &
+      lookup_real_tmp(bulev) = level_dep_c(level_number, ldc_zsea_theta)     &
                                * 2.0_real64 - level_dep_c(level_number-1, ldc_zsea_rho)
-      lookup_real_tmp(bhulev)= level_dep_c(level_number+1, ldc_c_theta)        &
+      lookup_real_tmp(bhulev)= level_dep_c(level_number, ldc_c_theta)        &
                                * 2.0_real64 - level_dep_c(level_number-1, ldc_c_rho)
       lookup_real_tmp(blev) = lookup_real_tmp(bulev)
       lookup_real_tmp(bhlev)= lookup_real_tmp(bhulev)
