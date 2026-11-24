@@ -360,7 +360,7 @@ contains
   call derived_fields%get_field('wetrho_in_w3', wetrho_w3)
   mesh_id = wetrho_w3%get_mesh_id()
   rdz_w3 => get_rdz_w3(config, mesh_id)
-  dx_at_w2 => get_dx_at_w2(wetrho_w3%get_mesh())
+  dx_at_w2 => get_dx_at_w2(config, wetrho_w3%get_mesh())
 
   if (skeb_convective_dissipation) then
 
@@ -502,7 +502,7 @@ contains
                setval_c(du_rot_w2, 0.0_r_def), &
                setval_c(du_div_w2, 0.0_r_def) )
 
-  dA => get_da_at_w2(mesh)
+  dA => get_da_at_w2(config, mesh)
 
   if (skeb_rot_du == skeb_rot_du_fe) then
 

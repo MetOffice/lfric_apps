@@ -3,6 +3,12 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code via AI Foundry (Opus 5); PR #673
+! - Met Office Claude Code via AI Foundry (Claude Fable 5.1); PR #768.
+! - Met Office Claude Code via AI Foundry (Claude Opus 5.5); PR #768.
+! - Met Office Claude Code via AI Foundry (Claude Opus 4.8); PR #715.
+! - Met Office Claude Code via AI Foundry (Claude Opus 5.5); PR #715.
 
 !> @brief Outputs diagnostics from gungho/lfric_atm
 
@@ -55,11 +61,13 @@ module gungho_diagnostics_driver_mod
   use driver_modeldb_mod,        only : modeldb_type
 
 #ifdef UM_PHYSICS
+  use height_lev_diags_alg_mod,  only : height_lev_diags_alg
   use pres_lev_diags_alg_mod,    only : pres_lev_diags_alg
   use pmsl_alg_mod,              only : pmsl_alg
   use rh_diag_alg_mod,           only : rh_diag_alg
   use freeze_lev_alg_mod,        only : freeze_lev_alg
   use aviation_diags_alg_mod,    only : aviation_diags_alg
+  use zenith_delay_alg_mod,      only : zenith_delay_alg
 #endif
 
   implicit none
@@ -89,7 +97,7 @@ contains
     logical,             intent(in)             :: nodal_output_on_w3
 
     type(field_collection_type), pointer :: prognostic_fields
-    type(field_collection_type), pointer :: con_tracer_last_outer
+    type(field_collection_type), pointer :: pos_tracer_last_outer
     type(field_collection_type), pointer :: lbc_fields
     type(field_collection_type), pointer :: moisture_fields
     type(field_type),            pointer :: mr(:)
@@ -158,7 +166,7 @@ contains
     moist_dyn => moist_dyn_array%bundle
     derived_fields => modeldb%fields%get_field_collection("derived_fields")
     panel_id => get_panel_id(mesh)
-    con_tracer_last_outer =>  modeldb%fields%get_field_collection("con_tracer_last_outer")
+    pos_tracer_last_outer =>  modeldb%fields%get_field_collection("pos_tracer_last_outer")
 
     ! Can't just iterate through the prognostic/diagnostic collections as
     ! some fields are scalars and some fields are vectors, so explicitly
@@ -205,7 +213,7 @@ contains
     deallocate(fs_ids)
 
     if (transport_ageofair) then
-      call con_tracer_last_outer%get_field('ageofair',ageofair)
+      call pos_tracer_last_outer%get_field('ageofair',ageofair)
       call write_scalar_diagnostic(modeldb%config, mesh, &
                                    'ageofair', ageofair, &
                                    modeldb%clock, nodal_output_on_w3)
@@ -256,7 +264,8 @@ contains
     end if
     call write_vorticity_diagnostic( modeldb%config, u, exner, modeldb%clock )
 #ifdef UM_PHYSICS
-    call write_pv_diagnostic( modeldb%config, u, theta, rho, exner, modeldb%clock )
+    call write_pv_diagnostic( modeldb%config, u, theta, rho, exner, &
+                              derived_fields, modeldb%clock )
 #else
     call write_pv_diagnostic( modeldb%config, u, theta, rho, modeldb%clock )
 #endif
@@ -355,11 +364,15 @@ contains
       ! Pressure level diagnostics
       call pres_lev_diags_alg(modeldb%config, derived_fields, theta, exner, &
                               mr, moist_dyn, plev_geopot)
+      ! Height level diagnostics
+      call height_lev_diags_alg(modeldb%config, derived_fields)
       ! Wet bulb freezing level
       call freeze_lev_alg(modeldb%config,theta, mr, moist_dyn, exner_in_wth)
       ! Aviation diagnostics
-      call aviation_diags_alg(modeldb%config, mesh, plev_geopot, &
-        u, exner, element_order_h, element_order_v)
+      call aviation_diags_alg(modeldb%config, mesh, theta, exner_in_wth, &
+        plev_geopot, u, exner, element_order_h, element_order_v)
+      ! Zenith total delay
+      call zenith_delay_alg(modeldb%config, exner, exner_in_wth, mr, moist_dyn)
 #endif
 
       temp_corr_io_value => get_io_value( modeldb%values, 'temperature_correction_io_value')

@@ -1,5 +1,0 @@
-science/linear/source/kernel/linear_physics/stabilise_bl_u_kernel_mod.F90
-science/gungho/source/kernel/solver/apply_mixed_lu_operator_kernel_mod.F90
-science/gungho/source/kernel/solver/apply_mixed_operator_kernel_mod.F90
-science/gungho/source/kernel/solver/opt_apply_variable_hx_kernel_mod.F90
-science/gungho/source/kernel/solver/apply_elim_mixed_lp_operator_kernel_mod.F90

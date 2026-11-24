@@ -93,7 +93,7 @@ contains
                    setval_c(r_xi, 0.0_r_def) )
     else
       ! Compute adjoint of vorticity in W2 as the strong curl of the projected W1 winds
-      qr => get_qr_fe()
+      qr => get_qr_fe(config)
 
       w1_fs => function_space_collection%get_fs( mesh, element_order_h, element_order_v, W1 )
       call u_in_w1%initialise( vector_space = w1_fs )
