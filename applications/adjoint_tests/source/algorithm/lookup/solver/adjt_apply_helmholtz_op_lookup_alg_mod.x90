@@ -124,7 +124,7 @@ module adjt_apply_helmholtz_op_lookup_alg_mod
 
     call compute_si_operators_common( config, init_op_t, init_op_d, init_op_p, &
                                       init_op_moist_dyn )
-    call compute_helmholtz_operators( model_clock, stepper_siqn )
+    call compute_helmholtz_operators( config, model_clock, stepper_siqn )
 
     Helmholtz_operator => get_helmholtz_operator(stepper_siqn, level)
     lam_mesh = .false.
