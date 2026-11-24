@@ -36,9 +36,6 @@ contains
   !> @param[in,out]  modeldb  The model database
   subroutine run( modeldb )
 
-    ! PSyAD generated tests
-    use gen_adj_kernel_tests_mod,                   only : run_gen_adj_kernel_tests
-
     ! Handwritten kernel tests
     ! ./
     use adjt_sci_psykal_builtin_alg_mod,            only : adjt_convert_cart2sphere_vector_alg
