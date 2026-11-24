@@ -18,11 +18,12 @@ private
 
 ! Regridding Weights
 type(lfricinp_regrid_weights_type), public, target ::                          &
-                                    mesh_face_centre_to_grid_p_bilinear,       &
-                                    mesh_face_centre_to_grid_p_neareststod,    &
-                                    mesh_face_centre_to_grid_u_bilinear,       &
-                                    mesh_face_centre_to_grid_v_bilinear,       &
-                                    mesh_face_centre_to_grid_p_land_mask_bilinear
+                         mesh_face_centre_to_grid_p_bilinear,                  &
+                         mesh_face_centre_to_grid_p_neareststod,               &
+                         mesh_face_centre_to_grid_u_bilinear,                  &
+                         mesh_face_centre_to_grid_v_bilinear,                  &
+                         mesh_face_centre_to_grid_p_land_mask_bilinear,        &
+                         mesh_face_centre_to_grid_p_land_mask_neareststod
 
 public ::  lfric2um_regrid_weightsfile_ctl, get_weights
 
@@ -71,6 +72,16 @@ if (trim(lfric2um_config%weights_file_face_centre_to_p_land_mask_bilinear)     &
        int(um_grid % num_p_points_x, kind=int32))
 end if
 
+! Optional land-masked P points nearest neighbour weights, used for land
+! fields listed in specify_nearest_neighbour
+if (trim(lfric2um_config%weights_file_face_centre_to_p_land_mask_neareststod)  &
+    /= 'unset') then
+  call mesh_face_centre_to_grid_p_land_mask_neareststod % load(                &
+       lfric2um_config%weights_file_face_centre_to_p_land_mask_neareststod)
+  call mesh_face_centre_to_grid_p_land_mask_neareststod %                      &
+       populate_dst_address_2D(int(um_grid % num_p_points_x, kind=int32))
+end if
+
 end subroutine lfric2um_regrid_weightsfile_ctl
 
 !---------------------------------------------------------
@@ -108,8 +119,8 @@ type(lfricinp_regrid_weights_type), pointer :: weights
 
 ! Local variables
 integer(kind=int64) :: horiz_grid_code = 0
-integer(kind=int64) :: i_stash
-logical :: unspecified
+type(lfricinp_regrid_weights_type), pointer :: land_mask_weights
+character(len=32) :: method
 
 ! Check if interpolation method is supported.
 if (trim(interp_method) /= 'bilinear') then
@@ -136,55 +147,28 @@ case( v_points )
 
 case( p_points, ozone_points, land_compressed, p_points_values_over_sea )
 
-  ! Check for specified interpolation method for this stashcode
-  ! and the use appropriate weights
-  unspecified = .true.
-
-  ! Land fields take the land-masked weights when available
-  if ( horiz_grid_code == land_compressed .and.                         &
-       allocated(mesh_face_centre_to_grid_p_land_mask_bilinear % remap_matrix) ) then
-    write(log_scratch_space, '((A,I4))')                                &
-       "Will use land-masked interpolation for stashcode: ", stashcode
-    call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
-
-    weights => mesh_face_centre_to_grid_p_land_mask_bilinear
-    unspecified = .false.
+  ! Use nearest neighbour weights if requested for this stashcode,
+  ! otherwise use the default (bilinear) weights
+  if (any(specify_nearest_neighbour(1:nn_fields) == stashcode)) then
+    weights => mesh_face_centre_to_grid_p_neareststod
+    land_mask_weights => mesh_face_centre_to_grid_p_land_mask_neareststod
+    method = 'nearest neighbour'
+  else
+    weights => mesh_face_centre_to_grid_p_bilinear
+    land_mask_weights => mesh_face_centre_to_grid_p_land_mask_bilinear
+    method = 'bilinear'
   end if
 
-  if ( unspecified .and. nn_fields > 0 ) then
-    do i_stash = 1,nn_fields
-      if (stashcode == specify_nearest_neighbour(i_stash)) then
-        write(log_scratch_space, '((A,I4))')                            &
-           "Will use nearest neighbour interpolation for stashcode: ",   &
-           stashcode
-        call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
-
-        weights => mesh_face_centre_to_grid_p_neareststod
-        unspecified = .false.
-
-        exit
-      end if
-    end do
+  ! Land fields use the land-masked version of those weights, if loaded
+  if (horiz_grid_code == land_compressed .and.                          &
+      allocated(land_mask_weights % remap_matrix)) then
+    weights => land_mask_weights
+    method = 'land-masked ' // trim(method)
   end if
 
-  ! If no specific interpolation specified for this stashcode, then
-  ! use the default
-  if (unspecified)then
-
-    if (trim(interp_method) == 'bilinear') then
-      weights => mesh_face_centre_to_grid_p_bilinear
-      write(log_scratch_space, '((A,I4,A))')                            &
-         "Will use bilinear interpolation for stashcode: ", stashcode,  &
-         " on grid_p"
-      call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
-
-    else
-      write(log_scratch_space, '(A)')                                   &
-            'Unsupported interpolation method for P points'
-      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
-    end if
-
-  end if
+  write(log_scratch_space, '((A,I4,A))') "Will use " // trim(method) // &
+     " interpolation for stashcode: ", stashcode, " on grid_p"
+  call log_event(log_scratch_space, LOG_LEVEL_DEBUG)
 
 case DEFAULT
   write(log_scratch_space, '(2(A,I0))')                                 &
