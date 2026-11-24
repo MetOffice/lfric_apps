@@ -204,7 +204,7 @@ contains
       ! Initialize hydrostatically balanced exner field
       call hydrostatic_balance( config, exner, rho, theta, u, moist_dyn, &
                                 init_eos_height, regrav_interp,          &
-                                recompute_rho = .not. shallow,           &
+                                recompute_rho  = .not. shallow,          &
                                 exner_from_rho = .true. )
     end select
 

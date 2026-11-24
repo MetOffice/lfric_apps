@@ -65,8 +65,8 @@ contains
 
     call hydrostatic_balance( config, exner, rho, theta, u, moist_dyn, &
                               init_eos_height, regrav_interp,          &
-                              recompute_rho=.false.,                   &
-                              exner_from_rho=.false. )
+                              recompute_rho  = .true.,                 &
+                              exner_from_rho = .false. )
 
     call log_event( "Gungho: Reset prognostics from shallow to deep", &
                     LOG_LEVEL_INFO )
