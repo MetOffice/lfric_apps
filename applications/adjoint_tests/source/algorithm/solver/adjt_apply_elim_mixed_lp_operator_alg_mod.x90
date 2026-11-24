@@ -152,7 +152,7 @@ module adjt_apply_elim_mixed_lp_operator_alg_mod
     theta_theta_input_inner_prod = 0.0_r_def
     u_u_input_inner_prod = 0.0_r_def
     exner_exner_input_inner_prod = 0.0_r_def
-    call invoke(inc_a_times_X( lhs_exner_sf, lhs_exner ),                                          &
+    call invoke( inc_a_times_X( lhs_exner_sf, lhs_exner ),                                         &
                  inc_a_times_X( u_sf, u ),                                                         &
                  inc_a_times_X( theta_sf, theta ),                                                 &
                  inc_a_times_X( exner_sf, exner ),                                                 &
