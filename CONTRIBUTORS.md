@@ -67,5 +67,6 @@
 | zmaalick            | Zubair Maalick     | Met Office                       | 2026-08-31 |
 | ddeeptimahanti      | Deva Kumar Deeptimahanti | Pawsey Supercomputing Research Centre | 2026-10-14 |
 | doucla              | Douglas Clark      | UKCEH                            | 2026-10-13 |
+| HEBaron             | Helen Baron        | UKCEH                            | 2026-10-14 |
 | jerry-liu-jianyu    | Liu Jianyu         | NEA/MSS/CCRS                     | 2026-09-25 |
 | mn416               | Matthew Naylor     | University of Cambridge          | 2026-07-24 |

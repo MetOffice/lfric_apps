@@ -1044,13 +1044,13 @@ contains
     end do
 
     do i = 1, seg_len
-      bl_type_ind(map_bl(1,i)+0) = bl_type_1(i)
-      bl_type_ind(map_bl(1,i)+1) = bl_type_2(i)
-      bl_type_ind(map_bl(1,i)+2) = bl_type_3(i)
-      bl_type_ind(map_bl(1,i)+3) = bl_type_4(i)
-      bl_type_ind(map_bl(1,i)+4) = bl_type_5(i)
-      bl_type_ind(map_bl(1,i)+5) = bl_type_6(i)
-      bl_type_ind(map_bl(1,i)+6) = bl_type_7(i)
+      bl_type_ind(map_bl(1,i)+0) = int(bl_type_1(i), kind=i_def)
+      bl_type_ind(map_bl(1,i)+1) = int(bl_type_2(i), kind=i_def)
+      bl_type_ind(map_bl(1,i)+2) = int(bl_type_3(i), kind=i_def)
+      bl_type_ind(map_bl(1,i)+3) = int(bl_type_4(i), kind=i_def)
+      bl_type_ind(map_bl(1,i)+4) = int(bl_type_5(i), kind=i_def)
+      bl_type_ind(map_bl(1,i)+5) = int(bl_type_6(i), kind=i_def)
+      bl_type_ind(map_bl(1,i)+6) = int(bl_type_7(i), kind=i_def)
     end do
 
     ! Update blended Smagorinsky diffusion coefficients
