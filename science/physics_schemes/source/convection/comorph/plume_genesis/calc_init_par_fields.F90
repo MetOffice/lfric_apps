@@ -164,8 +164,6 @@ if ( par_gen_rhpert > zero ) then
   do ic2 = 1, nc2
     ic = index_ic2(ic2)
     fac_core = factor(ic2) * par_gen_core_fac
-    ! TEMPORARY CODE TO FORCE BIT-REPRODUCIBILITY WITH PREVIOUS VERSION
-    if ( abs(fac_core-one) < sqrt_min_delta )  fac_core = one
     temperature(ic2) = fields_par(ic2,i_temperature) + delta_temp_neut(ic)     &
                                                        * fac_core
     q_vap(ic2)       = fields_par(ic2,i_q_vap)       + delta_qvap_neut(ic)     &
@@ -177,9 +175,6 @@ if ( par_gen_rhpert > zero ) then
   end do
 
   do ic2 = 1, nc2
-    ! TEMPORARY CODE TO FORCE BIT-REPRODUCIBILITY WITH PREVIOUS VERSION
-    factor(ic2) = factor(ic2) * par_gen_core_fac
-    if ( abs(factor(ic2)-one) < sqrt_min_delta )  factor(ic2) = one
     ! Apply only a fraction of the neutrally-buoyant relative humidity
     ! perturbation if it would make the parcel core supersaturated
     if ( rh_par(ic2) >= one ) then
@@ -195,8 +190,6 @@ if ( par_gen_rhpert > zero ) then
       ! The above logic ensures we cannot enter this branch and get a
       ! div-by-zero when this happens.
     end if
-    ! TEMPORARY CODE TO FORCE BIT-REPRODUCIBILITY WITH PREVIOUS VERSION
-    factor(ic2) = factor(ic2) / par_gen_core_fac
   end do
 
   ! Add on the scaled neutrally-buoyant RH perturbations

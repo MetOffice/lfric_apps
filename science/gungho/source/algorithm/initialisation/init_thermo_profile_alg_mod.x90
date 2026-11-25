@@ -15,7 +15,7 @@ use kernel_mod,                  only: kernel_type
 use field_mod,                   only: field_type
 use formulation_config_mod,      only: moisture_formulation,    &
                                        moisture_formulation_dry
-use fs_continuity_mod,           only: Wtheta
+use fs_continuity_mod,           only: Wtheta, W3
 use mesh_mod,                    only: mesh_type
 use sci_geometric_constants_mod, only: get_height_fe,   &
                                        get_height_fv,   &
@@ -32,18 +32,22 @@ private
 public init_thermo_profile_alg
 contains
 
-subroutine init_thermo_profile_alg(config, theta, mr_v )
+subroutine init_thermo_profile_alg( config, theta, mr_v, exner )
 
 use initial_temperature_config_mod, only: temp_prof_size    => profile_size,    &
                                           temp_prof_data    => profile_data,    &
                                           temp_prof_heights => profile_heights, &
+                                          temp_variable => profile_variable,    &
+                                          profile_variable_potential,           &
                                           perturb, theta_pert_size,             &
                                           theta_pert_start, theta_pert_end,     &
                                           perturb_random
 
-use initial_vapour_config_mod,      only: vapour_prof_size    => profile_size,   &
-                                          vapour_prof_data    => profile_data,   &
-                                          vapour_prof_heights => profile_heights
+use initial_vapour_config_mod,      only: vapour_prof_size    => profile_size,    &
+                                          vapour_prof_data    => profile_data,    &
+                                          vapour_prof_heights => profile_heights, &
+                                          vapour_variable => profile_variable,    &
+                                          profile_variable_mr
 
 !> @todo Data passed to the kernel via module 'use' statements.
 !>       When PSyclone supports passing of arrays into kernels (issue #1312),
@@ -55,13 +59,15 @@ use profile_interp_kernel_mod,      only: profile_interp_kernel_type, &
 
 use sci_random_perturb_kernel_mod,  only: random_perturb_kernel_type
 
+use vert_balance_kernel_mod, only: vert_balance_kernel_type
+
 implicit none
 
 ! Arguments
-type(config_type),          intent(in)    :: config
-type(field_type),           intent(inout) :: theta
-type(field_type), optional, intent(inout) :: mr_v
-! Not needed when formulation is dry
+type(config_type), intent(in)    :: config
+type(field_type),  intent(inout) :: theta
+type(field_type),  intent(inout) :: mr_v
+type(field_type),  intent(inout) :: exner
 
 type(mesh_type), pointer :: mesh
 logical(kind=l_def) :: profile_extrap
@@ -69,6 +75,17 @@ type(field_type), pointer :: chi(:) => null()
 type(field_type), pointer :: panel_id => null()
 
 type( field_type ), pointer :: height_wth => null()
+type( field_type ), pointer :: height_w3
+
+! Temperature field specified by namelist input.
+! This may be absolute temperature or potential temperature
+type( field_type ) :: temp_specified
+! Vapour field specified by namelist input.
+! This may be either relative humidity or mixing ratio
+type( field_type ) :: vapour_specified
+
+call temp_specified%initialise( vector_space = theta%get_function_space() )
+call vapour_specified%initialise( vector_space = mr_v%get_function_space() )
 
 mesh     => theta%get_mesh()
 chi      => get_coordinates(mesh)
@@ -76,8 +93,10 @@ panel_id => get_panel_id(mesh)
 
 if ( theta%get_element_order_h() > 0 .or. theta%get_element_order_v() > 0 ) then
   height_wth => get_height_fe(config, mesh, Wtheta)
+  height_w3  => get_height_fe(config, mesh, W3)
 else
   height_wth => get_height_fv(config, mesh, Wtheta)
+  height_w3  => get_height_fv(config, mesh, W3)
 end if
 
 profile_extrap = .true.
@@ -86,24 +105,36 @@ profile_size    = temp_prof_size
 profile_data(1:profile_size)    = temp_prof_data(1:profile_size)
 profile_heights(1:profile_size) = temp_prof_heights(1:profile_size)
 if ( profile_size == 1) then
-  call invoke( setval_c( theta, profile_data(1) ) )
+  call invoke( setval_c( temp_specified, profile_data(1) ) )
 else
-  call invoke( setval_c( theta, rmdi ),                       &
-               profile_interp_kernel_type( theta, height_wth, &
+  call invoke( setval_c( temp_specified, rmdi ),                       &
+               profile_interp_kernel_type( temp_specified, height_wth, &
                                            profile_extrap ) )
 end if
+call invoke( setval_X(theta, temp_specified ) )
 
-if ( moisture_formulation /= moisture_formulation_dry ) then
+if ( moisture_formulation == moisture_formulation_dry ) then
+  call invoke( setval_c( vapour_specified, 0.0_r_def ) )
+else
   profile_size    = vapour_prof_size
   profile_data(1:profile_size)    = vapour_prof_data(1:profile_size)
   profile_heights(1:profile_size) = vapour_prof_heights(1:profile_size)
   if ( profile_size == 1) then
-    call invoke( setval_c( mr_v, profile_data(1) ) )
+    call invoke( setval_c( vapour_specified, profile_data(1) ) )
   else
-    call invoke( setval_c( mr_v, rmdi ),                        &
-                 profile_interp_kernel_type( mr_v, height_wth,  &
+    call invoke( setval_c( vapour_specified, rmdi ),                        &
+                 profile_interp_kernel_type( vapour_specified, height_wth,  &
                                              profile_extrap ) )
   end if
+  call invoke( setval_X(mr_v, vapour_specified ) )
+end if
+
+if ( temp_variable   /= profile_variable_potential .or. &
+     vapour_variable /= profile_variable_mr ) then
+  call invoke( vert_balance_kernel_type( theta, mr_v, exner,               &
+                                         temp_specified, vapour_specified, &
+                                         height_wth, height_w3, chi,       &
+                                         panel_id ) )
 end if
 
 ! Add a perturbation to potential temperature

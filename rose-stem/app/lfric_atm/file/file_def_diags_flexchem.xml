@@ -2,7 +2,7 @@
 
   <!-- Diagnostic output file for idealised runs -->
   <file id="lfric_diagnostics" name="results/lfric_diagnostics" output_freq="1h" convention="UGRID" enabled=".TRUE.">
-    <field_group operation="instant" freq_op="1h" prec="4">
+    <field_group operation="instant" freq_op="1h">
       <field field_ref="chemistry__h2o"/>
       <field field_ref="chemistry__co"/>
       <field field_ref="chemistry__ch4"/>

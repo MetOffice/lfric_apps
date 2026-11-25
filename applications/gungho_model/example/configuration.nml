@@ -179,6 +179,8 @@ write_minmax_tseries=.false.,
 run_log_level='info',
 /
 &mixed_solver
+chebyshev_lmax = 2.5
+chebyshev_lmin = 1.0
 eliminate_variables='discrete',
 fail_on_non_converged=.true.,
 gcrk=4,
@@ -284,7 +286,7 @@ timestep_start='1',
 &timestepping
 alpha=0.55,
 dt=3600,
-inner_iterations=2,
+inner_iterations_si=2,2
 method='semi_implicit',
 outer_iterations=2,
 runge_kutta_method='forward_euler',
@@ -323,6 +325,7 @@ log_space=.true.,.true.,.false.,.false.,
 max_vert_cfl_calc='dep_point',
 min_val_method='clipping',
 min_value=0.0,0.0,-99999999.0,0.0,
+native_w2_wind_transport=.false.
 oned_reconstruction=.false.,
 operators='fv',
 panel_edge_high_order=.true.,

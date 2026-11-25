@@ -125,7 +125,7 @@ integration-tests/%: export PROJECT       = gungho
 integration-tests/%: export SOURCE_DIR    = source
 integration-tests/%: export TEST_DIR      = integration-test
 integration-tests/%: export WORKING_DIR  := $(WORKING_DIR)/integration-tests
-integration-tests: extrac_meta integration-tests/run
+integration-tests: extract_meta integration-tests/run
 integration-tests/build: extract_meta integration-tests/build
 
 ###############################################################################

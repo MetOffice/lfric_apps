@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code via AI Foundry (Opus 5); PR #676
+!-----------------------------------------------------------------------------
 !> @brief Interface to the UM Gregory Rowntree Convection scheme.
 !>
 module conv_gr_kernel_mod
@@ -14,7 +17,7 @@ module conv_gr_kernel_mod
                                       GH_READWRITE, DOMAIN,      &
                                       ANY_DISCONTINUOUS_SPACE_1, &
                                       ANY_DISCONTINUOUS_SPACE_2
-  use constants_mod,           only : i_def, i_um, r_def, r_um
+  use constants_mod,           only : i_def, i_um, r_def, r_um, rmdi
   use tuning_segments_mod,     only : conv_gr_segment_size
   use empty_data_mod,          only : empty_real_data
   use fs_continuity_mod,       only : W3, Wtheta
@@ -34,7 +37,7 @@ module conv_gr_kernel_mod
   !>
   type, public, extends(kernel_type) :: conv_gr_kernel_type
     private
-    type(arg_type) :: meta_args(210) = (/                                         &
+    type(arg_type) :: meta_args(211) = (/                                         &
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                                &! outer
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! rho_in_w3
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! rho_in_wth
@@ -243,6 +246,7 @@ module conv_gr_kernel_mod
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! massflux_up_half
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, W3),                       &! massflux_up_cmpta
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! cca_unadjusted
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! ccw_unadjusted
          arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     WTHETA),                   &! dth_conv_noshal
          arg_type(GH_FIELD,  GH_REAL,    GH_WRITE,     WTHETA)                    &! dmv_conv_noshal
         /)
@@ -469,6 +473,7 @@ contains
   !> @param[in,out] massflux_up_half     Convective upwards mass flux on half-levels (Pa/s)
   !> @param[in,out] massflux_up_cmpta    Convective upwards mass flux component A (Pa/s)
   !> @param[in,out] cca_unadjusted       Convective cloud amout unadjusted for radiation calc.
+  !> @param[in,out] ccw_unadjusted       Convective cloud water unadjusted for radiation calc.
   !> @param[out]    dth_conv_noshal      Convection theta increment from non-shallow regions
   !> @param[out]    dmv_conv_noshal      Convection vapour increment from non-shallow regions
   !> @param[in]     ndf_w3               Number of DOFs per cell for density space
@@ -693,6 +698,7 @@ contains
                           massflux_up_half,                  &
                           massflux_up_cmpta,                 &
                           cca_unadjusted,                    &
+                          ccw_unadjusted,                    &
                           dth_conv_noshal,                   &
                           dmv_conv_noshal,                   &
                           ndf_w3,                            &
@@ -1071,6 +1077,7 @@ contains
                                                 massflux_up_half(:), &
                                                 massflux_up_cmpta(:),&
                                                 cca_unadjusted(:),   &
+                                                ccw_unadjusted(:),   &
                                                 dth_conv_noshal(:),  &
                                                 dmv_conv_noshal(:)
 
@@ -1300,7 +1307,7 @@ contains
     do i = 1, ncells
       cumulus(i,1) = (cumulus_2d(map_2d(1,i)) == 1_i_def)
       ntml(i,1) = ntml_2d(map_2d(1,i))
-  
+
       zh(i,1) = zh_2d(map_2d(1,i))
       l_shallow(i,1) = (shallow_flag(map_2d(1,i)) == 1_i_def)
       uw0(i,1) = uw0_flux(map_2d(1,i))
@@ -1349,7 +1356,7 @@ contains
         q_conv(i,1,k)   = m_v(map_wth(1,i) + k)
         qcl_conv(i,1,k) = m_cl(map_wth(1,i) + k)
         qcf_conv(i,1,k) = m_cf(map_wth(1,i) + k)
-  
+
         cf_liquid_conv(i,1,k) = cf_liq(map_wth(1,i) + k)
         cf_frozen_conv(i,1,k) = cf_ice(map_wth(1,i) + k)
         bulk_cf_conv(i,1,k)   = cf_bulk(map_wth(1,i) + k)
@@ -2519,6 +2526,14 @@ contains
             end do
           end do
         end if
+        if (.not. associated(ccw_unadjusted, empty_real_data) ) then
+          do k = 1, n_conv_levels
+            do i = 1, ncells
+              ccw_unadjusted(map_wth(1,i) + k) = ccw_unadjusted(map_wth(1,i) + k) +  &
+                                           it_ccw(i,1,k)*one_over_conv_calls
+            end do
+          end do
+        end if
         if (.not. associated(massflux_up_half, empty_real_data) ) then
           do k = 1, n_conv_levels
             do i = 1, ncells
@@ -2728,7 +2743,7 @@ contains
           if (cct(i,1) > 0) then
             pres_cv_top(map_2d(1,i)) = p_rho_levels(i,1,cct(i,1))
           else
-            pres_cv_top(map_2d(1,i)) = 0.0_r_def
+            pres_cv_top(map_2d(1,i)) = rmdi
           end if
         end do
       end if
@@ -2737,7 +2752,7 @@ contains
           if (ccb(i,1) > 0) then
             pres_cv_base(map_2d(1,i)) = p_rho_levels(i,1,ccb(i,1))
           else
-            pres_cv_base(map_2d(1,i))= 0.0_r_def
+            pres_cv_base(map_2d(1,i))= rmdi
           end if
         end do
       end if
@@ -2748,7 +2763,7 @@ contains
           if (lctop(i,1) > 0) then
             pres_lowest_cv_top(map_2d(1,i)) = p_rho_levels(i,1,lctop(i,1))
           else
-            pres_lowest_cv_top(map_2d(1,i)) = 0.0_r_def
+            pres_lowest_cv_top(map_2d(1,i)) = rmdi
           end if
         end do
       end if
@@ -2757,7 +2772,7 @@ contains
           if (lcbase(i,1) > 0) then
             pres_lowest_cv_base(map_2d(1,i)) = p_rho_levels(i,1,lcbase(i,1))
           else
-            pres_lowest_cv_base(map_2d(1,i))= 0.0_r_def
+            pres_lowest_cv_base(map_2d(1,i))= rmdi
           end if
         end do
       end if

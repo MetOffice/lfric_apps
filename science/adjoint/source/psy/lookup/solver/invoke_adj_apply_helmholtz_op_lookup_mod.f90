@@ -28,25 +28,25 @@ module invoke_adj_a_h_o_lookup_kernel_mod
     logical(kind=l_def), intent(in) :: lam_mesh
     type(r_solver_field_type), intent(in) :: vector_mx, vector_amx, helmholtz_operator(9)
     type(integer_field_type), intent(in) :: lookup_field, set_counts_field
-    integer(kind=i_def) cell
-    integer(kind=i_def) i
-    integer(kind=i_def) loop0_start, loop0_stop
-    integer(kind=i_def) nlayers_vector_mx
+    integer(kind=i_def) :: cell
+    integer(kind=i_def) :: i
+    integer(kind=i_def) :: loop0_start, loop0_stop
+    integer(kind=i_def) :: nlayers_vector_mx
     integer(kind=i_def), pointer, dimension(:) :: set_counts_field_data
     integer(kind=i_def), pointer, dimension(:) :: lookup_field_data
-    type(integer_field_proxy_type) lookup_field_proxy, set_counts_field_proxy
+    type(integer_field_proxy_type) :: lookup_field_proxy, set_counts_field_proxy
     real(kind=r_solver), pointer, dimension(:) :: helmholtz_operator_1_data, helmholtz_operator_2_data, &
 &helmholtz_operator_3_data, helmholtz_operator_4_data, helmholtz_operator_5_data, &
 &helmholtz_operator_6_data, helmholtz_operator_7_data, helmholtz_operator_8_data, &
 &helmholtz_operator_9_data
     real(kind=r_solver), pointer, dimension(:) :: vector_amx_data
     real(kind=r_solver), pointer, dimension(:) :: vector_mx_data
-    type(r_solver_field_proxy_type) vector_mx_proxy, vector_amx_proxy, helmholtz_operator_proxy(9)
+    type(r_solver_field_proxy_type) :: vector_mx_proxy, vector_amx_proxy, helmholtz_operator_proxy(9)
     integer(kind=i_def), pointer :: map_adspc1_lookup_field(:,:), map_adspc2_set_counts_field(:,:), &
 &map_w3(:,:)
-    integer(kind=i_def) ndf_w3, undf_w3, ndf_adspc1_lookup_field, undf_adspc1_lookup_field, ndf_adspc2_set_counts_field, &
+    integer(kind=i_def) :: ndf_w3, undf_w3, ndf_adspc1_lookup_field, undf_adspc1_lookup_field, ndf_adspc2_set_counts_field, &
 &undf_adspc2_set_counts_field
-    integer(kind=i_def) max_halo_depth_mesh
+    integer(kind=i_def) :: max_halo_depth_mesh
     type(mesh_type), pointer :: mesh
 
     nullify( set_counts_field_data, lookup_field_data, helmholtz_operator_1_data, &
@@ -128,6 +128,8 @@ module invoke_adj_a_h_o_lookup_kernel_mod
     end do
     call vector_mx_proxy%halo_exchange(depth=stencil_extent)
 
+    !$omp parallel default(shared), private(cell)
+    !$omp do schedule(static)
     do cell = loop0_start, loop0_stop, 1
       call adj_apply_helmholtz_op_lookup_code(nlayers_vector_mx, vector_mx_data, vector_amx_data, helmholtz_operator_1_data, &
 &helmholtz_operator_2_data, helmholtz_operator_3_data, helmholtz_operator_4_data, helmholtz_operator_5_data, &
@@ -135,6 +137,8 @@ module invoke_adj_a_h_o_lookup_kernel_mod
 &set_counts_field_data, nindices, lam_mesh, ndf_w3, undf_w3, map_w3(:,cell), ndf_adspc1_lookup_field, undf_adspc1_lookup_field, &
 &map_adspc1_lookup_field(:,cell), ndf_adspc2_set_counts_field, undf_adspc2_set_counts_field, map_adspc2_set_counts_field(:,cell))
     end do
+    !$omp end do
+    !$omp end parallel
     !
     ! Set halos dirty/clean for fields modified in the above loop
     !

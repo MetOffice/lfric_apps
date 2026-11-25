@@ -1,10 +1,10 @@
-@@ -4,14 +4,14 @@
+@@ -5,14 +5,14 @@
  &gh_read, gh_real
-   use constants_mod, only : i_def, r_def, r_double, r_single
+   use constants_mod, only : i_def, r_def
    implicit none
 -  interface sample_field_code
 +  interface adj_sample_field_code
-     module procedure :: adj_sample_field_code_r_single, adj_sample_field_code_r_double
+     module procedure :: adj_sample_field_code_real32, adj_sample_field_code_real64
 -  end interface sample_field_code
 +  end interface adj_sample_field_code
    type, public, extends(kernel_type) :: adj_sample_field_kernel_type
@@ -17,7 +17,7 @@
    type(FUNC_TYPE) :: META_FUNCS(1) = (/ &
      func_type(any_space_2, gh_basis)/)
    INTEGER :: GH_SHAPE = gh_evaluator
-@@ -20,7 +20,7 @@
+@@ -21,7 +21,7 @@
  
    private
  
@@ -25,4 +25,4 @@
 +  public :: adj_sample_field_code
  
    contains
-   subroutine adj_sample_field_code_r_single(nlayers, field_1, rmultiplicity, field_2, ndf_1, undf_1, map_1, ndf_2, undf_2, map_2, &
+   subroutine adj_sample_field_code_real32(nlayers, field_1, rmultiplicity, field_2, ndf_1, undf_1, map_1, ndf_2, undf_2, map_2, &

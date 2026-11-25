@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-------------------------------------------------------------------------------
+! Some content in this file was generated or refactored with assistance from
+! - Met Office Claude Code via AI Foundry (Opus 5); PR #676
+!-------------------------------------------------------------------------------
 !> @brief Interface to the Comorph convection scheme
 
 module conv_comorph_alg_mod
@@ -135,6 +138,7 @@ contains
     type( field_type ), pointer :: massflux_down
     type( field_type ), pointer :: cape_diluted
     type( field_type ), pointer :: pressure_inc_env
+    type( field_type ), pointer :: conv_ppn_frac
 
     type( field_type ), pointer :: cf_fro
     type( field_type ), pointer :: cf_liq
@@ -268,7 +272,10 @@ contains
     type( field_type ) :: entrain_up,entrain_down
     type( field_type ) :: detrain_up,detrain_down
     type( field_type ) :: pres_cv_base,pres_cv_top
-    type( field_type ) :: pres_lowest_cv_base,pres_lowest_cv_top, lowest_cca_2d
+    type( field_type ) :: pres_lowest_cv_base, pres_lowest_cv_top, lowest_cca_2d
+    type( field_type ) :: cloud_base_icao_height, cloud_top_icao_height
+    type( field_type ) :: lowest_cloud_base_icao_height
+    type( field_type ) :: lowest_cloud_top_icao_height
     type( field_type ) :: massflux_up_half
     type( field_type ) :: u_in_w3_latest, v_in_w3_latest, w_in_w3_latest, dw_conv
 
@@ -281,7 +288,7 @@ contains
     call log_event( 'Running Comorph convection scheme', LOG_LEVEL_DEBUG )
 
     mesh  => rho%get_mesh()
-    delta => get_delta_at_wtheta(mesh)
+    delta => get_delta_at_wtheta(config, mesh)
 
     ! Unpack derived fields
     call derived_fields%get_field('exner_in_wth', exner_in_wth)
@@ -336,6 +343,7 @@ contains
     call convection_fields%get_field('cv_base', cv_base)
     call convection_fields%get_field('cv_top', cv_top)
     call convection_fields%get_field('pressure_inc_env', pressure_inc_env)
+    call convection_fields%get_field('conv_ppn_frac',conv_ppn_frac)
 
     ! Unpack cloud fields
     call cloud_fields%get_field('frozen_fraction', cf_fro)
@@ -468,20 +476,24 @@ contains
     height_w3  => get_height_fv(config, mesh, W3)
 
     ! Initialise the convection diagnostics
-    call initialise_diags_for_comorph(lowest_cv_base,       &
-                                      lowest_cv_top,        &
-                                      cv_base,              &
-                                      cv_top,               &
-                                      pres_cv_base,         &
-                                      pres_cv_top,          &
-                                      pres_lowest_cv_base,  &
-                                      pres_lowest_cv_top,   &
-                                      lowest_cca_2d,        &
-                                      entrain_up,           & ! 3-D variables
-                                      entrain_down,         &
-                                      detrain_up,           &
-                                      detrain_down,         &
-                                      massflux_up_half)
+    call initialise_diags_for_comorph(lowest_cv_base,         &
+                                      lowest_cv_top,          &
+                                      cv_base,                &
+                                      cv_top,                 &
+                                      pres_cv_base,           &
+                                      pres_cv_top,            &
+                                      pres_lowest_cv_base,    &
+                                      pres_lowest_cv_top,     &
+                                      lowest_cca_2d,          &
+                                      entrain_up,             & ! 3-D variables
+                                      entrain_down,           &
+                                      detrain_up,             &
+                                      detrain_down,           &
+                                      massflux_up_half,       &
+                                      cloud_base_icao_height, &
+                                      cloud_top_icao_height,  &
+                                      lowest_cloud_base_icao_height, &
+                                      lowest_cloud_top_icao_height)
 
     ! call the scheme
     ncells = mesh%get_last_edge_cell()
@@ -491,8 +503,8 @@ contains
     call u_in_w3%copy_field_properties(u_in_w3_latest)
     call u_in_w3%copy_field_properties(v_in_w3_latest)
     call u_in_w3%copy_field_properties(w_in_w3_latest)
-    call map_physics_winds(u_in_w3_latest, v_in_w3_latest, w_in_w3_latest, &
-                           u_latest)
+    call map_physics_winds( config, u_in_w3_latest, v_in_w3_latest, &
+                            w_in_w3_latest, u_latest )
     call w_in_w3_latest%field_final()
 
     call invoke( conv_comorph_kernel_type( outer, rho, rho_in_wth,            &
@@ -515,6 +527,7 @@ contains
                           zh, zh_nonloc, inv_depth, zhsc, bl_type_ind,        &
                           wvar, rhokm_bl, moist_flux, heat_flux, taux, tauy,  &
                           surf_interp, ustar, ls_rain, ls_snow,               &
+                          conv_ppn_frac,                                      &
                           dcfl_conv, dcff_conv, dbcf_conv,                    &
                           o3p,                                                &
                           o1d,                                                &
@@ -655,39 +668,46 @@ contains
     ! output diagnostics on last iteration only
     if (write_diag .and. use_xios_io .and. outer == outer_iterations) then
 
-      call output_diags_for_comorph( cca,                & ! prognostics
-                                  ccw,                   &
-                                  dt_conv,               & ! increments
-                                  dmv_conv,              &
-                                  dmcl_conv,             &
-                                  dms_conv,              &
-                                  du_conv,               &
-                                  dv_conv,               &
-                                  dbcf_conv,             &
-                                  dcfl_conv,             &
-                                  dcff_conv,             &
-                                  massflux_up,           & ! not local
-                                  massflux_down,         &
-                                  cape_diluted,          &
-                                  conv_rain,             &
-                                  conv_snow,             &
-                                  conv_rain_3d,          &
-                                  conv_snow_3d,          &
-                                  cca_2d,                &
-                                  lowest_cv_base,        &
-                                  lowest_cv_top,         &
-                                  cv_base,               &
-                                  cv_top,                &
-                                  pres_cv_base,          &
-                                  pres_cv_top,           &
-                                  pres_lowest_cv_base,   &
-                                  pres_lowest_cv_top,    &
-                                  lowest_cca_2d,         &
-                                  entrain_up,            & ! 3-D
-                                  entrain_down,          &
-                                  detrain_up,            &
-                                  detrain_down,          &
-                                  massflux_up_half)
+      call output_diags_for_comorph( cca,                 & ! prognostics
+                                  ccw,                    &
+                                  dt_conv,                & ! increments
+                                  dmv_conv,               &
+                                  dmcl_conv,              &
+                                  dms_conv,               &
+                                  du_conv,                &
+                                  dv_conv,                &
+                                  dbcf_conv,              &
+                                  dcfl_conv,              &
+                                  dcff_conv,              &
+                                  massflux_up,            & ! not local
+                                  massflux_down,          &
+                                  cape_diluted,           &
+                                  conv_rain,              &
+                                  conv_snow,              &
+                                  conv_rain_3d,           &
+                                  conv_snow_3d,           &
+                                  cca_2d,                 &
+                                  ls_rain,               &
+                                  ls_snow,               &
+                                  conv_ppn_frac,         &
+                                  lowest_cv_base,         &
+                                  lowest_cv_top,          &
+                                  cv_base,                &
+                                  cv_top,                 &
+                                  pres_cv_base,           &
+                                  pres_cv_top,            &
+                                  pres_lowest_cv_base,    &
+                                  pres_lowest_cv_top,     &
+                                  lowest_cca_2d,          &
+                                  entrain_up,             & ! 3-D
+                                  entrain_down,           &
+                                  detrain_up,             &
+                                  detrain_down,           &
+                                  massflux_up_half,       &
+                                  cloud_base_icao_height, &
+                                  cloud_top_icao_height,  &
+                                  lowest_cloud_base_icao_height, &
+                                  lowest_cloud_top_icao_height)
 
     end if
 

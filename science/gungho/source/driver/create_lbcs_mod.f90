@@ -27,6 +27,9 @@ module create_lbcs_mod
                                          lbc_option_analytic,    &
                                          lbc_option_gungho_file, &
                                          lbc_option_um2lfric_file
+  use boundaries_config_mod,      only : lbc_bal_meth, &
+                                         lbc_bal_meth_keep_rho, &
+                                         lbc_bal_meth_keep_exner_eos_lev
   use aerosol_config_mod,         only : murk_lbc
 
   implicit none
@@ -42,8 +45,9 @@ module create_lbcs_mod
    !> These two operations have to be separate because they have to happen
    !> at different times. The enabling of checkpoint fields has to happen
    !> before the io context closes, and this is too early for field creation.
-   !> @param  proc Processor to be applied to selected field specifiers
-   subroutine process_lbc_fields(proc)
+   !> @param  proc   Processor to be applied to selected field specifiers
+   !> @param  legacy Flag to enable/disable legacy CP
+   subroutine process_lbc_fields(proc, legacy)
       use field_spec_mod,             only : main => main_coll_dict,            &
                                              axis => time_axis_dict,            &
                                              processor_type,                    &
@@ -51,12 +55,10 @@ module create_lbcs_mod
       implicit none
 
       class(processor_type) :: proc
+      logical(l_def) :: legacy
 
       integer(i_def) :: imr
       character(str_def) :: name
-      logical(l_def) :: legacy
-
-      legacy = .true.
 
       select case( lbc_option )
 
@@ -100,7 +102,15 @@ module create_lbcs_mod
         case ( lbc_option_um2lfric_file )
           !------ Fields updated directly from LBC file-----------------
           call proc%apply(make_spec('lbc_theta', main%lbc, Wtheta, time_axis=axis%lbc))
-          call proc%apply(make_spec('lbc_rho_r2', main%lbc, W3, time_axis=axis%lbc))
+          select case (lbc_bal_meth)
+          case(lbc_bal_meth_keep_rho)
+            call proc%apply(make_spec('lbc_rho_r2', main%lbc, W3, time_axis=axis%lbc))
+            call proc%apply(make_spec('lbc_exner', main%lbc, W3))
+          case(lbc_bal_meth_keep_exner_eos_lev)
+            call proc%apply(make_spec('lbc_rho_r2', main%lbc, W3))
+            call proc%apply(make_spec('lbc_exner', main%lbc, W3, time_axis=axis%lbc))
+          end select
+
           call proc%apply(make_spec('lbc_h_u', main%lbc, W2H, time_axis=axis%lbc))
           call proc%apply(make_spec('lbc_v_u', main%lbc, Wtheta, time_axis=axis%lbc))
 
@@ -117,7 +127,6 @@ module create_lbcs_mod
 
           !----- Fields derived from the fields in the LBC file---------
           call proc%apply(make_spec('lbc_rho', main%lbc, W3))
-          call proc%apply(make_spec('lbc_exner', main%lbc, W3))
           call proc%apply(make_spec('lbc_u', main%lbc, W2))
           call proc%apply(make_spec('boundary_u_diff', main%lbc, W2))
           call proc%apply(make_spec('boundary_u_driving', main%lbc, W2))
@@ -152,6 +161,7 @@ module create_lbcs_mod
      type(gungho_time_axes_type), pointer    :: gungho_axes
 
      type(field_maker_type) :: creator
+     logical :: legacy
 
      call log_event('GungHo: Creating lbc fields...', LOG_LEVEL_INFO)
 
@@ -160,7 +170,8 @@ module create_lbcs_mod
 
      call creator%init(mesh, twod_mesh, mapper, clock)
 
-     call process_lbc_fields(creator)
+     legacy = (mesh%is_geometry_planar() .and. mesh%is_topology_periodic())
+     call process_lbc_fields(creator, legacy)
 
      call gungho_axes%save_lbc_time_axis()
 

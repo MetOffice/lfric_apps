@@ -67,7 +67,7 @@ module fast_physics_alg_mod
                             only: enforce_lower_bound_kernel_type
   use moisture_conservation_alg_mod, &
                             only: moisture_conservation_alg
-  use mixing_config_mod,    only: smagorinsky
+  use mixing_config_mod,    only: smagorinsky, leonard_term, leonard_inc_with_bl
   use smagorinsky_alg_mod,  only: smagorinsky_alg
   use timestepping_config_mod, &
                             only : outer_iterations
@@ -190,7 +190,10 @@ contains
     ! ...for boundary layer stochastic perturbation
     type( field_type ) :: dtheta_blpert
     type( field_type ) :: dmv_blpert
-
+    ! ...for Leonard term flux
+    type( field_type ), pointer :: u_inc_leonard
+    type( field_type ), pointer :: mt_inc_leonard
+    type( field_type ), pointer :: thetal_inc_leonard
     ! ...surface fields passed from BL to Jules
     type( field_type ) :: surf_heat_flux
     type( field_type ) :: canopy_evap
@@ -264,6 +267,17 @@ contains
     ! UM implicit boundary layer
     !--------------------------------------------------------------------
     if (boundary_layer == boundary_layer_um) then
+
+      ! Possibly add Leonard increments here
+      if (leonard_term .and. leonard_inc_with_bl) then
+        call turbulence_fields%get_field('u_inc_leonard', u_inc_leonard)
+        call turbulence_fields%get_field('mt_inc_leonard', mt_inc_leonard)
+        call turbulence_fields%get_field('thetal_inc_leonard', thetal_inc_leonard)
+        call invoke(inc_X_plus_Y(mr(imr_v), mt_inc_leonard), &
+                    inc_X_plus_Y(theta_latest, thetal_inc_leonard), &
+                    inc_X_plus_Y(u_latest, u_inc_leonard) )
+      end if
+
       if(blayer_placement == blayer_placement_b4conv) then
         call bl_imp_alg(config,                                             &
                         dtheta, du, theta_latest, u_latest, mr,             &

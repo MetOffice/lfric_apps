@@ -54,7 +54,7 @@ real(kind=real_cvprec), intent(out) :: virt_temp(n_points)
 real(kind=real_cvprec) :: q_tot(n_points)
 
 ! Loop counters
-integer :: i
+integer :: ic
 
 ! In terms of mixing ratios qv, qc, virtual temperature is:
 ! Tv = T ( 1 + Rv/Rd qv ) / ( 1 + qv + qc )
@@ -69,9 +69,9 @@ call calc_virt_temp_dry( n_points, temperature, q_vap,                         &
 call calc_q_tot( n_points, n_points_super,                                     &
                  q_vap, q_cond_super, q_tot )
 
-! Complete the formula for virtual temperature
-do i = 1, n_points
-  virt_temp(i) = virt_temp(i) / ( one + q_tot(i) )
+! Complete the formula for virtual temperature including water loading
+do ic = 1, n_points
+  virt_temp(ic) = virt_temp(ic) / ( one + q_tot(ic) )
 end do
 
 return
@@ -88,10 +88,10 @@ subroutine calc_virt_temp_3d( lb_T, ub_T, temperature,                         &
                               virt_temp )
 
 use comorph_constants_mod, only: real_hmprec,                                  &
-                     nx_full, ny_full, k_bot_conv, k_top_conv
+                                 nx_full, ny_full, k_bot_conv, k_top_conv
 
 use calc_virt_temp_dry_mod, only: calc_virt_temp_dry_3d
-use calc_q_tot_mod, only: calc_q_tot_3d
+use calc_q_tot_mod, only: calc_q_tot_2d
 
 implicit none
 
@@ -138,7 +138,7 @@ real(kind=real_hmprec), intent(out) :: virt_temp                               &
 
 ! Work variable: total-water mixing-ratio
 real(kind=real_hmprec) :: q_tot                                                &
-                     ( nx_full, ny_full, k_bot_conv:k_top_conv )
+                     ( nx_full, ny_full )
 
 real(kind=real_hmprec), parameter :: one = 1.0_real_hmprec
 
@@ -154,19 +154,23 @@ integer :: i, j, k
 call calc_virt_temp_dry_3d( lb_T, ub_T, temperature, lb_v, ub_v, q_vap,        &
                             virt_temp )
 
-! Calculate the total-water qv + qc
-call calc_q_tot_3d( lb_v, ub_v, q_vap,  lb_l, ub_l, q_cl,                      &
-                    lb_r, ub_r, q_rain, lb_f, ub_f, q_cf,                      &
-                    lb_s, ub_s, q_snow, lb_g, ub_g, q_graup,                   &
-                    q_tot )
-
-! Complete the formula for virtual temperature
-!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE( i, j, k )            &
-!$OMP SHARED( nx_full, ny_full, k_bot_conv, k_top_conv, virt_temp, q_tot )
+!$OMP PARALLEL DO DEFAULT(NONE) SCHEDULE(STATIC) PRIVATE( i, j, k, q_tot )     &
+!$OMP SHARED( nx_full, ny_full, k_bot_conv, k_top_conv, virt_temp,             &
+!$OMP         lb_v, ub_v, q_vap,  lb_l, ub_l, q_cl,   lb_r, ub_r, q_rain,      &
+!$OMP         lb_f, ub_f, q_cf,   lb_s, ub_s, q_snow, lb_g, ub_g, q_graup )
 do k = k_bot_conv, k_top_conv
+  ! Calculate the total-water qv + qc
+  call calc_q_tot_2d( lb_v(1:2), ub_v(1:2), q_vap(:,:,k),                      &
+                      lb_l(1:2), ub_l(1:2), q_cl(:,:,k),                       &
+                      lb_r(1:2), ub_r(1:2), q_rain(:,:,k),                     &
+                      lb_f(1:2), ub_f(1:2), q_cf(:,:,k),                       &
+                      lb_s(1:2), ub_s(1:2), q_snow(:,:,k),                     &
+                      lb_g(1:2), ub_g(1:2), q_graup(:,:,k),                    &
+                      q_tot )
+  ! Complete the formula for virtual temperature including water loading
   do j = 1, ny_full
     do i = 1, nx_full
-      virt_temp(i,j,k) = virt_temp(i,j,k) / (one + q_tot(i,j,k))
+      virt_temp(i,j,k) = virt_temp(i,j,k) / (one + q_tot(i,j))
     end do
   end do
 end do
