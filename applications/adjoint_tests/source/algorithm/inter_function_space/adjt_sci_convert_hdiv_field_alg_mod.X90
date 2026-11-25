@@ -67,7 +67,7 @@ module adjt_sci_convert_hdiv_field_alg_mod
     real(kind=r_def), dimension(3) :: physical_field3_sf
     real(kind=r_def)               :: computational_field_sf
     real(kind=r_def)               :: inner1
-    real(kind=r_def), dimension(3) :: physical_field3_physical_field3_input_inner_prod
+    real(kind=r_def), dimension(3) :: phys_field3_phys_field3_input_inner_prod
     real(kind=r_def)               :: computational_field_computational_field_input_inner_prod
     real(kind=r_def)               :: inner2
 
@@ -92,7 +92,7 @@ module adjt_sci_convert_hdiv_field_alg_mod
       call physical_field3(idx)%initialise(vector_space=vector_space_w3_ptr, name='physical_field3')
       call physical_field3_input(idx)%initialise(vector_space=vector_space_w3_ptr, name='physical_field3_input')
       physical_field3_inner_prod(idx) = 0.0_r_def
-      physical_field3_physical_field3_input_inner_prod(idx) = 0.0_r_def
+      phys_field3_phys_field3_input_inner_prod(idx) = 0.0_r_def
 
       call invoke( setval_random(physical_field3(idx)), &
                    setval_X(physical_field3_input(idx), physical_field3(idx)) )
@@ -138,10 +138,10 @@ module adjt_sci_convert_hdiv_field_alg_mod
     ! Calculate dot product <AM dx, dx>
     inner2 = 0.0_r_def
     do idx = 1, 3
-      call invoke( X_innerproduct_Y(physical_field3_physical_field3_input_inner_prod(idx), &
+      call invoke( X_innerproduct_Y(phys_field3_phys_field3_input_inner_prod(idx), &
                                     physical_field3(idx), &
                                     physical_field3_input(idx)) )
-      inner2 = inner2 + physical_field3_physical_field3_input_inner_prod(idx)
+      inner2 = inner2 + phys_field3_phys_field3_input_inner_prod(idx)
     end do
     call invoke( X_innerproduct_Y(computational_field_computational_field_input_inner_prod, &
                                   computational_field, &

@@ -64,7 +64,7 @@ module adjt_sci_average_w2b_to_w2_alg_mod
     real(kind=r_def) :: field_w2_broken_sf
     real(kind=r_def) :: inner1
     real(kind=r_def) :: field_w2_field_w2_input_inner_prod
-    real(kind=r_def) :: field_w2_broken_field_w2_broken_input_inner_prod
+    real(kind=r_def) :: field_w2_bkn_field_w2_bkn_input_inner_prod
     real(kind=r_def) :: inner2
 
     ! Test parameters and variables
@@ -110,18 +110,18 @@ module adjt_sci_average_w2b_to_w2_alg_mod
     inner1 = inner1 + field_w2_broken_inner_prod * field_w2_broken_sf
 
     field_w2_field_w2_input_inner_prod = 0.0_r_def
-    field_w2_broken_field_w2_broken_input_inner_prod = 0.0_r_def
+    field_w2_bkn_field_w2_bkn_input_inner_prod = 0.0_r_def
     call invoke( inc_a_times_X( field_w2_sf, field_w2 ),                                         &
                  inc_a_times_X( field_w2_broken_sf, field_w2_broken ),                           &
                  adj_average_w2b_to_w2_kernel_type(field_w2, field_w2_broken, rmultiplicity_w2), &
                  x_innerproduct_y(field_w2_field_w2_input_inner_prod,                            &
                                   field_w2, field_w2_input),                                     &
-                 x_innerproduct_y(field_w2_broken_field_w2_broken_input_inner_prod,              &
+                 x_innerproduct_y(field_w2_bkn_field_w2_bkn_input_inner_prod,              &
                                   field_w2_broken, field_w2_broken_input) )
 
     inner2 = 0.0_r_def
     inner2 = inner2 + field_w2_field_w2_input_inner_prod
-    inner2 = inner2 + field_w2_broken_field_w2_broken_input_inner_prod
+    inner2 = inner2 + field_w2_bkn_field_w2_bkn_input_inner_prod
 
     ! Test the inner-product values for equality, allowing for the precision of the active variables
     machine_tol = spacing(max(abs(inner1), abs(inner2)))

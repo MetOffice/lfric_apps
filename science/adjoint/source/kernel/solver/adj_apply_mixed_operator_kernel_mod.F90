@@ -204,7 +204,7 @@ subroutine adj_apply_mixed_operator_code(cell,                       &
       iw2  = map_w2(ndf_w2h+df)
       u_e(:,df2) = u_e(:,df2)           &
                  + norm_u(iw2:iw2+nm1)* &
-                   mu_cd(ij:ij+nm1, ndf_w2h+df, df2)*lhs_w(iw2v:iw2v+nm1) 
+                   mu_cd(ij:ij+nm1, ndf_w2h+df, df2)*lhs_w(iw2v:iw2v+nm1)
 
     end do
   end do

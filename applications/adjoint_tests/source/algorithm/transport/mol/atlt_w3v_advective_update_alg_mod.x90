@@ -70,7 +70,7 @@ module atlt_w3v_advective_update_alg_mod
     real(kind=r_tran) :: advective_increment_sf
     real(kind=r_tran) :: wind_sf
     real(kind=r_tran) :: inner1
-    real(kind=r_def)  :: advective_increment_advective_increment_input_inner_prod
+    real(kind=r_def)  :: adv_inc_advective_increment_input_inner_prod
     real(kind=r_def)  :: wind_wind_input_inner_prod
     real(kind=r_tran) :: inner2
 
@@ -123,19 +123,19 @@ module atlt_w3v_advective_update_alg_mod
     inner1 = inner1 + real(advective_increment_inner_prod, kind=r_tran) * advective_increment_sf
     inner1 = inner1 + real(wind_inner_prod, kind=r_tran) * wind_sf
 
-    advective_increment_advective_increment_input_inner_prod = 0.0_r_def
+    adv_inc_advective_increment_input_inner_prod = 0.0_r_def
     wind_wind_input_inner_prod = 0.0_r_def
     call invoke( inc_a_times_X(advective_increment_sf, advective_increment),                &
                  inc_a_times_X(wind_sf, wind),                                              &
                  atl_w3v_advective_update_kernel_type(advective_increment, tracer,          &
                                                       ls_wind, wind, m3_inv),               &
-                 x_innerproduct_y(advective_increment_advective_increment_input_inner_prod, &
+                 x_innerproduct_y(adv_inc_advective_increment_input_inner_prod, &
                                   advective_increment, advective_increment_input),          &
                  x_innerproduct_y(wind_wind_input_inner_prod,                               &
                                   wind, wind_input) )
 
     inner2 = 0.0_r_tran
-    inner2 = inner2 + real(advective_increment_advective_increment_input_inner_prod, kind=r_tran)
+    inner2 = inner2 + real(adv_inc_advective_increment_input_inner_prod, kind=r_tran)
     inner2 = inner2 + real(wind_wind_input_inner_prod, kind=r_tran)
 
     ! Test the inner-product values for equality, allowing for the precision of the active variables
