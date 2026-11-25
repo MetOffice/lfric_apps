@@ -1,3 +1,11 @@
+! ==========================================================================
+! REVIEWERS: PLEASE IGNORE THIS FILE. IT IS A COPY OF THE FILE IN PR #789
+! (CLEAR AIR TURBULENCE), UNCHANGED APART FROM THIS NOTICE, AND IS REVIEWED
+! THERE. THE TWO BRANCHES SHARE IT AND NEITHER IS MERGED YET.
+! DELETE THIS NOTICE BEFORE THIS BRANCH IS MERGED.
+! THIS NOTICE WAS ADDED WITH ASSISTANCE FROM
+! - MET OFFICE CLAUDE CODE VIA AI FOUNDRY (CLAUDE OPUS 5.5).
+! ==========================================================================
 !-----------------------------------------------------------------------------
 ! (C) Crown copyright Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms

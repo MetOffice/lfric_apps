@@ -35,7 +35,7 @@ module mtn_wave_turb_alg_mod
   !> Pressure of the wind that carries the stress (Pa)
   real(kind=r_def), parameter :: wind_pressure = 20000.0_r_def
   !> Depth of the horizontal stencil: the eight surrounding cells
-  integer(kind=i_def), parameter :: stencil_depth = 1_i_def
+  integer(kind=i_def), parameter :: stencil_depth = 1
 
 contains
 

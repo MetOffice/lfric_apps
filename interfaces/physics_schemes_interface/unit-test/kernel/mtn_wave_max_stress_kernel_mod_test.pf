@@ -19,7 +19,7 @@ module mtn_wave_max_stress_kernel_mod_test
   public :: test_band, test_band_edges, test_surface_height, &
             test_total_stress, test_no_stress
 
-  integer(i_def), parameter :: nlayers = 6_i_def
+  integer(i_def), parameter :: nlayers = 6
 
   !> Layer-centre heights above mean sea level (m): the second is the
   !> bottom of the band and the fifth its top, over a sea-level surface
@@ -50,9 +50,9 @@ contains
     real(r_def)    :: output(1)
     integer(i_def) :: map_w3(1), map_2d(1), map_wth(1)
 
-    map_w3(1)  = 1_i_def
-    map_2d(1)  = 1_i_def
-    map_wth(1) = 1_i_def
+    map_w3(1)  = 1
+    map_2d(1)  = 1
+    map_wth(1) = 1
 
     height_w3(:)  = heights(:)
     height_wth(:) = 0.0_r_def
@@ -66,7 +66,7 @@ contains
                                    height_wth,                         &
                                    1_i_def, nlayers, map_w3,           &
                                    1_i_def, 1_i_def, map_2d,           &
-                                   1_i_def, nlayers + 1_i_def, map_wth )
+                                   1_i_def, nlayers + 1, map_wth )
 
     max_stress = output(1)
 

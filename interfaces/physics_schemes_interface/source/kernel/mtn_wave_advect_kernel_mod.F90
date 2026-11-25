@@ -64,7 +64,7 @@ module mtn_wave_advect_kernel_mod
   ! turbulence prediction scheme for civil aviation, Met Office Forecasting
   ! Research Technical Report 265.
   !> Number of stress contours
-  integer(kind=i_def), parameter :: n_cutoff = 3_i_def
+  integer(kind=i_def), parameter :: n_cutoff = 3
   !> Stress contours, in ascending order (Pa)
   real(kind=r_def), parameter :: cutoff(n_cutoff) =                         &
        (/ 0.007_r_def, 0.065_r_def, 0.25_r_def /)
@@ -209,8 +209,8 @@ contains
     value = max_stress(smap_ms(1, 1))
 
     source = upwind_neighbour(east, north, upwind)
-    if ( source > 0_i_def ) then
-      slot = source + 1_i_def
+    if ( source > 0 ) then
+      slot = source + 1
       u_wind = u_plev(smap_u(1, slot) + wind_level - 1)
       v_wind = v_plev(smap_v(1, slot) + wind_level - 1)
       if ( sqrt(u_wind**2 + v_wind**2) > min_speed ) then
@@ -252,7 +252,7 @@ contains
     real(kind=r_def)    :: bearing(size(east)), past(size(east))
     real(kind=r_def)    :: ahead(size(east)), halfway
 
-    source = 0_i_def
+    source = 0
 
     do n = 1, size(east)
       bearing(n) = atan2(east(n), north(n))

@@ -1,3 +1,12 @@
+! ==========================================================================
+! REVIEWERS: PLEASE IGNORE THE PLEV_U/PLEV_V CHANGES TO THIS FILE. THEY ARE
+! COPIED FROM PR #789 (CLEAR AIR TURBULENCE), WHERE THEY ARE REVIEWED; THE
+! TWO BRANCHES SHARE THEM AND NEITHER IS MERGED YET. ONLY THE MOUNTAIN WAVE
+! TURBULENCE CALL BELONGS TO THIS PR.
+! DELETE THIS NOTICE BEFORE THIS BRANCH IS MERGED.
+! THIS NOTICE WAS ADDED WITH ASSISTANCE FROM
+! - MET OFFICE CLAUDE CODE VIA AI FOUNDRY (CLAUDE OPUS 5.5).
+! ==========================================================================
 !-----------------------------------------------------------------------------
 ! (C) Crown copyright 2019 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
@@ -347,7 +356,8 @@ contains
                               mr, moist_dyn, plev_u, plev_v)
       ! Wet bulb freezing level
       call freeze_lev_alg(modeldb%config,theta, mr, moist_dyn, exner_in_wth)
-      ! Mountain wave turbulence predictor, from the orographic drag stress
+      ! Mountain wave turbulence predictor, from the orographic drag stress.
+      ! This call moves into aviation_diags_alg when main is merged in.
       if (orographic_drag == orographic_drag_um) then
         orography_fields =>                                                  &
             modeldb%fields%get_field_collection("orography_fields")

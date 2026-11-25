@@ -23,18 +23,18 @@ module mtn_wave_advect_kernel_mod_test
   ! A 3x3 latitude-longitude patch, in the slot order of a depth-1 region
   ! stencil: centre, then west, south-west, south, south-east, east,
   ! north-east, north and north-west
-  integer(i_def), parameter :: nslot = 9_i_def
-  integer(i_def), parameter :: centre = 1_i_def, w = 2_i_def,          &
-                               sw = 3_i_def, s = 4_i_def,              &
-                               se = 5_i_def, e = 6_i_def,              &
-                               ne = 7_i_def, n = 8_i_def,              &
-                               nw = 9_i_def
+  integer(i_def), parameter :: nslot = 9
+  integer(i_def), parameter :: centre = 1, w = 2,                      &
+                               sw = 3, s = 4,                          &
+                               se = 5, e = 6,                          &
+                               ne = 7, n = 8,                          &
+                               nw = 9
   integer(i_def), parameter :: di(nslot) = (/ 0, -1, -1, 0, 1, 1, 1, 0, -1 /)
   integer(i_def), parameter :: dj(nslot) = (/ 0, 0, -1, -1, -1, 0, 1, 1, 1 /)
 
   ! The winds are on two pressure levels; the 200 hPa wind is the second
-  integer(i_def), parameter :: nplev = 2_i_def
-  integer(i_def), parameter :: wind_level = 2_i_def
+  integer(i_def), parameter :: nplev = 2
+  integer(i_def), parameter :: wind_level = 2
 
   !> Grid spacing (radians)
   real(r_def), parameter :: spacing = 0.1_r_def * pi / 180.0_r_def
@@ -66,7 +66,7 @@ contains
     integer(i_def) :: map_2d(1), map_pl(1)
     integer(i_def) :: slot, ncell
 
-    ncell = 0_i_def
+    ncell = 0
     do slot = 1, nslot
       latitude(slot)  = lat0 + dj(slot) * spacing
       longitude(slot) = di(slot) * spacing
@@ -75,13 +75,13 @@ contains
       u_plev((slot - 1) * nplev + 2) = u(slot)
       v_plev((slot - 1) * nplev + 2) = v(slot)
       if ( slot == centre .or. in_stencil(slot) ) then
-        ncell = ncell + 1_i_def
+        ncell = ncell + 1
         smap_2d(1, ncell) = slot
         smap_pl(1, ncell) = (slot - 1) * nplev + 1
       end if
     end do
-    map_2d(1) = 1_i_def
-    map_pl(1) = 1_i_def
+    map_2d(1) = 1
+    map_pl(1) = 1
     output(:) = -1.0_r_def
 
     call mtn_wave_advect_code( 1_i_def, output,                         &

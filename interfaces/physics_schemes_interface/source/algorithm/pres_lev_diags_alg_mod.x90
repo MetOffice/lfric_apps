@@ -1,3 +1,12 @@
+! ==========================================================================
+! REVIEWERS: PLEASE IGNORE THE PLEV_U/PLEV_V CHANGES TO THIS FILE. THEY ARE
+! COPIED FROM PR #789 (CLEAR AIR TURBULENCE), WHERE THEY ARE REVIEWED; THE
+! TWO BRANCHES SHARE THEM AND NEITHER IS MERGED YET. ONLY THE IDS IN
+! AVIATION_WIND_FLAG AND THE WORDING ABOUT THEM BELONG TO THIS PR.
+! DELETE THIS NOTICE BEFORE THIS BRANCH IS MERGED.
+! THIS NOTICE WAS ADDED WITH ASSISTANCE FROM
+! - MET OFFICE CLAUDE CODE VIA AI FOUNDRY (CLAUDE OPUS 5.5).
+! ==========================================================================
 !-------------------------------------------------------------------------------
 ! (c) Crown copyright 2024 Met Office. All rights reserved.
 ! The file LICENCE, distributed with this code, contains details of the terms
