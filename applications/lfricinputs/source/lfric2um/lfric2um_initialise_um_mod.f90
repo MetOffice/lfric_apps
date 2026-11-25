@@ -169,6 +169,8 @@ end subroutine lfric2um_set_fixed_length_header
 
 subroutine lfric2um_set_integer_constants(um_output_file, um_grid, lfric_mesh)
 
+use lfric2um_namelists_mod,          only: lfric2um_config
+
 implicit none
 
 type(shum_file_type), intent(in out) :: um_output_file
@@ -188,8 +190,8 @@ int_constants(ih_soilT_levels) = 4
 int_constants(ih_soilQ_levels) = int_constants(ih_soilT_levels)
 int_constants(ih_cloud_levels) = lfric_mesh%get_nlayers()
 int_constants(ih_tracer_levels) = lfric_mesh%get_nlayers()
-! hardcode for now, doesn't exist as a concept in lfric yet
-int_constants(ih_boundary_levels) = 29
+! read in from namelist, doesn't exist as a concept in lfric yet
+int_constants(ih_boundary_levels) = lfric2um_config%boundary_levels
 int_constants(ih_height_gen) = 2 ! Smooth height generation method
 ! hardcode for now - doesn't exist in lfric yet
 int_constants(ih_1_c_rho_level) = 30
