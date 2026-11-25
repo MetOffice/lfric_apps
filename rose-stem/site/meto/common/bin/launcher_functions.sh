@@ -36,6 +36,9 @@ function utils::set_default_env () {
     : "${CORES_PER_NODE_OVERRIDE:=0}"
     : "${RANKS_DEPTH_PAD:=1}"
     : "${XIOS_SERVER_MODE:="False"}"
+    : "${XIOS_SERVER_RANKS:=0}"
+    : "${xios_nodes:=0}"
+    : "${mpi_parts_xios:=0}"
     : "${MEMORY_PROFILE:="False"}"
     : "${EXTRA_LAUNCHER_OPTS:=""}"
     : "${TEST_LAUNCH_EXE_EXEC:=""}"
@@ -48,7 +51,6 @@ function utils::set_default_env () {
     : "${PAT_EXE_EXTEN=""}"
     : "${LAUNCHER=""}"
     : "${BIN_DIR="."}"  # default to current directory
-    : "${EXECUTABLES=""}"
 
     # Depth value - default to OMP threads unless RANKS_DEPTH_PAD is larger
     : "${DEPTH_VAL:=${OMP_NUM_THREADS}}"
@@ -71,33 +73,32 @@ function utils::validate_env () {
     # Values must match a set of pre-determined options
     exists_in_list "${TARGET_PLATFORM}" "${VALID_PLATFORMS}"
     exists_in_list "${RUN_METHOD}" "${VALID_RUN_METHODS}"
-    exists_in_list "${XIOS_SERVER_MODE}" "${BOOL_VALUES}"
 
     # Values must be an integer but we don't care about their size
     check_integer CORES_PER_NODE
-    check_integer OMP_NUM_THREADS
-    check_integer XIOS_SERVER_RANKS
-    check_integer xios_nodes
-    check_integer mpi_parts_xios
-    check_integer RANKS_DEPTH_PAD
-    check_integer TOTAL_RANKS
     check_integer CORES_PER_NODE_OVERRIDE
 
-    # This line will cause a fault if EXEC_NAME is not set.
-    : "${EXEC_NAME:?LFRIC LAUNCHER ERROR: EXEC_NAME must name an executable to run.}"
-
-    # Validate interleaving vars now (early)
-    if [ "${INTERLEAVE_EXECS}" = "True" ]; then
+    if [ "${INTERLEAVE_EXECS}" = "False" ]; then
+        # None of these are required by interleaving
+        exists_in_list "${XIOS_SERVER_MODE}" "${BOOL_VALUES}"
+        check_integer XIOS_SERVER_RANKS
+        check_integer xios_nodes
+        check_integer mpi_parts_xios
+        check_integer TOTAL_RANKS
+        check_integer RANKS_DEPTH_PAD
+        check_integer OMP_NUM_THREADS
+        # This line will cause a fault if EXEC_NAME is not set.
+        : "${EXEC_NAME:?LFRIC LAUNCHER ERROR: EXEC_NAME must name an executable to run.}"
+    else
         utils::validate_interleaving_vars
     fi
-
 }
 
 function utils::validate_interleaving_vars () {
     # Interleaving requires the following variables:
-    # EXECUTABLES               A space-separated list of executable names in MPMD order. Names are case-insensitive.
+    # EXEC_LABELS               A space-separated list of executable names in MPMD order. Names are case-insensitive.
 
-    # For each name listed in EXECUTABLES, the following are required (all uppercase):
+    # For each name listed in EXEC_LABELS, the following are required (all uppercase):
     # <EXEC>_RANKS_PER_NODE     The number of MPI ranks to give the executable.
     # <EXEC>_RANK_DEPTH         The number of CPUs to allocate to each MPI rank.
     # <EXEC>_OMP_NUM_THREADS    The number of OpenMP threads the executable will use.
@@ -127,16 +128,20 @@ function utils::validate_interleaving_vars () {
     # 2. Validate the required variables exist with values
     # ----------------------------------------------------
     # Assert that we have executables to interleave
-    : "${EXECUTABLES:=?LFRIC LAUNCHER ERROR: No executables defined in EXECUTABLES but INTERLEAVE_EXECS is True}"
+    : "${EXEC_LABELS:=?LFRIC LAUNCHER ERROR: No executables defined in EXEC_LABELS but INTERLEAVE_EXECS is True}"
 
     # Assert that the required env vars for interleaving are set
-    for name in ${EXECUTABLES}; do
+    for name in ${EXEC_LABELS}; do
         check_integer "${name^^}_RANKS_PER_NODE"
         check_integer "${name^^}_RANK_DEPTH"
         check_integer "${name^^}_OMP_NUM_THREADS"
         check_integer "${name^^}_TOTAL_RANKS"
         # Check if path is empty or unset
-        : "${!"${name^^}_PATH":=?LFRIC LAUNCHER ERROR: No path set for ${name} executable (use "${"${name^^}_PATH"}")}"
+        local PATH_VAR="${name^^}_PATH"
+        : "${!PATH_VAR:=?LFRIC LAUNCHER ERROR: No path set for ${name} executable (use "${"${name^^}_PATH"}")}"
+        # Assure that exec's args are not unset - can be empty
+        local ARGS_VAR="${name^^}_ARGS"
+        : "${!ARGS_VAR=""}"
     done
 
     # Assert that an output directory exists

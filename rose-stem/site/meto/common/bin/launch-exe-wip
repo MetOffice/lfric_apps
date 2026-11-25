@@ -12,7 +12,7 @@ function main () {
     local BOOL_VALUES="True False"
     local VALID_PLATFORMS="meto-azspice meto-ex1a"
     local VALID_RUN_METHODS="executable mpiexec"
-    local VALID_INTERLEAVING_METHODS="uniform asymmetric"
+    local VALID_INTERLEAVING_METHODS="uniform"
 
     # 1. Set the default environment
     # ------------------------------
@@ -20,17 +20,20 @@ function main () {
 
     # 2. Validate the environment
     # ---------------------------
+    # List required env vars
     utils::validate_env
 
-    # 3. Set derived variables
-    # ------------------------
-    utils::set_derived_vars
-
-
+    # 3. Main work
+    # ------------
     if [ "${INTERLEAVE_EXECS}" = "True" ]; then
+        # Include the interleaving functions
+        source "${SCRIPT_DIR}/interleaver/interleaving_functions.sh"
         # Generate interleaving configuration
         utils::interleave
     else
+        # Set some derived variables
+        utils::set_derived_vars
+
         # Work out the required ppn value
         utils::get_cores_per_node
 
@@ -50,7 +53,7 @@ function main () {
             test_error=0
         else
             test_error=1
-            printf "Error: \n%s \n\t!= \n%s\n" "${TEST_LAUNCH_EXE_EXEC}" "${EXEC_COMMAND}" >&2
+            printf "LFRIC LAUNCHER TESTING ERROR: \n%s\n \t!= \n%s\n " "${TEST_LAUNCH_EXE_EXEC}" "${EXEC_COMMAND}" >&2
         fi
         exit ${test_error}
     fi

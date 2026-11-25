@@ -76,7 +76,7 @@
         inherit=SCRIPTS, {{resource_family|upper}}
         script="rose task-run --app-key=test_launch-exe"
         [[[environment]]]
-            launch_exe_meto_path = $CYLC_WORKFLOW_RUN_DIR/site/meto/common/bin/launch-exe
+            launch_exe_meto_path = $CYLC_WORKFLOW_RUN_DIR/site/meto/common/bin/launch-exe-wip
 
 {% elif "macro_chains_checker" in task %}
 
