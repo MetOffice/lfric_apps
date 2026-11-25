@@ -31,3 +31,15 @@ class vnXX_txxx(MacroUpgrade):
         # Add settings
         return config, self.reports
 """
+class vn32_t944(MacroUpgrade):
+    # Upgrade macro for #944 by Ian Boutle
+
+    BEFORE_TAG = "vn3.2"
+    AFTER_TAG = "vn3.2_t944"
+
+    def upgrade(self, config, meta_config=None):
+        # Add settings
+        self.add_setting(
+            config, ["namelist:blayer", "native_shear"], ".false."
+        )
+        return config, self.reports

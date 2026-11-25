@@ -84,7 +84,8 @@ module um_physics_init_mod
                                 improved_tke_diag_in   => improved_tke_diag,   &
                                 l_use_sml_dsc_fixes_in => l_use_sml_dsc_fixes, &
                                 l_converge_ga_in       => l_converge_ga,       &
-                                num_sweeps_bflux_in    => num_sweeps_bflux
+                                num_sweeps_bflux_in    => num_sweeps_bflux,    &
+                                native_shear_in => native_shear
 
   use cloud_config_mod,          only : scheme, scheme_smith, scheme_pc2,      &
                                         scheme_bimodal,                        &
@@ -371,7 +372,8 @@ contains
          i_interp_local_cf_dbdz, tke_diag_fac, a_ent_2, dec_thres_cloud,   &
          dec_thres_cu, near_neut_z_on_l, blend_gridindep_fa,               &
          specified_fluxes_tstar, buoy_integ_low, num_sweeps_bflux,         &
-         l_use_sml_dsc_fixes, l_converge_ga, improved_tke_diag
+         l_use_sml_dsc_fixes, l_converge_ga, improved_tke_diag,            &
+         native_shear
     use cloud_inputs_mod, only: i_cld_vn, forced_cu, i_rhcpt, i_cld_area,  &
          rhcrit, ice_fraction_method,falliceshear_method, cff_spread_rate, &
          l_subgrid_qv, ice_width, min_liq_overlap, i_eacf, not_mixph,      &
@@ -753,6 +755,7 @@ contains
       l_new_kcloudtop   = new_kcloudtop
       l_reset_dec_thres = .true.
       lambda_min_nml    = 40.0_r_um
+      native_shear      = native_shear_in
 
       select case (free_atm_mix)
         case(free_atm_mix_to_sharp)

@@ -111,7 +111,7 @@ logical :: l_bl_mix_qcf = .false.
 !    ni_imp_ctl (non-conservative)
 logical :: l_reset_neg_q=.false.
 
-logical :: native_shear = .true.
+logical :: native_shear = .false.
 
 ! 09 Switch for free atmospheric mixing options
 integer :: local_fa= imdi
