@@ -111,9 +111,9 @@ module adjt_stabilise_bl_u_alg_mod
     write( log_scratch_space, * ) "u_final inner product = ", u_final_inner_prod
     call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
 
-    u_stabilised_sf = 1.0_r_def / (u_stabilised_inner_prod + eps)
-    u_initial_sf = 1.0_r_def / (u_initial_inner_prod + eps)
-    u_final_sf = 1.0_r_def / (u_final_inner_prod + eps)
+    u_stabilised_sf = 1.0_r_def / (u_stabilised_inner_prod + EPS)
+    u_initial_sf = 1.0_r_def / (u_initial_inner_prod + EPS)
+    u_final_sf = 1.0_r_def / (u_final_inner_prod + EPS)
 
     inner1 = 0.0_r_def
     inner1 = inner1 + u_stabilised_inner_prod * u_stabilised_sf

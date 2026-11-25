@@ -72,10 +72,10 @@ module adjt_apply_elim_mixed_lp_operator_alg_mod
     real(kind=r_def)    :: theta_inner_prod
     real(kind=r_def)    :: u_inner_prod
     real(kind=r_def)    :: exner_inner_prod
-    real(kind=r_solver) :: lhs_exner_sf
-    real(kind=r_solver) :: theta_sf
-    real(kind=r_solver) :: u_sf
-    real(kind=r_solver) :: exner_sf
+    real(kind=r_def)    :: lhs_exner_sf
+    real(kind=r_def)    :: theta_sf
+    real(kind=r_def)    :: u_sf
+    real(kind=r_def)    :: exner_sf
     real(kind=r_solver) :: inner1
     real(kind=r_def)    :: lhs_exner_lhs_exner_input_inner_prod
     real(kind=r_def)    :: theta_theta_input_inner_prod
@@ -143,16 +143,16 @@ module adjt_apply_elim_mixed_lp_operator_alg_mod
     write( log_scratch_space, * ) "exner inner product = ", exner_inner_prod
     call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
 
-    lhs_exner_sf = 1.0_r_solver / real(lhs_exner_inner_prod + EPS, kind = r_solver)
-    u_sf = 1.0_r_solver / real(u_inner_prod + EPS, kind = r_solver)
-    theta_sf = 1.0_r_solver / real(theta_inner_prod + EPS, kind = r_solver)
-    exner_sf = 1.0_r_solver / real(exner_inner_prod + EPS, kind = r_solver)
+    lhs_exner_sf = 1.0_r_def / (lhs_exner_inner_prod + EPS)
+    u_sf = 1.0_r_def / (u_inner_prod + EPS)
+    theta_sf = 1.0_r_def / (theta_inner_prod + EPS)
+    exner_sf = 1.0_r_def / (exner_inner_prod + EPS)
 
     inner1 = 0.0_r_solver
-    inner1 = inner1 + real(lhs_exner_inner_prod, kind = r_solver) * lhs_exner_sf
-    inner1 = inner1 + real(u_inner_prod, kind = r_solver) * u_sf
-    inner1 = inner1 + real(theta_inner_prod, kind = r_solver) * theta_sf
-    inner1 = inner1 + real(exner_inner_prod, kind = r_solver) * exner_sf
+    inner1 = inner1 + real(lhs_exner_inner_prod * lhs_exner_sf, kind = r_solver)
+    inner1 = inner1 + real(u_inner_prod * u_sf, kind = r_solver)
+    inner1 = inner1 + real(theta_inner_prod * theta_sf, kind = r_solver)
+    inner1 = inner1 + real(exner_inner_prod * exner_sf, kind = r_solver)
 
     lhs_exner_lhs_exner_input_inner_prod = 0.0_r_def
     theta_theta_input_inner_prod = 0.0_r_def

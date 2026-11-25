@@ -97,8 +97,8 @@ module adjt_strong_curl_alg_mod
     write( log_scratch_space, * ) "xi inner product = ", xi_inner_prod
     call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
 
-    u_sf = 1.0_r_def / (u_inner_prod + eps)
-    xi_sf = 1.0_r_def / (xi_inner_prod + eps)
+    u_sf = 1.0_r_def / (u_inner_prod + EPS)
+    xi_sf = 1.0_r_def / (xi_inner_prod + EPS)
 
     inner1 = 0.0_r_def
     inner1 = inner1 + u_inner_prod * u_sf
