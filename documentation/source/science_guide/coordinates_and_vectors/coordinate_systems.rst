@@ -144,3 +144,4 @@ The unit basis vectors are
 
 For Cartesian coordinates, primal and dual basis vectors coincide and the
 Jacobian is the identity matrix.
+
