@@ -38,6 +38,7 @@ type :: config
   integer(kind=int64), allocatable :: num_surface_types
   integer(kind=int64) :: um_version_int = um_imdi
   integer(kind=int64) :: dump_validity_time(6) = um_imdi
+  integer(kind=int64) :: dump_data_time(6) = um_imdi
   integer :: num_fields
 
   integer :: status = -1
@@ -115,6 +116,7 @@ integer(kind=int64) :: num_snow_layers_and_tiles = um_imdi
 integer(kind=int64) :: num_surface_types = um_imdi
 integer(kind=int64) :: um_version_int = um_imdi
 integer(kind=int64) :: dump_validity_time(6) = um_imdi
+integer(kind=int64) :: dump_data_time(6) = um_imdi
 
 namelist /configure_lfric2um/ output_filename,                                 &
                               target_grid_namelist,                            &
@@ -130,7 +132,8 @@ namelist /configure_lfric2um/ output_filename,                                 &
                               num_ice_cats, num_snow_layers,                   &
                               num_snow_layers_and_tiles, num_surface_types,    &
                               um_version_int,                                  &
-                              dump_validity_time
+                              dump_validity_time,                              &
+                              dump_data_time
 
 stash_list(:) = um_imdi
 lbtim_list(:) = um_imdi
@@ -250,6 +253,7 @@ self%num_snow_layers_and_tiles = num_snow_layers_and_tiles
 self%num_surface_types = num_surface_types
 self%um_version_int = um_version_int
 self%dump_validity_time(:) = dump_validity_time(:)
+self%dump_data_time(:) = dump_data_time(:)
 
 self%num_fields=0
 ! Count how many fields have been requested

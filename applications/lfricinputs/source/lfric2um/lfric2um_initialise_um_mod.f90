@@ -137,13 +137,13 @@ fixed_length_header(calendar) = 1 ! Gregorian
 fixed_length_header(projection_number) = 1 ! Lat/lon grid
 fixed_length_header(model_version) = lfric2um_config%um_version_int
 
-! Data time of forecast, set equal to validity time
-fixed_length_header(t1_year) = lfric2um_config%dump_validity_time(1)
-fixed_length_header(t1_month) = lfric2um_config%dump_validity_time(2)
-fixed_length_header(t1_day) = lfric2um_config%dump_validity_time(3)
-fixed_length_header(t1_hour) = lfric2um_config%dump_validity_time(4)
-fixed_length_header(t1_minute) = lfric2um_config%dump_validity_time(5)
-fixed_length_header(t1_second) = lfric2um_config%dump_validity_time(6)
+! Data time of forecast
+fixed_length_header(t1_year) = lfric2um_config%dump_data_time(1)
+fixed_length_header(t1_month) = lfric2um_config%dump_data_time(2)
+fixed_length_header(t1_day) = lfric2um_config%dump_data_time(3)
+fixed_length_header(t1_hour) = lfric2um_config%dump_data_time(4)
+fixed_length_header(t1_minute) = lfric2um_config%dump_data_time(5)
+fixed_length_header(t1_second) = lfric2um_config%dump_data_time(6)
 ! Validity time of data
 fixed_length_header(t2_year) = lfric2um_config%dump_validity_time(1)
 fixed_length_header(t2_month) = lfric2um_config%dump_validity_time(2)
