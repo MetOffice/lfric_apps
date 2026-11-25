@@ -29,8 +29,7 @@ module gungho_init_fields_mod
   use gungho_time_axes_mod,               only : gungho_time_axes_type, &
                                                  get_time_axes_from_collection
 
-  use config_mod, only: config_type
-
+  use config_mod,                         only : config_type
   use constants_mod,                      only : i_def, l_def, r_def, str_def, &
                                                  r_second, str_max_filename
   use log_mod,                            only : log_event,       &
@@ -147,7 +146,6 @@ module gungho_init_fields_mod
   use dust_parameters_mod,                only: rhop_def
   use aerosol_config_mod,                 only : glomap_mode, &
                                                  glomap_mode_dust_and_clim
-!  use section_choice_config_mod,          only : aerosol, aerosol_um
   use section_choice_config_mod,          only : aerosol_um
   use dust_transform_kernel_mod,          only: dust_transform_kernel_type
 #endif
@@ -336,6 +334,7 @@ subroutine create_model_data( modeldb,           &
     implicit none
 
     type( modeldb_type ), intent(inout), target :: modeldb
+
     type( mesh_type ),    intent(in), pointer :: mesh
     type( mesh_type ),    intent(in), pointer :: twod_mesh
     type( mesh_type ),    intent(in), pointer :: aerosol_mesh
@@ -519,7 +518,7 @@ subroutine create_model_data( modeldb,           &
                             model_axes )
 
     ! Create gungho prognostics and auxiliary (diagnostic) fields
-    call create_gungho_prognostics( config,                   &
+    call create_gungho_prognostics( config,                           &
                                     mesh,                             &
                                     twod_mesh,                        &
                                     field_mapper,                     &
@@ -573,6 +572,7 @@ subroutine create_model_data( modeldb,           &
     implicit none
 
     type( modeldb_type ), intent(inout), target  :: modeldb
+
     type( mesh_type ),    intent(in), pointer :: mesh
     type( mesh_type ),    intent(in), pointer :: twod_mesh
     type( mesh_type ),    intent(in), pointer :: aerosol_mesh
@@ -597,7 +597,7 @@ subroutine create_model_data( modeldb,           &
       ! Create FD prognostic fields
       select case ( prognostic_init_choice )
         case ( init_option_fd_start_dump )
-          call create_fd_prognostics(config,        &
+          call create_fd_prognostics(config,                &
                                      mesh, twod_mesh,       &
                                      fd_fields,             &
                                      depository)
@@ -606,7 +606,7 @@ subroutine create_model_data( modeldb,           &
       ! Create and populate collection of fields to be read from ancillary files
       select case ( ancil_choice )
         case ( ancil_option_fixed, ancil_option_updating )
-          call create_fd_ancils( config,                  &
+          call create_fd_ancils( config,                          &
                                  depository,                      &
                                  ancil_fields,                    &
                                  mesh, twod_mesh ,                &
@@ -635,8 +635,9 @@ subroutine create_model_data( modeldb,           &
     implicit none
 
     type(modeldb_type), intent(inout), target :: modeldb
-    type(mesh_type),    intent(in)    :: mesh
-    type(mesh_type),    intent(in)    :: twod_mesh
+
+    type(mesh_type), intent(in) :: mesh
+    type(mesh_type), intent(in) :: twod_mesh
 
     type( field_type ), pointer :: theta => null()
     type( field_type ), pointer :: rho   => null()
@@ -771,7 +772,7 @@ subroutine create_model_data( modeldb,           &
     ! Initialise all the physics fields here. We'll then re initialise
     ! them below if need be
     if (use_physics) then
-          call init_physics_prognostics_alg( config,      &
+          call init_physics_prognostics_alg( config,              &
                                              radiation_fields,    &
                                              microphysics_fields, &
                                              electric_fields,     &
@@ -838,7 +839,7 @@ subroutine create_model_data( modeldb,           &
         ! Initialise prognostics analytically according to
         ! namelist options
 
-        call init_gungho_prognostics( config,    &
+        call init_gungho_prognostics( config,            &
                                       prognostic_fields, &
                                       mr_array%bundle,   &
                                       moist_dyn_array%bundle )
@@ -867,7 +868,7 @@ subroutine create_model_data( modeldb,           &
           call init_fd_prognostics_dump( fd_fields )
 
           ! Populate prognostics from input finite difference fields
-          call map_fd_to_prognostics( config,         &
+          call map_fd_to_prognostics( config,                 &
                                       prognostic_fields,      &
                                       mr_array%bundle,        &
                                       moist_dyn_array%bundle, &
@@ -930,13 +931,13 @@ subroutine create_model_data( modeldb,           &
                                        lbc_fields, modeldb )
 
         case ( lbc_option_gungho_file )
-          call init_lbcs_file_alg( config,            &
+          call init_lbcs_file_alg( config,                    &
                                    model_axes%lbc_times_list, &
                                    modeldb%clock,             &
                                    lbc_fields )
 
         case ( lbc_option_um2lfric_file )
-          call init_lbcs_file_alg( config,            &
+          call init_lbcs_file_alg( config,                    &
                                    model_axes%lbc_times_list, &
                                    modeldb%clock,             &
                                    lbc_fields )
@@ -969,7 +970,7 @@ subroutine create_model_data( modeldb,           &
       if (.not. checkpoint_read .and. zero_w2v_wind) then
         call set_any_dof_alg(u, T, 0.0_r_def)
       end if
-      call map_physics_fields_alg(config, u,      &
+      call map_physics_fields_alg(config, u,              &
                                   exner, rho, theta,      &
                                   moist_dyn_array%bundle, &
                                   derived_fields)
@@ -993,7 +994,7 @@ subroutine create_model_data( modeldb,           &
       ! Initialise Casim numbers if they aren't coming from an LFRic dump
       if (microphysics_casim .and. &
            ( prognostic_init_choice /= init_option_checkpoint_dump ) ) then
-        call casim_activate_alg( config,                           &
+        call casim_activate_alg( config,                                   &
                                  theta, mr_array%bundle,                   &
                                  mr_array%bundle(imr_cl),                  &
                                  derived_fields,                           &
@@ -1026,7 +1027,7 @@ subroutine create_model_data( modeldb,           &
             if (init_option == init_option_fd_start_dump) then
                  call read_state( ancil_fields )
             end if
-            call process_inputs_alg( config, &
+            call process_inputs_alg( config,         &
                                      ancil_fields,   &
                                      fd_fields,      &
                                      surface_fields, &
@@ -1125,7 +1126,7 @@ subroutine create_model_data( modeldb,           &
       if ( encorr_usage /= encorr_usage_none ) then
         call compute_total_mass_alg( config, total_dry_mass, rho, mesh )
 
-        call compute_total_energy_alg( config,        &
+        call compute_total_energy_alg( config,                &
                                        total_energy_previous, &
                                        derived_fields,        &
                                        u, theta, exner, rho,  &
@@ -1286,7 +1287,6 @@ subroutine create_model_data( modeldb,           &
     ! Get pointers to field collections for use downstream
     fd_fields => modeldb%fields%get_field_collection("fd_fields")
     prognostic_fields => modeldb%fields%get_field_collection("prognostic_fields")
-
 
     !===================== Write fields to dump ======================!
     if( use_physics ) then

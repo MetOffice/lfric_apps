@@ -154,13 +154,13 @@ contains
 
     type(config_type), pointer :: config
 
-    config => modeldb%config
-
-    ls_option = config%initialization%ls_option()
-
     if ( LPROF ) call start_timing( id, 'gungho_diagnostics_driver' )
 
     call log_event("Gungho: writing diagnostic output", LOG_LEVEL_DEBUG)
+
+    config => modeldb%config
+
+    ls_option = config%initialization%ls_option()
 
     ! Get pointers to field collections for use downstream
     prognostic_fields => modeldb%fields%get_field_collection("prognostic_fields")
@@ -297,30 +297,30 @@ contains
 
         ! Scalar fields
         call write_scalar_diagnostic(config, mesh, 'lbc_rho', &
-                                     lbc_rho, modeldb%clock,          &
+                                     lbc_rho, modeldb%clock,  &
                                      nodal_output_on_w3)
         call write_scalar_diagnostic(config, mesh, 'lbc_theta', &
-                                     lbc_theta, modeldb%clock,          &
+                                     lbc_theta, modeldb%clock,  &
                                      nodal_output_on_w3)
         call write_scalar_diagnostic(config, mesh, 'lbc_exner', &
-                                     lbc_exner, modeldb%clock,          &
+                                     lbc_exner, modeldb%clock,  &
                                      nodal_output_on_w3)
         call write_scalar_diagnostic(config, mesh, 'readlbc_v_u', &
-                                     v_u, modeldb%clock,                  &
+                                     v_u, modeldb%clock,          &
                                       nodal_output_on_w3)
 
         if ( moisture_formulation /= moisture_formulation_dry ) then
           call lbc_fields%get_field('lbc_m_v', lbc_m_v)
           call write_scalar_diagnostic(config, mesh, 'lbc_m_v', &
-                                       lbc_m_v, modeldb%clock,          &
+                                       lbc_m_v, modeldb%clock,  &
                                        nodal_output_on_w3)
           call lbc_fields%get_field('lbc_q', lbc_q)
           call write_scalar_diagnostic(config, mesh, 'lbc_q', &
-                                       lbc_q, modeldb%clock,          &
+                                       lbc_q, modeldb%clock,  &
                                        nodal_output_on_w3)
           call lbc_fields%get_field('lbc_rho_r2', lbc_rho)
           call write_scalar_diagnostic(config, mesh, 'lbc_rho_r2', &
-                                       lbc_rho, modeldb%clock,             &
+                                       lbc_rho, modeldb%clock,     &
                                        nodal_output_on_w3)
         end if
 

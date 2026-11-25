@@ -132,6 +132,7 @@ contains
     integer(i_def) :: i_mr, ncells
     character(str_def) :: name_ext
     integer(tik)       :: id
+
     integer(i_def) :: diagnostic_frequency
 
     diagnostic_frequency = config%io%diagnostic_frequency()

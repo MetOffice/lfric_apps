@@ -109,9 +109,9 @@ module gungho_step_mod
 
     integer(i_def) :: cloud
 
-    cloud = modeldb%config%section_choice%cloud()
-
     if ( LPROF ) call start_timing( id, 'gungho_timestep' )
+
+    cloud = modeldb%config%section_choice%cloud()
 
     write( log_scratch_space, '("/", A, "\ ")' ) repeat( "*", 76 )
     call log_event( log_scratch_space, LOG_LEVEL_TRACE )

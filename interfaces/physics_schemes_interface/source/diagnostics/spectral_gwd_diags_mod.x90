@@ -54,10 +54,14 @@ contains
     if ( LPROF ) call start_timing( id, 'diags.spectral_gwd' )
 
     ! 3D fields in wtheta space
-    tau_east_spectral_gwd_flag = init_diag(config, tau_east_spectral_gwd, 'spectral_gwd__tau_east_spectral_gwd')
-    tau_south_spectral_gwd_flag = init_diag(config, tau_south_spectral_gwd, 'spectral_gwd__tau_south_spectral_gwd')
-    tau_west_spectral_gwd_flag = init_diag(config, tau_west_spectral_gwd, 'spectral_gwd__tau_west_spectral_gwd')
-    tau_north_spectral_gwd_flag = init_diag(config, tau_north_spectral_gwd, 'spectral_gwd__tau_north_spectral_gwd')
+    tau_east_spectral_gwd_flag  = init_diag(config, tau_east_spectral_gwd, &
+                                           'spectral_gwd__tau_east_spectral_gwd')
+    tau_south_spectral_gwd_flag = init_diag(config, tau_south_spectral_gwd, &
+                                            'spectral_gwd__tau_south_spectral_gwd')
+    tau_west_spectral_gwd_flag  = init_diag(config, tau_west_spectral_gwd, &
+                                           'spectral_gwd__tau_west_spectral_gwd')
+    tau_north_spectral_gwd_flag = init_diag(config, tau_north_spectral_gwd, &
+                                            'spectral_gwd__tau_north_spectral_gwd')
 
     if ( LPROF ) call stop_timing( id, 'diags.spectral_gwd' )
 

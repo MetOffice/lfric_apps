@@ -50,7 +50,7 @@ module tl_test_rk_alg_mod
 
     implicit none
 
-    type(mesh_type),    intent(in) :: mesh
+    type(mesh_type),    intent(in)         :: mesh
     type(modeldb_type), intent(in), target :: modeldb
 
     character(str_def) :: label = "rk_alg"

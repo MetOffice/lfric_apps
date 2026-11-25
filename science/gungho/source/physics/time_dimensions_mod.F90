@@ -90,6 +90,7 @@ module time_dimensions_mod
 
   !> @brief Synchonise XIOS time axis dimensions with the files being read.
   !>
+  !> @param[in] config  Application configuration object
   subroutine sync_time_dimensions(config)
 
     use lfric_xios_diag_mod, only: set_axis_dimension
@@ -137,6 +138,7 @@ module time_dimensions_mod
 
   !> @brief Source the dimension of the reynolds_timeseries axis
   !> from the ancil file being read.
+  !> @param[in] config  Application configuration object
   !>
   !> @result The dimension of the reynolds_timeseries axis
   !>         or zero if the relevant ancil file is not enabled.
@@ -167,6 +169,7 @@ module time_dimensions_mod
   !> @brief Source the dimension of the emiss_axis from the
   !> ancil file being read.
   !>
+  !> @param[in] config  Application configuration object
   !> @result The dimension of the emiss_axis
   !>         or zero if there are no enabled emiss files.
   !>

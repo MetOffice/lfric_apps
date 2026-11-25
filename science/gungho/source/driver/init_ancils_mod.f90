@@ -99,6 +99,7 @@ contains
 
   !> @details Organises fields to be read from ancils into ancil_fields
   !           collection then reads them.
+  !> @param[in] config            Application configuration object
   !> @param[in,out] depository    The depository field collection
   !> @param[in,out] ancil_fields  Collection for ancillary fields
   !> @param[in] mesh              The current 3d mesh
@@ -886,6 +887,7 @@ contains
 
   !> @details Organises fields to be read from ancils into ancil_fields
   !           collection then reads them in an idealised setup.
+  !> @param[in] config    Application configuration object
   !> @param[in,out] depository The depository field collection
   !> @param[in,out] ancil_fields Collection for ancillary fields
   !> @param[in] mesh      The current 3d mesh

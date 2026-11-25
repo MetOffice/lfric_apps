@@ -7,9 +7,8 @@
 
 module setup_orography_alg_mod
 
-  use config_mod, only: config_type
-
   ! Infrastructure
+  use config_mod,                    only: config_type
   use constants_mod,                 only: i_def, str_def, l_def, r_def
   use extrusion_mod,                 only: TWOD, SHIFTED, DOUBLE_LEVEL
   use field_mod,                     only: field_type
@@ -49,6 +48,7 @@ contains
   !>          from a previous mesh. Then the orography field for the
   !>          meshes is assigned from the respective surface
   !>          altitude field for each mesh.
+  !> @param[in]     config                Application configuration object
   !> @param[in]     all_mesh_names        An array of the names of all the
   !!                                      model's base meshes.
   !> @param[in]     orography_mesh_name   Name of mesh which defines the
@@ -62,7 +62,7 @@ contains
   !!                                    does not influence layer height (m)
   !> @param[in]     stretching_method   Method of generating stretching
   !> @param[in]     surf_alt_w3           Surface altitude on the orography mesh
-  subroutine setup_orography_alg( config,&
+  subroutine setup_orography_alg( config,                                      &
                                   all_mesh_names,                              &
                                   orography_mesh_name,                         &
                                   chi_inventory,                               &
@@ -78,7 +78,7 @@ contains
 
     implicit none
 
-    type(config_type),           intent(in)    :: config
+    type(config_type),            intent(in)    :: config
     character(str_def),           intent(in)    :: all_mesh_names(:)
     character(str_def),           intent(in)    :: orography_mesh_name
     type(inventory_by_mesh_type), intent(inout) :: chi_inventory

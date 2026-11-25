@@ -1798,8 +1798,6 @@ contains
       ! ... contained in rad_input_mod
       if (config%namelist_exists("cloud")) then
         two_d_fsd_factor = config%cloud%two_d_fsd_factor()
-      else
-        print*, "PLUMS"
       end if
       ! ... contained in fsd_parameters_mod
 

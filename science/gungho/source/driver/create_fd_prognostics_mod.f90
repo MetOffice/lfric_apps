@@ -53,6 +53,7 @@ module create_fd_prognostics_mod
 contains
   !>@brief Routine to create a field collection for finite difference
   !>       prognostic fields
+  !> @param[in] config      Application configuration object
   !> @param[in] mesh        The mesh
   !> @param[in] twod_mesh   The current 2d mesh
   !> @param[in,out] fd_field_collection The collection object to store fields in

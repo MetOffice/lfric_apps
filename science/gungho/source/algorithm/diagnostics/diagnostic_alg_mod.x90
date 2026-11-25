@@ -885,7 +885,7 @@ contains
 
     ! Set up necessary fields
     type(config_type), intent(in) :: config
-    type(field_type), intent(in) :: w_in_wth
+    type(field_type),  intent(in) :: w_in_wth
 
     type(field_type) :: wbig
 

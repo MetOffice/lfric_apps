@@ -295,21 +295,24 @@ contains
         call aerosol_fields%get_field('n_cor_ins', n_cor_ins)
         call aerosol_fields%get_field('cor_ins_du', cor_ins_du)
 
-        wth_aero => function_space_collection%get_fs( aerosol_mesh,            &
-                                                      0, 0, WTHETA,            &
-                                            get_ndata_val(config,'aero_modes') )
+        wth_aero => function_space_collection%get_fs( aerosol_mesh,         &
+                                                      0, 0, WTHETA,         &
+                                                      get_ndata_val(config, &
+                                                                    'aero_modes') )
         call aer_mix_ratio_coarse%initialise(vector_space = wth_aero)
 
-        wth_aero => function_space_collection%get_fs( aerosol_mesh,            &
-                                                      0, 0, WTHETA,            &
-                                                      get_ndata_val(config, 'sw_bands_aero_modes') )
+        wth_aero => function_space_collection%get_fs( aerosol_mesh,         &
+                                                      0, 0, WTHETA,         &
+                                                      get_ndata_val(config, &
+                                                                    'sw_bands_aero_modes') )
         call aer_sw_absorption_coarse%initialise(vector_space = wth_aero)
         call aer_sw_scattering_coarse%initialise(vector_space = wth_aero)
         call aer_sw_asymmetry_coarse%initialise(vector_space = wth_aero)
 
-        wth_aero => function_space_collection%get_fs( aerosol_mesh,            &
-                                                      0, 0, WTHETA,            &
-                                                      get_ndata_val(config, 'lw_bands_aero_modes') )
+        wth_aero => function_space_collection%get_fs( aerosol_mesh,         &
+                                                      0, 0, WTHETA,         &
+                                                      get_ndata_val(config, &
+                                                                    'lw_bands_aero_modes') )
         call aer_lw_absorption_coarse%initialise(vector_space = wth_aero)
         call aer_lw_scattering_coarse%initialise(vector_space = wth_aero)
         call aer_lw_asymmetry_coarse%initialise(vector_space = wth_aero)

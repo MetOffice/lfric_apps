@@ -56,31 +56,6 @@ module create_physics_prognostics_mod
                                              easyaerosol_sw, easyaerosol_lw,    &
                                              murk_prognostic, murk
 
-!!$  use section_choice_config_mod,      only : cloud, cloud_um,                   &
-!!$                                             cloud_none,                        &
-!!$                                             aerosol, aerosol_um,               &
-!!$                                             aerosol_none,                      &
-!!$                                             radiation, radiation_socrates,     &
-!!$                                             radiation_none,                    &
-!!$                                             boundary_layer,                    &
-!!$                                             boundary_layer_um,                 &
-!!$                                             boundary_layer_none,               &
-!!$                                             electric, electric_um,             &
-!!$                                             electric_none,                     &
-!!$                                             iau_sst,                           &
-!!$                                             surface, surface_jules,            &
-!!$                                             surface_none,                      &
-!!$                                             orographic_drag,                   &
-!!$                                             orographic_drag_um,                &
-!!$                                             orographic_drag_none,              &
-!!$                                             convection, convection_um,         &
-!!$                                             convection_none,                   &
-!!$                                             microphysics,                      &
-!!$                                             microphysics_none,                 &
-!!$                                             stochastic_physics,                &
-!!$                                             stochastic_physics_um,             &
-!!$                                             stochastic_physics_none
-
   use section_choice_config_mod,      only : cloud_um, cloud_none,                     &
                                              aerosol_um, aerosol_none,                 &
                                              radiation_socrates, radiation_none,       &
@@ -178,7 +153,8 @@ contains
   !> These two operations have to be separate because they have to happen
   !> at different times. The enabling of checkpoint fields has to happen
   !> before the io context closes, and this is too early for field creation.
-  !> @param  process Processor to be applied to selected field specifiers
+  !> @param[in] config     Application configuration object
+  !> @param[in] processor  Processor to be applied to selected field specifiers
   subroutine process_physics_prognostics(config, processor)
 
     use field_spec_mod,            only : main => main_coll_dict,               &
@@ -186,8 +162,8 @@ contains
 
     implicit none
 
-    type(config_type)     :: config
-    class(processor_type) :: processor
+    type(config_type),     intent(in) :: config
+    class(processor_type), intent(in) :: processor
 #ifdef UM_PHYSICS
     logical(l_def) :: checkpoint_flag, checkpoint_GC3, checkpoint_GC5
     logical(l_def) :: checkpoint_couple
@@ -2086,6 +2062,7 @@ contains
 
 
   !>@brief Routine to initialise the field objects required by the physics
+  !> @param[in]    config               Application configuration object
   !> @param[in]    mesh                 The current 3d mesh
   !> @param[in]    twod_mesh            The current 2d mesh
   !> @param[in]    field_mapper         Provides access to the field collections

@@ -167,8 +167,6 @@ contains
     ! Local variables
     integer(kind=i_def) :: outer, inner
 
-!    integer(kind=i_def), allocatable :: inner_iterations_si(:)
-
     self%config => config
     self%use_moisture = (moisture_formulation /= moisture_formulation_dry)
 
@@ -185,7 +183,6 @@ contains
        ! The linearisation state is evolved, and the intermediate iterations
        ! are used to calculate the evolution of the perturbation.
        self%ls_outer_iterations = outer_iterations
-!      if (.not. allocated(self%ls_inner_iterations)) allocate(self%ls_inner_iterations(outer_iterations))
        self%ls_inner_iterations = self%config%timestepping%inner_iterations_si()
     end if
 

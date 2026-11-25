@@ -46,8 +46,9 @@ module create_lbcs_mod
    !> These two operations have to be separate because they have to happen
    !> at different times. The enabling of checkpoint fields has to happen
    !> before the io context closes, and this is too early for field creation.
-   !> @param  proc   Processor to be applied to selected field specifiers
-   !> @param  legacy Flag to enable/disable legacy CP
+   !> @param[in] config  Application configuration object
+   !> @param[in] proc    Processor to be applied to selected field specifiers
+   !> @param[in] legacy  Flag to enable/disable legacy CP
    subroutine process_lbc_fields(config, proc, legacy)
 
       use field_spec_mod,             only : main => main_coll_dict,            &
@@ -56,9 +57,9 @@ module create_lbcs_mod
                                              make_spec
       implicit none
 
-      type(config_type)     :: config
-      class(processor_type) :: proc
-      logical(l_def) :: legacy
+      type(config_type),     intent(in) :: config
+      class(processor_type), intent(in) :: proc
+      logical(l_def),        intent(in) :: legacy
 
       integer(i_def) :: imr
       character(str_def) :: name
@@ -150,6 +151,7 @@ module create_lbcs_mod
     !> @details Create the lateral boundary condition field collection.
     !>          On every timestep these fields will be updated and used by the
     !>          limited area model.
+    !> @param[in]    config     Application configuration object
     !> @param[in]    mesh       The current 3d mesh
     !> @param[in]    twod_mesh  The current 2d mesh (not used here)
     !> @param[in]    mapper     Provides access to the field collections

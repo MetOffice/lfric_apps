@@ -500,8 +500,8 @@ contains
       vector_space => function_space_collection%get_fs( mesh, 0, 0, Wtheta, 3)
       call f_arr%initialise(vector_space)
       if ( cld_fsd_hill ) then
-        call fsd_condensate_alg( config, f_arr, cloud_fields, &
-                                 convection_fields )
+        call fsd_condensate_alg(config, f_arr, cloud_fields, &
+                                convection_fields)
       end if
 
       if ( aerosol == aerosol_um ) then

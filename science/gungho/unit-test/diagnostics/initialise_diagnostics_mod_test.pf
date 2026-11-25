@@ -9,7 +9,7 @@
 module initialise_diagnostics_mod_test
 
   use funit
-  use constants_mod,                  only : i_def, l_def !, r_second
+  use constants_mod,                  only : i_def, l_def
   use halo_routing_collection_mod,    only : halo_routing_collection_type, &
                                              halo_routing_collection
   use function_space_collection_mod,  only : function_space_collection_type, &
@@ -70,8 +70,6 @@ contains
 
   subroutine tearDown( this )
 
-!    use config_loader_mod, only: final_configuration
-
     implicit none
 
     class(initialise_diagnostics_test_type), intent(inout) :: this
@@ -79,7 +77,6 @@ contains
     call halo_routing_collection%clear()
     call function_space_collection%clear()
     call mesh_collection%clear()
- !   call final_configuration()
 
   end subroutine tearDown
 
@@ -97,34 +94,13 @@ contains
 
     type(io_nml_type) :: io_nml
     type(config_type) :: config
+
     type(namelist_item_type) :: members(2)
 
     call members(1)%initialise( 'diag_always_on_sampling', .false. )
     call members(2)%initialise( 'use_xios_io', .true. )
     call io_nml%initialise( 'io', members )
     call config%add_namelist(io_nml)
-
-!!$    call feign_io_config( checkpoint_read=.false., &
-!!$                          checkpoint_times=(/ 1.0_r_second /), &
-!!$                          checkpoint_write=.false., &
-!!$                          counter_output_suffix='', &
-!!$                          diag_active_files=(/ '' /), &
-!!$                          diag_always_on_sampling=.false., & ! used
-!!$                          diagnostic_frequency=1, &
-!!$                          end_of_run_checkpoint=.false., &
-!!$                          file_convention=400256111, &
-!!$                          multifile_io=.false., &
-!!$                          nodal_output_on_w3=.false., &
-!!$                          subroutine_counters=.false., &
-!!$                          subroutine_timers=.false., &
-!!$                          timer_output_path='', &
-!!$                          use_xios_io=.true., & ! used
-!!$                          write_conservation_diag=.false., &
-!!$                          write_diag=.true., &
-!!$                          write_dump=.false., &
-!!$                          write_fluxes=.false., &
-!!$                          write_initial=.false., &
-!!$                          write_minmax_tseries=.false. )
 
     @assertTrue(init_diag(config, test_field, 'diag_field_half_level_face_grid'))
     @assertTrue(init_diag(config, test_field, 'diag_field_half_level_face_grid', activate=.true.))

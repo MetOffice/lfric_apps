@@ -153,6 +153,7 @@ contains
     character(len=str_def) :: name
 
     integer(i_def) :: ls_option
+
     type(config_type), pointer :: config
 
     config => modeldb%config
@@ -252,10 +253,10 @@ contains
     ! Moisture fields
     if (moisture_formulation /= moisture_formulation_dry) then
       do i=1,nummr
-        call write_scalar_diagnostic( config, mesh,               &
+        call write_scalar_diagnostic( config, mesh, &
                                       'ls_'//trim(mr_names(i)), ls_mr(i), &
                                       modeldb%clock, nodal_output_on_w3 )
-        call write_scalar_diagnostic( config, mesh,     &
+        call write_scalar_diagnostic( config, mesh, &
                                       trim(mr_names(i)), mr(i), &
                                       modeldb%clock, nodal_output_on_w3 )
       end do

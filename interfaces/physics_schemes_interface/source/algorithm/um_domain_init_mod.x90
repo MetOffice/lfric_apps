@@ -15,8 +15,7 @@ module um_domain_init_mod
                                           planet_radius
   use nlsizes_namelist_mod,        only : bl_levels
   use cloud_config_mod,            only : use_fsd_eff_res
-
-  use section_choice_config_mod, only: microphysics_um, radiation_socrates
+  use section_choice_config_mod,   only : microphysics_um, radiation_socrates
 
   ! Other modules used
   use constants_mod,               only : i_um, r_um, rmdi, i_def, r_def

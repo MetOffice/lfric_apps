@@ -170,7 +170,6 @@ contains
     nullify( field_collection_ptr, soil_fields, snow_fields, surface_fields )
 #endif
 
-
     call log_event('Initialising gungho', LOG_LEVEL_INFO)
     if ( LPROF ) call start_timing(id, 'gungho_driver.initialise')
 

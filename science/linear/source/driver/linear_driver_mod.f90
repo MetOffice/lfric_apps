@@ -99,8 +99,6 @@ contains
     nullify( mesh, twod_mesh, aerosol_mesh, aerosol_twod_mesh, depository )
     nullify( nudging_mesh, nudging_twod_mesh )
 
-    print*, 'Hello initialise world'
-
     depository => modeldb%fields%get_field_collection("depository")
     fd_fields => modeldb%fields%get_field_collection("fd_fields")
 

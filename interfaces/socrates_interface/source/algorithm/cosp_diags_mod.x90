@@ -9,7 +9,6 @@ module cosp_diags_mod
 
   use config_mod,          only: config_type
   use constants_mod,       only: l_def
-! use cosp_config_mod,     only: l_cosp
   use field_mod,           only: field_type
   use log_mod,             only: log_event, LOG_LEVEL_INFO
   use timing_mod,          only: start_timing, stop_timing, tik, LPROF

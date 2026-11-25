@@ -74,6 +74,7 @@ contains
 
 !> @brief Synchronise XIOS axis dimensions with multidata field
 !> dimensions sourced from configuration
+!> @param[in] config  Application configuration object
 subroutine sync_multidata_field_dimensions(config)
 
       implicit none
@@ -139,7 +140,8 @@ end subroutine sync_multidata_field_dimensions
   !> "tile_temperature" is "surface_tiles".
   !> The multidata item of the fields "ent_t_frac" and "ent_zrzi" is
   !> "entrainment_levels".
-  !> @param multidata_item
+  !> @param[in] config          Application configuration object
+  !> @param[in] multidata_item
   !> @return Integer containing the number of multidata entries
   function get_multidata_field_dimension(config, multidata_item) result (dim)
 
@@ -170,8 +172,7 @@ end subroutine sync_multidata_field_dimensions
     implicit none
 
     type(config_type), intent(in) :: config
-
-    character(*), intent(in) :: multidata_item
+    character(*),      intent(in) :: multidata_item
 
     integer(kind=i_def) :: dim
 

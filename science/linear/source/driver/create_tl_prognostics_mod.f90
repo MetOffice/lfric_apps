@@ -23,8 +23,8 @@ module create_tl_prognostics_mod
                                              LOG_LEVEL_ERROR
   use mesh_mod,                       only : mesh_type
 
-use config_mod, only: config_type
-use constants_mod, only: l_def
+  use config_mod,    only: config_type
+  use constants_mod, only: l_def
 
   implicit none
 
@@ -36,6 +36,7 @@ contains
   !> @brief Initialise the fd_field collection.
   !> @details Add the required fields with appropriate read and write behaviour,
   !!        corresponding to the fields in the start dump.
+  !> @param[in]     config              Application configuration object
   !> @param[in]     mesh                The mesh
   !> @param[in]     twod_mesh           The current 2d mesh
   !> @param[in,out] fd_field_collection The collection object to store fields in

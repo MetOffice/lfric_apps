@@ -45,7 +45,7 @@ module initial_mr_kernel_mod
   type, public, extends(kernel_type) :: initial_mr_kernel_type
     private
     type(arg_type) :: meta_args(10) = (/                                     &
-         arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),                          &
+         arg_type(GH_SCALAR,  GH_INTEGER, GH_READ),                          & ! cloud
          arg_type(GH_FIELD,   GH_REAL, GH_READ,  Wtheta),                    &
          arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                        &
          arg_type(GH_FIELD,   GH_REAL, GH_READ,  W3),                        &
@@ -132,9 +132,7 @@ contains
     real(kind=r_def), dimension(undf_wtheta), intent(inout) :: mr_v, mr_cl, mr_r
     real(kind=r_def), dimension(undf_wtheta), intent(inout) :: mr_ci, mr_s, mr_g
 
-
-    integer(i_def), intent(in) :: cloud
-
+    integer(i_def),                           intent(in)    :: cloud
     real(kind=r_def), dimension(undf_wtheta), intent(in)    :: theta
     real(kind=r_def), dimension(undf_w3),     intent(in)    :: exner
     real(kind=r_def), dimension(undf_w3),     intent(in)    :: rho

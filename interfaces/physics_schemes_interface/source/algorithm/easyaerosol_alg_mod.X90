@@ -57,9 +57,9 @@ contains
 
     implicit none
 
+    ! Arguments
     type(config_type), intent(in) :: config
 
-    ! Arguments
     type( field_collection_type ), intent( in ) :: radiation_fields
     type( field_collection_type ), intent( in ) :: aerosol_fields
     type( field_collection_type ), intent( in ) :: derived_fields
@@ -123,7 +123,7 @@ contains
 
     implicit none
 
-    type( config_type ), intent( in ) :: config
+    type(config_type), intent(in) :: config
 
     type( field_collection_type ), intent( in ) :: radiation_fields
     type( field_collection_type ), intent( in ) :: aerosol_fields

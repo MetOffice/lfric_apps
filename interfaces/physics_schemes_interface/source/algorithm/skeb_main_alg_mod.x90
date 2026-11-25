@@ -408,7 +408,7 @@ contains
 
     call rho%copy_field_properties(divergence)
     call vorticity%initialise(w1_fs)
-    norm_xi_flag = init_diag(config, norm_xi, 'stochastic__norm_xi')
+    norm_xi_flag  = init_diag(config, norm_xi, 'stochastic__norm_xi')
     norm_div_flag = init_diag(config, norm_div, 'stochastic__norm_div')
 
     call invoke( setval_c(divergence, 0.0_r_def),     &

@@ -403,7 +403,7 @@ contains
 
 
   !> @details This routine initialises the moisture mixing ratio fields.
-  !> @param[in]     config     Application namelist configuration object
+  !> @param[in]     config     Application configuration object
   !> @param[in,out] mr         array of moisture mixing ratio fields
   !> @param[in]     theta      potential temperature field
   !> @param[in,out] exner      Exner pressure field
@@ -432,6 +432,9 @@ contains
 
     real(kind=r_def)    :: initial_time
     integer(kind=i_def) :: element_order_h, element_order_v
+    integer(kind=i_def) :: cloud
+
+    cloud = config%section_choice%cloud()
 
     if ( moisture_formulation == moisture_formulation_dry ) then
       call set_bundle_scalar(0.0_r_def, mr, nummr)
@@ -444,8 +447,7 @@ contains
       chi      => get_coordinates(mesh)
       panel_id => get_panel_id(mesh)
 
-      call invoke( initial_mr_kernel_type( config%section_choice%cloud(), &
-                                           theta, exner, rho, mr, chi,    &
+      call invoke( initial_mr_kernel_type( cloud, theta, exner, rho, mr, chi, &
                                            panel_id, p_zero, rd, kappa ) )
 
       call moist_dyn_factors_alg( moist_dyn, mr )

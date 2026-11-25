@@ -175,6 +175,7 @@ module gungho_setup_io_mod
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Adds details of all files-of-interest to a list.
   !>
+  !> @param[in]    config     Application configuration object
   !> @param[out]   files_list Array of lfric_xios_file_type objects.
   !> @param[inout] modeldb    The modeldb holding the model state [unused here
   !>                          but required by the procedure interface]

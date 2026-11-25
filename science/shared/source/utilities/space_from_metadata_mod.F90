@@ -11,7 +11,7 @@ module space_from_metadata_mod
                                              log_scratch_space, &
                                              log_level_trace,   &
                                              log_level_error
-  use config_mod,                   only: config_type
+  use config_mod,                      only: config_type
   use constants_mod,                   only: i_def, l_def, str_def
   use mesh_mod,                        only: mesh_type
   use fs_continuity_mod,               only: W3,                      &
@@ -217,6 +217,7 @@ contains
   end function get_field_flavour
 
   !> @brief Space discovery from metadata for field given by XIOS id
+  !> @param[in]           config           Application configuration object
   !> @param[in]           xios_id          XIOS id of field
   !> @param[in, optional] mesh_3d          Override 3D mesh
   !> @param[in, optional] mesh_2d          Override 2D mesh
@@ -365,7 +366,7 @@ contains
       order_v,                                                                &
       fsenum,                                                                 &
       ndata)
-    ! paranoia
+
     nullify(this_mesh)
 end function space_from_metadata
 

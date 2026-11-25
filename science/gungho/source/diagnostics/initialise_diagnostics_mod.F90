@@ -36,6 +36,7 @@ module initialise_diagnostics_mod
 contains
 
   !> @brief Return true if and only if XIOS will sample the field at the current timestep.
+  !> @param[in]   config      Application configuration object
   !> @param[in]   unique_id   XIOS id of field
   !> @return                  Sampling on/off status of the field
   function diagnostic_to_be_sampled(config, unique_id) result(sampling_on)
@@ -69,6 +70,7 @@ contains
   !> is not passed, the field's status will be derived from the XIOS metadata.
   !> Passing activate=.false. is equivalent to not passing activate.
   !> @post  The field name will be set equal to the XIOS id passed in.
+  !> @param[in]           config          Application configuration object
   !> @param[out]          field            Field to initialise
   !> @param[in]           unique_id        XIOS id of field
   !> @param[in, optional] activate         Force-activate field

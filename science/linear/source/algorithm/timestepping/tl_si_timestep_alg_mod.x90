@@ -36,7 +36,7 @@ module tl_si_timestep_alg_mod
   use linear_physics_config_mod,   only: l_boundary_layer
   use mixed_solver_config_mod,     only: guess_np1,                            &
                                          reference_reset_time
-  use timestepping_config_mod,     only: alpha,                                &
+  use timestepping_config_mod,     only: alpha,            &
                                          outer_iterations, &
                                          spinup_alpha
   use transport_config_mod,        only: use_density_predictor
@@ -208,8 +208,6 @@ contains
 
     integer(kind=i_def) :: outer, inner
 
-    print*, 'Hello  tl_si_timestep_init world'
-
     use_moisture = ( moisture_formulation /= moisture_formulation_dry )
     full_init = .true.
     if (present(partial_init)) full_init = (.not. partial_init)
@@ -229,14 +227,10 @@ contains
       ! The linearisation state is evolved, and the intermediate iterations
       ! are used to calculate the evolution of the perturbation.
       ls_outer_iterations = outer_iterations
-!      if (.not. allocated(ls_inner_iterations)) allocate(ls_inner_iterations(outer_iterations))
-!      ls_inner_iterations(:) = config%timestepping%inner_iterations_si()
       if (allocated(ls_inner_iterations)) deallocate(ls_inner_iterations)
       ls_inner_iterations = config%timestepping%inner_iterations_si()
 
     end if
-
-    print*, 'Hello  sheepy world'
 
     if (full_init) then
       allocate(state(bundle_size))
@@ -348,7 +342,6 @@ contains
       call set_bundle_scalar(0.0_r_def, ls_mr_after_slow, nummr)
     end if
 
-    print*, 'Hello  kraken world'
     !--------------------------------------------------------------------
     ! Operators for si solves
     !--------------------------------------------------------------------
@@ -357,8 +350,6 @@ contains
       call gungho_transport_control_alg_init( mesh )
       call semi_implicit_solver_alg_init( config, state, stepper_siqn )
     end if
-
-    print*, 'Hello  end of days world'
 
     call log_event( "semi_implicit_timestep: initialised timestepping algorithm", LOG_LEVEL_INFO )
 
@@ -428,14 +419,16 @@ contains
     real(r_def)  :: mixed_solver_a_tol
 
     integer(tik) :: id
-type(config_type), pointer :: config
+
+    type(config_type), pointer  :: config
     integer(i_def), allocatable :: inner_iterations_si(:)
 
-config => modeldb%config
-
-inner_iterations_si = config%timestepping%inner_iterations_si()
-
     if ( LPROF ) call start_timing( id, 'tl_semi_implicit_timestep' )
+
+    config => modeldb%config
+
+    inner_iterations_si = config%timestepping%inner_iterations_si()
+
 
     cast_dt = real(modeldb%clock%get_seconds_per_step(), r_def)
 
@@ -515,8 +508,7 @@ inner_iterations_si = config%timestepping%inner_iterations_si()
                                        ls_state(igh_d), &
                                        ls_state(igh_p), &
                                        ls_moist_dyn_itns(:,1,1))
-      call compute_helmholtz_operators(config, modeldb%clock, &
-                                       stepper_siqn)
+      call compute_helmholtz_operators(config, modeldb%clock, stepper_siqn)
     end if
 
 
@@ -767,7 +759,7 @@ inner_iterations_si = config%timestepping%inner_iterations_si()
     if ( .not. si_momentum_equation ) then
       ! Predictor of the wind field (u-beta*dt*rhs) to be advected if using
       ! explicit advection
-      call mass_matrix_solver_alg( config,        &
+      call mass_matrix_solver_alg( config,                &
                                    advected_state(igh_u), &
                                    rhs_n(igh_u) )
       if ( use_density_predictor ) then
@@ -816,7 +808,7 @@ inner_iterations_si = config%timestepping%inner_iterations_si()
       ! For the first inner loop, it needs to be called before entering.
       ! This is because rhs_np1 is used to calculate u_star in tl_bdy_lyr_alg.
       if (use_wavedynamics) then
-        call tl_rhs_alg( config,                      &
+        call tl_rhs_alg( config,                              &
                          rhs_np1,                             &
                          -varalpha*cast_dt,                   &
                          state,                               &
@@ -870,7 +862,7 @@ inner_iterations_si = config%timestepping%inner_iterations_si()
           !--------------------------------------------------------------------
           ! Only call tl_rhs_alg if inner > 1 as for inner===1 it is already called early (see comment above)
           if (inner > 1) then
-            call tl_rhs_alg(config,                           &
+            call tl_rhs_alg(config,                                   &
                             rhs_np1,                                  &
                             -varalpha*cast_dt,                        &
                             state,                                    &
@@ -920,7 +912,7 @@ inner_iterations_si = config%timestepping%inner_iterations_si()
           ! If rhs_np1 is zero, there is no need to call the SI solver
           if ( .not. &
                bundle_is_zero(mixed_solver_a_tol, rhs_np1, bundle_size) ) then
-            call semi_implicit_solver_alg_step( config,      &
+            call semi_implicit_solver_alg_step( config,              &
                                                 state, rhs_np1,      &
                                                 dry_flux_solver,     &
                                                 moist_dyn(gas_law),  &
@@ -935,7 +927,7 @@ inner_iterations_si = config%timestepping%inner_iterations_si()
           end if
 
           if (exner_from_eos) then
-            call tl_derive_exner_from_eos( config,     &
+            call tl_derive_exner_from_eos( config,             &
                                            state,              &
                                            moist_dyn(gas_law), &
                                            ls_state,           &
@@ -991,7 +983,7 @@ inner_iterations_si = config%timestepping%inner_iterations_si()
     !--------------------------------------------------------------------
     ! Apply mixing
     !--------------------------------------------------------------------
-    call mixing_alg( config, mr, state(igh_t),           &
+    call mixing_alg( config, mr, state(igh_t),                   &
                      state(igh_u), derived_fields, cloud_fields, &
                      state(igh_d), state(igh_p), cast_dt,        &
                      modeldb%clock )
@@ -1001,7 +993,7 @@ inner_iterations_si = config%timestepping%inner_iterations_si()
       call tl_moist_dyn_factors_alg(moist_dyn, mr)
     end if
     if (use_physics) then
-      call map_physics_fields_alg( config, state(igh_u), &
+      call map_physics_fields_alg( config, state(igh_u),         &
                                    state(igh_p), state(igh_d),   &
                                    state(igh_t), moist_dyn,      &
                                    derived_fields )

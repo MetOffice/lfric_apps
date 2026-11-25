@@ -41,7 +41,7 @@ module field_maker_mod
   use lfric_xios_diag_mod,            only : field_is_valid
   use lfric_xios_time_axis_mod,       only : time_axis_type
   use lfric_xios_write_mod,           only : create_checkpoint_list
-  use io_config_mod,                  only : use_xios_io, &
+  use io_config_mod,                  only : use_xios_io, write_diag, &
                                              checkpoint_times, &
                                              end_of_run_checkpoint
   use initialization_config_mod,      only : init_option,                      &
@@ -299,6 +299,7 @@ end function has_xios_io
 
   !>@brief Add field to field collection and set its write,
   !>       checkpoint-restart and advection behaviour
+  !> @param[in]     config            Application configuration object
   !> @param[in,out] field_collection  Field collection that 'name' will be added to
   !> @param[in,out] depository        Collection of all fields
   !> @param[in,out] prognostic_fields Collection of checkpointed fields
@@ -319,8 +320,6 @@ end function has_xios_io
                              name, vector_space, order_h, order_v, empty, external_field, &
                              time_axis, legacy, checkpoint_flag, advection_flag)
 
-    use io_config_mod,           only : use_xios_io, &
-                                        write_diag
     use initialization_config_mod, only: init_option,               &
                                          init_option_checkpoint_dump
     use lfric_xios_read_mod,     only : read_field_generic
@@ -474,6 +473,7 @@ end function has_xios_io
 
   !>@brief Add integer field to field collection and set its write,
   !>       checkpoint-restart and advection behaviour
+  !> @param[in]     config            Application configuration object
   !> @param[in,out] field_collection  Field collection that 'name' will be added to
   !> @param[in,out] depository        Collection of all fields
   !> @param[in,out] prognostic_fields Collection of checkpointed fields
@@ -495,8 +495,6 @@ end function has_xios_io
                               external_field, time_axis, legacy, &
                               checkpoint_flag, advection_flag)
 
-    use io_config_mod,           only : use_xios_io, &
-                                        write_diag
     use initialization_config_mod, only: init_option,               &
                                          init_option_checkpoint_dump
     use lfric_xios_read_mod,     only : read_field_generic

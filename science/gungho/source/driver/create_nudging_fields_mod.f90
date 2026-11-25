@@ -65,7 +65,7 @@ module create_nudging_fields_mod
 
   !> @brief Iterate over active nudging fields and apply an arbitrary
   !! processor to the field specifiers.
-  !> @param        config      Argument holding model configuration
+  !> @param        config      Application configuration object
   !> @param        processor   Processor to be applied to field specifiers
   subroutine process_nudging_fields(config, processor)
     use field_spec_mod,                only : main => main_coll_dict,          &

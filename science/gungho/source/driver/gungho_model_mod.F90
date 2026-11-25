@@ -273,7 +273,7 @@ contains
 
   !> @brief Enable active state fields for checkpointing; sync xios axis dimensions;
   !>        set up scaled diagnostics fields
-  !> @param[in] config       Argument providing access to model configuration
+  !> @param[in] config       Application configuration object
   !> @param[in] clock        The clock providing access to time information
   subroutine before_context_close(config, clock)
 
@@ -299,7 +299,7 @@ contains
     real(r_second)       :: DT
     integer(i_def)       :: theta_forcing
     integer(i_def)       :: wind_forcing, stochastic_physics
-logical(l_def) :: checkpoint_read, checkpoint_write
+    logical(l_def)       :: checkpoint_read, checkpoint_write
     logical(l_def)       :: to_process_nudging_fields
 #ifdef UM_PHYSICS
     integer(i_def) :: i

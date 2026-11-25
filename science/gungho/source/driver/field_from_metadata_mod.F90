@@ -33,6 +33,7 @@ module field_from_metadata_mod
 contains
 
   !> @brief Initialise a real-valued field from XIOS metadata.
+  !> @param[in]           config           Application configuration object
   !> @param[out]          field            Field to initialise
   !> @param[in]           xios_id          XIOS id of field
   !> @param[in, optional] empty            Create empty field?
@@ -96,7 +97,6 @@ contains
        call log_event(log_scratch_space, log_level_error)
     end if
 
-    ! paranoia
     nullify(vector_space)
   end subroutine init_real_field_from_metadata
 
@@ -112,7 +112,7 @@ contains
   !> @param[in, optional] force_order_v    Override derived order in vertical
   !> @param[in, optional] force_ndata      Override derived ndata
   !> @param[in, optional] diag_status      Diagnostic enabling status
-  subroutine init_integer_field_from_metadata(config, field, xios_id, empty,           &
+  subroutine init_integer_field_from_metadata(config, field, xios_id, empty,   &
                                               mesh_3d, mesh_2d, force_mesh,    &
                                               force_rad_levels, force_order_h, &
                                               force_order_v, force_ndata,      &
@@ -164,7 +164,6 @@ contains
        call log_event(log_scratch_space, log_level_error)
     end if
 
-    ! paranoia
     nullify(vector_space)
   end subroutine init_integer_field_from_metadata
 

@@ -1053,11 +1053,11 @@ contains
 
       ! Sample rates to output on the wtheta grid. A field is only created
       ! and populated if it has been requested for output.
-      photol_rate_jo1d_flag = init_diag( config, photol_rate_jo1d,                     &
+      photol_rate_jo1d_flag = init_diag( config, photol_rate_jo1d, &
                                         'chemistry__photol_rate_jo1d' )
-      photol_rate_jo3p_flag = init_diag( config, photol_rate_jo3p,                     &
+      photol_rate_jo3p_flag = init_diag( config, photol_rate_jo3p, &
                                         'chemistry__photol_rate_jo3p' )
-      photol_rate_jno2_flag = init_diag( config, photol_rate_jno2,                     &
+      photol_rate_jno2_flag = init_diag( config, photol_rate_jno2, &
                                         'chemistry__photol_rate_jno2' )
 
       if ( photol_rate_jo1d_flag ) then

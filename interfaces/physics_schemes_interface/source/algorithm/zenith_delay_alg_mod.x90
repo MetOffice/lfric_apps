@@ -65,8 +65,7 @@ contains
 
     nullify(height_w3, height_wth)
 
-    if (init_diag(config, &
-                  zenith_total_delay, &
+    if (init_diag(config, zenith_total_delay, &
                   'processed__zenith_total_delay') &
         .and. use_xios_io) then
 

@@ -57,18 +57,19 @@ contains
   !> These two operations have to be separate because they have to happen
   !> at different times. The enabling of checkpoint fields has to happen
   !> before the io context closes, and this is too early for field creation.
-  !> @param  proc   Processor to be applied to selected field specifiers
-  !> @param  legacy Logical flag to enable/disable legacy checkpointing
+  !> @param[in] config  Application configuration object
+  !> @param[in] proc    Processor to be applied to selected field specifiers
+  !> @param[in] legacy  Logical flag to enable/disable legacy checkpointing
   subroutine process_gungho_prognostics(config, proc, legacy)
 
     use field_spec_mod,            only : main => main_coll_dict, &
                                           adv => adv_coll_dict
     implicit none
 
-    type(config_type) :: config
+    type(config_type),     intent(in) :: config
+    class(processor_type), intent(in) :: proc
+    logical(l_def),        intent(in) :: legacy
 
-    class(processor_type) :: proc
-    logical(l_def), intent(in) :: legacy
     class(clock_type), pointer :: clock
     integer(i_def) :: imr, reference_reset_freq, ord_h, ord_v
     logical(l_def) :: checkpoint_flag
@@ -82,19 +83,19 @@ contains
     ord_v = element_order_v
 
     call proc%apply(config, make_spec('theta', main%none, Wtheta, order_h=ord_h, &
-                              order_v=ord_v, ckp=.true., legacy=legacy))
+                                      order_v=ord_v, ckp=.true., legacy=legacy))
     call proc%apply(config, make_spec('u', main%none, W2, order_h=ord_h, order_v=ord_v,&
-                              ckp=.true., legacy=legacy))
+                                      ckp=.true., legacy=legacy))
     if (.not. legacy) then
       call proc%apply(config, make_spec('h_u', main%none, W2H, order_h=ord_h, &
-                                order_v=ord_v, ckp=.true.))
+                                        order_v=ord_v, ckp=.true.))
       call proc%apply(config, make_spec('v_u', main%none, W2V, order_h=ord_h, &
-                                order_v=ord_v, ckp=.true.))
+                                        order_v=ord_v, ckp=.true.))
     end if
     call proc%apply(config, make_spec('rho', main%none, W3, order_h=ord_h, &
-                              order_v=ord_v, ckp=.true., legacy=legacy))
+                                      order_v=ord_v, ckp=.true., legacy=legacy))
     call proc%apply(config, make_spec('exner', main%none, W3, order_h=ord_h, &
-                              order_v=ord_v, ckp=.true., legacy=legacy))
+                                      order_v=ord_v, ckp=.true., legacy=legacy))
 
     ! Create reference fields for solver. They are only created and checkpointed if either the first or
     ! final steps are not semi-implicit operator recalculation timesteps
@@ -161,6 +162,7 @@ contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Create empty fields to be used as prognostics by the gungho model
+  !> @param[in]    config     Application configuration object
   !> @param[in]    mesh       The current 3d mesh
   !> @param[in]    twod_mesh  The current 2d mesh
   !> @param[in]    mapper     Provides access to the field collections
