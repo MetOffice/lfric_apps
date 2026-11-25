@@ -1,20 +1,38 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Module containing standard adjoint test for adj_stabilise_bl_u_kernel
 module adjt_stabilise_bl_u_alg_mod
+
+  use config_mod,                        only : config_type
+  use field_mod,                         only : field_type
+  use function_space_mod,                only : function_space_type
+  use mesh_mod,                          only : mesh_type
+  use function_space_collection_mod,     only : function_space_collection
+  use fs_continuity_mod,                 only : W2
+  use constants_mod,                     only : i_def, r_def, EPS
+  use log_mod,                           only : log_event,         &
+                                                log_scratch_space, &
+                                                LOG_LEVEL_ERROR,   &
+                                                LOG_LEVEL_DEBUG,   &
+                                                LOG_LEVEL_INFO
+
   implicit none
-  public
+
+  private
+  public :: adjt_stabilise_bl_u_alg
 
   contains
   subroutine adjt_stabilise_bl_u_alg(mesh, chi, panel_id)
-    use field_mod, only : field_type
-    use function_space_mod, only : function_space_type
-    use mesh_mod, only : mesh_type
-    use function_space_collection_mod, only : function_space_collection
-    use stabilise_bl_u_kernel_mod, only : stabilise_bl_u_kernel_type
+
+    use stabilise_bl_u_kernel_mod,     only : stabilise_bl_u_kernel_type
     use adj_stabilise_bl_u_kernel_mod, only : adj_stabilise_bl_u_kernel_type
-    use finite_element_config_mod, only : element_order_h, element_order_v
-    use fs_continuity_mod, only : w2
-    use constants_mod, only : i_def, r_def
-    use setop_random_kernel_mod, only : setop_random_kernel_type
-    use log_mod, only : log_event, log_level_error, log_level_info, log_scratch_space, log_level_debug
+
+    implicit none
+
     real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
     type(mesh_type), pointer, intent(in) :: mesh
     type(field_type), dimension(3), intent(in), optional :: chi

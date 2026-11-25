@@ -31,7 +31,7 @@ module adjt_strong_curl_alg_mod
   !> @brief Adjoint test for adj_strong_curl_kernel
   !> @param[in] config    Application namelist configuration object
   !> @param[in] mesh      A mesh object
-  subroutine adjt_strong_curl_alg(mesh, chi, panel_id)
+  subroutine adjt_strong_curl_alg(config, mesh)
 
     use strong_curl_kernel_mod, only : strong_curl_kernel_type
     use adj_strong_curl_kernel_mod, only : adj_strong_curl_kernel_type
