@@ -73,6 +73,9 @@ contains
     ! ./linear_physics
     use atlt_bl_inc_alg_mod,                        only : atlt_bl_inc_alg
 
+    ! ./fem
+    use adjt_strong_curl_alg_mod,                   only : adjt_strong_curl_alg
+
     ! Algorithm tests
     ! ./interpolation
     use adjt_interpolation_alg_mod,                 only : adjt_interp_w3wth_to_w2_alg, &
@@ -149,7 +152,6 @@ contains
     use atlt_si_timestep_alg_mod,                   only : atlt_si_timestep_alg
 
 
-    use adjt_strong_curl_alg_mod, only : adjt_strong_curl_alg
     use adjt_stabilise_bl_u_alg_mod, only : adjt_stabilise_bl_u_alg
     use adjt_apply_mixed_lu_operator_alg_mod, only : adjt_apply_mixed_lu_operator_alg
     use adjt_apply_mixed_operator_alg_mod, only : adjt_apply_mixed_operator_alg
@@ -176,8 +178,6 @@ contains
     call adj_solver_lookup_cache%initialise(mesh)
     call adj_trans_lookup_cache%initialise(modeldb%config, mesh)
 
-
-    call adjt_strong_curl_alg( mesh, chi, panel_id )
     call adjt_stabilise_bl_u_alg( mesh, chi, panel_id )
     call adjt_apply_mixed_lu_operator_alg( mesh, chi, panel_id )
     call adjt_apply_mixed_operator_alg( mesh, chi, panel_id )
@@ -220,6 +220,9 @@ contains
 
     ! ./linear_physics
     call atlt_bl_inc_alg( mesh )
+
+    ! ./fem
+    call adjt_strong_curl_alg( modeldb%config, mesh )
 
     ! ./inter_function_space
     call adjt_combine_w2_field_alg( modeldb%config, mesh )
