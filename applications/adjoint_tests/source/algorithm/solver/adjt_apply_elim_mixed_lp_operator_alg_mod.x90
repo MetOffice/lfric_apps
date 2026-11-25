@@ -1,0 +1,194 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Module containing standard adjoint test for adj_apply_elim_mixed_lp_operator_kernel
+module adjt_apply_elim_mixed_lp_operator_alg_mod
+
+  use config_mod,                        only : config_type
+  use field_mod,                         only : field_type
+  use function_space_mod,                only : function_space_type
+  use mesh_mod,                          only : mesh_type
+  use function_space_collection_mod,     only : function_space_collection
+  use fs_continuity_mod,                 only : W2, W3, Wtheta
+  use r_solver_field_mod,                only : r_solver_field_type
+  use r_solver_operator_mod,             only : r_solver_operator_type
+  use constants_mod,                     only : i_def, r_def, r_solver, EPS
+  use setop_random_alg_mod,              only : setop_random_rsol_alg
+  use log_mod,                           only : log_event,         &
+                                                log_scratch_space, &
+                                                LOG_LEVEL_ERROR,   &
+                                                LOG_LEVEL_DEBUG,   &
+                                                LOG_LEVEL_INFO
+
+  implicit none
+
+  private
+  public :: adjt_apply_elim_mixed_lp_operator_alg
+
+  contains
+  !=============================================================================
+  !> @brief Adjoint test for adj_apply_elim_mixed_lp_operator_kernel
+  !> @param[in] config    Application namelist configuration object
+  !> @param[in] mesh      A mesh object
+  subroutine adjt_apply_elim_mixed_lp_operator_alg(config, mesh)
+
+    use apply_elim_mixed_lp_operator_kernel_mod,     only : apply_elim_mixed_lp_operator_kernel_type
+    use adj_apply_elim_mixed_lp_operator_kernel_mod, only : adj_apply_elim_mixed_lp_operator_kernel_type
+
+    implicit none
+
+    ! Arguments
+    type(config_type),        intent(in) :: config
+    type(mesh_type), pointer, intent(in) :: mesh
+
+    ! Arguments for tl and adj calls
+    type(r_solver_field_type)    :: lhs_exner
+    type(r_solver_field_type)    :: theta
+    type(r_solver_field_type)    :: u
+    type(r_solver_field_type)    :: exner
+    type(r_solver_operator_type) :: m3exner
+    type(r_solver_operator_type) :: q32_rho
+    type(r_solver_operator_type) :: p3theta
+    real(kind=r_solver)          :: const_r
+
+    ! Copies of input fields used in inner products
+    type(r_solver_field_type) :: lhs_exner_input
+    type(r_solver_field_type) :: theta_input
+    type(r_solver_field_type) :: u_input
+    type(r_solver_field_type) :: exner_input
+
+    ! Pointers for initialising fields
+    type(function_space_type), pointer :: vector_space_w2_ptr
+    type(function_space_type), pointer :: vector_space_w3_ptr
+    type(function_space_type), pointer :: vector_space_wtheta_ptr
+    integer(kind=i_def)                :: element_order_h
+    integer(kind=i_def)                :: element_order_v
+
+    ! Inner products
+    real(kind=r_def)    :: lhs_exner_inner_prod
+    real(kind=r_def)    :: theta_inner_prod
+    real(kind=r_def)    :: u_inner_prod
+    real(kind=r_def)    :: exner_inner_prod
+    real(kind=r_def)    :: lhs_exner_sf
+    real(kind=r_def)    :: theta_sf
+    real(kind=r_def)    :: u_sf
+    real(kind=r_def)    :: exner_sf
+    real(kind=r_solver) :: inner1
+    real(kind=r_def)    :: lhs_exner_lhs_exner_input_inner_prod
+    real(kind=r_def)    :: theta_theta_input_inner_prod
+    real(kind=r_def)    :: u_u_input_inner_prod
+    real(kind=r_def)    :: exner_exner_input_inner_prod
+    real(kind=r_solver) :: inner2
+
+    ! Test parameters and variables
+    real(kind=r_solver)            :: machine_tol
+    real(kind=r_solver)            :: relative_diff
+    real(kind=r_solver), parameter :: overall_tolerance = 1500.0_r_solver
+
+    element_order_h = config%finite_element%element_order_h()
+    element_order_v = config%finite_element%element_order_v()
+    vector_space_w2_ptr => function_space_collection%get_fs(mesh, element_order_h, &
+                                                            element_order_v, W2)
+    vector_space_w3_ptr => function_space_collection%get_fs(mesh, element_order_h, &
+                                                            element_order_v, W3)
+    vector_space_wtheta_ptr => function_space_collection%get_fs(mesh, element_order_h, &
+                                                                element_order_v, Wtheta)
+    call lhs_exner%initialise(vector_space=vector_space_w3_ptr, name='lhs_exner')
+    call theta%initialise(vector_space=vector_space_wtheta_ptr, name='theta')
+    call u%initialise(vector_space=vector_space_w2_ptr, name='u')
+    call exner%initialise(vector_space=vector_space_w3_ptr, name='exner')
+    call m3exner%initialise(vector_space_w3_ptr, vector_space_w3_ptr)
+    call q32_rho%initialise(vector_space_w3_ptr, vector_space_w2_ptr)
+    call p3theta%initialise(vector_space_w3_ptr, vector_space_wtheta_ptr)
+    call lhs_exner_input%initialise(vector_space=vector_space_w3_ptr, name='lhs_exner_input')
+    call theta_input%initialise(vector_space=vector_space_wtheta_ptr, name='theta_input')
+    call u_input%initialise(vector_space=vector_space_w2_ptr, name='u_input')
+    call exner_input%initialise(vector_space=vector_space_w3_ptr, name='exner_input')
+
+    ! Known issue with scalar randomisation with MPI. Each process
+    ! generates a different number. See LFRic-apps ticket #765.
+    const_r = 1.0_r_def
+    lhs_exner_inner_prod = 0.0_r_def
+    theta_inner_prod = 0.0_r_def
+    u_inner_prod = 0.0_r_def
+    exner_inner_prod = 0.0_r_def
+
+    ! Initialise arguments and call the tangent-linear kernel.
+    call setop_random_rsol_alg(m3exner)
+    call setop_random_rsol_alg(q32_rho)
+    call setop_random_rsol_alg(p3theta)
+    call invoke( setval_random(lhs_exner), setval_x(lhs_exner_input, lhs_exner),               &
+                 setval_random(theta), setval_x(theta_input, theta),                           &
+                 setval_random(u), setval_x(u_input, u),                                       &
+                 setval_random(exner), setval_x(exner_input, exner) ,                          &
+                 apply_elim_mixed_lp_operator_kernel_type(lhs_exner, theta, u, exner,          &
+                                                          m3exner, q32_rho, p3theta, const_r), &
+                 x_innerproduct_x(lhs_exner_inner_prod, lhs_exner),                            &
+                 x_innerproduct_x(theta_inner_prod, theta),                                    &
+                 x_innerproduct_x(u_inner_prod, u),                                            &
+                 x_innerproduct_x(exner_inner_prod, exner) )
+
+    write( log_scratch_space, * ) "adjt_apply_elim_mixed_lp_operator inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write( log_scratch_space, * ) "lhs_exner inner product = ", lhs_exner_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write( log_scratch_space, * ) "u inner product = ", u_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write( log_scratch_space, * ) "theta inner product = ", theta_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write( log_scratch_space, * ) "exner inner product = ", exner_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    lhs_exner_sf = 1.0_r_def / (lhs_exner_inner_prod + EPS)
+    u_sf = 1.0_r_def / (u_inner_prod + EPS)
+    theta_sf = 1.0_r_def / (theta_inner_prod + EPS)
+    exner_sf = 1.0_r_def / (exner_inner_prod + EPS)
+
+    inner1 = 0.0_r_solver
+    inner1 = inner1 + real(lhs_exner_inner_prod * lhs_exner_sf, kind = r_solver)
+    inner1 = inner1 + real(u_inner_prod * u_sf, kind = r_solver)
+    inner1 = inner1 + real(theta_inner_prod * theta_sf, kind = r_solver)
+    inner1 = inner1 + real(exner_inner_prod * exner_sf, kind = r_solver)
+
+    lhs_exner_lhs_exner_input_inner_prod = 0.0_r_def
+    theta_theta_input_inner_prod = 0.0_r_def
+    u_u_input_inner_prod = 0.0_r_def
+    exner_exner_input_inner_prod = 0.0_r_def
+    call invoke( inc_a_times_X( lhs_exner_sf, lhs_exner ),                                         &
+                 inc_a_times_X( u_sf, u ),                                                         &
+                 inc_a_times_X( theta_sf, theta ),                                                 &
+                 inc_a_times_X( exner_sf, exner ),                                                 &
+                 adj_apply_elim_mixed_lp_operator_kernel_type(lhs_exner, theta, u, exner,          &
+                                                              m3exner, q32_rho, p3theta, const_r), &
+                 x_innerproduct_y(lhs_exner_lhs_exner_input_inner_prod,                            &
+                                  lhs_exner, lhs_exner_input),                                     &
+                 x_innerproduct_y(theta_theta_input_inner_prod,                                    &
+                                  theta, theta_input),                                             &
+                 x_innerproduct_y(u_u_input_inner_prod,                                            &
+                                  u, u_input),                                                     &
+                 x_innerproduct_y(exner_exner_input_inner_prod,                                    &
+                                  exner, exner_input) )
+
+    inner2 = 0.0_r_solver
+    inner2 = inner2 + real(lhs_exner_lhs_exner_input_inner_prod, r_solver)
+    inner2 = inner2 + real(theta_theta_input_inner_prod, r_solver)
+    inner2 = inner2 + real(u_u_input_inner_prod, r_solver)
+    inner2 = inner2 + real(exner_exner_input_inner_prod, r_solver)
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing(max(abs(inner1), abs(inner2)))
+    relative_diff = abs(inner1 - inner2) / machine_tol
+    if (relative_diff < overall_tolerance) then
+      write(log_scratch_space, *) "PASSED apply_elim_mixed_lp_operator_kernel_type:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+    else
+      write(log_scratch_space, *) "FAILED apply_elim_mixed_lp_operator_kernel_type:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+  end subroutine adjt_apply_elim_mixed_lp_operator_alg
+
+end module adjt_apply_elim_mixed_lp_operator_alg_mod

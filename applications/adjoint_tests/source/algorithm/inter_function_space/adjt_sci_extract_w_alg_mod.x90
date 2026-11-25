@@ -1,0 +1,134 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Module containing standard adjoint test for adj_sci_extract_w_kernel
+module adjt_sci_extract_w_alg_mod
+
+  use config_mod,                        only : config_type
+  use field_mod,                         only : field_type
+  use function_space_mod,                only : function_space_type
+  use mesh_mod,                          only : mesh_type
+  use function_space_collection_mod,     only : function_space_collection
+  use fs_continuity_mod,                 only : W2, Wtheta
+  use constants_mod,                     only : i_def, r_def, EPS
+  use log_mod,                           only : log_event,         &
+                                                log_scratch_space, &
+                                                LOG_LEVEL_ERROR,   &
+                                                LOG_LEVEL_DEBUG,   &
+                                                LOG_LEVEL_INFO
+  implicit none
+
+  private
+  public :: adjt_sci_extract_w_alg
+
+  contains
+
+  !=============================================================================
+  !> @brief Adjoint test for adj_sci_extract_w_kernel
+  !> @param[in] config    Application namelist configuration object
+  !> @param[in] mesh      A mesh object
+  subroutine adjt_sci_extract_w_alg(config, mesh)
+
+    use sci_extract_w_kernel_mod,     only : extract_w_kernel_type
+    use adj_sci_extract_w_kernel_mod, only : adj_extract_w_kernel_type
+
+    implicit none
+
+    ! Arguments
+    type(config_type),        intent(in) :: config
+    type(mesh_type), pointer, intent(in) :: mesh
+
+    ! Arguments for tl and adj calls
+    type(field_type) :: velocity_w2v
+    type(field_type) :: u_physics
+
+    ! Copies of input fields used in inner products
+    type(field_type) :: velocity_w2v_input
+    type(field_type) :: u_physics_input
+
+    ! Variables for initialising fields
+    type(function_space_type), pointer :: vector_space_w2_ptr
+    type(function_space_type), pointer :: vector_space_wtheta_ptr
+    integer(kind=i_def)                :: element_order_h
+    integer(kind=i_def)                :: element_order_v
+
+    ! Inner products
+    real(kind=r_def) :: velocity_w2v_inner_prod
+    real(kind=r_def) :: u_physics_inner_prod
+    real(kind=r_def) :: velocity_w2v_sf
+    real(kind=r_def) :: u_physics_sf
+    real(kind=r_def) :: inner1
+    real(kind=r_def) :: velocity_w2v_velocity_w2v_input_inner_prod
+    real(kind=r_def) :: u_physics_u_physics_input_inner_prod
+    real(kind=r_def) :: inner2
+
+    ! Test parameters and variables
+    real(kind=r_def)            :: machine_tol
+    real(kind=r_def)            :: relative_diff
+    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+
+    element_order_h = config%finite_element%element_order_h()
+    element_order_v = config%finite_element%element_order_v()
+    vector_space_w2_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, W2)
+    vector_space_wtheta_ptr => function_space_collection%get_fs(mesh, element_order_h, element_order_v, Wtheta)
+    call velocity_w2v%initialise(vector_space=vector_space_wtheta_ptr, name='velocity_w2v')
+    call u_physics%initialise(vector_space=vector_space_w2_ptr, name='u_physics')
+    call velocity_w2v_input%initialise(vector_space=vector_space_wtheta_ptr, name='velocity_w2v_input')
+    call u_physics_input%initialise(vector_space=vector_space_w2_ptr, name='u_physics_input')
+
+    velocity_w2v_inner_prod = 0.0_r_def
+    u_physics_inner_prod = 0.0_r_def
+
+    ! Initialise arguments and call the tangent-linear kernel.
+    call invoke( setval_random(velocity_w2v), setval_x(velocity_w2v_input, velocity_w2v), &
+                 setval_random(u_physics), setval_x(u_physics_input, u_physics),          &
+                 extract_w_kernel_type(velocity_w2v, u_physics),                          &
+                 x_innerproduct_x(velocity_w2v_inner_prod, velocity_w2v),                 &
+                 x_innerproduct_x(u_physics_inner_prod, u_physics) )
+
+    write( log_scratch_space, * ) "adjt_sci_extract_w inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write( log_scratch_space, * ) "u_physics inner product = ", u_physics_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write( log_scratch_space, * ) "velocity_w2v inner product = ", velocity_w2v_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    u_physics_sf = 1.0_r_def / (u_physics_inner_prod + EPS)
+    velocity_w2v_sf = 1.0_r_def / (velocity_w2v_inner_prod + EPS)
+
+    inner1 = 0.0_r_def
+    inner1 = inner1 + u_physics_inner_prod * u_physics_sf
+    inner1 = inner1 + velocity_w2v_inner_prod * velocity_w2v_sf
+
+    velocity_w2v_velocity_w2v_input_inner_prod = 0.0_r_def
+    u_physics_u_physics_input_inner_prod = 0.0_r_def
+
+    call invoke( inc_a_times_X( u_physics_sf, u_physics ),                    &
+                 inc_a_times_X( velocity_w2v_sf, velocity_w2v ),              &
+                 adj_extract_w_kernel_type(velocity_w2v, u_physics),          &
+                 x_innerproduct_y(velocity_w2v_velocity_w2v_input_inner_prod, &
+                                  velocity_w2v, velocity_w2v_input),          &
+                 x_innerproduct_y(u_physics_u_physics_input_inner_prod,       &
+                                  u_physics, u_physics_input) )
+
+    inner2 = 0.0_r_def
+    inner2 = inner2 + velocity_w2v_velocity_w2v_input_inner_prod
+    inner2 = inner2 + u_physics_u_physics_input_inner_prod
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing(max(abs(inner1), abs(inner2)))
+    relative_diff = abs(inner1 - inner2) / machine_tol
+    if (relative_diff < overall_tolerance) then
+      write(log_scratch_space, *) "PASSED extract_w_kernel_type:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+    else
+      write(log_scratch_space, *) "FAILED extract_w_kernel_type:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+  end subroutine adjt_sci_extract_w_alg
+
+end module adjt_sci_extract_w_alg_mod
