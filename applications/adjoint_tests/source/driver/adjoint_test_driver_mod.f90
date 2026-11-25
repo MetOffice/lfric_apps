@@ -63,6 +63,7 @@ contains
     use adjt_apply_mixed_operator_alg_mod,          only : adjt_apply_mixed_operator_alg
     use adjt_apply_mixed_u_operator_alg_mod,        only : adjt_apply_mixed_u_operator_alg
     use adjt_apply_mixed_wp_operator_alg_mod,       only : adjt_apply_mixed_wp_operator_alg
+    use adjt_opt_apply_variable_hx_alg_mod,         only : adjt_opt_apply_variable_hx_alg
     use adjt_schur_backsub_alg_mod,                 only : adjt_schur_backsub_alg
 
     ! ./transport/mol
@@ -154,8 +155,6 @@ contains
     ! ./timestepping
     use atlt_si_timestep_alg_mod,                   only : atlt_si_timestep_alg
 
-    use adjt_opt_apply_variable_hx_alg_mod, only : adjt_opt_apply_variable_hx_alg
-
     implicit none
 
     ! Arguments
@@ -176,8 +175,6 @@ contains
 
     call adj_solver_lookup_cache%initialise(mesh)
     call adj_trans_lookup_cache%initialise(modeldb%config, mesh)
-
-    call adjt_opt_apply_variable_hx_alg( mesh, chi, panel_id )
 
     call log_event( "TESTING adjoint kernels", LOG_LEVEL_INFO )
 
@@ -244,6 +241,7 @@ contains
     call adjt_apply_mixed_operator_alg( modeldb%config, mesh )
     call adjt_apply_mixed_u_operator_alg( modeldb%config, mesh )
     call adjt_apply_mixed_wp_operator_alg( modeldb%config, mesh )
+    call adjt_opt_apply_variable_hx_alg( modeldb%config, mesh )
     call adjt_schur_backsub_alg( modeldb%config, mesh )
 
     call log_event( "TESTING misc adjoints", LOG_LEVEL_INFO )
