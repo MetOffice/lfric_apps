@@ -60,6 +60,10 @@ contains
     ! ./solver
     use adjt_apply_elim_mixed_lp_operator_alg_mod,  only : adjt_apply_elim_mixed_lp_operator_alg
     use adjt_apply_mixed_lu_operator_alg_mod,       only : adjt_apply_mixed_lu_operator_alg
+    use adjt_apply_mixed_operator_alg_mod,          only : adjt_apply_mixed_operator_alg
+    use adjt_apply_mixed_u_operator_alg_mod,        only : adjt_apply_mixed_u_operator_alg
+    use adjt_apply_mixed_wp_operator_alg_mod,       only : adjt_apply_mixed_wp_operator_alg
+    use adjt_schur_backsub_alg_mod,                 only : adjt_schur_backsub_alg
 
     ! ./transport/mol
     use atlt_poly_adv_update_alg_mod,               only : atlt_poly_adv_update_alg
@@ -140,9 +144,6 @@ contains
     ! ./solver
     use adjt_pressure_precon_alg_mod,               only : adjt_pressure_precon_alg
     use adjt_mixed_operator_alg_mod,                only : adjt_mixed_operator_alg
-    use adjt_apply_mixed_u_operator_alg_mod,        only : adjt_apply_mixed_u_operator_alg
-    use adjt_apply_mixed_wp_operator_alg_mod,       only : adjt_apply_mixed_wp_operator_alg
-    use adjt_schur_backsub_alg_mod,                 only : adjt_schur_backsub_alg
     use adjt_mixed_schur_preconditioner_alg_mod,    only : adjt_mixed_schur_preconditioner_alg
     use adjt_mixed_solver_alg_mod,                  only : adjt_mixed_solver_alg
     use adjt_semi_implicit_solver_step_alg_mod,     only : adjt_semi_implicit_solver_step_alg
@@ -153,8 +154,6 @@ contains
     ! ./timestepping
     use atlt_si_timestep_alg_mod,                   only : atlt_si_timestep_alg
 
-
-    use adjt_apply_mixed_operator_alg_mod, only : adjt_apply_mixed_operator_alg
     use adjt_opt_apply_variable_hx_alg_mod, only : adjt_opt_apply_variable_hx_alg
 
     implicit none
@@ -178,7 +177,6 @@ contains
     call adj_solver_lookup_cache%initialise(mesh)
     call adj_trans_lookup_cache%initialise(modeldb%config, mesh)
 
-    call adjt_apply_mixed_operator_alg( mesh, chi, panel_id )
     call adjt_opt_apply_variable_hx_alg( mesh, chi, panel_id )
 
     call log_event( "TESTING adjoint kernels", LOG_LEVEL_INFO )
@@ -243,6 +241,7 @@ contains
     ! ./solver
     call adjt_apply_elim_mixed_lp_operator_alg( modeldb%config, mesh )
     call adjt_apply_mixed_lu_operator_alg( modeldb%config, mesh )
+    call adjt_apply_mixed_operator_alg( modeldb%config, mesh )
     call adjt_apply_mixed_u_operator_alg( modeldb%config, mesh )
     call adjt_apply_mixed_wp_operator_alg( modeldb%config, mesh )
     call adjt_schur_backsub_alg( modeldb%config, mesh )

@@ -16,7 +16,7 @@ module adjt_apply_mixed_lu_operator_alg_mod
   use r_solver_field_mod,                only : r_solver_field_type
   use r_solver_operator_mod,             only : r_solver_operator_type
   use constants_mod,                     only : i_def, r_def, r_solver, EPS
-  use setop_random_alg_mod,              only : setop_random_alg
+  use setop_random_alg_mod,              only : setop_random_rsol_alg
   use log_mod,                           only : log_event,         &
                                                 log_scratch_space, &
                                                 LOG_LEVEL_ERROR,   &
@@ -116,9 +116,9 @@ module adjt_apply_mixed_lu_operator_alg_mod
     exner_inner_prod = 0.0_r_def
 
     ! Initialise arguments and call the tangent-linear kernel.
-    call setop_random_alg(mu_cd)
-    call setop_random_alg(p2theta)
-    call setop_random_alg(grad)
+    call setop_random_rsol_alg(mu_cd)
+    call setop_random_rsol_alg(p2theta)
+    call setop_random_rsol_alg(grad)
     call invoke( setval_random(lhs_u), setval_x(lhs_u_input, lhs_u),            &
                  setval_random(wind), setval_x(wind_input, wind),               &
                  setval_random(theta), setval_x(theta_input, theta),            &
