@@ -49,6 +49,7 @@ module bl_imp_diags_mod
 contains
 
   !> @brief Initialise fields for locally-computed diagnostics
+  !> @param[in]     config             Application configuration object
   !> @param[in]     mv                 Vapour mixing ratio
   !> @param[in]     mcl                Cloud liq mixing ratio
   !> @param[in]     ms                 Cloud snow mixing ratio
@@ -83,7 +84,7 @@ contains
 
     implicit none
 
-type(config_type), intent(in) :: config
+    type(config_type), intent(in) :: config
 
     ! Fields passed in to copy properties from
     type( field_type ), intent(in)    :: mv, mcl, ms

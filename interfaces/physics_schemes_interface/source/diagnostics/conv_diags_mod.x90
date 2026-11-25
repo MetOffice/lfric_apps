@@ -10,8 +10,7 @@
 
 module conv_diags_mod
 
-  use config_mod, only: config_type
-
+  use config_mod,          only: config_type
   use constants_mod,       only: l_def
   use field_mod,           only: field_type
   use timing_mod,          only: start_timing, stop_timing, tik, LPROF
@@ -76,7 +75,8 @@ module conv_diags_mod
 contains
 
   !> @brief Initialise fields for locally-computed diagnostics
-  subroutine initialise_diags_for_conv(config, rho,                    &
+  subroutine initialise_diags_for_conv(config,                 &
+                                       rho,                    &
                                        zh,                     &
                                        deep_in_col,            & ! 2-D
                                        shallow_in_col,         &

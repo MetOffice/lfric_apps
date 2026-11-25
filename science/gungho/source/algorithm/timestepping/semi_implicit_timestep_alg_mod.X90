@@ -759,6 +759,7 @@ contains
     integer(i_def), allocatable :: inner_iterations_si(:)
 
     type(config_type), pointer :: config
+
     if ( LPROF ) call start_timing( id, 'semi_implicit_timestep' )
 
     config => self%config

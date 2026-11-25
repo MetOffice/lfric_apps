@@ -287,15 +287,15 @@ module um_physics_init_mod
 
   use radiation_config_mod,      only : topography, topography_horizon
 
-  use section_choice_config_mod, only : aerosol_um,        &
-                                        boundary_layer_um, &
-                                        convection_um,     &
-                                        cloud_um,          &
-                                        electric_um,       &
-                                        microphysics_um,   &
-                                        orographic_drag_um,&
-                                        radiation_socrates,&
-                                        spectral_gwd_um,   &
+  use section_choice_config_mod, only : aerosol_um,            &
+                                        boundary_layer_um,     &
+                                        convection_um,         &
+                                        cloud_um,              &
+                                        electric_um,           &
+                                        microphysics_um,       &
+                                        orographic_drag_um,    &
+                                        radiation_socrates,    &
+                                        spectral_gwd_um,       &
                                         stochastic_physics_um, &
                                         surface_jules
 
@@ -419,6 +419,7 @@ contains
   !>          from the UM code.
   !>        Other parameters and switches which are genuinely input variables,
   !>         via the LFRic namelists, are also set here for the UM code.
+  !> @param[in] config  Application configuration object
 
   subroutine um_physics_init(config)
 
@@ -624,7 +625,7 @@ contains
     logical(l_def) :: dust_loaded = .false.
     logical(l_def) :: checkpoint_read
 
-    checkpoint_read  = config%io%checkpoint_read()
+    checkpoint_read = config%io%checkpoint_read()
 
     ! ----------------------------------------------------------------
     ! UM aerosol scheme settings
@@ -1289,7 +1290,7 @@ contains
     ! aerosol tracers - contained in UM module ukca_option_mod
     ! ----------------------------------------------------------------
 
-    if ( config%section_choice%aerosol() == aerosol_um .and.              &
+    if ( config%section_choice%aerosol() == aerosol_um .and. &
          ( glomap_mode == glomap_mode_ukca ) .or. &
          ( glomap_mode == glomap_mode_dust_and_clim ) ) then
       l_ukca = .true.
@@ -1456,7 +1457,7 @@ contains
     ! scheme being either off or running in diagnostic mode to calculate
     ! dust emissions only if these are potentially required by UKCA.
 
-    if ( config%section_choice%aerosol() == aerosol_um .and.              &
+    if ( config%section_choice%aerosol() == aerosol_um .and. &
          ( glomap_mode == glomap_mode_ukca ) .or. &
          ( glomap_mode == glomap_mode_dust_and_clim ) ) then
       i_dust = i_dust_flux
@@ -1795,7 +1796,11 @@ contains
       ! Options for the subgrid cloud variability parametrization used
       ! in microphysics and radiation but living elsewhere in the UM
       ! ... contained in rad_input_mod
-      two_d_fsd_factor = config%cloud%two_d_fsd_factor()
+      if (config%namelist_exists("cloud")) then
+        two_d_fsd_factor = config%cloud%two_d_fsd_factor()
+      else
+        print*, "PLUMS"
+      end if
       ! ... contained in fsd_parameters_mod
 
       if ( cld_fsd_hill ) then

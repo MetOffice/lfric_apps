@@ -10,7 +10,7 @@
 
 module jules_imp_diags_mod
 
- use config_mod, only: config_type
+  use config_mod,                  only: config_type
   use constants_mod,               only: l_def, r_def
   use field_mod,                   only: field_type
   use jules_control_init_mod,      only: n_surf_tile, n_land_tile, &
@@ -62,6 +62,7 @@ module jules_imp_diags_mod
 contains
 
   !> @brief Initialise fields for locally-computed diagnostics
+  !> @param[in]     config             Application configuration object
   !> @param[in,out] t1p5m_surft        1.5m temperature for land tiles
   !> @param[in,out] q1p5m_surft        1.5m specific humidity for land tiles
   !> @param[in,out] t1p5m              1.5m temperature
@@ -86,7 +87,8 @@ contains
   !> @param[in,out] surf_radnet        surface net downward radiative flux on tiles
   !> @param[in,out] surf_lw_up         surface upward longwave flux on tiles
   !> @param[in,out] surf_lw_down       surface downward longwave flux on tiles
-  subroutine initialise_diags_for_jules_imp(config, loop, t1p5m_surft, q1p5m_surft, &
+  subroutine initialise_diags_for_jules_imp(config, loop,                   &
+                                            t1p5m_surft, q1p5m_surft,       &
                                             t1p5m, q1p5m, qcl1p5m, rh1p5m,  &
                                             t1p5m_ssi, q1p5m_ssi,           &
                                             qcl1p5m_ssi, rh1p5m_ssi,        &
@@ -160,9 +162,9 @@ contains
       ! complex diagnostic, needs updating in both loops, so allocate on 1st
       ! and save from 1st to 2nd loop
       latent_heat_flag = init_diag(config, latent_heat, 'surface__latent_heat')
-      grid_latent_heat_flag = samp_diag('surface__grid_latent_heat')
-      land_mean_latent_heat_flag = samp_diag('surface__land_mean_latent_heat')
-      ssi_mean_latent_heat_flag = samp_diag('surface__ssi_mean_latent_heat')
+      grid_latent_heat_flag = samp_diag(config, 'surface__grid_latent_heat')
+      land_mean_latent_heat_flag = samp_diag(config, 'surface__land_mean_latent_heat')
+      ssi_mean_latent_heat_flag = samp_diag(config, 'surface__ssi_mean_latent_heat')
       if ((grid_latent_heat_flag .or. land_mean_latent_heat_flag .or. &
            ssi_mean_latent_heat_flag) .and. .not. latent_heat_flag) then
         ignore = init_diag(config, latent_heat, 'surface__latent_heat', activate=.true.)
@@ -184,31 +186,31 @@ contains
       qcl1p5m_land_flag = init_diag(config, qcl1p5m_land, 'surface__qcl1p5m_land')
 
       ! Initialise fields where another diagnostic depends on them
-      if (samp_diag('turbulence__thermal_speed') .or. &
-          samp_diag('surface__ustar_implicit') .or. &
-          samp_diag('surface__wind_gust') .or. &
-          samp_diag('surface__scale_dep_wind_gust') .or. &
-          samp_diag('surface__visibility_no_precip') .or. &
-          samp_diag('surface__visibility_with_precip') .or. &
-          samp_diag('surface__fog_fraction') .or. &
-          samp_diag('surface__vis_prob_5km') .or. &
-          samp_diag('surface__dew_point')) then
+      if (samp_diag(config, 'turbulence__thermal_speed') .or. &
+          samp_diag(config, 'surface__ustar_implicit') .or. &
+          samp_diag(config, 'surface__wind_gust') .or. &
+          samp_diag(config, 'surface__scale_dep_wind_gust') .or. &
+          samp_diag(config, 'surface__visibility_no_precip') .or. &
+          samp_diag(config, 'surface__visibility_with_precip') .or. &
+          samp_diag(config, 'surface__fog_fraction') .or. &
+          samp_diag(config, 'surface__vis_prob_5km') .or. &
+          samp_diag(config, 'surface__dew_point')) then
         if (.not. t1p5m_flag) ignore = init_diag(config, t1p5m, 'surface__t1p5m', activate=.true.)
         if (.not. q1p5m_flag) ignore = init_diag(config, q1p5m, 'surface__q1p5m', activate=.true.)
         if (.not. qcl1p5m_flag) ignore = init_diag(config, qcl1p5m, 'surface__qcl1p5m', activate=.true.)
       end if
       ! sea and sea-ice derived diags
-      if (samp_diag('surface__visibility_with_precip_ssi') .or. &
-          samp_diag('surface__fog_fraction_ssi') .or. &
-          samp_diag('surface__dew_point_ssi')) then
+      if (samp_diag(config, 'surface__visibility_with_precip_ssi') .or. &
+          samp_diag(config, 'surface__fog_fraction_ssi') .or. &
+          samp_diag(config, 'surface__dew_point_ssi')) then
         if (.not. t1p5m_ssi_flag) ignore = init_diag(config, t1p5m_ssi, 'surface__t1p5m_ssi', activate=.true.)
         if (.not. q1p5m_ssi_flag) ignore = init_diag(config, q1p5m_ssi, 'surface__q1p5m_ssi', activate=.true.)
         if (.not. qcl1p5m_ssi_flag) ignore = init_diag(config, qcl1p5m_ssi, 'surface__qcl1p5m_ssi', activate=.true.)
       end if
       ! land derived diags
-      if (samp_diag('surface__visibility_with_precip_land') .or. &
-          samp_diag('surface__fog_fraction_land') .or. &
-          samp_diag('surface__dew_point_land')) then
+      if (samp_diag(config, 'surface__visibility_with_precip_land') .or. &
+          samp_diag(config, 'surface__fog_fraction_land') .or. &
+          samp_diag(config, 'surface__dew_point_land')) then
         if (.not. t1p5m_land_flag) ignore = init_diag(config, t1p5m_land, 'surface__t1p5m_land', activate=.true.)
         if (.not. q1p5m_land_flag) ignore = init_diag(config, q1p5m_land, 'surface__q1p5m_land', activate=.true.)
         if (.not. qcl1p5m_land_flag) ignore = init_diag(config, qcl1p5m_land, 'surface__qcl1p5m_land', activate=.true.)
@@ -219,6 +221,7 @@ contains
   end subroutine initialise_diags_for_jules_imp
 
   !> @brief Output diagnostics from jules_imp_alg
+  !> @param[in]     config                   Application configuration object
   !> @param[in]     tile_heat_flux           surface sensible heat flux on tiles
   !> @param[in]     tile_moisture_flux       surface moisture flux on tiles
   !> @param[in]     tile_temperature         surface temperature on tiles
@@ -250,7 +253,7 @@ contains
   !> @param[in]     surf_radnet              surface net downward radiative flux on tiles
   !> @param[in]     surf_lw_up               surface upward longwave flux on tiles
   !> @param[in]     surf_lw_down             surface downward longwave flux on tiles
-  subroutine output_diags_for_jules_imp(config,loop, tile_heat_flux,                  &
+  subroutine output_diags_for_jules_imp(config, loop, tile_heat_flux,          &
                                      tile_moisture_flux, tile_temperature,     &
                                      snowice_sublimation, canopy_evap,         &
                                      tile_fraction,                            &
@@ -270,7 +273,7 @@ contains
 
   implicit none
 
-type(config_type), intent(in) :: config
+  type(config_type), intent(in) :: config
 
   ! Prognostic fields to output
   type( field_type ), intent(in)    :: tile_heat_flux, tile_fraction,        &
@@ -319,14 +322,14 @@ type(config_type), intent(in) :: config
       call grid_surface_temperature%write_field()
     end if
 
-    if(init_diag(config, land_surface_temperature, 'surface__land_surface_temperature')) then
+    if (init_diag(config, land_surface_temperature, 'surface__land_surface_temperature')) then
       call invoke(weighted_ave_kernel_type(land_surface_temperature,       &
                                        tile_temperature, tile_fraction,    &
                                        1, n_land_tile))
       call land_surface_temperature%write_field()
     end if
 
-    if(init_diag(config, sea_ice_surface_temperature, 'surface__sea_ice_surface_temperature')) then
+    if (init_diag(config, sea_ice_surface_temperature, 'surface__sea_ice_surface_temperature')) then
       call invoke(weighted_ave_kernel_type(sea_ice_surface_temperature,       &
                                        tile_temperature, tile_fraction,    &
                                        first_sea_ice_tile, n_sea_ice_tile))
@@ -336,7 +339,7 @@ type(config_type), intent(in) :: config
     ! Averaging the tiled flux over the land tiles, weighted by their grid-box
     ! fractions, divides by the land fraction and so gives a mean over the
     ! land portion of the grid-box.
-    if(init_diag(config, land_mean_heat_flux, 'surface__land_mean_heat_flux')) then
+    if (init_diag(config, land_mean_heat_flux, 'surface__land_mean_heat_flux')) then
       call invoke(weighted_ave_kernel_type(land_mean_heat_flux,            &
                                        tile_heat_flux, tile_fraction,      &
                                        1, n_land_tile))
@@ -346,7 +349,7 @@ type(config_type), intent(in) :: config
     ! As above, but over the sea and sea-ice tiles, which are contiguous, so
     ! dividing by the marine fraction and giving a mean over the sea and
     ! sea-ice portion of the grid-box.
-    if(init_diag(config, ssi_mean_heat_flux, 'surface__ssi_mean_heat_flux')) then
+    if (init_diag(config, ssi_mean_heat_flux, 'surface__ssi_mean_heat_flux')) then
       call invoke(weighted_ave_kernel_type(ssi_mean_heat_flux,             &
                                        tile_heat_flux, tile_fraction,      &
                                        first_sea_tile, n_ssi_tile))

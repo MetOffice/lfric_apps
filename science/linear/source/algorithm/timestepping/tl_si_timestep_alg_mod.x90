@@ -37,7 +37,7 @@ module tl_si_timestep_alg_mod
   use mixed_solver_config_mod,     only: guess_np1,                            &
                                          reference_reset_time
   use timestepping_config_mod,     only: alpha,                                &
-                                         outer_iterations, &! , inner_iterations_si,&
+                                         outer_iterations, &
                                          spinup_alpha
   use transport_config_mod,        only: use_density_predictor
   use derived_config_mod,          only: bundle_size
@@ -188,9 +188,9 @@ contains
     implicit none
 
     ! Mesh
-    type(config_type),      intent( in ) :: config
-    type(mesh_type),        intent( in ) :: mesh
-    type(model_clock_type), intent( in ) :: clock
+    type(config_type),      intent(in) :: config
+    type(mesh_type),        intent(in) :: mesh
+    type(model_clock_type), intent(in) :: clock
 
     ! Prognostic fields
     type( field_type ), intent( inout ) :: u, rho, theta, exner
@@ -207,6 +207,8 @@ contains
     logical(kind=l_def) :: full_init
 
     integer(kind=i_def) :: outer, inner
+
+    print*, 'Hello  tl_si_timestep_init world'
 
     use_moisture = ( moisture_formulation /= moisture_formulation_dry )
     full_init = .true.
@@ -227,9 +229,14 @@ contains
       ! The linearisation state is evolved, and the intermediate iterations
       ! are used to calculate the evolution of the perturbation.
       ls_outer_iterations = outer_iterations
-!     if (.not. allocated(ls_inner_iterations)) allocate(ls_inner_iterations(outer_iterations))
-      ls_inner_iterations(:) = config%timestepping%inner_iterations_si()
+!      if (.not. allocated(ls_inner_iterations)) allocate(ls_inner_iterations(outer_iterations))
+!      ls_inner_iterations(:) = config%timestepping%inner_iterations_si()
+      if (allocated(ls_inner_iterations)) deallocate(ls_inner_iterations)
+      ls_inner_iterations = config%timestepping%inner_iterations_si()
+
     end if
+
+    print*, 'Hello  sheepy world'
 
     if (full_init) then
       allocate(state(bundle_size))
@@ -341,6 +348,7 @@ contains
       call set_bundle_scalar(0.0_r_def, ls_mr_after_slow, nummr)
     end if
 
+    print*, 'Hello  kraken world'
     !--------------------------------------------------------------------
     ! Operators for si solves
     !--------------------------------------------------------------------
@@ -349,6 +357,8 @@ contains
       call gungho_transport_control_alg_init( mesh )
       call semi_implicit_solver_alg_init( config, state, stepper_siqn )
     end if
+
+    print*, 'Hello  end of days world'
 
     call log_event( "semi_implicit_timestep: initialised timestepping algorithm", LOG_LEVEL_INFO )
 
@@ -420,9 +430,10 @@ contains
     integer(tik) :: id
 type(config_type), pointer :: config
     integer(i_def), allocatable :: inner_iterations_si(:)
+
 config => modeldb%config
 
-inner_interations_si = config%timestepping%inner_iterations_si()
+inner_iterations_si = config%timestepping%inner_iterations_si()
 
     if ( LPROF ) call start_timing( id, 'tl_semi_implicit_timestep' )
 

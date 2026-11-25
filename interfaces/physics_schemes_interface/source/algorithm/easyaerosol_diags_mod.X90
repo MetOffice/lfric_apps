@@ -36,6 +36,7 @@ contains
   !>               This algorithm is not specific to the SW or LW spectrum but
   !>               can be called for either since the operations are identical
   !>               in both cases.
+  !>@param[in]     config                Application configuration object
   !>@param[in]     aer_absorption        absorption from online aerosol scheme
   !>@param[in]     aer_scattering        scattering from online aerosol scheme
   !>@param[in]     easy_absorption       absorption from easyaerosol ancil
@@ -46,7 +47,8 @@ contains
   !>@param[in]     spectrum              string indicating either sw or lw
   !>@param[in]     n_band                number of bands in this spectrum
   !
-  subroutine easyaerosol_diags ( config, aer_absorption,                               &
+  subroutine easyaerosol_diags ( config,                                       &
+                                 aer_absorption,                               &
                                  aer_scattering,                               &
                                  easy_absorption,                              &
                                  easy_extinction,                              &
@@ -58,7 +60,8 @@ contains
 
     implicit none
 
-type(config_type), intent(in) :: config
+    type(config_type), intent(in) :: config
+
     ! Arguments
     type( field_type ),  intent( in ) :: aer_absorption
     type( field_type ),  intent( in ) :: aer_scattering
@@ -77,7 +80,8 @@ type(config_type), intent(in) :: config
     type( field_type ) :: easy_ext_diag  ! Easy aerosol extinction diagnostic in units m-1
     type( field_type ) :: easy_asy_diag  ! Easy aerosol asymmetry diagnostic
 
-    call initialise_diags_for_easyaerosol( config, aer_abs_diag,                       &
+    call initialise_diags_for_easyaerosol( config,                             &
+                                           aer_abs_diag,                       &
                                            aer_sca_diag,                       &
                                            easy_abs_diag,                      &
                                            easy_sca_diag,                      &
@@ -111,6 +115,7 @@ type(config_type), intent(in) :: config
   end subroutine easyaerosol_diags
 
   !>@brief         Initialise aerosol optical property diagnostics
+  !>@param[in]     config                Application configuration object
   !>@param[in]     aer_abs_diag          absorption from radaer & easyaerosol
   !>@param[in]     aer_sca_diag          scattering from radaer & easyaerosol
   !>@param[in]     easy_abs_diag         absorption from easyaerosol ancil
@@ -119,7 +124,8 @@ type(config_type), intent(in) :: config
   !>@param[in]     easy_asy_diag         asymmetry from easyaerosol ancil
   !>@param[in]     spectrum              string, either "sw" or "lw"
   !
-  subroutine initialise_diags_for_easyaerosol ( config,aer_abs_diag,                  &
+  subroutine initialise_diags_for_easyaerosol ( config,                        &
+                                                aer_abs_diag,                  &
                                                 aer_sca_diag,                  &
                                                 easy_abs_diag,                 &
                                                 easy_sca_diag,                 &

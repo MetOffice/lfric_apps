@@ -433,7 +433,6 @@ contains
     real(kind=r_def)    :: initial_time
     integer(kind=i_def) :: element_order_h, element_order_v
 
-
     if ( moisture_formulation == moisture_formulation_dry ) then
       call set_bundle_scalar(0.0_r_def, mr, nummr)
       call moist_dyn_factors_alg( moist_dyn, mr )

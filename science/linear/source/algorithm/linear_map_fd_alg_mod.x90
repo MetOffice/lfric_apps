@@ -9,7 +9,7 @@
 !!          Here, the fd_fields are mapped to the prognostic fields.
 module linear_map_fd_alg_mod
 
-  use constants_mod,                   only: r_def
+  use constants_mod,                   only: r_def, l_def
   use log_mod,                         only: log_event,         &
                                              LOG_LEVEL_INFO
   use field_array_mod,                 only: field_array_type

@@ -30,7 +30,7 @@ contains
 
   !> @brief   Compute and output tropopause height, temperature, pressure
   !>          and ICAO height diagnostics.
-  !> @param[in] config       Application namelist configuration object
+  !> @param[in] config       Application configuration object
   !> @param[in] theta        Potential temperature
   !> @param[in] exner_in_wth Exner pressure on Wtheta space
   subroutine tropopause_diags_alg(config, theta, exner_in_wth)

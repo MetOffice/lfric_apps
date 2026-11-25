@@ -39,7 +39,7 @@ contains
   !>         CASIM microphysics. Activates liquid cloud droplets,
   !>         and adjust vapour and temperature, as described in CASIM
   !>         documentation.
-  !>@param[in]     config              Application namelist configuration object
+  !>@param[in]     config              Application configuration object
   !>@param[in]     mr                  (in) Mixing ratios, in theta space
   !>@param[in]     m_cl_pre_fast       (in) Cloud liq after advection
   !>@param[in]     cloud_fields        (in) Fields for cloud fractions

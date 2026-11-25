@@ -7,8 +7,7 @@
 
 module mphys_diagnostics_mod
 
-  use config_mod, only: config_type
-
+  use config_mod,          only: config_type
   use constants_mod,       only: l_def
   use field_mod,           only: field_type
   use timing_mod,          only: start_timing, stop_timing, tik, LPROF
@@ -42,14 +41,15 @@ module mphys_diagnostics_mod
 contains
 
   !> @brief Initialise fields for mphys diagnostics
+  !> @param[in]    config          Application configuration object
   !> @param[inout] superc_liq      Supercooled_liquid_cloud_after_microphysics
   !> @param[inout] sfwater         Water due to subgrid hills
   !> @param[inout] sfrain          Seeder-Feeder rain over subgrid hills
   !> @param[inout] sfsnow          Seeder-Feeder snow over subgrid hills
   !> @param[inout] refl_tot        Total radar reflectivity
   !> @param[inout] refl_1km        Radar Reflectivity at 1km above the surface
-  subroutine initialise_diags_for_mphys(config, superc_liq, superc_rain,               &
-                                        sfwater, sfrain, sfsnow,               &
+  subroutine initialise_diags_for_mphys(config, superc_liq, superc_rain, &
+                                        sfwater, sfrain, sfsnow,         &
                                         refl_tot, refl_1km)
 
     implicit none
@@ -85,7 +85,7 @@ contains
   !       casim_diagnostics_mod.x90
   !----------------------------------------------------------------------------
 
-  subroutine output_diags_for_mphys(config, exner_in_wth, dtheta_mphys,               &
+  subroutine output_diags_for_mphys(config, exner_in_wth, dtheta_mphys,       &
                                     dmv_mphys, dmcl_mphys, dmci_mphys,        &
                                     dmr_mphys, dmg_mphys, dms_mphys,          &
                                     dcfl_mphys, dcff_mphys, dbcf_mphys,       &
@@ -100,7 +100,7 @@ contains
 
     implicit none
 
-type(config_type), intent(in) :: config
+    type(config_type), intent(in) :: config
 
     type ( field_type ), intent (in) :: exner_in_wth,                         &
                                         dtheta_mphys,                         &

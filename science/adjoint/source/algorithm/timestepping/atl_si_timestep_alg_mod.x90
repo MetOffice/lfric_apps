@@ -19,7 +19,7 @@ module atl_si_timestep_alg_mod
                                                  use_physics, use_wavedynamics
   use mixed_solver_config_mod,             only: guess_np1, reference_reset_time
   use timestepping_config_mod,             only: alpha, spinup_alpha, &
-                                                 outer_iterations !, inner_iterations_si
+                                                 outer_iterations
   use linear_config_mod,                   only: fixed_ls,                 &
                                                  l_stabilise_bl,           &
                                                  n_bl_levels_to_stabilise, &
@@ -167,7 +167,7 @@ contains
     ! Local variables
     integer(kind=i_def) :: outer, inner
 
-    integer(kind=i_def), allocatable :: inner_iterations_si(:)
+!    integer(kind=i_def), allocatable :: inner_iterations_si(:)
 
     self%config => config
     self%use_moisture = (moisture_formulation /= moisture_formulation_dry)
@@ -361,9 +361,9 @@ contains
 
     integer(kind=i_def), allocatable :: inner_iterations_si(:)
 
-    inner_iterations_si = self%config%timestepping%inner_iterations_si()
-
     if ( LPROF ) call start_timing( id, 'atl_semi_implicit_timestep' )
+
+    inner_iterations_si = self%config%timestepping%inner_iterations_si()
 
     cast_dt = real( modeldb%clock%get_seconds_per_step(), r_def )
 

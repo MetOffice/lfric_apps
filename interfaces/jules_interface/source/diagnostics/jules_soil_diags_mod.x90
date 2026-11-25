@@ -7,7 +7,7 @@
 
 module jules_soil_diags_mod
 
- use config_mod, only: config_type
+  use config_mod,                  only: config_type
   use constants_mod,               only: l_def, r_def
   use field_mod,                   only: field_type
   use timing_mod,                  only: start_timing, stop_timing, tik, LPROF
@@ -37,7 +37,7 @@ contains
   !> @param[in,out] throughfall           Throughfall on tiles
   !> @param[in,out] grid_throughfall      Grid throughfall
 
-  subroutine initialise_diags_for_jules_soil(config, soil_moist_sat,             &
+  subroutine initialise_diags_for_jules_soil(config, soil_moist_sat,     &
                                          tile_fraction,                  &
                                          soil_moisture_content,          &
                                          grid_canopy_water,              &

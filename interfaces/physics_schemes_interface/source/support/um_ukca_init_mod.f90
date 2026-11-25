@@ -695,7 +695,7 @@ contains
 
   implicit none
 
-  type(config_type), intent(in) :: config
+    type(config_type), intent(in) :: config
 
     integer(i_def), intent(in) :: ncells_ukca
     class(model_clock_type), intent(in) :: model_clock
@@ -790,6 +790,7 @@ contains
   !>          Also register each emission field to be supplied to UKCA and
   !>          obtain lists of UKCA tracers, non-transported prognostics and
   !>          environmental drivers required for the selected configuration.
+  !> @param[in] config          Application configuration object
   !> @param[in] row_length      X dimension of model grid
   !> @param[in] rows            Y dimension of model grid
   !> @param[in] model_levels    Z dimension of model grid

@@ -27,8 +27,7 @@ use radiation_config_mod,          only: l_planet_grey_surface, &
                                          planet_emissivity, planet_albedo, &
                                          n_radstep, &
                                          l_inc_radstep, n_inc_radstep
-use section_choice_config_mod,     only: surface_jules, &
-                                         radiation_socrates
+use section_choice_config_mod,     only: surface_jules, radiation_socrates
 
 use socrates_init_mod, only: wavelength_short, wavelength_long, &
   n_band_exclude, index_exclude, weight_blue, &

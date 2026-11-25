@@ -75,6 +75,7 @@ module cosp_diags_mod
 contains
 
 !> @brief Return true if any COSP diagnostics are to be sampled
+!> @param[in] config  Application configuration object
 function cosp_diags_this_tstep(config) result(cosp_this_tstep)
 
   implicit none
@@ -119,7 +120,7 @@ end function cosp_diags_this_tstep
 !> @param[inout] cloud_thermal_absorptivity
 !> @param[inout] cloud_solar_extinction
 subroutine initialise_diags_for_cosp( &
-config,&
+  config,&
   sunlit_mask, &
   isccp_ctp_tau, &
   calipso_total_backscatter, &
@@ -135,7 +136,7 @@ config,&
 
   implicit none
 
-type(config_type), intent(in) :: config
+  type(config_type), intent(in) :: config
 
   ! Diagnostic fields to initialise
   type( field_type ), intent(inout) :: &

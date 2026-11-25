@@ -376,7 +376,7 @@ contains
       select type(field_ptr)
       type is (field_type)
         name = trim(adjustl( field_ptr%get_name() ))
-        if (samp_diag('cloud__'//trim(name))) &
+        if (samp_diag(config, 'cloud__'//trim(name))) &
              call field_ptr%write_field('cloud__'//trim(name))
       end select
     end do

@@ -39,7 +39,7 @@ contains
   !>                due to cloud microphysical processes
   !>                (e.g. latent heating and cooling).
   !>         See UMDP50 for full scheme details
-  !>@param[in]     config         Application namelist configuration object
+  !>@param[in]     config         Application configuration object
   !>@param[in]     mr_n           Start of timestep mixing ratios
   !>@param[in]     theta          Potential temperature (theta) in wth space
   !>@param[in]     dry_rho_in_w3  Dry density in the w3 space
@@ -232,7 +232,7 @@ contains
     height_w3  => get_height_fv(config, theta%get_mesh(), W3)
     height_wth => get_height_fv(config, theta%get_mesh(), Wtheta)
 
-    call initialise_diags_for_casim( config, refl_tot, refl_1km, superc_liq,           &
+    call initialise_diags_for_casim( config, refl_tot, refl_1km, superc_liq,   &
                                      superc_rain, ls_graup_3d )
 
     call invoke(name = "invoke_casim_kernel_type",                             &

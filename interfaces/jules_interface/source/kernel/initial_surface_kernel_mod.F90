@@ -12,8 +12,10 @@
 module initial_surface_kernel_mod
 
   use argument_mod,  only: arg_type,                  &
-                           GH_FIELD, gh_read,gh_scalar, GH_REAL, gh_integer,        &
-                           GH_WRITE, CELL_COLUMN,     &
+                           GH_FIELD, GH_SCALAR,       &
+                           GH_REAL, GH_INTEGER,       &
+                           GH_READ, GH_WRITE,         &
+                           CELL_COLUMN,               &
                            ANY_DISCONTINUOUS_SPACE_1, &
                            ANY_DISCONTINUOUS_SPACE_2
   use constants_mod, only: r_def, i_def
@@ -28,7 +30,6 @@ module initial_surface_kernel_mod
   use nvegparm, only: emis_nvg
   use pftparm, only: emis_pft
   use jules_sea_seaice_mod, only: emis_sea, emis_sice
-!  use section_choice_config_mod, only: surface, surface_jules
   use section_choice_config_mod, only: surface_jules
 
   implicit none
@@ -38,13 +39,13 @@ module initial_surface_kernel_mod
   !> Kernel metadata for Psyclone
   type, public, extends(kernel_type) :: initial_surface_kernel_type
     private
-    type(arg_type) :: meta_args(6) = (/                                    &
-         arg_type(GH_scalar, GH_integer, GH_read), &! surface
-         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_2), &
-         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_2), &
-         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1)  &
+    type(arg_type) :: meta_args(6) = (/                                        &
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                             &! surface
+         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_2), &
+         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_2), &
+         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_1)  &
          /)
     integer :: operates_on = CELL_COLUMN
   contains

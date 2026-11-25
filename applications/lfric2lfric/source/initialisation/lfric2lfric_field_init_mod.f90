@@ -7,6 +7,7 @@
 !>        routine for field creation.
 module lfric2lfric_field_init_mod
 
+  use config_mod,                         only: config_type
   use constants_mod,                      only: i_def, str_def
   use field_collection_mod,               only: field_collection_type
   use field_mod,                          only: field_type
@@ -128,6 +129,7 @@ contains
   !!          with the given name. The desired 3D and 2D meshes to be
   !!          initialised on must be given but space_from_metadata will
   !!          determine which to use.
+  !> @param [in]      config            Application configuration object
   !> @param [in,out]  field_collection  The field collection to which the field
   !!                                    will be added
   !> @param [in]      field_name        The name the field will be given
@@ -135,12 +137,16 @@ contains
   !!                                    initalised on
   !> @param [in]      twod_mesh         The 2D mesh the field could be
   !!                                    intialised on
-  subroutine field_maker(field_collection, field_name, mesh, twod_mesh, prefix)
+  subroutine field_maker(config, field_collection, field_name, mesh, twod_mesh, prefix)
+
+    implicit none
+
+    type(config_type), intent(in) :: config
 
     type(field_collection_type), pointer, intent(inout) :: field_collection
     character(len=*),                     intent(in)    :: field_name
-    type(mesh_type),             pointer, intent(in)    :: mesh
-    type(mesh_type),             pointer, intent(in)    :: twod_mesh
+    type(mesh_type),                      intent(in)    :: mesh
+    type(mesh_type),                      intent(in)    :: twod_mesh
     character(len=nf90_max_name),         intent(in)    :: prefix
 
     ! Field object to initialise
@@ -161,7 +167,8 @@ contains
 
     if ( .NOT. field_collection%field_exists(field_name) ) then
       ! Get function space from metadata
-      vector_space => space_from_metadata(trim(prefix)//trim(field_name), &
+      vector_space => space_from_metadata(config,                         &
+                                          trim(prefix)//trim(field_name), &
                                           mesh_3d=mesh,                   &
                                           mesh_2d=twod_mesh               )
 

@@ -42,7 +42,7 @@ contains
   !!          the first layer, so on a vertical grid coarse enough to put that
   !!          level above the target height the diagnostic is missing data
   !!          rather than extrapolated.
-  !> @param[in] config          Application namelist configuration object
+  !> @param[in] config          Application configuration object
   !> @param[in] derived_fields  Group of derived fields
   subroutine height_lev_diags_alg(config, derived_fields)
 

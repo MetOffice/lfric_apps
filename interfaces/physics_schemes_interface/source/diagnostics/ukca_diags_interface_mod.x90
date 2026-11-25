@@ -19,7 +19,7 @@
 
 module ukca_diags_interface_mod
 
-use config_mod, only: config_type
+use config_mod,            only: config_type
 use ukca_diag_setup_mod,   only: nm_rxnflux_oh_ch4_trop,                       &
                                  nm_o3_column_du,                              &
                                  key_diagname_base
@@ -49,7 +49,7 @@ public :: initialise_ukca_diagnostics, output_ukca_diagnostics
 contains
 
 ! ----------------------------------------------------------------------
-subroutine initialise_ukca_diagnostics(                                        &
+subroutine initialise_ukca_diagnostics( config,                                &
                                         values,                                &
                                         l_chem_timestep,                       &
                                         n_req_ukca_diags_3d,                   &
@@ -63,6 +63,8 @@ subroutine initialise_ukca_diagnostics(                                        &
 !   diagnostic_to_be_sampled to check if field is sampled this timestep
 ! ----------------------------------------------------------------------
 implicit none
+
+type(config_type), intent(in) :: config
 
 type(key_value_collection_type), intent(in) :: values
 logical(l_def), intent(in)  :: l_chem_timestep
@@ -119,7 +121,7 @@ do n = 1, n_req_ukca_diags_3d
   l_diag_active = .false.
   select case (trim(ukca_req_diagnames_fullht(n)))
     case (trim(nm_rxnflux_oh_ch4_trop))
-      l_diag_active = diagnostic_to_be_sampled(config,                                 &
+      l_diag_active = diagnostic_to_be_sampled(config,                         &
                                  'chemistry__'//nm_rxnflux_oh_ch4_trop )
       if ( .not. l_chem_timestep ) l_diag_active = .false.
     case (trim(nm_o3_column_du))
@@ -173,6 +175,7 @@ subroutine output_ukca_diagnostics( config,                                    &
 implicit none
 
 type(config_type), intent(in) :: config
+
 integer(i_def), intent(in) :: n_req_ukca_diags_3d
 integer(i_def), allocatable, intent(in) :: idiag_status_3d(:)
 character(len=ukca_maxlen_diagname), allocatable, intent(in) ::                &

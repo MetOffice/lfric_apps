@@ -42,6 +42,7 @@ contains
   !>          RADAER timesteps on the GLOMAP climatology path, so requesting
   !>          the number concentrations more frequently than the RADAER call
   !>          reuses the diameters of the most recent RADAER timestep.
+  !> @param[in] config        Application configuration object
   !> @param[in] glomap_vars   GLOMAP mode setup of the calling aerosol scheme,
   !!                          which holds the geometric standard deviation
   !!                          of each mode; must already have been filled
@@ -62,7 +63,8 @@ contains
   !> @param[in] acc_ins_du    Accumulation insoluble mode dust mass mixing
   !!                          ratio
   !> @param[in] cor_ins_du    Coarse insoluble mode dust mass mixing ratio
-  subroutine output_diags_for_glomap_ccn( config, glomap_vars,                         &
+  subroutine output_diags_for_glomap_ccn( config,                              &
+                                          glomap_vars,                         &
                                           rho_in_wth,                          &
                                           n_ait_sol,                           &
                                           n_acc_sol,                           &
@@ -89,6 +91,7 @@ contains
     implicit none
 
     type(config_type), intent(in) :: config
+
     type( glomap_variables_type ), intent(in) :: glomap_vars
     type( field_type ), intent(in) :: rho_in_wth
     type( field_type ), intent(in) :: n_ait_sol
@@ -138,19 +141,19 @@ contains
     ! diagnostic metadata
     aerosol_mesh => rho_in_wth%get_mesh()
 
-    ccn_3nm_flag  = init_diag( config, ccn_number_conc_3nm,                            &
+    ccn_3nm_flag  = init_diag( config, ccn_number_conc_3nm,                    &
                               'aerosol__ccn_number_conc_3nm',                  &
                                force_mesh = aerosol_mesh )
-    ccn_30nm_flag = init_diag( config, ccn_number_conc_30nm,                           &
+    ccn_30nm_flag = init_diag( config, ccn_number_conc_30nm,                   &
                               'aerosol__ccn_number_conc_30nm',                 &
                                force_mesh = aerosol_mesh )
-    ccn_50nm_flag = init_diag( config, ccn_number_conc_50nm,                           &
+    ccn_50nm_flag = init_diag( config, ccn_number_conc_50nm,                   &
                               'aerosol__ccn_number_conc_50nm',                 &
                                force_mesh = aerosol_mesh )
-    du_acc_ins_flag = init_diag( config, mconc_du_acc_ins,                             &
+    du_acc_ins_flag = init_diag( config, mconc_du_acc_ins,                     &
                                 'aerosol__mconc_du_acc_ins',                   &
                                  force_mesh = aerosol_mesh )
-    du_cor_ins_flag = init_diag( config, mconc_du_cor_ins,                             &
+    du_cor_ins_flag = init_diag( config, mconc_du_cor_ins,                     &
                                 'aerosol__mconc_du_cor_ins',                   &
                                  force_mesh = aerosol_mesh )
 

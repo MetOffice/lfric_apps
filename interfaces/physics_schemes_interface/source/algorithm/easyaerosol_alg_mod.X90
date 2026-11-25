@@ -28,7 +28,7 @@ module easyaerosol_alg_mod
   use easyaerosol_diags_mod,           only: easyaerosol_diags
   use um_physics_init_mod,             only: n_radaer_mode, mode_dimen
   use radiation_config_mod,            only: n_radstep
-  use config_mod,                   only: config_type
+  use config_mod,                      only: config_type
   use constants_mod,                   only: i_def
 
   implicit none
@@ -46,17 +46,18 @@ contains
   !>               easyaerosol_sw_alg  - populate sw arrays and create sw diags
   !>               easyaerosol_sw_alg  - populate lw arrays and create lw diags
   !>
+  !>@param[in]     config                Application configuration object
   !>@param[in]     radiation_fields      radiation related fields
   !>@param[in]     aerosol_fields        aerosol related fields
   !>@param[in]     derived_fields        derived physical fields
   !>@param[in]     timestep              Current timestep number
-  subroutine easyaerosol_alg( config, radiation_fields, aerosol_fields,                &
+  subroutine easyaerosol_alg( config, radiation_fields, aerosol_fields, &
                               derived_fields, timestep )
 
 
     implicit none
 
-type(config_type), intent(in) :: config
+    type(config_type), intent(in) :: config
 
     ! Arguments
     type( field_collection_type ), intent( in ) :: radiation_fields
@@ -72,14 +73,14 @@ type(config_type), intent(in) :: config
 
       ! This algorithm will set the sw optical property arrays
       if (easyaerosol_sw) then
-        call easyaerosol_sw_alg( config, radiation_fields, aerosol_fields,             &
-                                 derived_fields )
+        call easyaerosol_sw_alg( config, radiation_fields, &
+                                 aerosol_fields, derived_fields )
       end if
 
       ! This algorithm will set the lw optical property arrays
       if (easyaerosol_lw) then
-        call easyaerosol_lw_alg( config, radiation_fields, aerosol_fields,             &
-                                 derived_fields )
+        call easyaerosol_lw_alg( config, radiation_fields, &
+                                 aerosol_fields, derived_fields )
       end if
 
     end if
@@ -109,12 +110,13 @@ type(config_type), intent(in) :: config
   !>               for the final "mode" (after RADAER data)
   !>               Shortwave aerosol optical properties diagnostics
   !>               may also be called from here.
+  !>@param[in]     config                Application configuration object
   !>@param[in]     radiation_fields      radiation related fields
   !>@param[in]     aerosol_fields        aerosol related fields
   !>@param[in]     derived_fields        derived physical fields
   !
-  subroutine easyaerosol_sw_alg( config, radiation_fields, aerosol_fields,             &
-                                 derived_fields )
+  subroutine easyaerosol_sw_alg( config, radiation_fields, &
+                                 aerosol_fields, derived_fields )
 
     use easyaerosol_sw_kernel_mod, only: easyaerosol_sw_kernel_type
     use aerosol_config_mod,        only: n_radaer_step
@@ -122,6 +124,7 @@ type(config_type), intent(in) :: config
     implicit none
 
     type( config_type ), intent( in ) :: config
+
     type( field_collection_type ), intent( in ) :: radiation_fields
     type( field_collection_type ), intent( in ) :: aerosol_fields
     type( field_collection_type ), intent( in ) :: derived_fields
@@ -164,7 +167,8 @@ type(config_type), intent(in) :: config
 
     ! Easyaerosol SW diagostics?
     if ( write_diag .and. use_xios_io ) then
-      call easyaerosol_diags     ( config,aer_sw_absorption,                          &
+      call easyaerosol_diags     ( config,                                     &
+                                   aer_sw_absorption,                          &
                                    aer_sw_scattering,                          &
                                    easy_absorption_sw,                         &
                                    easy_extinction_sw,                         &
@@ -182,17 +186,20 @@ type(config_type), intent(in) :: config
   !>               for the final "mode" (after RADAER data)
   !>               Shortwave aerosol optical properties diagnostics
   !>               may also be called from here.
+  !>@param[in]     config                Application configuration object
   !>@param[in]     radiation_fields      radiation related fields
   !>@param[in]     aerosol_fields        aerosol related fields
   !>@param[in]     derived_fields        derived physical fields
   !
-  subroutine easyaerosol_lw_alg( config, radiation_fields, aerosol_fields,             &
-                                 derived_fields )
+  subroutine easyaerosol_lw_alg( config, radiation_fields, &
+                                 aerosol_fields, derived_fields )
 
     use easyaerosol_lw_kernel_mod, only: easyaerosol_lw_kernel_type
 
     implicit none
-type(config_type), intent(in) :: config
+
+    type(config_type), intent(in) :: config
+
     type( field_collection_type ), intent( in ) :: radiation_fields
     type( field_collection_type ), intent( in ) :: aerosol_fields
     type( field_collection_type ), intent( in ) :: derived_fields
@@ -232,7 +239,8 @@ type(config_type), intent(in) :: config
 
     ! Easyaerosol LW diagostics?
     if ( write_diag .and. use_xios_io ) then
-      call easyaerosol_diags ( config,aer_lw_absorption,                       &
+      call easyaerosol_diags ( config,                                         &
+                               aer_lw_absorption,                              &
                                aer_lw_scattering,                              &
                                easy_absorption_lw,                             &
                                easy_extinction_lw,                             &

@@ -763,11 +763,11 @@ contains
     logical(kind=l_def)               :: cheap_update
     logical(kind=l_def)               :: transport_ageofair
 
-type(config_type), pointer :: config
+    type(config_type), pointer :: config
 
     if (LPROF) call start_timing(id, 'tr_bdf2_timestep_alg')
 
-config => self%config
+    config => self%config
 
     ! Get config variables
     element_order_h = config%finite_element%element_order_h()
@@ -937,7 +937,7 @@ config => self%config
     if (mod(model_clock%get_step()-1, reference_reset_freq) == 0) then
       ! Compute semi-implicit operators with current model state
       call compute_si_operators_common(                                        &
-          config, self%state(igh_t), self%state(igh_d),                   &
+          config, self%state(igh_t), self%state(igh_d),                        &
           self%state(igh_p), moist_dyn                                         &
       )
       call compute_helmholtz_operators(config, model_clock, stepper_tr)
@@ -981,7 +981,7 @@ config => self%config
 
     ! rhs_n = M[X^dag - gamma*dt*F[X^n]]
     call rhs_alg(                                                              &
-            config, self%rhs_n, gamma*dt, self%state_dag, self%state_n,   &
+            config, self%rhs_n, gamma*dt, self%state_dag, self%state_n,        &
             moist_dyn, compute_eos=.false., compute_rhs_t_d=.true.,            &
             dlayer_rhs=.false., stepper=stepper_tr, model_clock=model_clock    &
     )
@@ -996,7 +996,7 @@ config => self%config
 
     ! Set predictors for transport
     call predictors_alg(                                                       &
-            config, self%state_to_adv, self%state_n(igh_u),               &
+            config, self%state_to_adv, self%state_n(igh_u),                    &
             self%rhs_n(igh_u), gamma, model_clock                              &
     )
 
@@ -1012,7 +1012,7 @@ config => self%config
         ! Transport state_dag & mr_dag: put results in rhs_adv & mr
         ! Transporting wind is 0.5*(u^n + u^m)
         call gungho_transport_control_alg(                                     &
-                config, self%rhs_adv,                                     &
+                config, self%rhs_adv,                                          &
                 self%state_to_adv, self%state_m(igh_u), self%state_n(igh_u),   &
                 mr, mr_to_adv, model_clock, outer, stepper_tr,                 &
                 cheap_update=.false.,                                          &
@@ -1073,7 +1073,7 @@ config => self%config
           ! Forcings: time-level m
           ! --------------------------------------------------------------------
           call rhs_alg(                                                        &
-              config, self%rhs_m, -gamma*dt, self%state_m, self%state_m,  &
+              config, self%rhs_m, -gamma*dt, self%state_m, self%state_m,       &
               moist_dyn, compute_eos=.true., compute_rhs_t_d=(inner==1),       &
               dlayer_rhs=dlayer_on, stepper=stepper_tr,                        &
               model_clock=model_clock                                          &
@@ -1087,7 +1087,7 @@ config => self%config
                 self%state_m(igh_u), lbc_fields, prime_mesh_name               &
             )
             call calc_rhs_lbc(                                                 &
-                config, self%rhs_lbc, lbc_fields, model_clock,            &
+                config, self%rhs_lbc, lbc_fields, model_clock,                 &
                 prime_mesh_name, 1.0_r_def, stepper_tr                         &
             )
           end if
@@ -1129,7 +1129,7 @@ config => self%config
                 X_plus_Y(rho_star, self%state_dag(igh_d), self%rhs_adv(igh_d)) &
             )
             call moisture_conservation_alg(                                    &
-                config, rho_star, mr, 'Before TR solve'                   &
+                config, rho_star, mr, 'Before TR solve'                        &
             )
           end if
 
@@ -1137,7 +1137,7 @@ config => self%config
           ! Solve system: A*inc = rhs_m, and increment state by inc
           !---------------------------------------------------------------------
           call semi_implicit_solver_alg_step(                                  &
-              config, self%state_m, self%rhs_m,                           &
+              config, self%state_m, self%rhs_m,                                &
               dry_flux_solver, moist_dyn(gas_law), mr,                         &
               first_iteration=(inner==1), stepper=stepper_tr                   &
           )
@@ -1196,14 +1196,14 @@ config => self%config
           inc_X_plus_Y(self%total_dry_flux, dry_flux_solver_r_tran)            &
       )
       call solver_moist_correction_alg(                                        &
-          config, mr, self%state_bdf(igh_d), self%state_aft_adv(igh_d),   &
+          config, mr, self%state_bdf(igh_d), self%state_aft_adv(igh_d),        &
           dry_flux_solver                                                      &
       )
     end if
 
     if (write_moisture_diag) then
       call moisture_conservation_alg(                                          &
-          config, self%state_bdf(igh_d), mr, 'After TR solve'             &
+          config, self%state_bdf(igh_d), mr, 'After TR solve'                  &
       )
     end if
 
@@ -1246,7 +1246,7 @@ config => self%config
         ! Here we also transport tracers over the whole timestep using
         ! a transporting wind of 0.5*(u^n + u^{n+1})
         call gungho_transport_control_alg(                                     &
-                config, self%rhs_adv,                                     &
+                config, self%rhs_adv,                                          &
                 self%state_bdf, self%state(igh_u), self%state_n(igh_u),        &
                 mr, mr_to_adv, model_clock, outer, stepper_bdf2,               &
                 cheap_update, self%adv_inc_prev, self%wind_prev,               &
@@ -1272,7 +1272,7 @@ config => self%config
         ! ----------------------------------------------------------------------
         ! Used for fast physics predictors, so calculated here
         call rhs_alg(                                                          &
-            config, self%rhs_np1, -gamma2*dt, self%state, self%state,     &
+            config, self%rhs_np1, -gamma2*dt, self%state, self%state,          &
             moist_dyn, compute_eos=.true., compute_rhs_t_d=.true.,             &
             dlayer_rhs=dlayer_on, stepper=stepper_bdf2,                        &
             model_clock=model_clock                                            &
@@ -1296,7 +1296,7 @@ config => self%config
         ! Predictors
         !-----------------------------------------------------------------------
         call calc_phys_predictors_alg(                                         &
-            config, derived_fields, self%rhs_np1, self%rhs_adv,           &
+            config, derived_fields, self%rhs_np1, self%rhs_adv,                &
             self%rhs_bdf, self%state, self%state_dag, lbc_fields, model_clock  &
         )
 
@@ -1318,7 +1318,7 @@ config => self%config
 #endif
 
         call fast_physics(                                                     &
-            config, self%du, self%dtheta, mr, self%state_n(igh_t),        &
+            config, self%du, self%dtheta, mr, self%state_n(igh_t),             &
             self%state_n(igh_d), self%state_n(igh_u), self%state_n(igh_p),     &
             self%mr_n, derived_fields, radiation_fields, microphysics_fields,  &
             orography_fields, turbulence_fields, convection_fields,            &
@@ -1335,7 +1335,7 @@ config => self%config
         )
         if (outer_smagorinsky) then
           call smagorinsky_alg(                                                &
-              config, self%dtheta, self%du, mr,                           &
+              config, self%dtheta, self%du, mr,                                &
               self%state(igh_t), self%state(igh_u), derived_fields,            &
               cloud_fields, self%state(igh_d), self%state(igh_p),              &
               dt, model_clock                                                  &
@@ -1374,7 +1374,7 @@ config => self%config
           ! --------------------------------------------------------------------
           if (inner > 1) then
             call rhs_alg(                                                      &
-                config, self%rhs_np1, -gamma2*dt, self%state, self%state, &
+                config, self%rhs_np1, -gamma2*dt, self%state, self%state,      &
                 moist_dyn, compute_eos=.true., compute_rhs_t_d=.false.,        &
                 dlayer_rhs=dlayer_on, stepper=stepper_bdf2,                    &
                 model_clock=model_clock                                        &
@@ -1389,7 +1389,7 @@ config => self%config
                 self%state(igh_u), lbc_fields, prime_mesh_name                 &
             )
             call calc_rhs_lbc(                                                 &
-                config, self%rhs_lbc, lbc_fields, model_clock,            &
+                config, self%rhs_lbc, lbc_fields, model_clock,                 &
                 prime_mesh_name, 1.0_r_def, stepper_bdf2                       &
             )
           end if
@@ -1435,7 +1435,7 @@ config => self%config
                 X_plus_Y(rho_star, self%state_bdf(igh_d), self%rhs_adv(igh_d)) &
             )
             call moisture_conservation_alg(                                    &
-                config, rho_star, mr, 'Before BDF solve'                  &
+                config, rho_star, mr, 'Before BDF solve'                       &
             )
           end if
 
@@ -1443,7 +1443,7 @@ config => self%config
           ! Solve system: A*inc = rhs_np1, and increment state by inc
           !---------------------------------------------------------------------
           call semi_implicit_solver_alg_step(                                  &
-              config, self%state, self%rhs_np1,                           &
+              config, self%state, self%rhs_np1,                                &
               dry_flux_solver, moist_dyn(gas_law), mr,                         &
               first_iteration=(inner==1), stepper=stepper_bdf2                 &
           )
@@ -1492,13 +1492,13 @@ config => self%config
               X_plus_Y(rho_star, self%rhs_adv(igh_d), self%state_bdf(igh_d))   &
           )
           call solver_moist_correction_alg(                                    &
-              config, mr, self%state(igh_d), rho_star, dry_flux_solver    &
+              config, mr, self%state(igh_d), rho_star, dry_flux_solver         &
           )
         end if
 
         if (write_moisture_diag) then
           call moisture_conservation_alg(                                      &
-              config, self%state(igh_d), mr, 'After BDF solve'            &
+              config, self%state(igh_d), mr, 'After BDF solve'                 &
           )
         end if
 
@@ -1529,7 +1529,7 @@ config => self%config
     ! Apply mixing
     !---------------------------------------------------------------------------
     call mixing_alg(                                                           &
-        config, mr, self%state(igh_t), self%state(igh_u), derived_fields, &
+        config, mr, self%state(igh_t), self%state(igh_u), derived_fields,      &
         cloud_fields, self%state(igh_d), self%state(igh_p), dt, model_clock    &
     )
 
@@ -1540,7 +1540,7 @@ config => self%config
 #ifdef UM_PHYSICS
     if (use_physics .and. cloud == cloud_um) then
       call cld_alg(                                                            &
-          config, self%dtheta_cld, mr, self%state(igh_t),                 &
+          config, self%dtheta_cld, mr, self%state(igh_t),                      &
           self%state(igh_p), self%state(igh_d), derived_fields,                &
           turbulence_fields, cloud_fields, convection_fields,                  &
           self%state_n(igh_t), self%mr_n,                                      &
@@ -1560,7 +1560,7 @@ config => self%config
 
       if (microphysics_casim) then
         call casim_activate_alg(                                               &
-             config, self%state(igh_t), mr, self%mr_aft_adv(imr_cl),      &
+             config, self%state(igh_t), mr, self%mr_aft_adv(imr_cl),           &
              derived_fields, cloud_fields, microphysics_fields,                &
              convection_fields, aerosol_fields, turbulence_fields,             &
              initialise=.false.                                                &
@@ -1575,7 +1575,7 @@ config => self%config
     end if
     if (use_physics) then
       call map_physics_fields_alg(                                             &
-          config, self%state(igh_u), self%state(igh_p),                   &
+          config, self%state(igh_u), self%state(igh_p),                        &
           self%state(igh_d), self%state(igh_t), moist_dyn, derived_fields      &
       )
     end if
@@ -1591,7 +1591,7 @@ config => self%config
         (glomap_mode == glomap_mode_ukca .or.                                  &
          glomap_mode == glomap_mode_dust_and_clim)) then
       call aerosol_ukca_alg(                                                   &
-          config, modeldb%values, chemistry_fields, aerosol_fields,       &
+          config, modeldb%values, chemistry_fields, aerosol_fields,            &
           radiation_fields, derived_fields, microphysics_fields,               &
           turbulence_fields, convection_fields, cloud_fields, surface_fields,  &
           soil_fields, self%state, mr, model_clock                             &
@@ -1608,7 +1608,7 @@ config => self%config
     if (write_diag .and. use_xios_io .and.                                     &
         mod(model_clock%get_step(), diagnostic_frequency) == 0) then
       call output_diags_for_si(                                                &
-          config, self%state, self%state_n, self%state_dag,               &
+          config, self%state, self%state_n, self%state_dag,                    &
           mr, self%mr_n, self%mr_dag, self%mr_aft_adv,                         &
           derived_fields, self%du, self%dtheta, self%dtheta_cld                &
       )

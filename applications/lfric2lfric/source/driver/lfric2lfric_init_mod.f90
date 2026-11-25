@@ -119,7 +119,8 @@ module lfric2lfric_init_mod
 
     ! Now need to loop over length of config_list make field for each
     do i = 1, num_fields
-      call field_maker( field_collection, &
+      call field_maker( modeldb%config,   &
+                        field_collection, &
                         config_list(i),   &
                         origin_mesh,      &
                         origin_twod_mesh, &
@@ -143,7 +144,8 @@ module lfric2lfric_init_mod
     end if
 
     do i = 1, num_fields
-      call field_maker( field_collection, &
+      call field_maker( modeldb%config,   &
+                        field_collection, &
                         config_list(i),   &
                         target_mesh,      &
                         target_twod_mesh, &
@@ -155,8 +157,9 @@ module lfric2lfric_init_mod
          orog_init_option == orog_init_option_start_dump ) then
        if ( mode == mode_ics ) then
 
-        call field_maker(field_collection, trim('surface_altitude'), &
-             target_mesh, target_twod_mesh, prefix)
+        call field_maker( modeldb%config, &
+                          field_collection, trim('surface_altitude'), &
+                          target_mesh, target_twod_mesh, prefix)
 
      end if
     end if
@@ -176,7 +179,8 @@ module lfric2lfric_init_mod
       end if
 
       do i = 1, num_fields
-        call field_maker( field_collection, &
+        call field_maker( modeldb%config,   &
+                          field_collection, &
                           config_list(i),   &
                           interm_mesh,      &
                           interm_twod_mesh, &

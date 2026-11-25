@@ -43,7 +43,7 @@ contains
   !>          Initial version just calculates PMSL with no smoothing over
   !>          high ground. The UM diagnostic included smoothing of the field
   !>          for orography over 500m. This will be added later.
-  !> @param[in]  config          Application namelist configuration object
+  !> @param[in]  config          Application configuration object
   !> @param[in]  exner_w3        exner pressure in w3 space
   !> @param[in]  derived_fields  Group of derived fields
   !> @param[in]  theta_wth       potential temperature
@@ -95,7 +95,8 @@ contains
     if ( LPROF ) call start_timing( id, 'diags.pmsl' )
 
     pmsl_flag = init_diag(config, pmsl, 'processed__pmsl')
-    pmsl_unsmooth_flag = init_diag(config, pmsl_unsmooth, 'processed__pmsl_unsmooth', &
+    pmsl_unsmooth_flag = init_diag(config, pmsl_unsmooth, &
+                                   'processed__pmsl_unsmooth', &
                                    activate = pmsl_flag)
 
     if ((pmsl_flag .or. pmsl_unsmooth_flag) .and. use_xios_io) then

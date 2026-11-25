@@ -27,12 +27,12 @@ module init_physics_prognostics_alg_mod
   use section_choice_config_mod, only: surface_jules, surface_none, &
                                        aerosol_um, aerosol_none,    &
                                        cloud_none,                  &
-                                       microphysics_none,       &
-                                       radiation_none,          &
-                                       convection_none,         &
-                                       orographic_drag_none,    &
-                                       boundary_layer_none,     &
-                                       stochastic_physics_none, &
+                                       microphysics_none,           &
+                                       radiation_none,              &
+                                       convection_none,             &
+                                       orographic_drag_none,        &
+                                       boundary_layer_none,         &
+                                       stochastic_physics_none,     &
                                        electric_um, electric_none
 
   use aerosol_config_mod,        only: glomap_mode,               &

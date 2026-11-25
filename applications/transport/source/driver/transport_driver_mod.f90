@@ -563,8 +563,8 @@ contains
 
     use base_mesh_config_mod,   only: prime_mesh_name
     use formulation_config_mod, only: use_multires_coupling
-    use io_config_mod,          only: nodal_output_on_w3,   &
-                                      write_diag
+    use io_config_mod,          only: nodal_output_on_w3, write_diag
+
     use multires_coupling_config_mod, only: aerosol_mesh_name
     use sci_field_minmax_alg_mod,     only: log_field_minmax
 
@@ -638,7 +638,6 @@ contains
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
     write(log_scratch_space, '("\", A, "/ ")') repeat('*', 76)
     call log_event( log_scratch_space, LOG_LEVEL_INFO )
-
 
     ! Output wind and density values.
     if ( (mod( model_clock%get_step(), diagnostic_frequency ) == 0) &

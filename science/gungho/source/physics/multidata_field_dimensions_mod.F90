@@ -9,7 +9,7 @@
 module multidata_field_dimensions_mod
 
   use config_mod,                only: config_type
-  use constants_mod,             only: i_def, l_def
+  use constants_mod,             only: i_def, r_def, l_def
   use lfric_xios_diag_mod,       only: set_axis_dimension, &
                                        get_axis_dimension, &
                                        set_zoom_axis_attr
@@ -153,28 +153,17 @@ end subroutine sync_multidata_field_dimensions
     use um_physics_init_mod,     only: sw_band_mode, lw_band_mode, mode_dimen
     use socrates_init_mod,       only: n_sw_band, n_lw_band, n_pathway
     use dust_parameters_mod,     only: ndiv
-!   use extrusion_config_mod,    only: number_of_layers
-!    use cosp_config_mod,         only: n_subcol_gen
     use cosp_mod,                only: n_cloudsat_levels, n_backscatter_bins,  &
                                        n_isccp_tau_bins, n_isccp_pressure_bins
-    use radiation_config_mod,    only: &!topography,         &
-                                       topography_horizon, &
-                                       n_horiz_layer,      &
-                                       n_horiz_ang
-!    use stochastic_physics_config_mod, only: stph_spectral_dim
+    use radiation_config_mod,    only: topography_horizon
     use section_choice_config_mod, &
                                  only: radiation_socrates,                     &
                                        radiation_none
 
     use ukca_radaer_precalc,     only: npd_ukca_aod_wavel
-
-!    use aerosol_config_mod,      only: l_radaer
-    use chemistry_config_mod,    only: &!chem_scheme,
-                                        chem_scheme_strattrop
+    use chemistry_config_mod,    only: chem_scheme_strattrop
     use um_ukca_init_mod,        only: n_phot_spc
-!    use nudging_config_mod,      only: num_ref_data_levels
 #endif
-
     use log_mod,                 only: log_event, LOG_LEVEL_ERROR,             &
                                        log_scratch_space
 
@@ -193,19 +182,35 @@ end subroutine sync_multidata_field_dimensions
     integer(i_def) :: radiation
     integer(i_def) :: topography
     integer(i_def) :: n_horiz_layer
-    integer(i_def) :: n_horiz_ang
+    real(r_def)    :: n_horiz_ang
     integer(i_def) :: chem_scheme
     integer(i_def) :: stph_spectral_dim
     integer(i_def) :: num_ref_data_levels
-    integer(i_def) :: n_subcol_cosp
+    integer(i_def) :: n_subcol_gen
     logical(l_def) :: l_radaer
 
     number_of_layers    = config%extrusion%number_of_layers()
-    chem_scheme         = config%chemistry%chem_scheme()
-    stph_spectral_dim   = config%stochastic_physics%stph_spectral_dim()
-    l_radaer            = config%aerosol%l_radaer()
-    num_ref_data_levels = config%nudging%num_ref_data_levels()
-    n_subcol_cosp       = config%cosp%n_subcol_cosp
+
+
+    if (config%namelist_exists('nudging')) then
+      num_ref_data_levels = config%nudging%num_ref_data_levels()
+    end if
+
+    if (config%namelist_exists('cosp')) then
+      n_subcol_gen = config%cosp%n_subcol_gen()
+    end if
+
+    if (config%namelist_exists('stochastic_physics')) then
+      stph_spectral_dim = config%stochastic_physics%stph_spectral_dim()
+    end if
+
+    if (config%namelist_exists('aerosol')) then
+      l_radaer = config%aerosol%l_radaer()
+    end if
+
+    if (config%namelist_exists('chemistry')) then
+      chem_scheme = config%chemistry%chem_scheme()
+    end if
 
     radiation = config%section_choice%radiation()
     if (radiation == radiation_socrates) then
@@ -213,6 +218,7 @@ end subroutine sync_multidata_field_dimensions
       n_horiz_layer = config%radiation%n_horiz_layer()
       n_horiz_ang   = config%radiation%n_horiz_ang()
     end if
+
 #endif
 
     use_xios_io = config%io%use_xios_io()

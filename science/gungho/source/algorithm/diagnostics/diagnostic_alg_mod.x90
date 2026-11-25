@@ -719,7 +719,9 @@ contains
     encorr_flag = init_diag(config, tot_col_encorr,'processed__tot_col_encorr')
 
     if (encorr_flag .or. wet_mass_flag) then
-      if (.not. dry_mass_flag) ignore = init_diag(config, tot_col_dry_air_mass,'processed__tot_col_dry_air_mass', activate=.true.)
+      if (.not. dry_mass_flag) then
+        ignore = init_diag(config, tot_col_dry_air_mass,'processed__tot_col_dry_air_mass', activate=.true.)
+      end if
     end if
 
     if (dry_mass_flag .or. encorr_flag .or. wet_mass_flag) then
@@ -751,8 +753,9 @@ contains
 
       X_mass_flag = init_diag(config, tot_col_moist_mass(i_mr),'processed__tot_col_'//trim(mr_names(i_mr)))
       if (wet_mass_flag) then
-        if (.not. X_mass_flag) &
-             ignore = init_diag(config, tot_col_moist_mass(i_mr),'processed__tot_col_'//trim(mr_names(i_mr)), activate=.true.)
+        if (.not. X_mass_flag) then
+          ignore = init_diag(config, tot_col_moist_mass(i_mr),'processed__tot_col_'//trim(mr_names(i_mr)), activate=.true.)
+        end if
       end if
 
       if (wet_mass_flag .or. X_mass_flag) then
@@ -869,6 +872,7 @@ contains
   !!          zero. The diagnostic's primary use is in long, climate runs where
   !!          it is averaged in time to help indicate whether the model has any
   !!          stability problems.
+  !> @param[in] config    Application configuration object
   !> @param[in] w_in_wth  3D vertical velocity field seen by the model physics
   subroutine calc_wbig_diagnostic_alg(config, w_in_wth )
 
@@ -897,15 +901,18 @@ contains
 !=============================================================================!
   !> @brief Calculate the pressure from the exner function and output it as
   !>        a diagnostic
-  !> @param[in] exner The exner function (Pa)
+  !> @param[in] config  Application configuration object
+  !> @param[in] exner   The exner function (Pa)
   subroutine pressure_diag_alg(config, exner)
 
     use planet_config_mod, only: p_zero, one_over_kappa
     use io_config_mod,     only: use_xios_io
 
     implicit none
-type(config_type), intent(in) :: config
-    type(field_type), intent(in) :: exner
+
+    type(config_type), intent(in) :: config
+    type(field_type),  intent(in) :: exner
+
     type(field_type)             :: pressure
     integer(i_def)               :: fs
     logical                      :: pressure_flag

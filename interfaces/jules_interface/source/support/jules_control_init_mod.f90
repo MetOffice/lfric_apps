@@ -51,6 +51,7 @@ contains
   !>          due course, but if not, they will need to be promoted to the
   !>          LFRic namelists. We then derive other JULES information
   !>          from these parameters.
+  !> @param[in] config  Application configuration object
   subroutine jules_control_init(config)
 
     ! LFRic namelists which have been read

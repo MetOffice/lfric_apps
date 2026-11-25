@@ -1215,7 +1215,8 @@ contains
     ! Initialise UKCA diagnostics, obtain number and list of requested
     ! diags and then initialise the super array accordingly
     n_req_ukca_diags_3d = 0_i_def
-    call initialise_ukca_diagnostics(values,                                   &
+    call initialise_ukca_diagnostics(config,                                   &
+                                     values,                                   &
                                      l_chem_timestep,                          &
                                      ! values out
                                      n_req_ukca_diags_3d,                      &
@@ -1650,12 +1651,13 @@ contains
           if ( photol_rate_jno2_flag ) call photol_rate_jno2%write_field()
         end if
         ! output Chemistry diagnostics - if requested
-        if ( n_req_ukca_diags_3d > 0_i_def )                                   &
-          call output_ukca_diagnostics( config, n_req_ukca_diags_3d,                   &
+        if ( n_req_ukca_diags_3d > 0_i_def ) then
+          call output_ukca_diagnostics( config, n_req_ukca_diags_3d,           &
                                         idiags_status_3d,                      &
                                         ukca_req_diagnames_fullht,             &
                                         diagnostics_fullht_real                &
                                       )
+        end if
 
         if (allocated(idiags_status_3d)) deallocate(idiags_status_3d)
         if (allocated(ukca_req_diagnames_fullht)) deallocate(ukca_req_diagnames_fullht)
@@ -1749,7 +1751,8 @@ contains
 
       ! Cloud condensation nuclei number concentrations and dust mass
       ! concentrations, computed only when requested
-      call output_diags_for_glomap_ccn( config, glomap_variables,              &
+      call output_diags_for_glomap_ccn( config,                                &
+                                        glomap_variables,                      &
                                         rho_in_wth,                            &
                                         n_ait_sol,                             &
                                         n_acc_sol,                             &

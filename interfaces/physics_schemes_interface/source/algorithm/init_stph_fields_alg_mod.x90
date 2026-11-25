@@ -22,10 +22,11 @@ module init_stph_fields_alg_mod
 contains
 
   !> @brief   Initialises the stochastic physics fields
+  !> @param[in]     config        Application configuration object
   !> @param[in,out] stph_fields   stochastic physics related fields
   subroutine init_stph_fields_alg(config, stph_fields)
 
-    use section_choice_config_mod, only: stochastic_physics_um
+    use section_choice_config_mod,     only: stochastic_physics_um
     use stochastic_physics_config_mod, only: blpert_type, blpert_type_off
 
     implicit none
@@ -43,7 +44,7 @@ contains
     type( integer_field_type ), pointer :: blpert_flag => null()
 
 
-    if ( config%section_choice%stochastic_physics() == stochastic_physics_um )then
+    if ( config%section_choice%stochastic_physics() == stochastic_physics_um ) then
       call stph_fields%get_field('dtheta_stph', dtheta_stph)
       call stph_fields%get_field('dmv_stph', dmv_stph)
       call stph_fields%get_field('du_stph', du_stph)

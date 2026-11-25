@@ -12,15 +12,13 @@
 !!
 module shallow_water_init_fields_mod
 
-  use constants_mod,                        only: r_second
+  use constants_mod,                        only: r_second, l_def, &
+                                                  str_max_filename
   use driver_modeldb_mod,                   only: modeldb_type
   use field_mod,                            only: field_type
   use field_collection_mod,                 only: field_collection_type
-  use files_config_mod,                     only: checkpoint_stem_name
-  use log_mod,                              only: log_event,      &
+  use log_mod,                              only: log_event, &
                                                   LOG_LEVEL_INFO
-!  use io_config_mod,                        only: checkpoint_read,  &
-!                                                  checkpoint_write
   use lfric_xios_read_mod,                  only: read_checkpoint
   use lfric_xios_write_mod,                 only: write_checkpoint, &
                                                   write_state
@@ -64,8 +62,8 @@ contains
     prognostic_fields => modeldb%fields%get_field_collection("prognostics")
 
     ! Create prognostics
-    call create_shallow_water_prognostics( mesh, &
-                                           depository, &
+    call create_shallow_water_prognostics( modeldb%config, &
+                                           mesh, depository, &
                                            prognostic_fields )
 
   end subroutine create_model_data
@@ -87,8 +85,15 @@ contains
 
     type(field_type), pointer :: s_geopot
 
+    logical(l_def) :: checkpoint_read
+
+    character(str_max_filename) :: checkpoint_stem_name
+
     depository => modeldb%fields%get_field_collection("depository")
     prognostic_fields => modeldb%fields%get_field_collection("prognostics")
+
+    checkpoint_read      = modeldb%config%io%checkpoint_read()
+    checkpoint_stem_name = modeldb%config%files%checkpoint_stem_name()
 
     call prognostic_fields%get_field('s_geopot', s_geopot)
     ! Initialise the surface geopotential
@@ -119,6 +124,13 @@ contains
     real(r_second) :: checkpoint_times(1)
 
     type( field_collection_type ), pointer :: prognostic_fields => null()
+
+    logical(l_def) :: checkpoint_write
+
+    character(str_max_filename) :: checkpoint_stem_name
+
+    checkpoint_write     = modeldb%config%io%checkpoint_write()
+    checkpoint_stem_name = modeldb%config%files%checkpoint_stem_name()
 
     ! Get pointers to field collections for use downstream
     prognostic_fields => modeldb%fields%get_field_collection("prognostics")

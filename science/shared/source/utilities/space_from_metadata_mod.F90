@@ -239,8 +239,8 @@ contains
     type(config_type), intent(in) :: config
 
     character(*),                       intent(in)  :: xios_id
-    type(mesh_type), pointer, optional, intent(in)  :: mesh_3d
-    type(mesh_type), pointer, optional, intent(in)  :: mesh_2d
+    type(mesh_type), target,  optional, intent(in)  :: mesh_3d
+    type(mesh_type), target,  optional, intent(in)  :: mesh_2d
     type(mesh_type), pointer, optional, intent(in)  :: force_mesh
     integer(kind=i_def), optional,      intent(in)  :: force_rad_levels
     integer(kind=i_def), optional,      intent(in)  :: force_order_h

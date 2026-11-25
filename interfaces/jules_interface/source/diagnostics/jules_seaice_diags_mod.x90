@@ -30,6 +30,7 @@ module jules_seaice_diags_mod
 contains
 
   !> @brief Output diagnostics from jules_extra_alg
+  !> @param[in]     config                 Application configuration object
   !> @param[in]     tile_fraction          Fraction of surface tiles
   !> @param[in]     snowice_melt           Total snow and ice melt on tiles
   !> @param[in]     sea_ice_thickness      Sea ice thickness
@@ -39,7 +40,7 @@ contains
   !> @param[in]     melt_pond_fraction     Melt pond fraction
   !> @param[in]     melt_pond_depth        Melt pond depth
 
-  subroutine output_diags_for_jules_seaice(config, tile_fraction, snowice_melt,          &
+  subroutine output_diags_for_jules_seaice(config, tile_fraction, snowice_melt,  &
                                       sea_ice_thickness,                         &
                                       sea_ice_temperature, sea_ice_conductivity, &
                                       sea_ice_pensolar, melt_pond_fraction,      &
@@ -84,7 +85,7 @@ contains
     ! Output sea-ice as a fraction of total grid-box
     ! kernel calculates the avearge, so multiply after by number of tiles
     ! to get the sum
-    if(init_diag(config, sea_ice_tile, 'surface__sea_ice_tile')) then
+    if (init_diag(config, sea_ice_tile, 'surface__sea_ice_tile')) then
       call tile_fraction%copy_field_properties(weights_one)
       num_sice_tiles = real(n_sea_ice_tile, r_def)
       call invoke(setval_c(weights_one, 1.0_r_def),                           &
@@ -101,7 +102,7 @@ contains
     ! fractions divides by the marine fraction. The melt rate is zero on the
     ! sea tile, so only the sea-ice contributes to the sum. It is converted
     ! from a melt rate to an energy flux by the latent heat of fusion.
-    if(init_diag(config, sea_ice_topmelt, 'seaice__ssi_mean_topmelt_heat_flux')) then
+    if (init_diag(config, sea_ice_topmelt, 'seaice__ssi_mean_topmelt_heat_flux')) then
       call invoke(weighted_ave_kernel_type(sea_ice_topmelt,                   &
                                        snowice_melt, tile_fraction,           &
                                        first_sea_tile, n_ssi_tile),           &
@@ -115,14 +116,14 @@ contains
     ! sice_htf forms the bulk temperature, and the weights cancel in the ratio
     ! so it does not matter that the fractions here are of the grid-box while
     ! those in JULES are of the marine portion.
-    if(init_diag(config, ice_mean_thickness, 'seaice__ice_mean_thickness')) then
+    if (init_diag(config, ice_mean_thickness, 'seaice__ice_mean_thickness')) then
       call invoke(weighted_ave_kernel_type(ice_mean_thickness,                 &
                                        sea_ice_thickness, sea_ice_fraction,    &
                                        1, n_sea_ice_tile))
       call ice_mean_thickness%write_field()
     end if
 
-    if(init_diag(config, ice_mean_temperature, 'seaice__ice_mean_temperature')) then
+    if (init_diag(config, ice_mean_temperature, 'seaice__ice_mean_temperature')) then
       call invoke(weighted_ave_kernel_type(ice_mean_temperature,               &
                                        sea_ice_temperature, sea_ice_fraction,  &
                                        1, n_sea_ice_tile))

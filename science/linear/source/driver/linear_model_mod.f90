@@ -41,11 +41,11 @@ contains
   !> @param[in] mesh The primary mesh
   !> @param[in,out] modeldb The working data set for the model run
   !>
-  subroutine initialise_linear_model( mesh,  &
-                                      modeldb )
+  subroutine initialise_linear_model( mesh, modeldb )
+
     implicit none
 
-    type(mesh_type),     intent(in),   pointer :: mesh
+    type(mesh_type),     intent(in) :: mesh
     type(modeldb_type),  intent(inout), target :: modeldb
 
     type( field_collection_type ), pointer :: prognostic_fields => null()
@@ -68,6 +68,7 @@ contains
     type(field_array_type), pointer      :: ls_mr_array => null()
     type(field_array_type), pointer      :: ls_moist_dyn_array => null()
 
+
     ! Get pointers to field collections for use downstream
     prognostic_fields => modeldb%fields%get_field_collection(&
                                           "prognostic_fields")
@@ -79,6 +80,8 @@ contains
     call moisture_fields%get_field("ls_moist_dyn", ls_moist_dyn_array)
     ls_moist_dyn => ls_moist_dyn_array%bundle
     ls_fields => modeldb%fields%get_field_collection("ls_fields")
+
+    print*, 'Hello initialise_linear_model world'
 
     ! Get pointers to fields in the prognostic/diagnostic field collections
     ! for use downstream

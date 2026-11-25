@@ -99,6 +99,8 @@ contains
     nullify( mesh, twod_mesh, aerosol_mesh, aerosol_twod_mesh, depository )
     nullify( nudging_mesh, nudging_twod_mesh )
 
+    print*, 'Hello initialise world'
+
     depository => modeldb%fields%get_field_collection("depository")
     fd_fields => modeldb%fields%get_field_collection("fd_fields")
 
@@ -174,7 +176,8 @@ contains
     ! Instantiate the fields required to read the initial
     ! conditions from a file.
     if ( init_option == init_option_fd_start_dump ) then
-      call create_tl_prognostics( mesh, twod_mesh,   &
+      call create_tl_prognostics( modeldb%config,    &
+                                  mesh, twod_mesh,   &
                                   fd_fields,         &
                                   depository)
     end if
@@ -209,8 +212,7 @@ contains
                                       io_context_name, nodal_output_on_w3 )
 
     ! Linear model configuration initialisation
-    call initialise_linear_model( mesh,        &
-                                  modeldb )
+    call initialise_linear_model( mesh, modeldb )
 
   end subroutine initialise
 

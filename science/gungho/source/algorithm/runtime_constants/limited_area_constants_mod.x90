@@ -14,7 +14,7 @@
 module limited_area_constants_mod
 
   ! Infrastructure
-  use config_mod,                     only: config_type
+  use config_mod,                        only: config_type
   use constants_mod,                     only: i_def, r_def, l_def, &
                                                str_def, str_short
   use extrusion_mod,                     only: TWOD, PRIME_EXTRUSION

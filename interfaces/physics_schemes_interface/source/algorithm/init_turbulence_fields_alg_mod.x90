@@ -28,6 +28,7 @@ contains
   !> @details The turbulence fields need to be initialised so that they have a
   !>          value when passed on to the physics at the first time step,
   !>          in case no restart file is used.
+  !> @param[in]     config     Application configuration object
   !> @param[in,out] turbulence_fields Collection of fields for turbulence scheme
   subroutine init_turbulence_fields_alg(config, turbulence_fields)
 

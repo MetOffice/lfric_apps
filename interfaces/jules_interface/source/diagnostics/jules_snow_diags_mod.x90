@@ -7,8 +7,7 @@
 
 module jules_snow_diags_mod
 
-  use config_mod, only: config_type
-
+  use config_mod,                  only: config_type
   use constants_mod,               only: l_def, r_def
   use field_mod,                   only: field_type
   use integer_field_mod,           only: integer_field_type
@@ -31,12 +30,12 @@ module jules_snow_diags_mod
 contains
 
   !> @brief Initialise fields for locally-computed diagnostics
+  !> @param[in]     config             Application configuration object
   !> @param[in]     soil_moist_sat     Soil moisture content at saturation
   !> @param[in,out] grid_snow_mass     Grid snow mass
   !> @param[in,out] grid_snowmelt      Grid snowmelt
-
-  subroutine initialise_diags_for_jules_snow(config, soil_moist_sat,                   &
-                                         grid_snow_mass, grid_snowmelt)
+  subroutine initialise_diags_for_jules_snow(config, soil_moist_sat, &
+                                             grid_snow_mass, grid_snowmelt)
 
     implicit none
 

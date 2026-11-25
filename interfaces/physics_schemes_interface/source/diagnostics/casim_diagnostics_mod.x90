@@ -7,7 +7,7 @@
 
 module casim_diagnostics_mod
 
-  use config_mod, only: config_type
+  use config_mod,                 only: config_type
   use constants_mod,              only: l_def
   use field_mod,                  only: field_type
   use timing_mod,                 only: start_timing, stop_timing, tik, LPROF
@@ -39,6 +39,7 @@ module casim_diagnostics_mod
 contains
 
   !> @brief Initialise fields for CASIM mphys diagnostics
+  !> @param[in]    config      Application configuration object
   !> @param[inout] refl_tot    Total radar reflectivity
   !> @param[inout] refl_1km    Radar reflectivity at 1km above the ground
   !> @param[inout] superc_liq  Supercooled liquid cloud mixing ratio
@@ -77,7 +78,8 @@ contains
   !       added in the file mphys_diagnostics_mod.x90
   !----------------------------------------------------------------------------
 
-  subroutine output_diags_for_casim(config, ls_rain, ls_snow, ls_graup,                &
+  subroutine output_diags_for_casim(config,                                    &
+                                    ls_rain, ls_snow, ls_graup,                &
                                     lsca_2d, refl_tot, refl_1km,               &
                                     ls_rain_3d, ls_snow_3d, ls_graup_3d,       &
                                     nl_mphys, nr_mphys, ni_mphys, ns_mphys,    &

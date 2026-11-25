@@ -95,6 +95,7 @@ contains
   !>         8) Add wind increments to the flow and diagnostics
   !>
   !>         See UMD81 for full scheme details
+  !>@param[in]         config                Application configuration object
   !>@param[in]         du_stph               Stochastic Physics increments for winds
   !>@param[in]         rho                   Density on W3
   !>@param[in]         u                     prognostic winds in W2

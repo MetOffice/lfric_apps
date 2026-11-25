@@ -7,8 +7,7 @@
 
 module bl_extra_diags_mod
 
-  use config_mod, only: config_type
-
+  use config_mod,                only: config_type
   use constants_mod,             only: l_def
   use field_mod,                 only: field_type
   use field_collection_mod,      only: field_collection_type
@@ -28,6 +27,7 @@ module bl_extra_diags_mod
 contains
 
   !> @brief Output extra BL diagnostics
+  !> @param[in]     config                   Application configuration object
   !> @param[in]     derived_fields           Collection of derived fields
   !> @param[in]     turbulence_fields        Collection of turbulence fields
   !> @param[in]     surface_fields           Collection of surface fields
@@ -47,7 +47,8 @@ contains
   !> @param[in]     t1p5m_land               1.5m temperature over land
   !> @param[in]     q1p5m_land               1.5m specific humidity over land
   !> @param[in]     qcl1p5m_land             1.5m specific cloud water over land
-  subroutine output_diags_for_bl_extra(config, derived_fields, turbulence_fields,      &
+  subroutine output_diags_for_bl_extra(config,                                 &
+                                       derived_fields, turbulence_fields,      &
                                        surface_fields, microphysics_fields,    &
                                        convection_fields, aerosol_fields,      &
                                        ustar_implicit, rho_in_w3, ms, mr,      &
@@ -56,7 +57,9 @@ contains
                                        t1p5m_land, q1p5m_land, qcl1p5m_land)
 
     implicit none
-type(config_type), intent(in) :: config
+
+    type(config_type), intent(in) :: config
+
     ! Collections passed in
     type( field_collection_type ), intent(in) :: derived_fields
     type( field_collection_type ), intent(in) :: turbulence_fields
@@ -155,7 +158,7 @@ type(config_type), intent(in) :: config
     call aerosol_fields%get_field('cor_ins_du', cor_ins_du)
 
     ! Output prognostic fields
-    if (samp_diag('aerosol__murk')) call murk%write_field('aerosol__murk')
+    if (samp_diag(config, 'aerosol__murk')) call murk%write_field('aerosol__murk')
 
     ! Local diagnostic calculated here
     thermal_speed_flag = init_diag(config, thermal_speed, 'turbulence__thermal_speed')

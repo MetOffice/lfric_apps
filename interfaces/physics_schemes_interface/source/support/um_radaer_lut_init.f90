@@ -23,9 +23,7 @@ module um_radaer_lut_init_mod
                                         glomap_mode_ukca,          &
                                         l_radaer,                  &
                                         prec_file
-
   use section_choice_config_mod, only : aerosol_um
-
   use socrates_init_mod,         only : sw_wavelength_short, &
                                         sw_wavelength_long,  &
                                         lw_wavelength_short, &
@@ -51,6 +49,7 @@ contains
   !>@brief    Read all the lut namelist files.
   !>@details  Read all the lut namelist files and populate the UM to ukca_lut
   !>          structure.
+  !>@param[in] config  Application configuration object
 
   subroutine um_radaer_lut_init(config)
 

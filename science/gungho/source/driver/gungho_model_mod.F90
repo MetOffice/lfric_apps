@@ -452,7 +452,10 @@ logical(l_def) :: checkpoint_read, checkpoint_write
       end if
     end if
 
-    if (limited_area) call process_lbc_fields(config, persistor, legacy)
+    if (limited_area) then
+      call process_lbc_fields(config, persistor, legacy)
+    end if
+
     if (use_physics) then
       call process_physics_prognostics(config, persistor)
       if (to_process_nudging_fields)   &
@@ -460,6 +463,7 @@ logical(l_def) :: checkpoint_read, checkpoint_write
       call sync_multidata_field_dimensions(config)
       call sync_time_dimensions(config)
     end if
+
   end subroutine before_context_close
 
   !> @brief Initialisations that depend only on loaded namelists.

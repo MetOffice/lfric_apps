@@ -49,7 +49,7 @@ contains
   !> @details Umbrella for aviation-related diagnostics: tropopause
   !>          (from theta/exner), thickness/snow (from pressure-level
   !>          geopotential) and horizontal wind divergence.
-  !> @param[in] config           Application namelist configuration object.
+  !> @param[in] config           Application configuration object.
   !> @param[in] mesh             Mesh object
   !> @param[in] theta            Potential temperature.
   !> @param[in] exner_in_wth     Exner pressure on Wtheta space.
@@ -87,7 +87,8 @@ contains
 
   !> @brief Calculate geopotential thickness and snow probability
   !>        from geopotential height at pressure levels.
-  !> @param[in]    plev_geopot    Geopotential height at pressure levels in m.
+  !> @param[in] config       Application configuration object.
+  !> @param[in] plev_geopot  Geopotential height at pressure levels in m.
   subroutine from_plev_geopot(config, plev_geopot)
 
     implicit none

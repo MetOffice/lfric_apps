@@ -25,6 +25,7 @@ contains
   !>          when passed on to the physics at the first time step, in case no
   !>          restart file is used or the cloud scheme is off.
   !>          Also, rh_crit is set to the namelist value here.
+  !> @param[in]     config       Application configuration object
   !> @param[in,out] cloud_fields Collection of fields for cloud scheme
   subroutine init_cloud_fields_alg(config, cloud_fields)
 

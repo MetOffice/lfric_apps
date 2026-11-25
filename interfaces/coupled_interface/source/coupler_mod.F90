@@ -7,7 +7,6 @@
 
 module coupler_mod
 
-  use config_mod, only: config_type
   use accumulate_send_fields_2d_mod,  only: accumulate_send_fields_2d
   use coupling_mod,                   only: coupling_type,       &
                                             get_coupling_fields, &
@@ -24,6 +23,7 @@ module coupler_mod
   use field_collection_iterator_mod,  only: field_collection_iterator_type
   use field_collection_mod,           only: field_collection_type
   use driver_modeldb_mod,             only: modeldb_type
+  use config_mod,                     only: config_type
   use constants_mod,                  only: i_def, r_def, str_def, l_def, &
                                             i_halo_index, imdi, rmdi
   use timestepping_config_mod,        only: dt
@@ -142,9 +142,10 @@ module coupler_mod
                                      modeldb )
     implicit none
 
-    type( mesh_type ),             intent(in), pointer :: mesh
-    type( mesh_type ),             intent(in), pointer :: twod_mesh
-    type(modeldb_type),            intent(inout)       :: modeldb
+    type( mesh_type ),  intent(in) :: mesh
+    type( mesh_type ),  intent(in) :: twod_mesh
+
+    type(modeldb_type), intent(inout), target :: modeldb
 
     type( field_collection_type ),             pointer :: depository
     type( field_collection_type ),             pointer :: prognostic_fields
@@ -158,15 +159,19 @@ module coupler_mod
     !checkpoint flag for coupling field
     logical(l_def)                     :: checkpoint_restart_flag
 
+    type(config_type), pointer :: config
+
     write(log_scratch_space, * ) "create_coupling_fields: add coupling fields to repository"
     call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    config => modeldb%config
 
     depository => modeldb%fields%get_field_collection("depository")
     prognostic_fields => modeldb%fields%get_field_collection("prognostic_fields")
 
-   vector_space=> function_space_collection%get_fs( twod_mesh, 0, 0, W3 )
-   sice_space  => function_space_collection%get_fs( twod_mesh, 0, 0, W3,       &
-                                                               n_sea_ice_tile )
+    vector_space => function_space_collection%get_fs( twod_mesh, 0, 0, W3 )
+    sice_space   => function_space_collection%get_fs( twod_mesh, 0, 0, W3, &
+                                                      n_sea_ice_tile )
     threed_space => function_space_collection%get_fs(mesh, 0, 0, W3 )
     wtheta_space => function_space_collection%get_fs(mesh, 0, 0, Wtheta)
 
@@ -175,20 +180,20 @@ module coupler_mod
     checkpoint_restart_flag = .false.
     ! Sea ice fractions used in the previous timestep (not updated by coupling)
     ! (stored as a fraction of the marine portion of the grid box)
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'sea_ice_frac_previous', sice_space, checkpoint_restart_flag)
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'sea_frac_previous', vector_space, checkpoint_restart_flag)
     ! Raw sea-ice fractions that are unaltered by post processing.
     ! These are used in scaling data when going from atmosphere to ocean.
     ! r_sea_ice_frac_raw is its reciprocal.
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'r_sea_ice_frac_raw', sice_space, checkpoint_restart_flag)
 
     ! Raw ocean fractions that are unaltered by post processing.
     ! These are used in scaling data when going from atmosphere to ocean.
     ! r_ocean_fraction is its reciprocal.
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'r_ocean_fraction', vector_space, checkpoint_restart_flag)
 
     ! The following fields contain accumulations, but will be written to
@@ -204,59 +209,59 @@ module coupler_mod
     ! these need to be in restart file as they are the accumulations used to
     ! generate the fields passed to the ocean or river model
     checkpoint_restart_flag = .true.
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'lf_taux', vector_space, checkpoint_restart_flag)
 
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'lf_tauy', vector_space, checkpoint_restart_flag)
 
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'lf_w10', vector_space, checkpoint_restart_flag)
 
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'lf_solar', vector_space, checkpoint_restart_flag)
 
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'lf_heatflux', vector_space, checkpoint_restart_flag)
 
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'lf_train', vector_space, checkpoint_restart_flag)
 
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'lf_tsnow', vector_space, checkpoint_restart_flag)
 
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'lf_rsurf', vector_space, checkpoint_restart_flag)
 
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'lf_rsub', vector_space, checkpoint_restart_flag)
 
     ! The following fields are taken care of elsewhere (theoretically)
     ! but we might need duplicates for coupling restarts.
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'lf_evap', vector_space, checkpoint_restart_flag)
 
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'lf_topmelt', sice_space, checkpoint_restart_flag)
 
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'lf_iceheatflux', sice_space, checkpoint_restart_flag)
 
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'lf_sublimation', sice_space, checkpoint_restart_flag)
 
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'lf_iceskint', sice_space, checkpoint_restart_flag)
 
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'lf_pensolar', sice_space, checkpoint_restart_flag)
 
     ! The following fields don't need to be in checkpoint files as they are
     ! calculated instantaneously from snow depth just before coupling
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'lf_antarctic', vector_space, .false.)
 
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'lf_greenland', vector_space, .false.)
 
     !receiving - depository
@@ -267,38 +272,38 @@ module coupler_mod
     ! the ocean/seaice model!
     checkpoint_restart_flag = .false.
 
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'lf_ocn_sst', vector_space, checkpoint_restart_flag)
 
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'lf_icefrc', sice_space, checkpoint_restart_flag)
 
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'lf_icetck', sice_space, checkpoint_restart_flag)
 
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'lf_icelayert', sice_space, checkpoint_restart_flag)
 
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'lf_conductivity', sice_space, checkpoint_restart_flag)
 
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'lf_snow_depth', sice_space, checkpoint_restart_flag)
 
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'lf_pond_frac', sice_space, checkpoint_restart_flag)
 
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'lf_pond_depth', sice_space, checkpoint_restart_flag)
 
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'lf_sunocean', vector_space, checkpoint_restart_flag)
 
-    call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+    call add_cpl_field(config, depository, prognostic_fields, &
          'lf_svnocean', vector_space, checkpoint_restart_flag)
 
    ! From TRIP river model
-   call add_cpl_field(modeldb%config, depository, prognostic_fields, &
+   call add_cpl_field(config, depository, prognostic_fields, &
         'lf_inland_flow', vector_space, checkpoint_restart_flag)
 
   end subroutine create_coupling_fields
@@ -311,7 +316,7 @@ module coupler_mod
 
     implicit none
 
-    type( modeldb_type ), intent(inout)          :: modeldb
+    type( modeldb_type ), target, intent(inout) :: modeldb
 
     !local variables
     ! Field collection containing all fields
@@ -353,6 +358,10 @@ module coupler_mod
     ! Parameter for setting a default value
     logical(l_def), parameter                    :: default_false = .false.
 
+    type(config_type), pointer :: config
+
+    config => modeldb%config
+
     depository => modeldb%fields%get_field_collection("depository")
     cpl_snd_2d => modeldb%fields%get_field_collection("cpl_snd_2d")
     cpl_snd_0d => modeldb%fields%get_field_collection("cpl_snd_0d")
@@ -383,8 +392,8 @@ module coupler_mod
       select type(field)
       type is (field_type)
         field_ptr => field
-        call accumulate_send_fields_2d(field_ptr, depository, acc_step, &
-                                       modeldb%clock, ldump_prep, &
+        call accumulate_send_fields_2d(config, field_ptr, depository, &
+                                       acc_step, modeldb%clock, ldump_prep, &
                                        checkpoint_written)
         ! Create a coupling external field
         call coupler_exchange_2d%initialise(field_ptr, local_index)
@@ -463,8 +472,10 @@ module coupler_mod
   !>@param [in,out] modeldb The structure that holds model state
   !>
   subroutine cpl_fld_update( modeldb )
+
     implicit none
-    type( modeldb_type ), intent(inout)          :: modeldb
+
+    type( modeldb_type ), intent(inout), target :: modeldb
 
     !local variables
     ! Field collection containing all fields
@@ -496,6 +507,9 @@ module coupler_mod
     ! Flag for whether a checkpoint has been written
     logical(l_def), pointer                      :: checkpoint_written
 
+    type(config_type), pointer :: config
+
+    config => modeldb%config
 
     depository => modeldb%fields%get_field_collection("depository")
     cpl_snd_2d => modeldb%fields%get_field_collection("cpl_snd_2d")
@@ -533,9 +547,9 @@ module coupler_mod
         endif
 
         if( coupling_next_step ) then
-          call accumulate_send_fields_2d(field_ptr, depository, acc_step, &
-                                       modeldb%clock, ldump_prep, &
-                                       checkpoint_written)
+          call accumulate_send_fields_2d(config, field_ptr, depository, acc_step, &
+                                         modeldb%clock, ldump_prep, &
+                                         checkpoint_written)
           ! Write out the depository version of the field
           name = trim(adjustl(field%get_name()))
           call depository%get_field(trim(name), dep_fld)
@@ -652,19 +666,21 @@ module coupler_mod
 
   !>@brief Adds field used in coupling code to depository and prognostic_fields
   !>collection
+  !>@param [in]     config             Application configuration object
   !>@param [in,out] depository         Field collection - all fields
   !>@param [in,out] prognostic_fields  Prognostic_fields collection
   !>@param [in]     name               Name of the fields to be added
   !>@param [in]     vector_space       Function space of field
   !>@param [in]     checkpoint_flag    Flag to allow checkpoint and
   !>                                   restart behaviour of field to be set
-  subroutine add_cpl_field(config, depository,        &
+  subroutine add_cpl_field(config,            &
+                           depository,        &
                            prognostic_fields, &
                            name,              &
                            vector_space,      &
                            checkpoint_flag)
-    use io_config_mod,           only : use_xios_io, &
-                                        write_diag
+
+    use io_config_mod,           only : use_xios_io, write_diag
     use lfric_xios_read_mod,     only : read_field_generic
     use lfric_xios_write_mod,    only : write_field_generic
     use io_mod,                  only : checkpoint_write_netcdf, &

@@ -8,7 +8,8 @@
 !!          and formats it so that it can be passed to the infrastructure.
 module shallow_water_setup_io_mod
 
-  use constants_mod,                 only: i_def, l_def
+  use config_mod,                    only: config_type
+  use constants_mod,                 only: i_def, l_def, &
                                            str_def, str_max_filename
   use driver_modeldb_mod,            only: modeldb_type
   use file_mod,                      only: FILE_MODE_READ, &
@@ -29,13 +30,15 @@ module shallow_water_setup_io_mod
   contains
 
   !> @brief  Sets up I/O configuration.
+  !> @param[in]  config     Application configuration object
   !> @param[out] files_list The list of I/O files
   subroutine init_shallow_water_files(config, files_list, modeldb)
 
     implicit none
 
-    type(config_type),intent(in)  :: config
-    type(linked_list_type),        intent(out) :: files_list
+    type(config_type),      intent(in)  :: config
+    type(linked_list_type), intent(out) :: files_list
+
     type(modeldb_type), optional, intent(inout)  :: modeldb
 
     character(len=str_max_filename) :: checkpoint_write_fname, &
@@ -45,14 +48,11 @@ module shallow_water_setup_io_mod
 
     logical(l_def) :: checkpoint_read
     logical(l_def) :: checkpoint_write
-
     integer(i_def) :: diagnostic_frequency
 
-
+    checkpoint_read      = config%io%checkpoint_read()
+    checkpoint_write     = config%io%checkpoint_write()
     diagnostic_frequency = config%io%diagnostic_frequency()
-
-    checkpoint_read  = config%io%checkpoint_read()
-    checkpoint_write = config%io%checkpoint_write()
 
     ! Get time configuration in integer form
     read(timestep_start,*,iostat=rc)  ts_start

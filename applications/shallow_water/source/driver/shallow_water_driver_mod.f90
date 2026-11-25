@@ -14,8 +14,7 @@ module shallow_water_driver_mod
   use driver_modeldb_mod,            only: modeldb_type
   use field_mod,                     only: field_type
   use field_collection_mod,          only: field_collection_type
-  use io_config_mod,                 only: write_diag,           &
-                                           nodal_output_on_w3
+  use io_config_mod,                 only: write_diag, nodal_output_on_w3
   use log_mod,                       only: log_event,         &
                                            log_scratch_space, &
                                            log_level_error,   &

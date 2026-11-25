@@ -7,7 +7,7 @@
 
 module radiation_diags_mod
 
-  use config_mod,            only: config_type
+  use config_mod,               only: config_type
   use constants_mod,            only: i_def, l_def, r_def
   use field_mod,                only: field_type
   use integer_field_mod,        only: integer_field_type
@@ -101,7 +101,7 @@ contains
 
 !> @brief Initialise fields for locally-computed diagnostics
 subroutine initialise_diags_for_radiation( config, &
-lw_down_surf, lw_heating_rate, &
+  lw_down_surf, lw_heating_rate, &
   lw_up_surf, sw_up_surf, lw_up_toa, sw_up_toa, sw_direct_toa, &
   sw_direct_rts, sw_down_rts, sw_up_rts, lw_down_rts, lw_up_rts, &
   sw_direct_band_rts, sw_down_band_rts, sw_up_band_rts, &

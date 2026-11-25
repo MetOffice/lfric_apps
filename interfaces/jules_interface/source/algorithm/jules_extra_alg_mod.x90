@@ -307,7 +307,7 @@ contains
                                      inland_basin_flow)
 
       ! Output sea ice diagnostics
-      call output_diags_for_jules_seaice(config, tile_fraction, snowice_melt,          &
+      call output_diags_for_jules_seaice(config, tile_fraction, snowice_melt,  &
                                     sea_ice_thickness,                         &
                                     sea_ice_temperature, sea_ice_conductivity, &
                                     sea_ice_pensolar, melt_pond_fraction,      &

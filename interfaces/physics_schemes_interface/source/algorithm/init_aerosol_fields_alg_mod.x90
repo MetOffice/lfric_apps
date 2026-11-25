@@ -26,6 +26,7 @@ contains
   !>          in case no restart file is used.
   !>          Also the CDNC field is given a value for use when the
   !>          aerosol parametrization is not used.
+  !> @param[in]     config           Application configuration object
   !> @param[in,out] aerosol_fields   aerosol related fields
   subroutine init_aerosol_fields_alg(config, aerosol_fields)
 
@@ -43,6 +44,7 @@ contains
 
     ! Arguments
     type(config_type), intent(in) :: config
+
     type( field_collection_type ), intent( in ) :: aerosol_fields
 
     ! Prognostic fields
@@ -208,7 +210,7 @@ contains
 
     end if
 
-    if ( config%section_choice%aerosol() == aerosol_um .and.            &
+    if ( config%section_choice%aerosol() == aerosol_um .and. &
          glomap_mode == glomap_mode_ukca ) then
 
       call aerosol_fields%get_field('n_nuc_sol', n_nuc_sol)

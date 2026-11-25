@@ -229,11 +229,12 @@ contains
     integer(i_def), save :: day_of_year, second_of_day
     integer(tik)         :: id
 
-type(config_type), pointer :: config
+    type(config_type), pointer :: config
 
     if ( LPROF ) call start_timing( id, 'jules.explicit' )
 
     call log_event( 'slow_physics: Running explicit JULES layer', LOG_LEVEL_DEBUG )
+
     config => modeldb%config
 
     ! Cannot pass null pointers to invoke calls. Therefore non-pointer variables
@@ -371,11 +372,11 @@ type(config_type), pointer :: config
 
     mesh => theta%get_mesh()
 
-    height_wth => get_height_fv(modeldb%config, mesh, Wtheta)
-    height_w3  => get_height_fv(modeldb%config, mesh, W3)
+    height_wth => get_height_fv(config, mesh, Wtheta)
+    height_w3  => get_height_fv(config, mesh, W3)
 
-    call initialise_diags_for_jules_exp(config, z0h_eff, gross_prim_prod, &
-                                        soil_respiration, chr10m, mesh)
+    call initialise_diags_for_jules_exp(config, mesh, z0h_eff, gross_prim_prod, &
+                                        soil_respiration, chr10m)
 
     call zh%copy_field_properties(recip_l_mo_sea)
     call zh%copy_field_properties(rhostar)

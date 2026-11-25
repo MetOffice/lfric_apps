@@ -43,6 +43,7 @@ contains
   !!          surfaces.
   !> @details Called once potential vorticity is available on model levels. Both
   !!          diagnostics are skipped entirely unless requested.
+  !> @param[in] config      Application configuration object
   !> @param[in] pv          Potential vorticity on model levels (W3)
   !> @param[in] theta_in_w3 Potential temperature mapped to W3
   subroutine pv_surface_diags_alg(config, pv, theta_in_w3)
@@ -73,9 +74,9 @@ contains
 
     if ( LPROF ) call start_timing( id, 'diags.pv_surfaces' )
 
-    pv_on_theta_levs_flag = init_diag(config, pv_on_theta_levs,               &
+    pv_on_theta_levs_flag = init_diag(config, pv_on_theta_levs, &
                                       'processed__pv_on_theta_levs')
-    theta_on_pv2_flag     = init_diag(config, theta_on_pv2,                   &
+    theta_on_pv2_flag     = init_diag(config, theta_on_pv2, &
                                       'processed__theta_on_pv2')
 
     if (.not. (pv_on_theta_levs_flag .or. theta_on_pv2_flag)) return

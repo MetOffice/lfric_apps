@@ -277,7 +277,7 @@ contains
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end if
 
-        inner_iterations_si = size(config%timestepping%inner_iterations_si())
+        inner_iterations_si = config%timestepping%inner_iterations_si()
         if ( SIZE(inner_iterations_si) /= outer_iterations ) then
           write( log_scratch_space, '(A,I4,A,I4)' ) 'Invalid Options: ' //     &
             'inner_iterations_si has size ', SIZE(inner_iterations_si),        &
