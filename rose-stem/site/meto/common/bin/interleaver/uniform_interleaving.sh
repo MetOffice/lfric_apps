@@ -9,7 +9,7 @@ function validate_interleaving_settings () {
     local name
 
     # Validate the uniform interleaving configuration
-    for name in ${EXECUTABLES}; do
+    for name in ${EXEC_LABELS}; do
         # Construct the actual environment-variable names
         local RANKS_PER_NODE_VAR="${name^^}_RANKS_PER_NODE"
         local OMP_NUM_THREADS_VAR="${name^^}_OMP_NUM_THREADS"
@@ -46,12 +46,13 @@ function validate_interleaving_settings () {
 
 function generate_interleaving_vars () {
 
+    local SUM_TOTAL_RANKS=0
     local SUM_TOTAL_CORES=0
     local USED_CORES=0
     local name
     local first_exec="True"
 
-    for name in ${EXECUTABLES}; do
+    for name in ${EXEC_LABELS}; do
         # Extract info for each executable
         # 1. Pre-existing variables
         # -------------------------
@@ -99,10 +100,10 @@ function generate_interleaving_vars () {
     done
 
     # Essentially a ceil calculation
-    export REQ_INTERLEAVING_NODES=$(( (SUM_TOTAL_RANKS + USED_CORES - 1) / USED_CORES ))
+    export REQ_INTERLEAVING_NODES=$(( (SUM_TOTAL_CORES + USED_CORES - 1) / USED_CORES ))
 
     # For uniform interleaving, all ranks have the same required nodes
-    for name in ${EXECUTABLES}; do
+    for name in ${EXEC_LABELS}; do
         local REQUIRED_NODES_VAR="${name^^}_REQUIRED_NODES"
         local -n EXEC_REQUIRED_NODES="${REQUIRED_NODES_VAR}"
 
