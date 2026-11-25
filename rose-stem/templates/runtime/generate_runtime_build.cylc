@@ -63,11 +63,6 @@
             R_PHYS_PRECISION        = {{task_values["precision"]["rphys"]}}
             PRE_PROCESS_MACROS      = {{task_values["pre_process_macros"]}}
             PAT_BUILD_PATH          = {{PAT_BUILD_APP}}
-{% if 'vernier' in task_ns.compiler %}
-            USE_VERNIER             = true
-{% else %}
-            USE_LEGACY_TIMER        = true
-{% endif %}
 
 {{ set_psyclone_transformation(task_values["psyclone_transformation"]) }}
 
@@ -76,6 +71,13 @@
 {% endif %}
 {% if task_values["coupled"] %}
             COUPLED                 = "True"
+{% endif %}
+{% if task_values["calliper_timings"] == "vernier" %}
+            USE_VERNIER             = true
+            USE_TIMING_WRAPPER      = true
+{% elif task_values["calliper_timings"] == "timer" %}
+            USE_LEGACY_TIMER        = true
+            USE_TIMING_WRAPPER      = true
 {% endif %}
 
 {% do LOG.debug("Finished in templates/runtime/generate_runtime_build.cylc") %}
