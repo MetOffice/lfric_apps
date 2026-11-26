@@ -7,6 +7,7 @@
 
 module bl_hoc_exp_diags_mod
 
+  use config_mod,          only: config_type
   use constants_mod,       only: l_def
   use field_mod,           only: field_type
   use integer_field_mod,   only: integer_field_type
@@ -39,6 +40,7 @@ module bl_hoc_exp_diags_mod
 contains
 
   !> @brief Initialise fields for locally-computed diagnostics
+  !> @param[in]     config        Application configuration object
   !> @param[in,out] diags_flag    Logical switch of diagnostics
   !> @param[in,out] master_length Turbulent length scale
   !> @param[in,out] rhokm_bl      Momentum eddy diffusivity on BL levels
@@ -54,7 +56,8 @@ contains
   !> @param[in,out] sh25          Stability function for scalar
   !> @param[in,out] dbdz          Vertical gradient of buoyancy
   !> @param[in,out] dvdzm         Modulus of wind shear
-  subroutine initialise_diags_for_bl_hoc_exp( diags_flag,                      &
+  subroutine initialise_diags_for_bl_hoc_exp( config,                          &
+                                              diags_flag,                      &
                                               master_length,                   &
                                               rhogamu_bl, rhogamv_bl,          &
                                               rhogamt_bl, rhogamq_bl,          &
@@ -63,6 +66,8 @@ contains
                                               sm25, sh25, dbdz, dvdzm )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type( bl_hoc_diags_flag_type ), intent(inout) :: diags_flag
     type( field_type ), intent(inout) :: master_length
@@ -82,21 +87,21 @@ contains
 
     if ( LPROF ) call start_timing( id, 'diags.bl_exp' )
 
-    diags_flag % master_length = init_diag(master_length, &
+    diags_flag % master_length = init_diag(config, master_length, &
                                            'turbulence__master_length')
-    diags_flag % rhogamu_bl    = init_diag(rhogamu_bl, 'turbulence__rhogamu')
-    diags_flag % rhogamv_bl    = init_diag(rhogamv_bl, 'turbulence__rhogamv')
-    diags_flag % rhogamt_bl    = init_diag(rhogamt_bl, 'turbulence__rhogamt')
-    diags_flag % rhogamq_bl    = init_diag(rhogamq_bl, 'turbulence__rhogamq')
-    diags_flag % tke_shr_prod  = init_diag(tke_shr_prod, &
+    diags_flag % rhogamu_bl    = init_diag(config, rhogamu_bl, 'turbulence__rhogamu')
+    diags_flag % rhogamv_bl    = init_diag(config, rhogamv_bl, 'turbulence__rhogamv')
+    diags_flag % rhogamt_bl    = init_diag(config, rhogamt_bl, 'turbulence__rhogamt')
+    diags_flag % rhogamq_bl    = init_diag(config, rhogamq_bl, 'turbulence__rhogamq')
+    diags_flag % tke_shr_prod  = init_diag(config, tke_shr_prod, &
                                            'turbulence__tke_shr_prod')
-    diags_flag % tke_boy_prod  = init_diag(tke_boy_prod, &
+    diags_flag % tke_boy_prod  = init_diag(config, tke_boy_prod, &
                                            'turbulence__tke_boy_prod')
-    diags_flag % tke_dissp     = init_diag(tke_dissp, 'turbulence__tke_dissp')
-    diags_flag % sm25          = init_diag(sm25, 'turbulence__sm25')
-    diags_flag % sh25          = init_diag(sh25, 'turbulence__sh25')
-    diags_flag % dbdz          = init_diag(dbdz, 'turbulence__dbdz')
-    diags_flag % dvdzm         = init_diag(dvdzm, 'turbulence__dvdzm')
+    diags_flag % tke_dissp     = init_diag(config, tke_dissp, 'turbulence__tke_dissp')
+    diags_flag % sm25          = init_diag(config, sm25, 'turbulence__sm25')
+    diags_flag % sh25          = init_diag(config, sh25, 'turbulence__sh25')
+    diags_flag % dbdz          = init_diag(config, dbdz, 'turbulence__dbdz')
+    diags_flag % dvdzm         = init_diag(config, dvdzm, 'turbulence__dvdzm')
 
     if ( LPROF ) call stop_timing( id, 'diags.bl_exp' )
 

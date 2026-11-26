@@ -38,7 +38,7 @@ public :: cosp_alg
 
 contains
 
-!> @param[in]     config                   Application namelist configuration object
+!> @param[in]     config                   Application configuration object
 !> @param[in]     pressure_in_wth          Pressure field in wth space
 !> @param[in]     temperature_in_wth       Temperature field in wth space
 !> @param[in]     exner                    Exner pressure in w3 space
@@ -184,7 +184,7 @@ subroutine cosp_alg(config, pressure_in_wth, temperature_in_wth, exner, mr, &
   cosp_x4g = real(x4g, r_def)
 
   ! Initialise the cosp diagnostics
-  call initialise_diags_for_cosp( &
+  call initialise_diags_for_cosp(config, &
     sunlit_mask, &
     isccp_ctp_tau, &
     calipso_total_backscatter, &

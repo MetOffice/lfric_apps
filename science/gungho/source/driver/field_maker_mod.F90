@@ -9,8 +9,9 @@
 !
 module field_maker_mod
 
+  use config_mod,                     only : config_type
   use constants_mod,                  only : i_def, l_def, str_def, r_def, &
-                                             r_second
+                                             r_second, str_max_filename
   use extrusion_mod,                  only : TWOD
   use log_mod,                        only : log_event, log_scratch_space,     &
                                              log_level_error
@@ -40,16 +41,13 @@ module field_maker_mod
   use lfric_xios_diag_mod,            only : field_is_valid
   use lfric_xios_time_axis_mod,       only : time_axis_type
   use lfric_xios_write_mod,           only : create_checkpoint_list
-  use io_config_mod,                  only : use_xios_io, &
-                                             checkpoint_write, &
-                                             checkpoint_read, &
+  use io_config_mod,                  only : use_xios_io, write_diag, &
                                              checkpoint_times, &
                                              end_of_run_checkpoint
   use initialization_config_mod,      only : init_option,                      &
                                              init_option_checkpoint_dump
   use empty_data_mod,                 only : empty_real_data,                  &
                                              empty_integer_data
-  use files_config_mod,               only : checkpoint_stem_name
   use lfric_string_mod,               only : split_string
 
 #ifdef UM_PHYSICS
@@ -104,11 +102,13 @@ end function has_xios_io
   !> @param[in]    mapper           Provides access to field collections
   !> @param[in]    clock            Model clock
   subroutine field_maker_init(self, mesh, twod_mesh, mapper, clock)
+
     implicit none
+
     class(field_maker_type), intent(inout) :: self
 
-    type(mesh_type), intent(in), pointer :: mesh
-    type(mesh_type), intent(in), pointer :: twod_mesh
+    type(mesh_type),         target, intent(in) :: mesh
+    type(mesh_type),         target, intent(in) :: twod_mesh
     type(field_mapper_type), target, intent(in) :: mapper
     class(clock_type), intent(in) :: clock
 
@@ -126,11 +126,15 @@ end function has_xios_io
   end subroutine field_maker_destructor
 
   !> @brief Apply a field maker object to a specifier, creating a field.
-  !> @param[in] self       Field maker object
-  !> @param[in] spec       Field specifier
-  subroutine field_maker_apply(self, spec)
+  !> @param[in] config  Application configuration object
+  !> @param[in] spec    Field specifier
+  subroutine field_maker_apply(self, config, spec)
+
     implicit none
+
     class(field_maker_type), intent(in) :: self
+
+    type(config_type),     intent(in) :: config
     type(field_spec_type), intent(in) :: spec
 
     type(field_collection_type), pointer :: main_coll
@@ -151,11 +155,19 @@ end function has_xios_io
     class(clock_type), pointer :: clock
     real(r_second), allocatable :: all_checkpoint_times(:)
 
+    character(str_max_filename) :: checkpoint_stem_name
+    logical(l_def) :: checkpoint_read
+    logical(l_def) :: checkpoint_write
+
     nullify(main_coll,adv_coll,depository,prognostic_fields,space)
     nullify(mesh,twod_mesh,external_real_field,time_axis,external_int_field)
 
+    checkpoint_stem_name = config%files%checkpoint_stem_name()
+    checkpoint_read      = config%io%checkpoint_read()
+    checkpoint_write     = config%io%checkpoint_write()
+
 #ifdef UM_PHYSICS
-    ndata = get_ndata_val(spec%mult)
+    ndata = get_ndata_val(config, spec%mult)
 #else
     ndata = 1
 #endif
@@ -240,7 +252,7 @@ end function has_xios_io
           log_level_error)
       end if
       time_axis => null()
-      call add_integer_field( &
+      call add_integer_field( config, &
         main_coll, &
         depository, &
         prognostic_fields, &
@@ -265,7 +277,7 @@ end function has_xios_io
         self%mapper%get_moist_field_ptr(spec%moist_arr, spec%moist_idx)
       time_axis => &
         self%mapper%get_time_axis_ptr(spec%time_axis)
-      call add_real_field( &
+      call add_real_field( config, &
         main_coll, &
         depository, &
         prognostic_fields, &
@@ -287,6 +299,7 @@ end function has_xios_io
 
   !>@brief Add field to field collection and set its write,
   !>       checkpoint-restart and advection behaviour
+  !> @param[in]     config            Application configuration object
   !> @param[in,out] field_collection  Field collection that 'name' will be added to
   !> @param[in,out] depository        Collection of all fields
   !> @param[in,out] prognostic_fields Collection of checkpointed fields
@@ -302,14 +315,11 @@ end function has_xios_io
   !> @param[in]     checkpoint_flag   Optional flag to allow checkpoint-
   !>                                   restart behaviour of field to be set
   !> @param[in]     advection_flag    Optional flag whether this field is to be advected
-   subroutine add_real_field(field_collection, &
-                              depository, prognostic_fields, advected_fields, &
-                              name, vector_space, order_h, order_v, empty, external_field, &
-                              time_axis, legacy, checkpoint_flag, advection_flag)
+   subroutine add_real_field(config, field_collection, &
+                             depository, prognostic_fields, advected_fields, &
+                             name, vector_space, order_h, order_v, empty, external_field, &
+                             time_axis, legacy, checkpoint_flag, advection_flag)
 
-    use io_config_mod,           only : use_xios_io, &
-                                        write_diag, checkpoint_write, &
-                                        checkpoint_read
     use initialization_config_mod, only: init_option,               &
                                          init_option_checkpoint_dump
     use lfric_xios_read_mod,     only : read_field_generic
@@ -318,6 +328,8 @@ end function has_xios_io
                                         checkpoint_read_netcdf
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     character(*), intent(in)                       :: name
     type(field_collection_type), pointer, &
@@ -349,6 +361,12 @@ end function has_xios_io
     procedure(checkpoint_write_interface), pointer :: checkpoint_write_behaviour => null()
     procedure(checkpoint_read_interface), pointer  :: checkpoint_read_behaviour => null()
 
+    logical(l_def) :: checkpoint_read
+    logical(l_def) :: checkpoint_write
+
+    checkpoint_read  = config%io%checkpoint_read()
+    checkpoint_write = config%io%checkpoint_write()
+
     ! Create the new field
     if (associated(external_field)) then
       new_field_ptr => external_field
@@ -378,9 +396,9 @@ end function has_xios_io
       else
 
         ! discover space, overriding ndata with window size
-        call init_field_from_metadata( &
+        call init_field_from_metadata( config, &
            new_field_ptr, trim(name), force_order_h=order_h, force_order_v=order_v,&
-            force_ndata = time_axis%get_window_size(), empty=empty )
+           force_ndata = time_axis%get_window_size(), empty=empty )
       end if
       call time_axis%add_field(new_field_ptr)
     end if
@@ -394,7 +412,7 @@ end function has_xios_io
         call new_field_ptr%initialise( vector_space, name=trim(name) )
       end if
     else
-      call init_field_from_metadata( &
+      call init_field_from_metadata( config, &
          new_field_ptr, trim(name), force_order_h=order_h, &
          force_order_v=order_v, empty=empty )
     end if
@@ -455,6 +473,7 @@ end function has_xios_io
 
   !>@brief Add integer field to field collection and set its write,
   !>       checkpoint-restart and advection behaviour
+  !> @param[in]     config            Application configuration object
   !> @param[in,out] field_collection  Field collection that 'name' will be added to
   !> @param[in,out] depository        Collection of all fields
   !> @param[in,out] prognostic_fields Collection of checkpointed fields
@@ -470,15 +489,12 @@ end function has_xios_io
   !> @param[in]     checkpoint_flag   Optional flag to allow checkpoint-
   !>                                   restart behaviour of field to be set
   !> @param[in]     advection_flag    Optional flag whether this field is to be advected
-  subroutine add_integer_field(field_collection, &
+  subroutine add_integer_field(config, field_collection, &
                               depository, prognostic_fields, advected_fields, &
                               name, vector_space, order_h, order_v, empty, &
                               external_field, time_axis, legacy, &
                               checkpoint_flag, advection_flag)
 
-    use io_config_mod,           only : use_xios_io, &
-                                        write_diag, checkpoint_write, &
-                                        checkpoint_read
     use initialization_config_mod, only: init_option,               &
                                          init_option_checkpoint_dump
     use lfric_xios_read_mod,     only : read_field_generic
@@ -487,6 +503,8 @@ end function has_xios_io
                                         checkpoint_read_netcdf
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     character(*), intent(in)                       :: name
     type(field_collection_type), pointer, &
@@ -517,6 +535,12 @@ end function has_xios_io
     procedure(checkpoint_write_interface), pointer :: checkpoint_write_behaviour => null()
     procedure(checkpoint_read_interface), pointer  :: checkpoint_read_behaviour => null()
 
+    logical(l_def) :: checkpoint_read
+    logical(l_def) :: checkpoint_write
+
+    checkpoint_read  = config%io%checkpoint_read()
+    checkpoint_write = config%io%checkpoint_write()
+
     ! Create the new field
     if (associated(external_field)) then
       new_field_ptr => external_field
@@ -536,7 +560,7 @@ end function has_xios_io
         call new_field_ptr%initialise( vector_space, name=trim(name) )
       end if
     else
-      call init_field_from_metadata( &
+      call init_field_from_metadata( config, &
         new_field_ptr, trim(name), force_order_h=order_h, &
         force_order_v=order_v, empty=empty )
     end if

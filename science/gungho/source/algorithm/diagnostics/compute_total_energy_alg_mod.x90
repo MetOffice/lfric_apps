@@ -69,7 +69,7 @@ contains
   !!        which is the true volume element if the integration method is finite
   !!        element. For finite difference integration the assumed mesh is that
   !!        for a spherical planet.
-  !> @param[in]  config         Application namelist configuration object
+  !> @param[in]  config         Application configuration object
   !> @param[out] total_energy   Total energy of the atmosphere
   !> @param[in]  derived_fields Contains u and theta fields mapped to W3 space
   !> @param[in]  u              Wind fields
@@ -95,8 +95,8 @@ contains
     type( field_type ), intent(in)            :: rho
     type( field_type ), intent(in)            :: mr(nummr)
 
-    type( mesh_type ), intent(in), pointer    :: mesh
-    type( mesh_type ), intent(in), pointer    :: twod_mesh
+    type( mesh_type ), intent(in)             :: mesh
+    type( mesh_type ), intent(in)             :: twod_mesh
 
     real( kind=r_def ), intent(out)           :: total_energy
 

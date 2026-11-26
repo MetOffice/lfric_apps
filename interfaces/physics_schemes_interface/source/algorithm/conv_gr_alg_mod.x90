@@ -45,7 +45,7 @@ contains
   !>@details The UM Gregory Rowntree convection scheme does:
   !>             vertical mixing of heat, momentum and moisture,
   !>             as documented in UMDP27
-  !>@param[in]     config              Application namelist configuration object
+  !>@param[in]     config              Application configuration object
   !>@param[in,out] du_conv_w2          Wind increment in w2
   !>@param[in,out] theta_latest        Current estimate of theta
   !>@param[in,out] u_latest            Current esitmate of wind
@@ -472,7 +472,8 @@ contains
     delta      => get_delta_at_wtheta(config, mesh)
 
     ! Initialise the convection diagnostics
-    call initialise_diags_for_conv(rho,                    &
+    call initialise_diags_for_conv(config,                 &
+                                   rho,                    &
                                    zh,                     &
                                    deep_in_col,            & ! 2-D local variables
                                    shallow_in_col,         &

@@ -6,7 +6,8 @@
 !>@brief Prepares the surface fields
 module init_surface_fields_alg_mod
 
-  use constants_mod,                   only: r_def, i_def, rmdi
+  use config_mod,    only: config_type
+  use constants_mod, only: r_def, i_def, rmdi
 
   ! Derived Types
   use field_mod,                 only: field_type
@@ -34,13 +35,16 @@ contains
   !> @details The surface fields need to be initialised so that they have a
   !>          value when passed on to the physics at the first time step,
   !>          in case no restart file is used.
+  !> @param[in]     config         Application configuration object
   !> @param[in,out] surface_fields Collection of fields for surface scheme
-  subroutine init_surface_fields_alg(surface_fields)
+  subroutine init_surface_fields_alg(config, surface_fields)
 
     use initial_surface_kernel_mod, only: initial_surface_kernel_type
     use process_urban_kernel_mod,   only: process_urban_kernel_type
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Arguments
     type(field_collection_type), intent(inout) :: surface_fields
@@ -97,6 +101,8 @@ contains
     ! Local variables
     real(kind=r_def)            :: default_conductivity
 
+    integer(i_def) :: surface
+
     default_conductivity = 2.0_r_def * kappai / de
 
     call surface_fields%get_field('chloro_sea', chloro_sea)
@@ -129,6 +135,8 @@ contains
     call surface_fields%get_field('ocn_cpl_point',ocn_cpl_point)
     call surface_fields%get_field('wspd10m', wspd10m)
 
+    surface = config%section_choice%surface()
+
     call invoke(                                                              &
                  ! Need initialising for aquaplanet
                  setval_c(chloro_sea,          5.0e-7_r_def),                 &
@@ -150,7 +158,8 @@ contains
                  setval_c(screen_temperature,  rmdi),                         &
                  setval_c(time_since_transition, rmdi),                       &
                  ! Initialise fields which vary with surface tile
-                 initial_surface_kernel_type( tile_fraction, leaf_area_index, &
+                 initial_surface_kernel_type(surface, tile_fraction,          &
+                                             leaf_area_index,                 &
                                              canopy_height, tile_temperature, &
                                              tile_lw_grey_albedo ),           &
                  ! Sea ice conductivity will use either this fixed value or

@@ -41,11 +41,11 @@ contains
   !> @param[in] mesh The primary mesh
   !> @param[in,out] modeldb The working data set for the model run
   !>
-  subroutine initialise_linear_model( mesh,  &
-                                      modeldb )
+  subroutine initialise_linear_model( mesh, modeldb )
+
     implicit none
 
-    type(mesh_type),     intent(in),   pointer :: mesh
+    type(mesh_type),     intent(in)            :: mesh
     type(modeldb_type),  intent(inout), target :: modeldb
 
     type( field_collection_type ), pointer :: prognostic_fields => null()

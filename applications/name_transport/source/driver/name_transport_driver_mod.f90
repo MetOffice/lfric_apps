@@ -409,9 +409,7 @@ contains
   subroutine step_name_transport( config, model_clock )
 
     use base_mesh_config_mod,     only: prime_mesh_name
-    use io_config_mod,            only: diagnostic_frequency, &
-                                        nodal_output_on_w3,   &
-                                        write_diag
+    use io_config_mod,            only: nodal_output_on_w3, write_diag
     use sci_field_minmax_alg_mod, only: log_field_minmax
 
     implicit none
@@ -421,6 +419,10 @@ contains
 
     type(mesh_type), pointer :: mesh
     integer(tik)             :: id
+
+    integer(i_def) :: diagnostic_frequency
+
+    diagnostic_frequency = config%io%diagnostic_frequency()
 
     ! Get mesh
     mesh => mesh_collection%get_mesh(prime_mesh_name)

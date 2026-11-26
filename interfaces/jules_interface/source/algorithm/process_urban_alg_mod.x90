@@ -6,10 +6,11 @@
 !>@brief Processing of ancillary files
 module process_urban_alg_mod
 
+  use config_mod,           only : config_type
   use field_collection_mod, only : field_collection_type
   use field_mod,            only : field_type
 
-  use section_choice_config_mod,  only: surface, surface_jules
+  use section_choice_config_mod,  only: surface_jules
   use process_urban_kernel_mod,   only: process_urban_kernel_type
   use jules_surface_config_mod,   only: l_urban2t
 
@@ -22,10 +23,13 @@ contains
 
   !> @details Processes ancils that don't match exactly what the model
   !>          expects into the fields it does
+  !> @param[in] config            Application configuration object
   !> @param[in] surface_fields   (in,out) Surface field collection to update
-  subroutine process_urban_alg(surface_fields)
+  subroutine process_urban_alg(config, surface_fields)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type( field_collection_type ), intent(in) :: surface_fields
 
@@ -38,7 +42,7 @@ contains
     type( field_type ), pointer :: urbemisr
     type( field_type ), pointer :: urbemisc
 
-    if (surface == surface_jules) then
+    if (config%section_choice%surface() == surface_jules) then
 
       if ( l_urban2t ) then
         call surface_fields%get_field('urbwrr', urbwrr)

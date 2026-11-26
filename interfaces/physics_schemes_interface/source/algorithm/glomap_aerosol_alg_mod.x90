@@ -10,6 +10,7 @@
 module glomap_aerosol_alg_mod
 
   ! Derived Types
+  use config_mod,                      only: config_type
   use constants_mod,                   only: i_def, l_def
   use field_mod,                       only: field_type
   use field_collection_mod,            only: field_collection_type
@@ -46,6 +47,7 @@ contains
   !>@details The UM GLOMAP-mode aerosol climatology scheme calculates:
   !>             1) CDNC ( via Jones method doi:10.1038/370450a0 )
   !>             2) Fields required by RADAER, if this is a radiation timestep
+  !>@param[in]     config                Application configuration object
   !>@param[in,out] aerosol_fields        glomap_aerosol related fields
   !>@param[in]     cloud_fields          humidity related fields
   !>@param[in]     theta_in_wth          Potential temperature (theta) wth space
@@ -54,7 +56,7 @@ contains
   !>@param[in]     mr                    Mixing ratios at time level n
   !>@param[in]     timestep              Current timestep number
 
-  subroutine glomap_aerosol_alg( aerosol_fields,                               &
+  subroutine glomap_aerosol_alg( config, aerosol_fields,                       &
                                  cloud_fields,                                 &
                                  theta_in_wth,                                 &
                                  exner_in_wth,                                 &
@@ -65,6 +67,8 @@ contains
     use glomap_aerosol_kernel_mod, only: glomap_aerosol_kernel_type
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Arguments
     type( field_collection_type ), intent( inout ) :: aerosol_fields
@@ -385,7 +389,8 @@ contains
       ! only output them here when running purely with climatologies, to
       ! avoid writing them twice in one timestep
       if ( glomap_mode == glomap_mode_climatology ) then
-        call output_diags_for_glomap_ccn( glomap_variables_climatology,        &
+        call output_diags_for_glomap_ccn( config,                              &
+                                          glomap_variables_climatology,        &
                                           rho_in_wth,                          &
                                           n_ait_sol,                           &
                                           n_acc_sol,                           &

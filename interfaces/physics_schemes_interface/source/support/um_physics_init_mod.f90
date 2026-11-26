@@ -11,6 +11,8 @@
 
 module um_physics_init_mod
 
+  use config_mod, only: config_type
+
   ! LFRic namelists which have been read
   use aerosol_config_mod,        only : glomap_mode,                           &
                                         glomap_mode_climatology,               &
@@ -158,9 +160,7 @@ module um_physics_init_mod
                                         l_bm_tweaks_in => l_bm_tweaks,         &
                                         max_sigmas_in => max_sigmas,           &
                                         min_sigx_ft_in => min_sigx_ft,         &
-                                        turb_var_fac_bm_in => turb_var_fac_bm, &
-                                        two_d_fsd_factor_in => two_d_fsd_factor
-
+                                        turb_var_fac_bm_in => turb_var_fac_bm
 
   use convection_config_mod,     only : cv_scheme,                    &
                                         cv_scheme_gregory_rowntree,   &
@@ -287,27 +287,16 @@ module um_physics_init_mod
 
   use radiation_config_mod,      only : topography, topography_horizon
 
-  use section_choice_config_mod, only : aerosol,           &
-                                        aerosol_um,        &
-                                        boundary_layer,    &
-                                        boundary_layer_um, &
-                                        convection,        &
-                                        convection_um,     &
-                                        cloud,             &
-                                        cloud_um,          &
-                                        electric,          &
-                                        electric_um,       &
-                                        microphysics,      &
-                                        microphysics_um,   &
-                                        orographic_drag,   &
-                                        orographic_drag_um,&
-                                        radiation,         &
-                                        radiation_socrates,&
-                                        spectral_gwd,      &
-                                        spectral_gwd_um,   &
-                                        stochastic_physics,&
+  use section_choice_config_mod, only : aerosol_um,            &
+                                        boundary_layer_um,     &
+                                        convection_um,         &
+                                        cloud_um,              &
+                                        electric_um,           &
+                                        microphysics_um,       &
+                                        orographic_drag_um,    &
+                                        radiation_socrates,    &
+                                        spectral_gwd_um,       &
                                         stochastic_physics_um, &
-                                        surface,           &
                                         surface_jules
 
   use spectral_gwd_config_mod,   only :                                       &
@@ -373,9 +362,6 @@ module um_physics_init_mod
                                          include_moisture_lowmoist, &
                                          include_moisture_moist,    &
                                          include_moisture_dry
-
-  use io_config_mod, only: checkpoint_read
-
   use initialization_config_mod, only: init_option, init_option_checkpoint_dump
   use timestepping_config_mod, only: timestepping_method => method, &
                                      method_no_timestepping, method_jules
@@ -433,8 +419,9 @@ contains
   !>          from the UM code.
   !>        Other parameters and switches which are genuinely input variables,
   !>         via the LFRic namelists, are also set here for the UM code.
+  !> @param[in] config  Application configuration object
 
-  subroutine um_physics_init()
+  subroutine um_physics_init(config)
 
     ! UM modules containing things that need setting and setup routines
     use bl_option_mod, only: i_bl_vn, sbl_op, ritrans,                     &
@@ -629,11 +616,16 @@ contains
 
     implicit none
 
+    type(config_type), intent(in) :: config
+
     integer(i_def) :: n, n_pft, error_code
     logical(l_def) :: l_fix_nacl_density
     logical(l_def) :: l_fix_ukca_hygroscopicities
     logical(l_def) :: l_dust_mp_ageing
     logical(l_def) :: dust_loaded = .false.
+    logical(l_def) :: checkpoint_read
+
+    checkpoint_read = config%io%checkpoint_read()
 
     ! ----------------------------------------------------------------
     ! UM aerosol scheme settings
@@ -643,9 +635,10 @@ contains
     ! precursor chemistry represented by an Offline Oxidants scheme),
     ! these are set via a UKCA API call in subroutine um_ukca_init.
     ! ----------------------------------------------------------------
-    if ( aerosol == aerosol_um ) then
+    if ( config%section_choice%aerosol() == aerosol_um ) then
 
-      if ( l_radaer .and. .not. ( radiation == radiation_socrates ) ) then
+      if ( l_radaer .and. .not. &
+           ( config%section_choice%radiation() == radiation_socrates ) ) then
         !  RADAER only calculates required input fields for Socrates.
         !  There is no other output of RADAER, so this setting
         !  is not recommended.
@@ -746,9 +739,9 @@ contains
     ! ----------------------------------------------------------------
     ! UM boundary layer scheme settings - contained in UM module bl_option_mod
     ! ----------------------------------------------------------------
-    if ( boundary_layer == boundary_layer_um ) then
+    if ( config%section_choice%boundary_layer() == boundary_layer_um ) then
 
-      if ( surface /= surface_jules ) then
+      if ( config%section_choice%surface() /= surface_jules ) then
         write( log_scratch_space, '(A)' )                                   &
             'Jules surface is required for UM boundary layer - please switch on'
         call log_event( log_scratch_space, LOG_LEVEL_ERROR )
@@ -1041,7 +1034,7 @@ contains
     l_reset_neg_delthvu  = .true.
     l_cvdiag_ctop_qmax   = l_cvdiag_ctop_qmax_in
 
-    if ( convection == convection_um ) then
+    if ( config%section_choice%convection() == convection_um ) then
 
       ! Options needed by all convection schemes
       l_param_conv = .true.
@@ -1157,7 +1150,7 @@ contains
 
       case(cv_scheme_gregory_rowntree)
 
-        if ( boundary_layer /= boundary_layer_um ) then
+        if ( config%section_choice%boundary_layer() /= boundary_layer_um ) then
           write( log_scratch_space, '(A)' )                                    &
            'UM boundary layer is required for GR convection - please switch on'
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
@@ -1297,7 +1290,7 @@ contains
     ! aerosol tracers - contained in UM module ukca_option_mod
     ! ----------------------------------------------------------------
 
-    if ( aerosol == aerosol_um .and.              &
+    if ( config%section_choice%aerosol() == aerosol_um .and. &
          ( glomap_mode == glomap_mode_ukca ) .or. &
          ( glomap_mode == glomap_mode_dust_and_clim ) ) then
       l_ukca = .true.
@@ -1320,7 +1313,7 @@ contains
     cloud_pc2_tol    = cloud_pc2_tol_in
     cloud_pc2_tol_2  = cloud_pc2_tol_2_in
 
-    if ( cloud == cloud_um ) then
+    if ( config%section_choice%cloud() == cloud_um ) then
 
       if ( moisture_formulation == moisture_formulation_dry ) then
         write( log_scratch_space, '(A)' )                                   &
@@ -1464,7 +1457,7 @@ contains
     ! scheme being either off or running in diagnostic mode to calculate
     ! dust emissions only if these are potentially required by UKCA.
 
-    if ( aerosol == aerosol_um .and.              &
+    if ( config%section_choice%aerosol() == aerosol_um .and. &
          ( glomap_mode == glomap_mode_ukca ) .or. &
          ( glomap_mode == glomap_mode_dust_and_clim ) ) then
       i_dust = i_dust_flux
@@ -1510,9 +1503,9 @@ contains
     x2g = x2gl
     x4g = x4gl
 
-    if ( microphysics == microphysics_um ) then
+    if ( config%section_choice%microphysics() == microphysics_um ) then
 
-      if ( cloud /= cloud_um ) then
+      if ( config%section_choice%cloud() /= cloud_um ) then
         write( log_scratch_space, '(A)' )                                   &
             'UM cloud is required for UM microphysics - please switch on'
         call log_event( log_scratch_space, LOG_LEVEL_ERROR )
@@ -1767,7 +1760,7 @@ contains
     ! UM electric (lightning) scheme settings
     !---------------------------------------------------------
 
-    if ( electric == electric_um ) then
+    if ( config%section_choice%electric() == electric_um ) then
       ! Turn on mcccaul lightning scheme
       electric_method = em_mccaul
       storm_definition = graupel_and_ice
@@ -1798,12 +1791,14 @@ contains
     end if
 
 
-    if ( microphysics == microphysics_um                                    &
-         .or. radiation == radiation_socrates ) then
+    if ( config%section_choice%microphysics() == microphysics_um .or. &
+         config%section_choice%radiation()    == radiation_socrates ) then
       ! Options for the subgrid cloud variability parametrization used
       ! in microphysics and radiation but living elsewhere in the UM
       ! ... contained in rad_input_mod
-      two_d_fsd_factor = two_d_fsd_factor_in
+      if (config%namelist_exists("cloud")) then
+        two_d_fsd_factor = config%cloud%two_d_fsd_factor()
+      end if
       ! ... contained in fsd_parameters_mod
 
       if ( cld_fsd_hill ) then
@@ -1824,7 +1819,7 @@ contains
     ! ----------------------------------------------------------------
     ! UM spectral gravity wave drag options - contained in g_wave_input_mod
     ! ----------------------------------------------------------------
-    if ( spectral_gwd == spectral_gwd_um ) then
+    if ( config%section_choice%spectral_gwd() == spectral_gwd_um ) then
 
       cgw_scale_factor = real(cgw_scale_factor_in, r_um)
       l_add_cgw = add_cgw_in
@@ -1833,7 +1828,7 @@ contains
 
     end if
 
-    if ( orographic_drag == orographic_drag_um ) then
+    if ( config%section_choice%orographic_drag() == orographic_drag_um ) then
       scale_aware = .false.
       middle = 0.42_r_um
       var = 0.18_r_um
@@ -1964,7 +1959,7 @@ contains
     !-----------------------------------------------------------------------
     ! UM Random Parameter scheme settings
     !-----------------------------------------------------------------------
-    if ( stochastic_physics == stochastic_physics_um ) then
+    if ( config%section_choice%stochastic_physics() == stochastic_physics_um ) then
 
       if (use_random_parameters) then
         ! Switches for the RP scheme

@@ -8,6 +8,7 @@
 !!        dump file.
 module create_tl_prognostics_mod
 
+
   use field_mod,                      only : field_type
   use field_parent_mod,               only : read_interface, &
                                              write_interface
@@ -21,7 +22,9 @@ module create_tl_prognostics_mod
                                              LOG_LEVEL_INFO, &
                                              LOG_LEVEL_ERROR
   use mesh_mod,                       only : mesh_type
-  use initialization_config_mod,      only : read_w2h_wind
+
+  use config_mod,    only: config_type
+  use constants_mod, only: l_def
 
   implicit none
 
@@ -33,15 +36,17 @@ contains
   !> @brief Initialise the fd_field collection.
   !> @details Add the required fields with appropriate read and write behaviour,
   !!        corresponding to the fields in the start dump.
+  !> @param[in]     config              Application configuration object
   !> @param[in]     mesh                The mesh
   !> @param[in]     twod_mesh           The current 2d mesh
   !> @param[in,out] fd_field_collection The collection object to store fields in
   !> @param[in,out] depository          The depository field collection
-  subroutine create_tl_prognostics( mesh, twod_mesh, fd_field_collection, &
+  subroutine create_tl_prognostics( config, mesh, twod_mesh, fd_field_collection, &
                                     depository )
 
     implicit none
 
+    type(config_type), intent(in) :: config
     type( mesh_type ), intent(in), pointer     :: mesh
     type( mesh_type ), intent(in), pointer     :: twod_mesh
 
@@ -64,6 +69,10 @@ contains
     type( field_type ) :: mcl_in_wtheta   ! Cloud liquid mix ratio
     type( field_type ) :: mcf_in_wtheta   ! Clould ice mix ratio
     type( field_type ) :: mr_in_wtheta    ! Rain mix ratio
+
+    logical(l_def) :: read_w2h_wind
+
+    read_w2h_wind = config%initialization%read_w2h_wind()
 
     call log_event( 'Creating Tangent linear initial perturbation prognostics...', &
                     LOG_LEVEL_INFO )

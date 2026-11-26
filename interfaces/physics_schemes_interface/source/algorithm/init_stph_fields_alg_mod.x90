@@ -6,7 +6,8 @@
 !>@brief Prepares the stochastic physics increment fields
 module init_stph_fields_alg_mod
 
-  use constants_mod,                   only: i_def, r_def
+  use config_mod,    only: config_type
+  use constants_mod, only: i_def, r_def
 
   ! Derived Types
   use field_mod,                       only: field_type
@@ -21,13 +22,16 @@ module init_stph_fields_alg_mod
 contains
 
   !> @brief   Initialises the stochastic physics fields
+  !> @param[in]     config        Application configuration object
   !> @param[in,out] stph_fields   stochastic physics related fields
-  subroutine init_stph_fields_alg(stph_fields)
+  subroutine init_stph_fields_alg(config, stph_fields)
 
-    use section_choice_config_mod, only: stochastic_physics, stochastic_physics_um
+    use section_choice_config_mod,     only: stochastic_physics_um
     use stochastic_physics_config_mod, only: blpert_type, blpert_type_off
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Arguments
     type( field_collection_type ), intent( in ) :: stph_fields
@@ -40,7 +44,7 @@ contains
     type( integer_field_type ), pointer :: blpert_flag => null()
 
 
-    if ( stochastic_physics == stochastic_physics_um )then
+    if ( config%section_choice%stochastic_physics() == stochastic_physics_um ) then
       call stph_fields%get_field('dtheta_stph', dtheta_stph)
       call stph_fields%get_field('dmv_stph', dmv_stph)
       call stph_fields%get_field('du_stph', du_stph)

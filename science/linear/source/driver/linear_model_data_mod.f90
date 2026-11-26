@@ -19,8 +19,7 @@ module linear_model_data_mod
   use gungho_time_axes_mod,           only : gungho_time_axes_type, &
                                              get_time_axes_from_collection
   use init_time_axis_mod,             only : setup_field
-  use initialization_config_mod,      only : ls_option,           &
-                                             ls_option_analytic,  &
+  use initialization_config_mod,      only : ls_option_analytic,  &
                                              ls_option_file, &
                                              zero_w2v_wind
   use lfric_xios_time_axis_mod,       only : time_axis_type
@@ -53,7 +52,6 @@ module linear_model_data_mod
   use linear_map_fd_alg_mod,          only : linear_map_fd_to_prognostics
   use set_any_dof_alg_mod,            only : set_any_dof_alg
   use reference_element_mod,          only : T
-  use io_config_mod,                  only : checkpoint_read
 
   implicit none
 
@@ -80,6 +78,10 @@ contains
 
     type( mesh_type ), pointer, intent(in) :: mesh
     type( mesh_type ),     pointer, intent(in) :: twod_mesh
+
+    integer(i_def) :: ls_option
+
+    ls_option = modeldb%config%initialization%ls_option()
 
     select case( ls_option )
 
@@ -333,6 +335,10 @@ contains
 
     type(gungho_time_axes_type), pointer :: model_axes
 
+    integer(i_def) :: ls_option
+
+    ls_option = modeldb%config%initialization%ls_option()
+
     ! Get model_axes out of modeldb
     model_axes => get_time_axes_from_collection(modeldb%values, "model_axes" )
 
@@ -431,6 +437,10 @@ contains
     type( modeldb_type ), target, intent(inout) :: modeldb
     type(field_collection_type), pointer :: prognostic_fields
     type( field_type ),          pointer :: u
+
+    logical(l_def) :: checkpoint_read
+
+    checkpoint_read  = modeldb%config%io%checkpoint_read()
 
     select case( pert_option )
 

@@ -563,9 +563,8 @@ contains
 
     use base_mesh_config_mod,   only: prime_mesh_name
     use formulation_config_mod, only: use_multires_coupling
-    use io_config_mod,          only: diagnostic_frequency, &
-                                      nodal_output_on_w3,   &
-                                      write_diag
+    use io_config_mod,          only: nodal_output_on_w3, write_diag
+
     use multires_coupling_config_mod, only: aerosol_mesh_name
     use sci_field_minmax_alg_mod,     only: log_field_minmax
 
@@ -577,6 +576,10 @@ contains
     type(mesh_type), pointer :: mesh
     type(mesh_type), pointer :: aerosol_mesh
     integer(tik)             :: id
+
+    integer(i_def) :: diagnostic_frequency
+
+    diagnostic_frequency = config%io%diagnostic_frequency()
 
     call log_event( 'Miniapp will run with default precision set as:', LOG_LEVEL_INFO )
     write(log_scratch_space, '(I1)') kind(1.0_r_def)

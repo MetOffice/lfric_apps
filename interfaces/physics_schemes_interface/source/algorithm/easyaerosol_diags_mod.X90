@@ -10,6 +10,7 @@
 module easyaerosol_diags_mod
 
   use field_mod,              only: field_type
+  use config_mod,             only: config_type
   use constants_mod,          only: i_def, l_def
 
   implicit none
@@ -35,6 +36,7 @@ contains
   !>               This algorithm is not specific to the SW or LW spectrum but
   !>               can be called for either since the operations are identical
   !>               in both cases.
+  !>@param[in]     config                Application configuration object
   !>@param[in]     aer_absorption        absorption from online aerosol scheme
   !>@param[in]     aer_scattering        scattering from online aerosol scheme
   !>@param[in]     easy_absorption       absorption from easyaerosol ancil
@@ -45,7 +47,8 @@ contains
   !>@param[in]     spectrum              string indicating either sw or lw
   !>@param[in]     n_band                number of bands in this spectrum
   !
-  subroutine easyaerosol_diags ( aer_absorption,                               &
+  subroutine easyaerosol_diags ( config,                                       &
+                                 aer_absorption,                               &
                                  aer_scattering,                               &
                                  easy_absorption,                              &
                                  easy_extinction,                              &
@@ -56,6 +59,8 @@ contains
                                  n_band )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Arguments
     type( field_type ),  intent( in ) :: aer_absorption
@@ -75,7 +80,8 @@ contains
     type( field_type ) :: easy_ext_diag  ! Easy aerosol extinction diagnostic in units m-1
     type( field_type ) :: easy_asy_diag  ! Easy aerosol asymmetry diagnostic
 
-    call initialise_diags_for_easyaerosol( aer_abs_diag,                       &
+    call initialise_diags_for_easyaerosol( config,                             &
+                                           aer_abs_diag,                       &
                                            aer_sca_diag,                       &
                                            easy_abs_diag,                      &
                                            easy_sca_diag,                      &
@@ -109,6 +115,7 @@ contains
   end subroutine easyaerosol_diags
 
   !>@brief         Initialise aerosol optical property diagnostics
+  !>@param[in]     config                Application configuration object
   !>@param[in]     aer_abs_diag          absorption from radaer & easyaerosol
   !>@param[in]     aer_sca_diag          scattering from radaer & easyaerosol
   !>@param[in]     easy_abs_diag         absorption from easyaerosol ancil
@@ -117,7 +124,8 @@ contains
   !>@param[in]     easy_asy_diag         asymmetry from easyaerosol ancil
   !>@param[in]     spectrum              string, either "sw" or "lw"
   !
-  subroutine initialise_diags_for_easyaerosol ( aer_abs_diag,                  &
+  subroutine initialise_diags_for_easyaerosol ( config,                        &
+                                                aer_abs_diag,                  &
                                                 aer_sca_diag,                  &
                                                 easy_abs_diag,                 &
                                                 easy_sca_diag,                 &
@@ -129,6 +137,8 @@ contains
 
     implicit none
 
+    type(config_type), intent(in) :: config
+
     ! Arguments
     type( field_type ), intent( inout ) :: aer_abs_diag
     type( field_type ), intent( inout ) :: aer_sca_diag
@@ -138,12 +148,12 @@ contains
     type( field_type ), intent( inout ) :: easy_asy_diag
     character(len=2),   intent( in )    :: spectrum
 
-    aer_abs_diag_flag  = init_diag( aer_abs_diag, 'aerosol__aer_'// spectrum //'_abs_per_m')
-    aer_sca_diag_flag  = init_diag( aer_sca_diag, 'aerosol__aer_'// spectrum //'_sca_per_m')
-    easy_abs_diag_flag = init_diag(easy_abs_diag, 'aerosol__easy_' // spectrum //'_abs')
-    easy_sca_diag_flag = init_diag(easy_sca_diag, 'aerosol__easy_' // spectrum //'_sca')
-    easy_ext_diag_flag = init_diag(easy_ext_diag, 'aerosol__easy_' // spectrum //'_ext')
-    easy_asy_diag_flag = init_diag(easy_asy_diag, 'aerosol__easy_' // spectrum //'_asy')
+    aer_abs_diag_flag  = init_diag(config,  aer_abs_diag, 'aerosol__aer_'// spectrum //'_abs_per_m')
+    aer_sca_diag_flag  = init_diag(config,  aer_sca_diag, 'aerosol__aer_'// spectrum //'_sca_per_m')
+    easy_abs_diag_flag = init_diag(config, easy_abs_diag, 'aerosol__easy_' // spectrum //'_abs')
+    easy_sca_diag_flag = init_diag(config, easy_sca_diag, 'aerosol__easy_' // spectrum //'_sca')
+    easy_ext_diag_flag = init_diag(config, easy_ext_diag, 'aerosol__easy_' // spectrum //'_ext')
+    easy_asy_diag_flag = init_diag(config, easy_asy_diag, 'aerosol__easy_' // spectrum //'_asy')
 
   end subroutine initialise_diags_for_easyaerosol
 

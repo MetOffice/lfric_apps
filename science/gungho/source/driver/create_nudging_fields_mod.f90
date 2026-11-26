@@ -65,7 +65,7 @@ module create_nudging_fields_mod
 
   !> @brief Iterate over active nudging fields and apply an arbitrary
   !! processor to the field specifiers.
-  !> @param        config      Argument holding model configuration
+  !> @param        config      Application configuration object
   !> @param        processor   Processor to be applied to field specifiers
   subroutine process_nudging_fields(config, processor)
     use field_spec_mod,                only : main => main_coll_dict,          &
@@ -103,7 +103,7 @@ module create_nudging_fields_mod
     !  vertical grid (sigma or pressure-levels) of the source data while
     !  remapping from nudging to model grid. Hence this field is needed
     !  when any one of theta or wind is forced.
-    call processor%apply(make_spec(                                            &
+    call processor%apply(config, make_spec(                                    &
             'surface_pressure_nudging_ext_ref', main%derived, W3,              &
             coarse=coarse_nudging,                                             &
             coarse_mesh_name=nudging_mesh_name,                                &
@@ -111,7 +111,7 @@ module create_nudging_fields_mod
     ))
 
     if ( theta_forcing == theta_forcing_nudging ) then
-      call processor%apply(make_spec(                                          &
+      call processor%apply(config, make_spec(                                  &
               'temperature_nudging_ext_ref', main%derived, W3, twod=.true.,    &
               coarse=coarse_nudging,                                           &
               coarse_mesh_name=nudging_mesh_name,                              &
@@ -120,13 +120,13 @@ module create_nudging_fields_mod
     end if
 
     if ( wind_forcing == wind_forcing_nudging ) then
-      call processor%apply(make_spec(                                          &
+      call processor%apply(config, make_spec(                                  &
               'u_nudging_ext_ref', main%derived, W3, twod=.true.,              &
               coarse=coarse_nudging,                                           &
               coarse_mesh_name=nudging_mesh_name,                              &
               mult='nudging_levels', time_axis=axis%nudging                    &
       ))
-      call processor%apply(make_spec(                                          &
+      call processor%apply(config, make_spec(                                  &
               'v_nudging_ext_ref', main%derived, W3, twod=.true.,              &
               coarse=coarse_nudging,                                           &
               coarse_mesh_name=nudging_mesh_name,                              &

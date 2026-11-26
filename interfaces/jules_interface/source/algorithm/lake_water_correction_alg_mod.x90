@@ -29,7 +29,7 @@ contains
   !> moisture globally by the same small amount to account for this lake
   !> evaporation.
   !>
-  !> @param[in]     config                 Application namelist configuration object
+  !> @param[in]     config                 Application configuration object
   !> @param[in]     lake_evap              Evaporation from lakes (kg m-2 s-1)
   !> @param[in,out] soil_moisture          Soil moisture content (kg m-2)
   !> @param[in,out] unfrozen_soil_moisture Unfrozen soil moisture fraction (m3 m-3)
@@ -107,7 +107,8 @@ contains
     call lake_evap%copy_field_properties(moist_mask)
 
     ! Initialise diagnostics
-    soilm_change_lakes_flag = init_diag(soilm_change_lakes, 'soil__soilm_change_lakes')
+    soilm_change_lakes_flag = init_diag(config, soilm_change_lakes, &
+                                        'soil__soilm_change_lakes')
     if (soilm_change_lakes_flag) then
       call lake_evap%copy_field_properties(soilm_init)
       call lake_evap%copy_field_properties(soilm_end)

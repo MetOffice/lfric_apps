@@ -10,6 +10,7 @@
 
 module bl_exp_diags_mod
 
+  use config_mod,          only: config_type
   use constants_mod,       only: l_def
   use field_mod,           only: field_type
   use integer_field_mod,   only: integer_field_type
@@ -29,12 +30,15 @@ module bl_exp_diags_mod
 contains
 
   !> @brief Initialise fields for locally-computed diagnostics
+  !> @param[in]    config             Application configuration object
   !> @param[inout] zht                Turbulent mixing height
   !> @param[inout] oblen              Obukhov length
   !> @param[inout] cape_undilute      CAPE from an undilute parcel ascent
-  subroutine initialise_diags_for_bl_exp(zht, oblen, cape_undilute)
+  subroutine initialise_diags_for_bl_exp(config, zht, oblen, cape_undilute)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type( field_type ), intent(inout) :: zht
     type( field_type ), intent(inout) :: oblen
@@ -43,9 +47,9 @@ contains
 
     if ( LPROF ) call start_timing( id, 'diags.bl_exp' )
 
-    zht_flag = init_diag(zht, 'turbulence__zht')
-    oblen_flag = init_diag(oblen, 'turbulence__oblen')
-    cape_undilute_flag = init_diag(cape_undilute, 'convection__cape_undilute')
+    zht_flag = init_diag(config, zht, 'turbulence__zht')
+    oblen_flag = init_diag(config, oblen, 'turbulence__oblen')
+    cape_undilute_flag = init_diag(config, cape_undilute, 'convection__cape_undilute')
 
     if ( LPROF ) call stop_timing( id, 'diags.bl_exp' )
 

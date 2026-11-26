@@ -13,8 +13,7 @@ module linear_driver_mod
   use field_mod,                  only : field_type
   use field_collection_mod,       only : field_collection_type
   use io_value_mod,               only : io_value_type
-  use section_choice_config_mod,  only : stochastic_physics, &
-                                         stochastic_physics_um
+  use section_choice_config_mod,  only : stochastic_physics_um
   use gungho_model_mod,           only : initialise_infrastructure, &
                                          initialise_model, &
                                          finalise_infrastructure, &
@@ -108,7 +107,7 @@ contains
                                        temp_corr_io_value )
     call modeldb%values%add_key_value( 'total_dry_mass', 0.0_r_def )
     call modeldb%values%add_key_value( 'total_energy_previous', 0.0_r_def )
-    if ( stochastic_physics == stochastic_physics_um ) then
+    if ( modeldb%config%section_choice%stochastic_physics() == stochastic_physics_um ) then
       ! Random seed for stochastic physics
       call random_seed(size = random_seed_size)
       allocate(real_array(random_seed_size))
@@ -175,7 +174,8 @@ contains
     ! Instantiate the fields required to read the initial
     ! conditions from a file.
     if ( init_option == init_option_fd_start_dump ) then
-      call create_tl_prognostics( mesh, twod_mesh,   &
+      call create_tl_prognostics( modeldb%config,    &
+                                  mesh, twod_mesh,   &
                                   fd_fields,         &
                                   depository)
     end if
@@ -210,8 +210,7 @@ contains
                                       io_context_name, nodal_output_on_w3 )
 
     ! Linear model configuration initialisation
-    call initialise_linear_model( mesh,        &
-                                  modeldb )
+    call initialise_linear_model( mesh, modeldb )
 
   end subroutine initialise
 

@@ -49,6 +49,7 @@ module bl_imp_diags_mod
 contains
 
   !> @brief Initialise fields for locally-computed diagnostics
+  !> @param[in]     config             Application configuration object
   !> @param[in]     mv                 Vapour mixing ratio
   !> @param[in]     mcl                Cloud liq mixing ratio
   !> @param[in]     ms                 Cloud snow mixing ratio
@@ -71,7 +72,7 @@ contains
   !> @param[in,out] taux               'Zonal' momentum stress
   !> @param[in,out] tauy               'Meridional' momentum stress
   !> @param[in,out] ustar_implicit     Implicit surface friction velocity
-  subroutine initialise_diags_for_bl_imp(mv, mcl, ms, cf_bulk,           &
+  subroutine initialise_diags_for_bl_imp(config, mv, mcl, ms, cf_bulk,   &
                                          cf_area, cf_liq, cf_fro,        &
                                          dmv_bl, dmcl_bl, dms_bl,        &
                                          dbcf_bl, dacf_bl,               &
@@ -82,6 +83,8 @@ contains
                                          ustar_implicit)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Fields passed in to copy properties from
     type( field_type ), intent(in)    :: mv, mcl, ms
@@ -104,37 +107,37 @@ contains
 
     ! Genuine turbulence diagnostics
     ! 3D fields in wtheta space
-    dmv_bl_flag = init_diag(dmv_bl, 'turbulence__dmv_bl')
+    dmv_bl_flag = init_diag(config, dmv_bl, 'turbulence__dmv_bl')
     if (dmv_bl_flag) call invoke(a_times_X(dmv_bl, -1.0_r_def, mv))
 
-    dmcl_bl_flag = init_diag(dmcl_bl, 'turbulence__dmcl_bl')
+    dmcl_bl_flag = init_diag(config, dmcl_bl, 'turbulence__dmcl_bl')
     if (dmcl_bl_flag) call invoke(a_times_X(dmcl_bl, -1.0_r_def, mcl))
 
-    dms_bl_flag = init_diag(dms_bl, 'turbulence__dms_bl')
+    dms_bl_flag = init_diag(config, dms_bl, 'turbulence__dms_bl')
     if (dms_bl_flag) call invoke(a_times_X(dms_bl, -1.0_r_def, ms))
 
-    dbcf_bl_flag = init_diag(dbcf_bl, 'turbulence__dbcf_bl')
+    dbcf_bl_flag = init_diag(config, dbcf_bl, 'turbulence__dbcf_bl')
     if (dbcf_bl_flag) call invoke(a_times_X(dbcf_bl, -1.0_r_def, cf_bulk))
 
-    dacf_bl_flag = init_diag(dacf_bl, 'turbulence__dacf_bl')
+    dacf_bl_flag = init_diag(config, dacf_bl, 'turbulence__dacf_bl')
     if (dacf_bl_flag) call invoke(a_times_X(dacf_bl, -1.0_r_def, cf_area))
 
-    dcfl_bl_flag = init_diag(dcfl_bl, 'turbulence__dcfl_bl')
+    dcfl_bl_flag = init_diag(config, dcfl_bl, 'turbulence__dcfl_bl')
     if (dcfl_bl_flag) call invoke(a_times_X(dcfl_bl, -1.0_r_def, cf_liq))
 
-    dcff_bl_flag = init_diag(dcff_bl, 'turbulence__dcff_bl')
+    dcff_bl_flag = init_diag(config, dcff_bl, 'turbulence__dcff_bl')
     if (dcff_bl_flag) call invoke(a_times_X(dcff_bl, -1.0_r_def, cf_fro))
 
     ! Surface diagnostics on staggered grid so need special treatment
     ! 2D fields
-    u10m_flag = init_diag(u10m, 'surface__u10m', activate=.true.)
-    v10m_flag = init_diag(v10m, 'surface__v10m', activate=.true.)
-    wspd10m_neut_flag = init_diag(wspd10m_neut, 'surface__wspd10m_neut')
-    u10m_neut_flag = init_diag(u10m_neut, 'surface__u10m_neut')
-    v10m_neut_flag = init_diag(v10m_neut, 'surface__v10m_neut')
-    taux_flag = init_diag(taux, 'turbulence__taux', activate=.true.)
-    tauy_flag = init_diag(tauy, 'turbulence__tauy', activate=.true.)
-    ustar_implicit_flag = init_diag(ustar_implicit, 'surface__ustar_implicit', activate=.true.)
+    u10m_flag = init_diag(config, u10m, 'surface__u10m', activate=.true.)
+    v10m_flag = init_diag(config, v10m, 'surface__v10m', activate=.true.)
+    wspd10m_neut_flag = init_diag(config, wspd10m_neut, 'surface__wspd10m_neut')
+    u10m_neut_flag = init_diag(config, u10m_neut, 'surface__u10m_neut')
+    v10m_neut_flag = init_diag(config, v10m_neut, 'surface__v10m_neut')
+    taux_flag = init_diag(config, taux, 'turbulence__taux', activate=.true.)
+    tauy_flag = init_diag(config, tauy, 'turbulence__tauy', activate=.true.)
+    ustar_implicit_flag = init_diag(config, ustar_implicit, 'surface__ustar_implicit', activate=.true.)
 
     if ( LPROF ) call stop_timing( id, 'diags.bl_imp' )
 
@@ -236,21 +239,21 @@ contains
     call moist_flux_bl%write_field('turbulence__moist_flux_bl')
 
     ! Diagnostic fields for BL locally computed here
-    du_bl_flag = init_diag(du_bl, 'turbulence__du_bl')
-    dv_bl_flag = init_diag(dv_bl, 'turbulence__dv_bl')
-    dw_bl_flag = init_diag(dw_bl, 'turbulence__dw_bl')
+    du_bl_flag = init_diag(config, du_bl, 'turbulence__du_bl')
+    dv_bl_flag = init_diag(config, dv_bl, 'turbulence__dv_bl')
+    dw_bl_flag = init_diag(config, dw_bl, 'turbulence__dw_bl')
     ! If any of the three fields is required then all are needed to do the mapping
     if (du_bl_flag .or. dv_bl_flag .or. dw_bl_flag) then
-      if (.not. du_bl_flag) ignore = init_diag(du_bl, 'turbulence__du_bl', activate=.true.)
-      if (.not. dv_bl_flag) ignore = init_diag(dv_bl, 'turbulence__dv_bl', activate=.true.)
-      if (.not. dw_bl_flag) ignore = init_diag(dw_bl, 'turbulence__dw_bl', activate=.true.)
+      if (.not. du_bl_flag) ignore = init_diag(config, du_bl, 'turbulence__du_bl', activate=.true.)
+      if (.not. dv_bl_flag) ignore = init_diag(config, dv_bl, 'turbulence__dv_bl', activate=.true.)
+      if (.not. dw_bl_flag) ignore = init_diag(config, dw_bl, 'turbulence__dw_bl', activate=.true.)
       call map_physics_winds(config, du_bl, dv_bl, dw_bl, du_bl_w2)
     end if
     if (du_bl_flag) call du_bl%write_field()
     if (dv_bl_flag) call dv_bl%write_field()
     if (dw_bl_flag) call dw_bl%write_field()
 
-    dt_bl_flag = init_diag(dt_bl, 'turbulence__dt_bl')
+    dt_bl_flag = init_diag(config, dt_bl, 'turbulence__dt_bl')
     if (dt_bl_flag) then
       call invoke(X_times_Y(dt_bl,dtheta_bl,exner_in_wth))
       call dt_bl%write_field()
@@ -298,8 +301,8 @@ contains
 
     ! diagnostic fields for surface but on staggered atmosphere grid
     if (wspd10m_neut_flag .or. u10m_neut_flag .or. v10m_neut_flag) then
-      if (.not. u10m_neut_flag) ignore = init_diag(u10m_neut, 'surface__u10m_neut', activate=.true.)
-      if (.not. v10m_neut_flag) ignore = init_diag(v10m_neut, 'surface__v10m_neut', activate=.true.)
+      if (.not. u10m_neut_flag) ignore = init_diag(config, u10m_neut, 'surface__u10m_neut', activate=.true.)
+      if (.not. v10m_neut_flag) ignore = init_diag(config, v10m_neut, 'surface__v10m_neut', activate=.true.)
       call zh%copy_field_properties(w10m_neut)
       call map_physics_winds(config, u10m_neut, v10m_neut, w10m_neut, wind10m_neut_w2)
     end if
@@ -318,11 +321,11 @@ contains
     if (u10m_neut_flag) call u10m_neut%write_field()
     if (v10m_neut_flag) call v10m_neut%write_field()
 
-    pseudotaux_flag = init_diag(pseudotaux, 'surface__pseudotaux')
-    pseudotauy_flag = init_diag(pseudotauy, 'surface__pseudotauy')
+    pseudotaux_flag = init_diag(config, pseudotaux, 'surface__pseudotaux')
+    pseudotauy_flag = init_diag(config, pseudotauy, 'surface__pseudotauy')
     if (pseudotaux_flag .or. pseudotauy_flag) then
-      if (.not. pseudotaux_flag) ignore = init_diag(pseudotaux, 'surface__pseudotaux', activate=.true.)
-      if (.not. pseudotauy_flag) ignore = init_diag(pseudotauy, 'surface__pseudotauy', activate=.true.)
+      if (.not. pseudotaux_flag) ignore = init_diag(config, pseudotaux, 'surface__pseudotaux', activate=.true.)
+      if (.not. pseudotauy_flag) ignore = init_diag(config, pseudotauy, 'surface__pseudotauy', activate=.true.)
       call pseudotaux%copy_field_properties(pseudotauz)
       call map_physics_winds(config, pseudotaux, pseudotauy, pseudotauz, pseudotau_w2)
     end if

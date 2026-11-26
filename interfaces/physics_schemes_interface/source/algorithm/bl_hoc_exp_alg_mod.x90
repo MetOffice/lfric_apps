@@ -57,7 +57,7 @@ contains
   !>             vertical mixing of heat, momentum and moisture,
   !>             as documented in UMDP25
   !>         NB This version uses winds in w3 space (i.e. A-grid)
-  !>@param[in]     config            Application namelist configuration object
+  !>@param[in]     config            Application configuration object
   !>@param[in]     theta             Theta in its native (wth) space
   !>@param[in]     rho               Dry density in its native (w3) space
   !>@param[in]     exner             Exner Pressure in the w3 space
@@ -323,7 +323,7 @@ contains
     dz_wth           => get_dz_at_wtheta(config, mesh)
 
     ! Initialise diagnostics
-    call initialise_diags_for_bl_hoc_exp( diags_flag,                          &
+    call initialise_diags_for_bl_hoc_exp( config, diags_flag,                  &
                                           master_length,                       &
                                           rhogamu_bl, rhogamv_bl,              &
                                           rhogamt_bl, rhogamq_bl,              &

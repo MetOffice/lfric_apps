@@ -6,6 +6,7 @@
 !>@brief Prepares the cloud fields
 module init_cloud_fields_alg_mod
 
+  use config_mod,           only: config_type
   use constants_mod,        only: r_def
   use field_mod,            only: field_type
   use field_collection_mod, only: field_collection_type
@@ -24,13 +25,16 @@ contains
   !>          when passed on to the physics at the first time step, in case no
   !>          restart file is used or the cloud scheme is off.
   !>          Also, rh_crit is set to the namelist value here.
+  !> @param[in]     config       Application configuration object
   !> @param[in,out] cloud_fields Collection of fields for cloud scheme
-  subroutine init_cloud_fields_alg(cloud_fields)
+  subroutine init_cloud_fields_alg(config, cloud_fields)
 
     use initial_cloud_kernel_mod,  only: initial_cloud_kernel_type
-    use section_choice_config_mod, only: cloud, cloud_um
+    use section_choice_config_mod, only: cloud_um
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Arguments
     type(field_collection_type), intent(inout) :: cloud_fields
@@ -66,7 +70,7 @@ contains
                  setval_c(sigma_mi,    cloud_horizontal_ice_fsd) )
 
     ! If cloud scheme is on, initialised 3D rh_crit from namelist
-    if (cloud == cloud_um) then
+    if (config%section_choice%cloud() == cloud_um) then
       call invoke(initial_cloud_kernel_type(rh_crit) )
     end if
 

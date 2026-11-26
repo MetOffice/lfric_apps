@@ -35,7 +35,7 @@ contains
   !> @details The excess path length a signal accumulates travelling
   !>          vertically through the atmosphere. The whole calculation is
   !>          done inside the request guard, in a single column kernel.
-  !> @param[in]  config     Application namelist configuration object
+  !> @param[in]  config     Application configuration object
   !> @param[in]  exner_w3   Exner pressure in W3 space
   !> @param[in]  exner_wth  Exner pressure in Wtheta space
   !> @param[in]  mr         Mixing ratios
@@ -65,7 +65,8 @@ contains
 
     nullify(height_w3, height_wth)
 
-    if (init_diag(zenith_total_delay, 'processed__zenith_total_delay')     &
+    if (init_diag(config, zenith_total_delay, &
+                  'processed__zenith_total_delay') &
         .and. use_xios_io) then
 
       height_w3  => get_height_fv(config, exner_w3%get_mesh(), W3)

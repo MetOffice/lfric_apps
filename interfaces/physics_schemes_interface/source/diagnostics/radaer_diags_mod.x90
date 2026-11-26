@@ -8,6 +8,7 @@
 
 module radaer_main_diags_mod
 
+  use config_mod,                 only: config_type
   use constants_mod,              only: l_def
   use integer_field_mod,          only: integer_field_type
   use field_mod,                  only: field_type
@@ -31,6 +32,7 @@ module radaer_main_diags_mod
 contains
 
   !> @brief Initialise fields for locally-computed radaer diagnostics
+  !> @param[in]    config             Application configuration object
   !> @param[inout] aod_ukca_ait_sol   Modal extinction aerosol opt depth []
   !> @param[inout] aaod_ukca_ait_sol  Modal absorption aerosol opt depth []
   !> @param[inout] aod_ukca_acc_sol   Modal extinction aerosol opt depth []
@@ -45,7 +47,8 @@ contains
   !> @param[inout] aaod_ukca_cor_ins  Modal absorption aerosol opt depth []
   !> @param[in]    trop_level         Troposphere level
 
-  subroutine initialise_main_diags_for_radaer( aod_ukca_ait_sol,               &
+  subroutine initialise_main_diags_for_radaer( config,                         &
+                                               aod_ukca_ait_sol,               &
                                                aaod_ukca_ait_sol,              &
                                                aod_ukca_acc_sol,               &
                                                aaod_ukca_acc_sol,              &
@@ -60,6 +63,8 @@ contains
                                                trop_level )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type( field_type ), intent(inout) :: aod_ukca_ait_sol
     type( field_type ), intent(inout) :: aaod_ukca_ait_sol
@@ -87,51 +92,51 @@ contains
     ! Get 2D mesh from trop level field
     mesh => trop_level%get_mesh()
 
-    aod_ukca_ait_sol_flag  = init_diag( aod_ukca_ait_sol,                      &
+    aod_ukca_ait_sol_flag  = init_diag(config,  aod_ukca_ait_sol,              &
                                        'aerosol__aod_ukca_ait_sol',            &
                                         force_mesh = mesh)
 
-    aaod_ukca_ait_sol_flag = init_diag( aaod_ukca_ait_sol,                     &
+    aaod_ukca_ait_sol_flag = init_diag(config,  aaod_ukca_ait_sol,             &
                                        'aerosol__aaod_ukca_ait_sol',           &
                                         force_mesh = mesh)
 
-    aod_ukca_acc_sol_flag  = init_diag( aod_ukca_acc_sol,                      &
+    aod_ukca_acc_sol_flag  = init_diag(config,  aod_ukca_acc_sol,              &
                                        'aerosol__aod_ukca_acc_sol',            &
                                         force_mesh = mesh)
 
-    aaod_ukca_acc_sol_flag = init_diag( aaod_ukca_acc_sol,                     &
+    aaod_ukca_acc_sol_flag = init_diag(config,  aaod_ukca_acc_sol,             &
                                        'aerosol__aaod_ukca_acc_sol',           &
                                         force_mesh = mesh)
 
-    aod_ukca_cor_sol_flag  = init_diag( aod_ukca_cor_sol,                      &
+    aod_ukca_cor_sol_flag  = init_diag(config,  aod_ukca_cor_sol,              &
                                        'aerosol__aod_ukca_cor_sol',            &
                                         force_mesh = mesh)
 
-    aaod_ukca_cor_sol_flag = init_diag( aaod_ukca_cor_sol,                     &
+    aaod_ukca_cor_sol_flag = init_diag(config,  aaod_ukca_cor_sol,             &
                                        'aerosol__aaod_ukca_cor_sol',           &
                                         force_mesh = mesh)
 
-    aod_ukca_ait_ins_flag  = init_diag( aod_ukca_ait_ins,                      &
+    aod_ukca_ait_ins_flag  = init_diag(config,  aod_ukca_ait_ins,              &
                                        'aerosol__aod_ukca_ait_ins',            &
                                         force_mesh = mesh)
 
-    aaod_ukca_ait_ins_flag = init_diag( aaod_ukca_ait_ins,                     &
+    aaod_ukca_ait_ins_flag = init_diag(config,  aaod_ukca_ait_ins,             &
                                        'aerosol__aaod_ukca_ait_ins',           &
                                         force_mesh = mesh)
 
-    aod_ukca_acc_ins_flag  = init_diag( aod_ukca_acc_ins,                      &
+    aod_ukca_acc_ins_flag  = init_diag(config,  aod_ukca_acc_ins,              &
                                        'aerosol__aod_ukca_acc_ins',            &
                                         force_mesh = mesh)
 
-    aaod_ukca_acc_ins_flag = init_diag( aaod_ukca_acc_ins,                     &
+    aaod_ukca_acc_ins_flag = init_diag(config,  aaod_ukca_acc_ins,             &
                                        'aerosol__aaod_ukca_acc_ins',           &
                                         force_mesh = mesh)
 
-    aod_ukca_cor_ins_flag  = init_diag( aod_ukca_cor_ins,                      &
+    aod_ukca_cor_ins_flag  = init_diag(config,  aod_ukca_cor_ins,              &
                                        'aerosol__aod_ukca_cor_ins',            &
                                         force_mesh = mesh)
 
-    aaod_ukca_cor_ins_flag = init_diag( aaod_ukca_cor_ins,                     &
+    aaod_ukca_cor_ins_flag = init_diag(config,  aaod_ukca_cor_ins,             &
                                        'aerosol__aaod_ukca_cor_ins',           &
                                         force_mesh = mesh)
 

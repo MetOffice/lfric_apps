@@ -14,7 +14,7 @@ module update_ancils_alg_mod
   use fs_continuity_mod,    only: W3
   use mesh_mod,             only: mesh_type
 
-  use section_choice_config_mod,   only: surface, surface_jules
+  use section_choice_config_mod,   only: surface_jules
   use process_ssi_kernel_mod,      only: process_ssi_kernel_type
   use log_mod,                     only: LOG_LEVEL_INFO
   use jules_control_init_mod,      only: first_sea_tile, n_sea_tile
@@ -67,7 +67,7 @@ contains
     type(time_axis_type),        pointer :: time_axis => null()
     character(str_def)                   :: axis_name
 
-    if (surface == surface_jules) then
+    if (config%section_choice%surface() == surface_jules) then
       call surface_fields%get_field('sea_ice_thickness', sea_ice_thickness)
       call surface_fields%get_field('tile_fraction', tile_fraction)
       call surface_fields%get_field('tile_temperature', tile_temperature)

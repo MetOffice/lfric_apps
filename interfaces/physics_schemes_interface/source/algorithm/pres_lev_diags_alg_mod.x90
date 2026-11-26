@@ -16,7 +16,7 @@ module pres_lev_diags_alg_mod
   use constants_mod,           only: r_def, i_def, l_def, str_def
   use dycore_constants_mod,    only: get_geopotential
   use initialise_diagnostics_mod, only: init_diag => init_diagnostic_field, &
-                                        diag_samp => diagnostic_to_be_sampled
+                                        samp_diag => diagnostic_to_be_sampled
   use lfric_xios_diag_mod, only: get_axis_dimension, get_axis_values
   use sci_geometric_constants_mod,   &
                                only: get_height_fv
@@ -114,7 +114,7 @@ contains
     height_wth => get_height_fv(config, mesh, Wtheta)
 
     ! Heaviside function
-    plev_heaviside_flag = init_diag(plev_heaviside, 'plev__heaviside')
+    plev_heaviside_flag = init_diag(config, plev_heaviside, 'plev__heaviside')
     if (plev_heaviside_flag .and. use_xios_io) then
 
       ! Can't group these because PSyclone will take nlayers from plev_heaviside
@@ -128,11 +128,11 @@ contains
     end if
 
     ! Setup thetaw array and flag
-    plev_thetaw_flag = init_diag(plev_thetaw, 'plev__thetaw')
+    plev_thetaw_flag = init_diag(config, plev_thetaw, 'plev__thetaw')
 
     ! Temperature on pressure levels
-    plev_temp_clim_flag = diag_samp('plev__temp_clim')
-    plev_temp_flag = init_diag(plev_temp, 'plev__temp', &
+    plev_temp_clim_flag = samp_diag(config, 'plev__temp_clim')
+    plev_temp_flag = init_diag(config, plev_temp, 'plev__temp', &
          activate=(plev_temp_clim_flag .or. plev_thetaw_flag))
     if ((plev_temp_flag .or. plev_temp_clim_flag .or. plev_thetaw_flag) &
          .and. use_xios_io) then
@@ -160,8 +160,8 @@ contains
     end if
 
     ! Zonal wind on pressure levels
-    plev_u_clim_flag = diag_samp('plev__u_clim')
-    plev_u_flag = init_diag(plev_u, 'plev__u', activate=plev_u_clim_flag)
+    plev_u_clim_flag = samp_diag(config, 'plev__u_clim')
+    plev_u_flag = init_diag(config, plev_u, 'plev__u', activate=plev_u_clim_flag)
     if ((plev_u_flag .or. plev_u_clim_flag) .and. use_xios_io) then
 
       call derived_fields%get_field('u_in_w3', u_in_w3)
@@ -180,8 +180,8 @@ contains
     end if
 
     ! Meridional wind on pressure levels
-    plev_v_clim_flag = diag_samp('plev__v_clim')
-    plev_v_flag = init_diag(plev_v, 'plev__v', activate=plev_v_clim_flag)
+    plev_v_clim_flag = samp_diag(config, 'plev__v_clim')
+    plev_v_flag = init_diag(config, plev_v, 'plev__v', activate=plev_v_clim_flag)
     if ((plev_v_flag .or. plev_v_clim_flag) .and. use_xios_io) then
 
       call derived_fields%get_field('v_in_w3', v_in_w3)
@@ -200,8 +200,8 @@ contains
     end if
 
     ! Vertical wind on pressure levels
-    plev_w_clim_flag = diag_samp('plev__w_clim')
-    plev_w_flag = init_diag(plev_w, 'plev__w', activate=plev_w_clim_flag)
+    plev_w_clim_flag = samp_diag(config, 'plev__w_clim')
+    plev_w_flag = init_diag(config, plev_w, 'plev__w', activate=plev_w_clim_flag)
     if ((plev_w_flag .or. plev_w_clim_flag) .and. use_xios_io) then
 
       call derived_fields%get_field('w_in_wth', w_in_wth)
@@ -220,7 +220,7 @@ contains
     end if
 
     ! Omega on pressure levels
-    plev_omega_clim_flag = init_diag(plev_omega, 'plev__omega_clim')
+    plev_omega_clim_flag = init_diag(config, plev_omega, 'plev__omega_clim')
     if (plev_omega_clim_flag .and. use_xios_io) then
 
       call derived_fields%get_field('w_in_wth', w_in_wth)
@@ -239,7 +239,7 @@ contains
     end if
 
     ! Vapour mixing ratio on pressure levels
-    plev_mv_clim_flag = init_diag(plev_mv, 'plev__mv_clim')
+    plev_mv_clim_flag = init_diag(config, plev_mv, 'plev__mv_clim')
     if (plev_mv_clim_flag .and. use_xios_io) then
 
       call invoke_pres_interp_kernel_type(mr(imr_v), exner_wth,   &
@@ -252,7 +252,7 @@ contains
     end if
 
     ! Vapour specific humidity on pressure levels
-    plev_qv_clim_flag = init_diag(plev_qv, 'plev__qv_clim', activate=plev_thetaw_flag)
+    plev_qv_clim_flag = init_diag(config, plev_qv, 'plev__qv_clim', activate=plev_thetaw_flag)
     if ((plev_qv_clim_flag .or. plev_thetaw_flag) .and. use_xios_io) then
 
       call exner_wth%copy_field_properties(qv)
@@ -278,11 +278,11 @@ contains
     end if
 
     ! Geopotential height on pressure levels
-    aviation_geopot_flag = diag_samp('aviation__geopot_thickness_850') .or. &
-                           diag_samp('aviation__geopot_thickness_500') .or. &
-                           diag_samp('aviation__snow_probability')
-    plev_geopot_clim_flag = diag_samp('plev__geopot_clim')
-    plev_geopot_flag = init_diag(plev_geopot, 'plev__geopot', &
+    aviation_geopot_flag = samp_diag(config, 'aviation__geopot_thickness_850') .or. &
+                           samp_diag(config, 'aviation__geopot_thickness_500') .or. &
+                           samp_diag(config, 'aviation__snow_probability')
+    plev_geopot_clim_flag = samp_diag(config, 'plev__geopot_clim')
+    plev_geopot_flag = init_diag(config, plev_geopot, 'plev__geopot', &
             activate=plev_geopot_clim_flag .or. aviation_geopot_flag)
 
     plev_gepot_required = plev_geopot_flag .or. &

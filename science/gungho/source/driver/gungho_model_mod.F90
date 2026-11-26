@@ -21,6 +21,7 @@ module gungho_model_mod
   use energy_correction_config_mod, only : encorr_usage, encorr_usage_none
   use conservation_algorithm_mod, only : conservation_algorithm
   use constants_mod,              only : i_def, r_def, l_def, imdi, &
+                                         str_max_filename,          &
                                          PRECISION_REAL, r_second, str_def
   use convert_to_upper_mod,       only : convert_to_upper
   use create_gungho_prognostics_mod, only : process_gungho_prognostics
@@ -157,28 +158,35 @@ module gungho_model_mod
 contains
 
   !> @brief  Initialise processor object for persisting LFRic fields
-  !> @param[in]   self      Persistor object
-  !> @param[in]   clock     Model clock
-  subroutine persistor_init(self, clock)
+  !> @param[in]   config  Application configuration object
+  !> @param[in]   clock   Model clock
+  subroutine persistor_init(self, config, clock)
 
     use initialization_config_mod, only: init_option, &
                                          init_option_checkpoint_dump
-    use io_config_mod,             only: checkpoint_read, &
-                                         checkpoint_write, &
-                                         checkpoint_times, &
+    use io_config_mod,             only: checkpoint_times, &
                                          end_of_run_checkpoint
-    use files_config_mod,          only: checkpoint_stem_name
 
     implicit none
 
-    class(persistor_type),       intent(inout) :: self
-    class(clock_type), target,   intent(in)    :: clock
+    class(persistor_type), intent(inout) :: self
+    type(config_type),     intent(in)    :: config
+
+    class(clock_type),     intent(in), target :: clock
 
     character(str_def) :: ckp_out_id
     character(str_def), parameter :: ckp_inp_id = 'lfric_checkpoint_read'
     character(:), allocatable :: split_stem_name(:)
     integer(i_def) :: i
     real(r_second), allocatable :: all_checkpoint_times(:)
+
+    character(str_max_filename) :: checkpoint_stem_name
+    logical(l_def) :: checkpoint_read
+    logical(l_def) :: checkpoint_write
+
+    checkpoint_read      = config%io%checkpoint_read()
+    checkpoint_write     = config%io%checkpoint_write()
+    checkpoint_stem_name = config%files%checkpoint_stem_name()
 
     call self%set_clock(clock)
 
@@ -218,22 +226,31 @@ contains
 
   !> @brief     Persistor's apply method
   !> @details   Persist a field given by field specifier by adding it to the checkpoint files
-  !> @param[in]   self      Persistor object
-  !> @param[in]   spec      Field specifier
-  subroutine persistor_apply(self, spec)
+  !> @param[in]   config  Application configuration object
+  !> @param[in]   spec    Field specifier
+  subroutine persistor_apply(self, config, spec)
 
     use initialization_config_mod, only: init_option, &
                                          init_option_checkpoint_dump
-    use io_config_mod,             only: checkpoint_read, &
-                                         checkpoint_write, checkpoint_times
-    use files_config_mod,          only: checkpoint_stem_name
+    use io_config_mod,             only: checkpoint_times
 
     implicit none
 
     class(persistor_type), intent(in) :: self
+    type(config_type),     intent(in) :: config
     type(field_spec_type), intent(in) :: spec
 
     character(20), parameter :: operation = 'once'
+
+    character(str_max_filename) :: checkpoint_stem_name
+
+    logical(l_def) :: checkpoint_read
+    logical(l_def) :: checkpoint_write
+
+    checkpoint_stem_name = config%files%checkpoint_stem_name()
+
+    checkpoint_read  = config%io%checkpoint_read()
+    checkpoint_write = config%io%checkpoint_write()
 
     if (spec%ckp .and. space_has_xios_io(spec%space, spec%legacy)) then
       if (checkpoint_write) then
@@ -256,9 +273,9 @@ contains
 
   !> @brief Enable active state fields for checkpointing; sync xios axis dimensions;
   !>        set up scaled diagnostics fields
-  !> @param[in] config       Argument providing access to model configuration
+  !> @param[in] config       Application configuration object
   !> @param[in] clock        The clock providing access to time information
-  subroutine before_context_close(config,clock)
+  subroutine before_context_close(config, clock)
 
     use multidata_field_dimensions_mod, only: sync_multidata_field_dimensions
     use time_dimensions_mod,            only: sync_time_dimensions
@@ -267,25 +284,31 @@ contains
                                               wind_forcing_nudging,            &
                                               external_forcing_is_loaded
     use formulation_config_mod,         only: use_physics
-    use section_choice_config_mod,      only: stochastic_physics, &
-                                              stochastic_physics_um
+    use section_choice_config_mod,      only: stochastic_physics_um
+
     use initialization_config_mod, only: init_option, &
                                          init_option_checkpoint_dump
-    use io_config_mod,                  only: checkpoint_read, checkpoint_write
+
 
     implicit none
+
     type(config_type), intent(in)  :: config
     class(clock_type), intent(in)  :: clock
 
     type(persistor_type) :: persistor
     real(r_second)       :: DT
     integer(i_def)       :: theta_forcing
-    integer(i_def)       :: wind_forcing
+    integer(i_def)       :: wind_forcing, stochastic_physics
+    logical(l_def)       :: checkpoint_read, checkpoint_write
     logical(l_def)       :: to_process_nudging_fields
 #ifdef UM_PHYSICS
     integer(i_def) :: i
 #endif
     logical :: legacy
+
+   checkpoint_read    = config%io%checkpoint_read()
+   checkpoint_write   = config%io%checkpoint_write()
+   stochastic_physics = config%section_choice%stochastic_physics()
 
     DT = clock%get_seconds_per_step()
     call set_variable("DT", DT, tolerant=.true.)
@@ -300,11 +323,11 @@ contains
     end if
 
 
-    call persistor%init(clock)
+    call persistor%init(config, clock)
 
     legacy = ( (config%base_mesh%geometry() == geometry_planar) .and. &
                (config%base_mesh%topology() == topology_periodic) )
-    call process_gungho_prognostics(persistor, legacy)
+    call process_gungho_prognostics(config, persistor, legacy)
     ! Add the temperature_correction_rate to the appropriate files
     if(checkpoint_write) then
       if ( encorr_usage /= encorr_usage_none ) then
@@ -429,14 +452,18 @@ contains
       end if
     end if
 
-    if (limited_area) call process_lbc_fields(persistor, legacy)
+    if (limited_area) then
+      call process_lbc_fields(config, persistor, legacy)
+    end if
+
     if (use_physics) then
-      call process_physics_prognostics(persistor)
+      call process_physics_prognostics(config, persistor)
       if (to_process_nudging_fields)   &
          call process_nudging_fields(config, persistor)
-      call sync_multidata_field_dimensions()
-      call sync_time_dimensions()
+      call sync_multidata_field_dimensions(config)
+      call sync_time_dimensions(config)
     end if
+
   end subroutine before_context_close
 
   !> @brief Initialisations that depend only on loaded namelists.
@@ -445,28 +472,34 @@ contains
   !> axis dimensions are being synched.
   !> @param[in] model_clock     The clock providing access to time information
   !> @param[in] modeldb   The full model database for the model run
-  subroutine basic_initialisations(mesh,model_clock,config)
+  subroutine basic_initialisations(config, mesh, model_clock)
 
 
 #ifdef UM_PHYSICS
     use formulation_config_mod,     only: use_physics
-    use section_choice_config_mod,  only: radiation,          &
-                                          radiation_socrates, &
-                                          surface,            &
+    use section_choice_config_mod,  only: radiation_socrates, &
                                           surface_jules
     use aerosol_config_mod,         only: l_radaer
 #endif
-    use config_mod,                 only: config_type
 
     implicit none
 
-    type( mesh_type ), intent(in), pointer :: mesh
-    class(model_clock_type), intent(inout) :: model_clock
     type(config_type), intent(in) :: config
+    type( mesh_type ), intent(in) :: mesh
+
+    class(model_clock_type), intent(inout) :: model_clock
+
+    integer(i_def) :: radiation, surface
 
 #ifdef UM_PHYSICS
     integer(i_def) :: ncells
     integer(i_def) :: ncells_ukca
+#endif
+
+    radiation = config%section_choice%radiation()
+    surface   = config%section_choice%surface()
+
+#ifdef UM_PHYSICS
 
     ! Set derived planet constants and presets
     call set_planet_constants()
@@ -493,10 +526,10 @@ contains
       call um_clock_init(model_clock)
 
       ! Initialisation of UM physics variables
-      call um_physics_init()
+      call um_physics_init(config)
 
       ! Initialisation of Jules high-level variables
-      call jules_control_init()
+      call jules_control_init(config)
 
       if (surface == surface_jules) then
         ! Initialisation of Jules physics variables
@@ -504,13 +537,13 @@ contains
       end if
 
       ! Initialisation of UKCA physics variables
-      call um_ukca_init(ncells_ukca, model_clock)
+      call um_ukca_init(config, ncells_ukca, model_clock)
       ! This is the way into the UKCA repo
 
       if ( l_radaer ) then
 
         ! Read all the radaer lut namelist files
-        call um_radaer_lut_init()
+        call um_radaer_lut_init(config)
 
         ! Initialisation of UKCA RADAER variables
         call um_radaer_init()
@@ -531,8 +564,7 @@ contains
 
 #ifdef UM_PHYSICS
     use formulation_config_mod,    only: use_physics
-    use section_choice_config_mod, only: radiation, &
-                                         radiation_socrates
+    use section_choice_config_mod, only: radiation_socrates
     use chemistry_config_mod,      only: chemistry_is_loaded, &
                                          chem_scheme_strattrop
 #endif
@@ -549,7 +581,7 @@ contains
     type(mesh_type), pointer :: orography_twod_mesh => null()
     type(mesh_type), pointer :: orography_mesh      => null()
 
-    procedure(filelist_populator), pointer :: files_init_ptr => null()
+    procedure(filelist_populator), pointer :: files_init_ptr
 
     type(field_type) :: surface_altitude
 
@@ -613,6 +645,8 @@ contains
     integer(i_def) :: tile_size_x
     integer(i_def) :: tile_size_y
 
+    integer(i_def) :: radiation
+
 #ifdef UM_PHYSICS
     real(r_def) :: dt
 #endif
@@ -655,6 +689,8 @@ contains
     stretching_height = modeldb%config%extrusion%stretching_height()
     number_of_layers  = modeldb%config%extrusion%number_of_layers()
     scaled_radius     = modeldb%config%planet%scaled_radius()
+
+    radiation = modeldb%config%section_choice%radiation()
 
     if (prepartitioned) then
       tile_size_x = 1
@@ -1023,7 +1059,7 @@ contains
     !=======================================================================
     ! 4.0 Initialise output
     !=======================================================================
-    call basic_initialisations( mesh, modeldb%clock, modeldb%config )
+    call basic_initialisations( modeldb%config, mesh, modeldb%clock )
 
     call log_event("Initialising I/O context", LOG_LEVEL_INFO)
 
@@ -1072,7 +1108,7 @@ contains
     ! for models with global land mass included (i.e GAL)
     call init_altitude( orography_twod_mesh, surface_altitude )
 
-    call setup_orography_alg( base_mesh_names,                &
+    call setup_orography_alg( modeldb%config, base_mesh_names, &
                               orography_mesh%get_mesh_name(), &
                               chi_inventory,                  &
                               panel_id_inventory,             &
@@ -1211,7 +1247,7 @@ contains
     call prognostic_fields%get_field('exner', exner)
 
     if (write_minmax_tseries) then
-      call minmax_tseries_init('u')
+      call minmax_tseries_init(modeldb%config, 'u')
       call minmax_tseries(modeldb%config, mesh, u, 'u')
     end if
 

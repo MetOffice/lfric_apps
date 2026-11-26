@@ -10,7 +10,7 @@ module gravity_wave_driver_mod
 
   use base_mesh_config_mod,     only: prime_mesh_name
   use driver_modeldb_mod,       only: modeldb_type
-  use constants_mod,            only: i_def, r_def
+  use constants_mod,            only: i_def, r_def, l_def
   use gravity_wave_infrastructure_mod,                           &
                                 only: initialise_infrastructure, &
                                        finalise_infrastructure
@@ -29,11 +29,7 @@ module gravity_wave_driver_mod
   use gravity_wave_alg_mod,     only: gravity_wave_alg_init, &
                                       gravity_wave_alg_step, &
                                       gravity_wave_alg_final
-  use io_config_mod,            only: write_diag,            &
-                                      checkpoint_read,       &
-                                      checkpoint_write,      &
-                                      diagnostic_frequency,  &
-                                      use_xios_io,           &
+  use io_config_mod,            only: write_diag, use_xios_io, &
                                       nodal_output_on_w3
   use io_context_mod,           only: io_context_type
   use sci_checksum_alg_mod,     only: checksum_alg
@@ -77,6 +73,10 @@ contains
   character(*),       intent(in)    :: program_name
   type(modeldb_type), intent(inout) :: modeldb
 
+  logical(l_def) :: checkpoint_read
+
+  checkpoint_read  = modeldb%config%io%checkpoint_read()
+
   ! Initialise aspects of the infrastructure
   call initialise_infrastructure( program_name, modeldb)
 
@@ -99,7 +99,8 @@ contains
 
   ! Create the prognostic fields
   mesh => mesh_collection%get_mesh(prime_mesh_name)
-  call create_gravity_wave_prognostics(mesh, wind, pressure, buoyancy)
+  call create_gravity_wave_prognostics(modeldb%config, mesh, &
+                                       wind, pressure, buoyancy)
 
   ! Initialise prognostic fields
   if (checkpoint_read) then                 ! R ecorded check point to start from
@@ -152,6 +153,9 @@ contains
     character(*),        intent(in)    :: program_name
     class(modeldb_type), intent(inout) :: modeldb
 
+    integer(i_def) :: diagnostic_frequency
+
+    diagnostic_frequency = modeldb%config%io%diagnostic_frequency()
 
     ! Update XIOS calendar if we are using it for diagnostic output or
     ! checkpoint
@@ -201,6 +205,10 @@ contains
 
   character(*),        intent(in)    :: program_name
   class(modeldb_type), intent(inout) :: modeldb
+
+  logical(l_def) :: checkpoint_write
+
+  checkpoint_write = modeldb%config%io%checkpoint_write()
 
   !--------------------------------------------------------------------------
   ! Model finalise

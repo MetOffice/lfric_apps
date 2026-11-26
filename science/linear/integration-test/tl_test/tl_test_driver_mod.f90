@@ -22,8 +22,6 @@ module tl_test_driver_mod
                                          finalise_model_data
   use driver_modeldb_mod,         only : modeldb_type
   use gungho_time_axes_mod,       only : gungho_time_axes_type
-  use section_choice_config_mod,  only : stochastic_physics, &
-                                         stochastic_physics_um
   use io_value_mod,               only : io_value_type
   use io_context_mod,             only : io_context_type
   use log_mod,                    only : log_event,         &

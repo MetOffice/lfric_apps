@@ -52,9 +52,9 @@ contains
       ! Set wind forcing increment output check flags. NOTE: By default the init_diag function
       ! calls below will also initialise the wind increment fields that are requested.
       !
-      output_du_force = init_diag(du_force, 'forcing__du_force')
-      output_dv_force = init_diag(dv_force, 'forcing__dv_force')
-      output_dw_force = init_diag(dw_force, 'forcing__dw_force')
+      output_du_force = init_diag(config, du_force, 'forcing__du_force')
+      output_dv_force = init_diag(config, dv_force, 'forcing__dv_force')
+      output_dw_force = init_diag(config, dw_force, 'forcing__dw_force')
 
       !
       ! Output requested wind forcing increments.

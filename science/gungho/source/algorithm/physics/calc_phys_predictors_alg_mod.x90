@@ -8,14 +8,13 @@
 module calc_phys_predictors_alg_mod
 
   use config_mod,               only: config_type
-  use constants_mod,            only: r_def
+  use constants_mod,            only: r_def, l_def
   use field_mod,                only: field_type
   use field_collection_mod,     only: field_collection_type
   use derived_config_mod,       only: bundle_size
   use model_clock_mod,          only: model_clock_type
   use field_indices_mod,        only: igh_u, igh_t
-  use formulation_config_mod,   only: horizontal_physics_predictor, &
-                                      use_wavedynamics
+  use formulation_config_mod,   only: use_wavedynamics
 
   use sci_mass_matrix_solver_alg_mod, &
                                 only: mass_matrix_solver_alg
@@ -79,6 +78,10 @@ subroutine calc_phys_predictors_alg( config, derived_fields, rhs_np1, rhs_adv, &
 
     type( field_type ) :: du, dtheta, rhsu_np1
     integer( tik )     :: id
+
+    logical(l_def) :: horizontal_physics_predictor
+
+    horizontal_physics_predictor = config%formulation%horizontal_physics_predictor()
 
     if ( LPROF ) call start_timing( id, 'dynamics.phys_predictors' )
 

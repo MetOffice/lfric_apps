@@ -6,6 +6,7 @@
 
 module init_ancils_mod
 
+  use config_mod,                     only : config_type
   use constants_mod,                  only : i_def, l_def, str_def,   &
                                              r_def
   use log_mod,                        only : log_event,         &
@@ -16,7 +17,7 @@ module init_ancils_mod
   use field_mod,                      only : field_type
   use field_parent_mod,               only : read_interface, &
                                              write_interface
-  use io_config_mod,                  only : use_xios_io, checkpoint_read
+  use io_config_mod,                  only : use_xios_io
   use linked_list_mod,                only : linked_list_type
   use lfric_xios_read_mod,            only : read_field_generic
   use lfric_xios_write_mod,           only : write_field_generic
@@ -30,8 +31,7 @@ module init_ancils_mod
   use jules_physics_init_mod,         only : snow_lev_tile
   use jules_surface_types_mod,        only : npft
   use dust_parameters_mod,            only : ndiv
-  use initialization_config_mod,      only : ancil_option,          &
-                                             ancil_option_idealised,&
+  use initialization_config_mod,      only : ancil_option_idealised,&
                                              ancil_option_updating, &
                                              sst_source,            &
                                              sst_source_start_dump, &
@@ -99,24 +99,27 @@ contains
 
   !> @details Organises fields to be read from ancils into ancil_fields
   !           collection then reads them.
+  !> @param[in] config            Application configuration object
   !> @param[in,out] depository    The depository field collection
   !> @param[in,out] ancil_fields  Collection for ancillary fields
   !> @param[in] mesh              The current 3d mesh
   !> @param[in] twod_mesh         The current 2d mesh
   !> @param[in] aerosol_mesh      Aerosol 3d mesh
   !> @param[in] aerosol_twod_mesh Aerosol 2d mesh
-  subroutine create_fd_ancils( depository, ancil_fields, mesh, &
-                               twod_mesh, aerosol_mesh, aerosol_twod_mesh, ancil_times_list )
+  subroutine create_fd_ancils( config, depository, ancil_fields, mesh, twod_mesh, &
+                               aerosol_mesh, aerosol_twod_mesh, ancil_times_list )
 
     implicit none
+
+    type(config_type), intent(in) :: config
+    type(mesh_type),   intent(in) :: mesh
+    type(mesh_type),   intent(in) :: twod_mesh
 
     type( field_collection_type ), intent( inout ) :: depository
     type( field_collection_type ), intent( inout )   :: ancil_fields
 
-    type( mesh_type ), intent(in), pointer :: mesh
-    type( mesh_type ), intent(in), pointer :: twod_mesh
-    type( mesh_type ), intent(in), pointer :: aerosol_mesh
-    type( mesh_type ), intent(in), pointer :: aerosol_twod_mesh
+    type( mesh_type ), intent(in) :: aerosol_mesh
+    type( mesh_type ), intent(in) :: aerosol_twod_mesh
 
     type(linked_list_type), intent(out) :: ancil_times_list
 
@@ -174,6 +177,12 @@ contains
 
     ! Time axis options
     logical(l_def),   parameter :: interp_flag=.true.
+
+    integer(i_def) :: ancil_option
+    logical(l_def) :: checkpoint_read
+
+    ancil_option    = config%initialization%ancil_option()
+    checkpoint_read = config%io%checkpoint_read()
 
     ! Set up ancil_fields collection
     write(log_scratch_space,'(A,A)') "Create ancil fields: "// &
@@ -878,20 +887,27 @@ contains
 
   !> @details Organises fields to be read from ancils into ancil_fields
   !           collection then reads them in an idealised setup.
+  !> @param[in] config    Application configuration object
   !> @param[in,out] depository The depository field collection
   !> @param[in,out] ancil_fields Collection for ancillary fields
   !> @param[in] mesh      The current 3d mesh
   !> @param[in] twod_mesh The current 2d mesh
-  subroutine create_fd_ancils_idealised( depository, ancil_fields, &
+  subroutine create_fd_ancils_idealised( config, depository, ancil_fields, &
                                          mesh, twod_mesh )
 
     implicit none
 
+    type(config_type), intent(in) :: config
+
     type( field_collection_type ), intent( inout ) :: depository
     type( field_collection_type ), intent( inout ) :: ancil_fields
 
-    type( mesh_type ), intent(in), pointer :: mesh
-    type( mesh_type ), intent(in), pointer :: twod_mesh
+    type( mesh_type ), intent(in) :: mesh
+    type( mesh_type ), intent(in) :: twod_mesh
+
+    integer(i_def) :: ancil_option
+
+    ancil_option = config%initialization%ancil_option()
 
     ! Set up ancil_fields collection
     write(log_scratch_space,'(A,A)') "Create ancil fields: "// &
@@ -1007,14 +1023,16 @@ contains
     character(*),                   intent(in)          :: name
     type( field_collection_type ),  intent(inout)       :: depository
     type( field_collection_type ),  intent(inout)       :: ancil_fields
-    type( mesh_type ),    pointer,  intent(in)          :: mesh
-    type( mesh_type ),    pointer,  intent(in)          :: twod_mesh
+
+    type(mesh_type), intent(in) :: mesh
+    type(mesh_type), intent(in) :: twod_mesh
+
     logical(l_def),       optional, intent(in)          :: twod
     integer(i_def),       optional, intent(in)          :: ndata
     logical(l_def),       optional, intent(in)          :: ndata_first
     type(time_axis_type), optional, intent(inout)       :: time_axis
-    type( mesh_type ), optional, pointer, intent(in)    :: alt_mesh
-    type( mesh_type ), optional, pointer, intent(in)    :: alt_twod_mesh
+    type( mesh_type ),    optional, intent(in)          :: alt_mesh
+    type( mesh_type ),    optional, intent(in)          :: alt_twod_mesh
 
     ! Local variables
     type(field_type)          :: new_field

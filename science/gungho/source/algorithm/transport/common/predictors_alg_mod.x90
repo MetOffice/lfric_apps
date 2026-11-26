@@ -16,7 +16,7 @@ module predictors_alg_mod
 
   ! Constants and types
   use config_mod,                 only: config_type
-  use constants_mod,              only: r_def
+  use constants_mod,              only: r_def, l_def
   use sci_fem_constants_mod,      only: get_im3_div_fe, &
                                         get_im3_div_fv
   use field_indices_mod,          only: igh_u, igh_d
@@ -28,8 +28,7 @@ module predictors_alg_mod
 
   ! Configurations
   use derived_config_mod,         only: bundle_size
-  use formulation_config_mod,     only: horizontal_transport_predictor, &
-                                        si_momentum_equation
+  use formulation_config_mod,     only: si_momentum_equation
   use transport_config_mod,       only: use_density_predictor, &
                                         cap_density_predictor
 
@@ -91,6 +90,10 @@ contains
 
     ! Divergence operator
     type(operator_type), pointer :: im3_div => null()
+
+    logical(l_def) :: horizontal_transport_predictor
+
+    horizontal_transport_predictor = config%formulation%horizontal_transport_predictor()
 
     if ( LPROF ) call start_timing( id, "dynamics.transport_predictors")
 

@@ -39,7 +39,7 @@ module orographic_drag_alg_mod
 contains
 
   !> @details Run the orographic drag parametrization scheme
-  !> @param[in]     config                 Application namelist configuration object
+  !> @param[in]     config                 Application configuration object
   !> @param[in,out] du_orographic_drag     Increment to zonal wind field
   !> @param[in,out] dv_orographic_drag     Increment to meridional wind field
   !> @param[in,out] dtheta_orographic_drag Increment to theta field
@@ -146,7 +146,7 @@ contains
 
     ! Initialise orographic drag diagnostics
     call initialise_diags_for_orographic_drag(                              &
-                                theta, u_in_w3,                             &
+                                config, theta, u_in_w3,                     &
                                 taux_orog_blk, tauy_orog_blk,               &
                                 taux_orog_gwd, tauy_orog_gwd)
 

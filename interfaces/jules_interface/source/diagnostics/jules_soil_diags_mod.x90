@@ -7,6 +7,7 @@
 
 module jules_soil_diags_mod
 
+  use config_mod,                  only: config_type
   use constants_mod,               only: l_def, r_def
   use field_mod,                   only: field_type
   use timing_mod,                  only: start_timing, stop_timing, tik, LPROF
@@ -29,6 +30,7 @@ module jules_soil_diags_mod
 contains
 
   !> @brief Initialise fields for locally-computed diagnostics
+  !> @param[in]     config                Application configuration object
   !> @param[in]     soil_moist_sat        Soil moisture content at saturation
   !> @param[in]     tile_fraction         Fraction of surface tiles
   !> @param[in,out] soil_moisture_content Soil moisture content
@@ -36,7 +38,7 @@ contains
   !> @param[in,out] throughfall           Throughfall on tiles
   !> @param[in,out] grid_throughfall      Grid throughfall
 
-  subroutine initialise_diags_for_jules_soil(soil_moist_sat,             &
+  subroutine initialise_diags_for_jules_soil(config, soil_moist_sat,     &
                                          tile_fraction,                  &
                                          soil_moisture_content,          &
                                          grid_canopy_water,              &
@@ -44,6 +46,8 @@ contains
                                          grid_throughfall)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Fields passed in to copy properties from
     type( field_type ), intent(in)    :: soil_moist_sat
@@ -59,15 +63,15 @@ contains
     if ( LPROF ) call start_timing( id, 'diags.jules_soil' )
 
     ! 2D fields
-    soil_moisture_content_flag = init_diag(soil_moisture_content, 'soil__soil_moisture_content')
+    soil_moisture_content_flag = init_diag(config, soil_moisture_content, 'soil__soil_moisture_content')
     if (soil_moisture_content_flag) then
       call invoke(setval_c(soil_moisture_content, 0.0_r_def))
     end if
-    grid_canopy_water_flag = init_diag(grid_canopy_water, 'surface__grid_canopy_water')
-    grid_throughfall_flag = init_diag(grid_throughfall, 'surface__grid_throughfall')
+    grid_canopy_water_flag = init_diag(config, grid_canopy_water, 'surface__grid_canopy_water')
+    grid_throughfall_flag = init_diag(config, grid_throughfall, 'surface__grid_throughfall')
 
     ! surface tiled fields
-    throughfall_flag = init_diag(throughfall, 'surface__throughfall', &
+    throughfall_flag = init_diag(config, throughfall, 'surface__throughfall', &
                                  activate = grid_throughfall_flag)
     ! Initialise field to that sea and sea-ice tiles have zero values
     if (throughfall_flag) call invoke(setval_c(throughfall, 0.0_r_def))

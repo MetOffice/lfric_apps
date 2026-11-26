@@ -9,14 +9,13 @@
 module init_saturated_profile_alg_mod
 
 use config_mod,                      only: config_type
-use constants_mod,                   only: r_def, i_def
+use constants_mod,                   only: r_def, i_def, l_def
 use driver_water_constants_mod,      only: heat_capacity_h2o_vapour, &
                                            heat_capacity_h2o
 use sci_field_bundle_builtins_mod,   only: set_bundle_scalar, clone_bundle
 use field_mod,                       only: field_type
 use formulation_config_mod,          only: moisture_formulation,     &
-                                           moisture_formulation_dry, &
-                                           theta_moist_source
+                                           moisture_formulation_dry
 use function_space_mod,              only: function_space_type
 use sci_geometric_constants_mod,     only: get_coordinates, get_panel_id
 use idealised_config_mod,            only: test, test_bryan_fritsch
@@ -113,6 +112,10 @@ subroutine init_saturated_profile_alg( config, theta, mr, exner, rho, moist_dyn 
   integer(kind=i_def), parameter :: max_outer_iterations = 40
   integer(kind=i_def), parameter :: max_theta_iterations = 3
   integer(kind=i_def), parameter :: max_inner_iterations = 2
+
+  logical(l_def) :: theta_moist_source
+
+  theta_moist_source = config%formulation%theta_moist_source()
 
   call log_event( "Gungho: Using saturated profile initialisation", LOG_LEVEL_INFO )
 

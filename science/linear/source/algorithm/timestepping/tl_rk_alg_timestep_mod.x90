@@ -131,7 +131,7 @@ contains
     implicit none
 
     ! Mesh
-    type(mesh_type), intent(in), pointer :: mesh
+    type(mesh_type), intent(in) :: mesh
 
     ! Prognostic fields
     type( field_type ), intent( in ) :: u, rho, theta, exner

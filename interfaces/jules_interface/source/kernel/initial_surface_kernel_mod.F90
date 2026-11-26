@@ -12,8 +12,10 @@
 module initial_surface_kernel_mod
 
   use argument_mod,  only: arg_type,                  &
-                           GH_FIELD, GH_REAL,         &
-                           GH_WRITE, CELL_COLUMN,     &
+                           GH_FIELD, GH_SCALAR,       &
+                           GH_REAL, GH_INTEGER,       &
+                           GH_READ, GH_WRITE,         &
+                           CELL_COLUMN,               &
                            ANY_DISCONTINUOUS_SPACE_1, &
                            ANY_DISCONTINUOUS_SPACE_2
   use constants_mod, only: r_def, i_def
@@ -28,7 +30,7 @@ module initial_surface_kernel_mod
   use nvegparm, only: emis_nvg
   use pftparm, only: emis_pft
   use jules_sea_seaice_mod, only: emis_sea, emis_sice
-  use section_choice_config_mod, only: surface, surface_jules
+  use section_choice_config_mod, only: surface_jules
 
   implicit none
 
@@ -37,12 +39,13 @@ module initial_surface_kernel_mod
   !> Kernel metadata for Psyclone
   type, public, extends(kernel_type) :: initial_surface_kernel_type
     private
-    type(arg_type) :: meta_args(5) = (/                                    &
-         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_2), &
-         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_2), &
-         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
-         arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1)  &
+    type(arg_type) :: meta_args(6) = (/                                        &
+         arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                             &! surface
+         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_2), &
+         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_2), &
+         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_1), &
+         arg_type(GH_FIELD,  GH_REAL,    GH_WRITE, ANY_DISCONTINUOUS_SPACE_1)  &
          /)
     integer :: operates_on = CELL_COLUMN
   contains
@@ -54,6 +57,7 @@ module initial_surface_kernel_mod
 contains
 
   !> @param[in]     nlayers             The number of layers
+  !> @param[in]     surface             Enumeration for surface section
   !> @param[in,out] tile_fraction       Surface tile fractions
   !> @param[in,out] leaf_area_index     Leaf Area Index
   !> @param[in,out] canopy_height       Canopy height (m)
@@ -66,6 +70,7 @@ contains
   !> @param[in]     undf_pft            Number of total DOFs for PFTs
   !> @param[in]     map_pft             Dofmap for cell for PFTs
   subroutine initial_surface_code(nlayers,                       &
+                                  surface,                       &
                                   tile_fraction,                 &
                                   leaf_area_index,               &
                                   canopy_height,                 &
@@ -75,6 +80,8 @@ contains
                                   ndf_pft, undf_pft, map_pft)
 
     implicit none
+
+    integer(kind=i_def), intent(in) :: surface
 
     ! Arguments
     integer(kind=i_def), intent(in) :: nlayers

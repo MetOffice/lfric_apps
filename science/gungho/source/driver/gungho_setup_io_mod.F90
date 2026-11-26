@@ -10,7 +10,8 @@
 !>
 module gungho_setup_io_mod
 
-  use constants_mod,             only: r_def, i_def, str_def, &
+  use config_mod,                only: config_type
+  use constants_mod,             only: r_def, i_def, str_def, l_def, &
                                        str_max_filename, r_second
   use driver_modeldb_mod,        only: modeldb_type
   use file_mod,                  only: FILE_MODE_READ, &
@@ -25,7 +26,6 @@ module gungho_setup_io_mod
   use model_clock_mod,           only: model_clock_type
   ! Configuration modules
   use files_config_mod,          only: ancil_directory,           &
-                                       checkpoint_stem_name,      &
                                        land_area_ancil_path,      &
                                        orography_mean_ancil_path, &
                                        orography_subgrid_ancil_path,&
@@ -87,8 +87,6 @@ module gungho_setup_io_mod
                                        sst_ancil_path,            &
                                        surface_frac_ancil_path,   &
                                        urban_ancil_path,          &
-                                       start_dump_filename,       &
-                                       start_dump_directory,      &
                                        iau_path,                  &
 #ifdef UM_PHYSICS
                                        iau_pert_path,             &
@@ -106,7 +104,6 @@ module gungho_setup_io_mod
   use initialization_config_mod, only: init_option,               &
                                        init_option_fd_start_dump, &
                                        init_option_checkpoint_dump,&
-                                       ancil_option,              &
                                        ancil_option_start_dump,   &
                                        ancil_option_fixed,        &
                                        ancil_option_idealised,    &
@@ -114,7 +111,6 @@ module gungho_setup_io_mod
                                        lbc_option,                &
                                        lbc_option_gungho_file,    &
                                        lbc_option_um2lfric_file,  &
-                                       ls_option,                 &
                                        ls_option_file,            &
                                        sst_source,                &
                                        sst_source_start_dump,     &
@@ -126,9 +122,6 @@ module gungho_setup_io_mod
                                        snow_source,               &
                                        snow_source_surf
   use io_config_mod,             only: use_xios_io,               &
-                                       diagnostic_frequency,      &
-                                       checkpoint_write,          &
-                                       checkpoint_read,           &
                                        checkpoint_times,          &
                                        end_of_run_checkpoint,     &
                                        write_dump, write_diag,    &
@@ -182,16 +175,18 @@ module gungho_setup_io_mod
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> @brief Adds details of all files-of-interest to a list.
   !>
+  !> @param[in]    config     Application configuration object
   !> @param[out]   files_list Array of lfric_xios_file_type objects.
   !> @param[inout] modeldb    The modeldb holding the model state [unused here
   !>                          but required by the procedure interface]
   !>
-  subroutine init_gungho_files( files_list, modeldb )
+  subroutine init_gungho_files( config, files_list, modeldb )
 
     implicit none
 
-    type(linked_list_type),                intent(out) :: files_list
-    type(modeldb_type), optional,          intent(inout)  :: modeldb
+    type(config_type),            intent(in)    :: config
+    type(linked_list_type),       intent(out)   :: files_list
+    type(modeldb_type), optional, intent(inout) :: modeldb
 
     character(len=str_max_filename) :: checkpoint_write_fname,  &
                                        checkpoint_context_name, &
@@ -216,6 +211,27 @@ module gungho_setup_io_mod
 
     integer(i_def)                  :: theta_forcing
     integer(i_def)                  :: wind_forcing
+
+    character(str_max_filename) :: checkpoint_stem_name
+    character(str_max_filename) :: start_dump_directory
+    character(str_max_filename) :: start_dump_filename
+
+    integer(i_def) :: ancil_option
+    integer(i_def) :: ls_option
+    integer(i_def) :: diagnostic_frequency
+    logical(l_def) :: checkpoint_read
+    logical(l_def) :: checkpoint_write
+
+    checkpoint_stem_name = config%files%checkpoint_stem_name()
+    start_dump_directory = config%files%start_dump_directory()
+    start_dump_filename  = config%files%start_dump_filename()
+
+    ancil_option         = config%initialization%ancil_option()
+    ls_option            = config%initialization%ls_option()
+    checkpoint_read      = config%io%checkpoint_read()
+    checkpoint_write     = config%io%checkpoint_write()
+    diagnostic_frequency = config%io%diagnostic_frequency()
+
     ! Only proceed if XIOS is being used for I/O
     if (.not. use_xios_io) return
 

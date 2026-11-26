@@ -51,7 +51,7 @@ contains
 
   !>@brief         Run the UM RADAER scheme
   !>@details       The UM RADAER scheme calculates required fields for socrates.
-  !>@param[in]     config                Application namelist configuration object
+  !>@param[in]     config                Application configuration object
   !>@param[in]     rho_in_wth            Rho in theta space
   !>@param[in]     radiation_fields      RADAER radiation related fields
   !>@param[in]     theta_in_wth          Potential temperature (theta) wth space
@@ -295,21 +295,24 @@ contains
         call aerosol_fields%get_field('n_cor_ins', n_cor_ins)
         call aerosol_fields%get_field('cor_ins_du', cor_ins_du)
 
-        wth_aero => function_space_collection%get_fs( aerosol_mesh,            &
-                                                      0, 0, WTHETA,            &
-                                                      get_ndata_val('aero_modes') )
+        wth_aero => function_space_collection%get_fs( aerosol_mesh,         &
+                                                      0, 0, WTHETA,         &
+                                                      get_ndata_val(config, &
+                                                                    'aero_modes') )
         call aer_mix_ratio_coarse%initialise(vector_space = wth_aero)
 
-        wth_aero => function_space_collection%get_fs( aerosol_mesh,            &
-                                                      0, 0, WTHETA,            &
-                                                      get_ndata_val('sw_bands_aero_modes') )
+        wth_aero => function_space_collection%get_fs( aerosol_mesh,         &
+                                                      0, 0, WTHETA,         &
+                                                      get_ndata_val(config, &
+                                                                    'sw_bands_aero_modes') )
         call aer_sw_absorption_coarse%initialise(vector_space = wth_aero)
         call aer_sw_scattering_coarse%initialise(vector_space = wth_aero)
         call aer_sw_asymmetry_coarse%initialise(vector_space = wth_aero)
 
-        wth_aero => function_space_collection%get_fs( aerosol_mesh,            &
-                                                      0, 0, WTHETA,            &
-                                                      get_ndata_val('lw_bands_aero_modes') )
+        wth_aero => function_space_collection%get_fs( aerosol_mesh,         &
+                                                      0, 0, WTHETA,         &
+                                                      get_ndata_val(config, &
+                                                                    'lw_bands_aero_modes') )
         call aer_lw_absorption_coarse%initialise(vector_space = wth_aero)
         call aer_lw_scattering_coarse%initialise(vector_space = wth_aero)
         call aer_lw_asymmetry_coarse%initialise(vector_space = wth_aero)
@@ -363,7 +366,8 @@ contains
       end if
 
       ! Initialise radaer diagnostics
-      call initialise_main_diags_for_radaer(  aod_ukca_ait_sol,                &
+      call initialise_main_diags_for_radaer( config,                           &
+                                              aod_ukca_ait_sol,                &
                                              aaod_ukca_ait_sol,                &
                                               aod_ukca_acc_sol,                &
                                              aaod_ukca_acc_sol,                &

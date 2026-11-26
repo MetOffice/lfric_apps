@@ -36,8 +36,7 @@ module calc_dep_pts_alg_mod
 
   ! Configs
   use base_mesh_config_mod,              only: geometry, topology
-  use departure_points_config_mod,       only: horizontal_method,              &
-                                               horizontal_method_euler,        &
+  use departure_points_config_mod,       only: horizontal_method_euler,        &
                                                horizontal_method_timeaverage,  &
                                                horizontal_method_trapezoidal,  &
                                                horizontal_method_midpoint,     &
@@ -165,6 +164,10 @@ contains
     type(r_tran_field_type) :: dep_wind
     type(r_tran_field_type) :: dep_wind_np1
     integer(tik)            :: id
+
+    integer(i_def) :: horizontal_method
+
+    horizontal_method = config%departure_points%horizontal_method()
 
     ! Get function space, mesh, and Det(J) at W3
     w2_fs  => wind_n%get_function_space()

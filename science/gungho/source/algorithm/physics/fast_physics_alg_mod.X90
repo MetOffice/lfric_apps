@@ -6,12 +6,10 @@
 !>@brief Calls to the fast physics schemes
 module fast_physics_alg_mod
 
-  use section_choice_config_mod, only: boundary_layer, boundary_layer_um, &
-                                       convection, convection_um,         &
-                                       surface, surface_jules,            &
-                                       cloud, cloud_um,                   &
-                                       cloud_evap_condense,               &
-                                       stochastic_physics,                &
+  use section_choice_config_mod, only: boundary_layer_um,             &
+                                       convection_um,                 &
+                                       surface_jules,                 &
+                                       cloud_um, cloud_evap_condense, &
                                        stochastic_physics_um
 
   use driver_water_constants_mod, &
@@ -43,8 +41,7 @@ module fast_physics_alg_mod
 
   use formulation_config_mod,                               &
                             only: moisture_formulation,     &
-                                  moisture_formulation_dry, &
-                                  theta_moist_source
+                                  moisture_formulation_dry
   use convection_config_mod,only: cv_scheme, cv_scheme_lambert_lewis, &
                                   cv_scheme_gregory_rowntree,         &
                                   cv_scheme_comorph, llcs_first_outer
@@ -101,7 +98,7 @@ contains
   !>          need converting back to FE representation before being seen
   !>          by the solver. All other prognostics (moisture, cloud, etc)
   !>          are updated in-situ here.
-  !> @param[in]     config              Application namelist configuration object
+  !> @param[in]     config              Application configuration object
   !> @param[in,out] du                  Increment to wind field
   !> @param[in,out] dtheta              Increment to theta field
   !> @param[in,out] mr                  Mixing ratios to be updated
@@ -230,6 +227,18 @@ contains
 
     integer(i_def) :: i_mr
     integer(tik)   :: id
+
+    logical(l_def) :: theta_moist_source
+    integer(i_def) :: boundary_layer, convection
+    integer(i_def) :: surface, cloud
+    integer(i_def) :: stochastic_physics
+
+    theta_moist_source = config%formulation%theta_moist_source()
+    boundary_layer     = config%section_choice%boundary_layer()
+    convection         = config%section_choice%convection()
+    surface            = config%section_choice%surface()
+    cloud              = config%section_choice%cloud()
+    stochastic_physics = config%section_choice%stochastic_physics()
 
     if ( LPROF ) call start_timing( id, 'fast_physics' )
 
@@ -412,7 +421,8 @@ contains
 
         ! Output diagnostics
         if (use_xios_io .and. write_diag) then
-          call output_diags_for_bl_extra(derived_fields, turbulence_fields,   &
+          call output_diags_for_bl_extra(config,                              &
+                                         derived_fields, turbulence_fields,   &
                                          surface_fields, microphysics_fields, &
                                          convection_fields, aerosol_fields,   &
                                          ustar_implicit, rho, mr(imr_s),      &

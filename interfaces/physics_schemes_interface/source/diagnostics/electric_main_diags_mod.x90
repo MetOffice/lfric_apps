@@ -8,6 +8,7 @@
 
 module electric_main_diags_mod
 
+  use config_mod,                 only: config_type
   use constants_mod,              only: l_def
   use field_mod,                  only: field_type
   use timing_mod,                 only: start_timing, stop_timing, tik, LPROF
@@ -25,16 +26,19 @@ module electric_main_diags_mod
 contains
 
   !> @brief Initialise fields for locally-computed electric diagnostics
+  !> @param[in]    config       Application configuration object
   !> @param[inout] gwp          Graupel Water Path [kg m-2]
   !> @param[inout] tiwp         Total Ice Water Path [kg m-2]
   !> @param[inout] total_fr     Total Flash Rate [s-1]
   !> @param[inout] fr1_mc       Flash Rate due to upward graupel flux [s-1]
   !> @param[inout] fr2_mc       Flash Rate due to total column ice [s-1]
   !> @param[inout] storm_field  Binary flag for whether a storm is defined [1/0]
-  subroutine initialise_main_diags_for_electric(gwp, tiwp, total_fr,           &
+  subroutine initialise_main_diags_for_electric(config, gwp, tiwp, total_fr, &
                                                 fr1_mc, fr2_mc, storm_field )
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     type( field_type ), intent(inout) :: gwp
     type( field_type ), intent(inout) :: tiwp
@@ -49,12 +53,12 @@ contains
     !----------------------------------------------------
     if ( LPROF ) call start_timing( id, 'diags.electric' )
 
-    gwp_flag         = init_diag(gwp, 'electric__gwp')
-    tiwp_flag        = init_diag(tiwp, 'electric__tiwp')
-    total_fr_flag    = init_diag(total_fr, 'electric__total_flash_rate')
-    fr1_mc_flag      = init_diag(fr1_mc, 'electric__graupel_flux_flash_rate')
-    fr2_mc_flag      = init_diag(fr2_mc, 'electric__total_column_ice_flash_rate')
-    storm_field_flag = init_diag(storm_field, 'electric__storm_field_indicator')
+    gwp_flag         = init_diag(config, gwp, 'electric__gwp')
+    tiwp_flag        = init_diag(config, tiwp, 'electric__tiwp')
+    total_fr_flag    = init_diag(config, total_fr, 'electric__total_flash_rate')
+    fr1_mc_flag      = init_diag(config, fr1_mc, 'electric__graupel_flux_flash_rate')
+    fr2_mc_flag      = init_diag(config, fr2_mc, 'electric__total_column_ice_flash_rate')
+    storm_field_flag = init_diag(config, storm_field, 'electric__storm_field_indicator')
 
     if ( LPROF ) call stop_timing( id, 'diags.electric' )
 

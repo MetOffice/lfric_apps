@@ -27,8 +27,7 @@ use radiation_config_mod,          only: l_planet_grey_surface, &
                                          planet_emissivity, planet_albedo, &
                                          n_radstep, &
                                          l_inc_radstep, n_inc_radstep
-use section_choice_config_mod,     only: surface, surface_jules, radiation, &
-                                         radiation_socrates
+use section_choice_config_mod,     only: surface_jules, radiation_socrates
 
 use socrates_init_mod, only: wavelength_short, wavelength_long, &
   n_band_exclude, index_exclude, weight_blue, &
@@ -53,7 +52,7 @@ public :: rad_tile_alg
 
 contains
 
-! @param[in]     config                 Application namelist configuration object
+! @param[in]     config                 Application configuration object
 ! @param[in,out] tile_sw_direct_albedo  Tile SW direct albedos
 ! @param[in,out] tile_sw_diffuse_albedo Tile SW diffuse albedos
 ! @param[in,out] tile_swinc_direct_albedo  Tile SWINC direct albedos
@@ -142,7 +141,11 @@ subroutine rad_tile_alg(config,                                              &
   real( kind=r_def ) :: planet_lw_albedo
   integer( tik )     :: id
 
+  integer(i_def) :: radiation
+
   if ( LPROF ) call start_timing( id, 'jules.radiation' )
+
+  radiation = config%section_choice%radiation()
 
   vector_space => function_space_collection%get_fs( &
                     twod_mesh, 0, 0, W3, n_sw_band * n_surf_tile )
@@ -188,7 +191,7 @@ subroutine rad_tile_alg(config,                                              &
                  setval_c(tile_lwinc_albedo,         planet_lw_albedo))
     end if
 
-  else if (surface == surface_jules) then
+  else if (config%section_choice%surface() == surface_jules) then
 
     call orography_fields%get_field('sd_orog', sd_orog)
 

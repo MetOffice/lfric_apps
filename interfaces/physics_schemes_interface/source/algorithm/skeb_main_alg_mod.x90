@@ -95,6 +95,7 @@ contains
   !>         8) Add wind increments to the flow and diagnostics
   !>
   !>         See UMD81 for full scheme details
+  !>@param[in]         config                Application configuration object
   !>@param[in]         du_stph               Stochastic Physics increments for winds
   !>@param[in]         rho                   Density on W3
   !>@param[in]         u                     prognostic winds in W2
@@ -407,8 +408,8 @@ contains
 
     call rho%copy_field_properties(divergence)
     call vorticity%initialise(w1_fs)
-    norm_xi_flag = init_diag(norm_xi, 'stochastic__norm_xi')
-    norm_div_flag = init_diag(norm_div, 'stochastic__norm_div')
+    norm_xi_flag  = init_diag(config, norm_xi, 'stochastic__norm_xi')
+    norm_div_flag = init_diag(config, norm_div, 'stochastic__norm_div')
 
     call invoke( setval_c(divergence, 0.0_r_def),     &
                  setval_c(vorticity,  0.0_r_def) )
@@ -622,11 +623,11 @@ contains
     call psif_hat%write_field('stochastic__psif_hat')
 
     ! Add SKEB rotational winds
-    du_rot_skeb_flag = init_diag(du_rot_skeb, 'stochastic__du_rot_skeb')
-    dv_rot_skeb_flag = init_diag(dv_rot_skeb, 'stochastic__dv_rot_skeb')
+    du_rot_skeb_flag = init_diag(config, du_rot_skeb, 'stochastic__du_rot_skeb')
+    dv_rot_skeb_flag = init_diag(config, dv_rot_skeb, 'stochastic__dv_rot_skeb')
     if (du_rot_skeb_flag .or. dv_rot_skeb_flag) then
-      if (.not. du_rot_skeb_flag) ignore=init_diag(du_rot_skeb, 'stochastic__du_rot_skeb', activate=.true.)
-      if (.not. dv_rot_skeb_flag) ignore=init_diag(dv_rot_skeb, 'stochastic__dv_rot_skeb', activate=.true.)
+      if (.not. du_rot_skeb_flag) ignore=init_diag(config, du_rot_skeb, 'stochastic__du_rot_skeb', activate=.true.)
+      if (.not. dv_rot_skeb_flag) ignore=init_diag(config, dv_rot_skeb, 'stochastic__dv_rot_skeb', activate=.true.)
       ! dw_rot is zero by default, it does not have a xios diagnostic needed
       call du_rot_skeb%copy_field_properties(dw_rot_skeb)
       call map_physics_winds( config, du_rot_skeb, dv_rot_skeb, &
@@ -636,11 +637,11 @@ contains
     end if
 
     ! Add SKEB divergent winds
-    du_div_skeb_flag = init_diag(du_div_skeb, 'stochastic__du_div_skeb')
-    dv_div_skeb_flag = init_diag(dv_div_skeb, 'stochastic__dv_div_skeb')
+    du_div_skeb_flag = init_diag(config, du_div_skeb, 'stochastic__du_div_skeb')
+    dv_div_skeb_flag = init_diag(config, dv_div_skeb, 'stochastic__dv_div_skeb')
     if (du_div_skeb_flag .or. dv_div_skeb_flag) then
-      if (.not. du_div_skeb_flag) ignore=init_diag(du_div_skeb, 'stochastic__du_div_skeb', activate=.true.)
-      if (.not. dv_div_skeb_flag) ignore=init_diag(dv_div_skeb, 'stochastic__dv_div_skeb', activate=.true.)
+      if (.not. du_div_skeb_flag) ignore=init_diag(config, du_div_skeb, 'stochastic__du_div_skeb', activate=.true.)
+      if (.not. dv_div_skeb_flag) ignore=init_diag(config, dv_div_skeb, 'stochastic__dv_div_skeb', activate=.true.)
       ! dw_div is zero by default, no diagnostic needed
       call du_div_skeb%copy_field_properties(dw_div_skeb)
       call map_physics_winds( config, du_div_skeb, dv_div_skeb, &
@@ -650,11 +651,11 @@ contains
     end if
 
     ! Add SKEB total winds
-    du_tot_skeb_flag = init_diag(du_tot_skeb, 'stochastic__du_tot_skeb')
-    dv_tot_skeb_flag = init_diag(dv_tot_skeb, 'stochastic__dv_tot_skeb')
+    du_tot_skeb_flag = init_diag(config, du_tot_skeb, 'stochastic__du_tot_skeb')
+    dv_tot_skeb_flag = init_diag(config, dv_tot_skeb, 'stochastic__dv_tot_skeb')
     if (du_tot_skeb_flag .or. dv_tot_skeb_flag) then
-      if (.not. du_tot_skeb_flag) ignore=init_diag(du_tot_skeb, 'stochastic__du_tot_skeb', activate=.true.)
-      if (.not. dv_tot_skeb_flag) ignore=init_diag(dv_tot_skeb, 'stochastic__dv_tot_skeb', activate=.true.)
+      if (.not. du_tot_skeb_flag) ignore=init_diag(config, du_tot_skeb, 'stochastic__du_tot_skeb', activate=.true.)
+      if (.not. dv_tot_skeb_flag) ignore=init_diag(config, dv_tot_skeb, 'stochastic__dv_tot_skeb', activate=.true.)
       ! dw_tot is zero by default, no diagnostic needed
       call du_tot_skeb%copy_field_properties(dw_tot_skeb)
       call map_physics_winds( config, du_tot_skeb, dv_tot_skeb, &

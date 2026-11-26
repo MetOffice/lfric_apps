@@ -22,7 +22,6 @@ module diagnostics_calc_mod
                                            potential_vorticity_diagnostic_alg
   use io_config_mod,                 only: use_xios_io,          &
                                            nodal_output_on_w3
-  use files_config_mod,              only: diag_stem_name
   use sci_project_output_mod,        only: project_output
   use io_mod,                        only: ts_fname, &
                                            nodal_write_field
@@ -86,8 +85,8 @@ subroutine write_divergence_diagnostic(config, mesh, u_field, clock)
 
   procedure(write_interface), pointer  :: tmp_write_ptr
 
-  if (diagnostic_to_be_sampled('divergence') .or. &
-      diagnostic_to_be_sampled('init_divergence') ) then
+  if (diagnostic_to_be_sampled(config, 'divergence') .or. &
+      diagnostic_to_be_sampled(config, 'init_divergence') ) then
 
     ! Create the divergence diagnostic
     call divergence_diagnostic_alg( config, mesh, div_field, &
@@ -190,15 +189,15 @@ subroutine write_vorticity_diagnostic(config, u_field, exner, clock)
   logical(l_def) :: xi_modlev_flag, plev_xi3_flag
   logical(l_def), parameter :: xi3_axis = .true.
 
-  xi_modlev_flag = diagnostic_to_be_sampled('xi1') .or. &
-                   diagnostic_to_be_sampled('xi2') .or. &
-                   diagnostic_to_be_sampled('xi3') .or. &
-                   diagnostic_to_be_sampled('init_xi1') .or. &
-                   diagnostic_to_be_sampled('init_xi2') .or. &
-                   diagnostic_to_be_sampled('init_xi3')
+  xi_modlev_flag = diagnostic_to_be_sampled(config, 'xi1') .or. &
+                   diagnostic_to_be_sampled(config, 'xi2') .or. &
+                   diagnostic_to_be_sampled(config, 'xi3') .or. &
+                   diagnostic_to_be_sampled(config, 'init_xi1') .or. &
+                   diagnostic_to_be_sampled(config, 'init_xi2') .or. &
+                   diagnostic_to_be_sampled(config, 'init_xi3')
 
 #ifdef UM_PHYSICS
-  plev_xi3_flag = init_diag(plev_xi3, 'plev__xi3')
+  plev_xi3_flag = init_diag(config, plev_xi3, 'plev__xi3')
 #else
   plev_xi3_flag = .false.
 #endif
@@ -299,16 +298,16 @@ subroutine write_pv_diagnostic(config, u_field, theta, rho, exner, &
   logical(l_def), parameter :: xi3_axis = .false.
   logical(l_def), parameter :: add_W3_version = .false.
 
-  pv_modlev_flag = diagnostic_to_be_sampled('potential_vorticity') .or. &
-                   diagnostic_to_be_sampled('init_potential_vorticity')
+  pv_modlev_flag = diagnostic_to_be_sampled(config, 'potential_vorticity') .or. &
+                   diagnostic_to_be_sampled(config, 'init_potential_vorticity')
 
-  plev_pv_flag = init_diag(plev_pv, 'plev__pv')
+  plev_pv_flag = init_diag(config, plev_pv, 'plev__pv')
 
   ! Theta surface and PV surface diagnostics, both of which need PV on
   ! model levels
   pv_surface_flag =                                                     &
-    diagnostic_to_be_sampled('processed__pv_on_theta_levs') .or.        &
-    diagnostic_to_be_sampled('processed__theta_on_pv2')
+    diagnostic_to_be_sampled(config, 'processed__pv_on_theta_levs') .or.        &
+    diagnostic_to_be_sampled(config, 'processed__theta_on_pv2')
 
   if (pv_modlev_flag .or. plev_pv_flag .or. pv_surface_flag) then
 
@@ -318,7 +317,7 @@ subroutine write_pv_diagnostic(config, u_field, theta, rho, exner, &
 
     if (pv_surface_flag) then
       call derived_fields%get_field('theta_in_w3', theta_in_w3)
-      call pv_surface_diags_alg(pv, theta_in_w3)
+      call pv_surface_diags_alg(config, pv, theta_in_w3)
       nullify(theta_in_w3)
     end if
 
@@ -356,8 +355,8 @@ subroutine write_pv_diagnostic(config, u_field, theta, rho, clock)
   logical(l_def) :: pv_modlev_flag
   logical(l_def), parameter :: add_W3_version = .false.
 
-  pv_modlev_flag = diagnostic_to_be_sampled('potential_vorticity') .or. &
-                   diagnostic_to_be_sampled('init_potential_vorticity')
+  pv_modlev_flag = diagnostic_to_be_sampled(config, 'potential_vorticity') .or. &
+                   diagnostic_to_be_sampled(config, 'init_potential_vorticity')
 
   if (pv_modlev_flag) then
 

@@ -34,9 +34,7 @@ module swe_timestep_alg_mod
                                             time_scheme_semi_implicit
   use timing_mod,                     only: start_timing, stop_timing, &
                                             tik, LPROF
-  use timestepping_config_mod,        only: alpha,            &
-                                            outer_iterations, &
-                                            inner_iterations_si
+  use timestepping_config_mod,        only: alpha, outer_iterations
   use transport_config_mod,           only: cheap_update
 
   ! Derived Types
@@ -443,7 +441,12 @@ contains
     type(field_type) :: wind_prev
     integer(tik)     :: id_sw_alg
 
+    integer(i_def), allocatable :: inner_iterations_si(:)
+
     if ( LPROF ) call start_timing( id_sw_alg, 'shallow_water_alg_si' )
+
+    inner_iterations_si = config%timestepping%inner_iterations_si()
+
     !--- Do a single timestep --------------------------------------------------
 
     ! set up state variable

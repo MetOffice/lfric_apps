@@ -61,6 +61,8 @@ module wind_precomputations_alg_mod
                                             get_element_order_v_transport
   use transport_config_mod,           only: native_w2_wind_transport
 
+  use departure_points_config_mod,    only: vertical_method_timeaverage, &
+                                            horizontal_method_ffsl
 
   implicit none
 
@@ -861,8 +863,6 @@ contains
   function get_dep_dist_xy(self, mesh_id, splitting, step, outer_step) result(dep_dist_xy)
 
     use calc_dep_pts_alg_mod,           only: calc_hori_dep_pts
-    use departure_points_config_mod,    only: horizontal_method,               &
-                                              horizontal_method_ffsl
     use transport_config_mod,           only: dep_pt_stencil_extent
 
     implicit none
@@ -890,6 +890,10 @@ contains
     real(kind=r_tran)                                       :: dt_split_step
     real(kind=r_tran)                                       :: dep_min, dep_max
     integer(tik)                                            :: id
+
+    integer(kind=i_def) :: horizontal_method
+
+    horizontal_method = self%config%departure_points%horizontal_method()
 
     ! If departure points calculated using "FFSL" method, get these from the
     ! flux precomputations object
@@ -952,8 +956,6 @@ contains
   function get_dep_dist_z(self, mesh_id, splitting, step) result(dep_dist_z)
 
     use calc_dep_pts_alg_mod,           only: calc_vert_dep_pts
-    use departure_points_config_mod,    only: vertical_method,                 &
-                                              vertical_method_timeaverage
 
     implicit none
 
@@ -974,6 +976,10 @@ contains
     real(kind=r_tran)                                       :: dt_split_step
     logical(kind=l_def)                                     :: compute_dep_cfl
     integer(tik)                                            :: id
+
+    integer(kind=i_def) :: vertical_method
+
+    vertical_method = self%config%departure_points%vertical_method()
 
     ! If departure points calculated using "FFSL" method, get these from the
     ! flux precomputations object
@@ -1270,9 +1276,6 @@ contains
   function get_dep_stencil_extent_xy(self, mesh_id, splitting, step,           &
                                      outer_step) result(dep_stencil_extent)
 
-    use departure_points_config_mod,    only: horizontal_method,               &
-                                              horizontal_method_ffsl
-
     implicit none
 
     class(wind_precomputations_type), target, intent(inout) :: self
@@ -1286,6 +1289,10 @@ contains
     integer(kind=i_def)                                     :: mesh_idx
     integer(kind=i_def)                                     :: frac_idx
     type(r_tran_field_type),                  pointer       :: dep_dist_xy
+
+    integer(kind=i_def) :: horizontal_method
+
+    horizontal_method = self%config%departure_points%horizontal_method()
 
     ! If departure points calculated using "FFSL" method, get these from the
     ! flux precomputations object

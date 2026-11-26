@@ -10,6 +10,7 @@
 
 module conv_diags_mod
 
+  use config_mod,          only: config_type
   use constants_mod,       only: l_def
   use field_mod,           only: field_type
   use timing_mod,          only: start_timing, stop_timing, tik, LPROF
@@ -74,7 +75,8 @@ module conv_diags_mod
 contains
 
   !> @brief Initialise fields for locally-computed diagnostics
-  subroutine initialise_diags_for_conv(rho,                    &
+  subroutine initialise_diags_for_conv(config,                 &
+                                       rho,                    &
                                        zh,                     &
                                        deep_in_col,            & ! 2-D
                                        shallow_in_col,         &
@@ -124,6 +126,8 @@ contains
                                        lowest_cloud_top_icao_height)
 
     implicit none
+
+    type(config_type), intent(in) :: config
 
     ! Fields passed in to copy properties from
     type( field_type ), intent(in)    :: rho, zh
@@ -182,159 +186,159 @@ contains
     if ( LPROF ) call start_timing( id, 'diags.conv' )
 
     ! Convective diagnostics - 2d
-    deep_in_col_flag = init_diag(deep_in_col, 'convection__deep_in_col')
+    deep_in_col_flag = init_diag(config, deep_in_col, 'convection__deep_in_col')
     if (deep_in_col_flag) call invoke( setval_c(deep_in_col, 0.0_r_def) )
 
-    shallow_in_col_flag = init_diag(shallow_in_col, 'convection__shallow_in_col')
+    shallow_in_col_flag = init_diag(config, shallow_in_col, 'convection__shallow_in_col')
     if (shallow_in_col_flag) call invoke( setval_c(shallow_in_col, 0.0_r_def) )
 
-    mid_in_col_flag = init_diag(mid_in_col, 'convection__mid_in_col')
+    mid_in_col_flag = init_diag(config, mid_in_col, 'convection__mid_in_col')
     if (mid_in_col_flag) call invoke( setval_c(mid_in_col, 0.0_r_def) )
 
-    freeze_level_flag = init_diag(freeze_level, 'convection__freeze_level')
+    freeze_level_flag = init_diag(config, freeze_level, 'convection__freeze_level')
     if (freeze_level_flag) call invoke( setval_c(freeze_level, 0.0_r_def) )
 
-    deep_prec_flag = init_diag(deep_prec, 'convection__deep_prec')
+    deep_prec_flag = init_diag(config, deep_prec, 'convection__deep_prec')
     if (deep_prec_flag) call invoke( setval_c(deep_prec, 0.0_r_def) )
 
-    shallow_prec_flag = init_diag(shallow_prec, 'convection__shallow_prec')
+    shallow_prec_flag = init_diag(config, shallow_prec, 'convection__shallow_prec')
     if (shallow_prec_flag) call invoke( setval_c(shallow_prec, 0.0_r_def) )
 
-    mid_prec_flag = init_diag(mid_prec, 'convection__mid_prec')
+    mid_prec_flag = init_diag(config, mid_prec, 'convection__mid_prec')
     if (mid_prec_flag) call invoke( setval_c(mid_prec, 0.0_r_def) )
 
-    deep_term_flag = init_diag(deep_term, 'convection__deep_term')
+    deep_term_flag = init_diag(config, deep_term, 'convection__deep_term')
     if (deep_term_flag) call invoke( setval_c(deep_term, 0.0_r_def) )
 
-    cape_timescale_flag = init_diag(cape_timescale, 'convection__cape_timescale')
+    cape_timescale_flag = init_diag(config, cape_timescale, 'convection__cape_timescale')
     if (cape_timescale_flag) call invoke( setval_c(cape_timescale, 0.0_r_def) )
 
-    lowest_cv_base_flag = init_diag(lowest_cv_base, 'convection__lowest_cv_base')
+    lowest_cv_base_flag = init_diag(config, lowest_cv_base, 'convection__lowest_cv_base')
     ! not zeroed because overwritten
 
-    lowest_cv_top_flag = init_diag(lowest_cv_top, 'convection__lowest_cv_top')
+    lowest_cv_top_flag = init_diag(config, lowest_cv_top, 'convection__lowest_cv_top')
     ! not zeroed because overwritten
 
     ! cv_base and _top are dependencies for chemistry, hence need to be 'active'
     ! cv_base is zeroed because value tested in kernel
     call invoke( setval_c(cv_base, 0.0_r_def) )
 
-    cloud_base_icao_height_flag = init_diag(cloud_base_icao_height, &
+    cloud_base_icao_height_flag = init_diag(config, cloud_base_icao_height, &
       'convection__conv_cloud_base_icao_height')
     ! not zeroed because overwritten
 
-    cloud_top_icao_height_flag = init_diag(cloud_top_icao_height, &
+    cloud_top_icao_height_flag = init_diag(config, cloud_top_icao_height, &
       'convection__conv_cloud_top_icao_height')
     ! not zeroed because overwritten
 
-    pres_cv_base_flag = init_diag(pres_cv_base, 'convection__pres_cv_base', &
+    pres_cv_base_flag = init_diag(config, pres_cv_base, 'convection__pres_cv_base', &
       activate=cloud_base_icao_height_flag)
     ! not zeroed because overwritten
 
-    pres_cv_top_flag = init_diag(pres_cv_top, 'convection__pres_cv_top', &
+    pres_cv_top_flag = init_diag(config, pres_cv_top, 'convection__pres_cv_top', &
       activate=cloud_top_icao_height_flag)
     ! not zeroed because overwritten
 
     lowest_cloud_base_icao_height_flag = init_diag( &
-      lowest_cloud_base_icao_height, &
+      config, lowest_cloud_base_icao_height, &
       'convection__lowest_conv_cloud_base_icao_height')
     ! not zeroed because overwritten
 
     lowest_cloud_top_icao_height_flag = init_diag( &
-      lowest_cloud_top_icao_height, &
+      config, lowest_cloud_top_icao_height, &
       'convection__lowest_conv_cloud_top_icao_height')
     ! not zeroed because overwritten
 
-    pres_lowest_cv_base_flag = init_diag(pres_lowest_cv_base, &
+    pres_lowest_cv_base_flag = init_diag(config, pres_lowest_cv_base, &
       'convection__pres_lowest_cv_base', &
       activate=lowest_cloud_base_icao_height_flag)
     ! not zeroed because overwritten
 
-    pres_lowest_cv_top_flag = init_diag(pres_lowest_cv_top, &
+    pres_lowest_cv_top_flag = init_diag(config, pres_lowest_cv_top, &
       'convection__pres_lowest_cv_top', &
       activate=lowest_cloud_top_icao_height_flag)
     ! not zeroed because overwritten
 
-    lowest_cca_2d_flag = init_diag(lowest_cca_2d, &
+    lowest_cca_2d_flag = init_diag(config, lowest_cca_2d, &
                                    'convection__lowest_cca_2d')
     if (lowest_cca_2d_flag) call invoke( setval_c(lowest_cca_2d, 0.0_r_def) )
 
-    deep_cfl_limited_flag = init_diag(deep_cfl_limited, 'convection__deep_cfl_limited')
+    deep_cfl_limited_flag = init_diag(config, deep_cfl_limited, 'convection__deep_cfl_limited')
     if (deep_cfl_limited_flag) call invoke( setval_c(deep_cfl_limited, 0.0_r_def) )
 
-    mid_cfl_limited_flag = init_diag(mid_cfl_limited, 'convection__mid_cfl_limited')
+    mid_cfl_limited_flag = init_diag(config, mid_cfl_limited, 'convection__mid_cfl_limited')
     if (mid_cfl_limited_flag) call invoke( setval_c(mid_cfl_limited, 0.0_r_def) )
 
     ! Convective diagnostics - 3d  - theta levels
 
-    entrain_up_flag = init_diag(entrain_up, 'convection__entrain_up')
+    entrain_up_flag = init_diag(config, entrain_up, 'convection__entrain_up')
     if (entrain_up_flag) call invoke( setval_c(entrain_up, 0.0_r_def) )
 
-    entrain_down_flag = init_diag(entrain_down, 'convection__entrain_down')
+    entrain_down_flag = init_diag(config, entrain_down, 'convection__entrain_down')
     if (entrain_down_flag) call invoke( setval_c(entrain_down, 0.0_r_def) )
 
-    detrain_up_flag = init_diag(detrain_up, 'convection__detrain_up')
+    detrain_up_flag = init_diag(config, detrain_up, 'convection__detrain_up')
     if (detrain_up_flag) call invoke( setval_c(detrain_up, 0.0_r_def) )
 
-    detrain_down_flag = init_diag(detrain_down, 'convection__detrain_down')
+    detrain_down_flag = init_diag(config, detrain_down, 'convection__detrain_down')
     if (detrain_down_flag) call invoke( setval_c(detrain_down, 0.0_r_def) )
 
-    dd_dt_flag = init_diag(dd_dt, 'convection__dd_dt')
+    dd_dt_flag = init_diag(config, dd_dt, 'convection__dd_dt')
     if (dd_dt_flag) call invoke( setval_c(dd_dt, 0.0_r_def) )
 
-    dd_dq_flag = init_diag(dd_dq, 'convection__dd_dq')
+    dd_dq_flag = init_diag(config, dd_dq, 'convection__dd_dq')
     if (dd_dq_flag) call invoke( setval_c(dd_dq, 0.0_r_def) )
 
-    deep_dt_flag = init_diag(deep_dt, 'convection__deep_dt')
+    deep_dt_flag = init_diag(config, deep_dt, 'convection__deep_dt')
     if (deep_dt_flag) call invoke( setval_c(deep_dt, 0.0_r_def) )
 
-    deep_dq_flag = init_diag(deep_dq, 'convection__deep_dq')
+    deep_dq_flag = init_diag(config, deep_dq, 'convection__deep_dq')
     if (deep_dq_flag) call invoke( setval_c(deep_dq, 0.0_r_def) )
 
-    deep_massflux_flag = init_diag(deep_massflux, 'convection__deep_massflux')
+    deep_massflux_flag = init_diag(config, deep_massflux, 'convection__deep_massflux')
     if (deep_massflux_flag) call invoke( setval_c(deep_massflux, 0.0_r_def) )
 
-    shallow_dt_flag = init_diag(shallow_dt, 'convection__shallow_dt')
+    shallow_dt_flag = init_diag(config, shallow_dt, 'convection__shallow_dt')
     if (shallow_dt_flag) call invoke( setval_c(shallow_dt, 0.0_r_def) )
 
-    shallow_dq_flag = init_diag(shallow_dq, 'convection__shallow_dq')
+    shallow_dq_flag = init_diag(config, shallow_dq, 'convection__shallow_dq')
     if (shallow_dq_flag) call invoke( setval_c(shallow_dq, 0.0_r_def) )
 
-    shallow_massflux_flag = init_diag(shallow_massflux, 'convection__shallow_massflux')
+    shallow_massflux_flag = init_diag(config, shallow_massflux, 'convection__shallow_massflux')
     if (shallow_massflux_flag) call invoke( setval_c(shallow_massflux, 0.0_r_def) )
 
-    mid_dt_flag = init_diag(mid_dt, 'convection__mid_dt')
+    mid_dt_flag = init_diag(config, mid_dt, 'convection__mid_dt')
     if (mid_dt_flag) call invoke( setval_c(mid_dt, 0.0_r_def) )
 
-    mid_dq_flag = init_diag(mid_dq, 'convection__mid_dq')
+    mid_dq_flag = init_diag(config, mid_dq, 'convection__mid_dq')
     if (mid_dq_flag) call invoke( setval_c(mid_dq, 0.0_r_def) )
 
-    mid_massflux_flag = init_diag(mid_massflux, 'convection__mid_massflux')
+    mid_massflux_flag = init_diag(config, mid_massflux, 'convection__mid_massflux')
     if (mid_massflux_flag) call invoke( setval_c(mid_massflux, 0.0_r_def) )
 
-    deep_tops_flag = init_diag(deep_tops, 'convection__deep_tops')
+    deep_tops_flag = init_diag(config, deep_tops, 'convection__deep_tops')
     if (deep_tops_flag) call invoke( setval_c(deep_tops, 0.0_r_def) )
 
-    massflux_up_half_flag = init_diag(massflux_up_half, 'convection__massflux_up_half')
+    massflux_up_half_flag = init_diag(config, massflux_up_half, 'convection__massflux_up_half')
     if (massflux_up_half_flag) call invoke( setval_c(massflux_up_half, 0.0_r_def) )
 
-    massflux_up_cmpta_flag = init_diag(massflux_up_cmpta, 'convection__massflux_up_cmpta')
+    massflux_up_cmpta_flag = init_diag(config, massflux_up_cmpta, 'convection__massflux_up_cmpta')
     if (massflux_up_cmpta_flag) call invoke( setval_c(massflux_up_cmpta, 0.0_r_def) )
     ! zeroed to prevent volatile results
 
-    cca_unadjusted_flag = init_diag(cca_unadjusted, 'convection__cca_unadjusted')
+    cca_unadjusted_flag = init_diag(config, cca_unadjusted, 'convection__cca_unadjusted')
     if (cca_unadjusted_flag) call invoke( setval_c(cca_unadjusted, 0.0_r_def) )
 
-    ccw_unadjusted_flag = init_diag(ccw_unadjusted, 'convection__ccw_unadjusted')
+    ccw_unadjusted_flag = init_diag(config, ccw_unadjusted, 'convection__ccw_unadjusted')
     if (ccw_unadjusted_flag) call invoke( setval_c(ccw_unadjusted, 0.0_r_def) )
 
-    dth_conv_noshal_flag = init_diag(dth_conv_noshal, 'convection__dth_conv_noshal')
+    dth_conv_noshal_flag = init_diag(config, dth_conv_noshal, 'convection__dth_conv_noshal')
 
-    dmv_conv_noshal_flag = init_diag(dmv_conv_noshal, 'convection__dmv_conv_noshal')
+    dmv_conv_noshal_flag = init_diag(config, dmv_conv_noshal, 'convection__dmv_conv_noshal')
 
     ! diagnostic interdependencies
     if (massflux_up_cmpta_flag .and. (.not. massflux_up_half_flag)) then
-      ignore = init_diag(massflux_up_half, 'convection__massflux_up_half', activate=.true.)
+      ignore = init_diag(config, massflux_up_half, 'convection__massflux_up_half', activate=.true.)
       call invoke( setval_c(massflux_up_half, 0.0_r_def) )
     end if
     if ((                         &
@@ -342,7 +346,7 @@ contains
       dth_conv_noshal_flag .or.   &
       dmv_conv_noshal_flag)       &
       .and. (.not. shallow_in_col_flag)) then
-      ignore = init_diag(shallow_in_col, 'convection__shallow_in_col', activate=.true.)
+      ignore = init_diag(config, shallow_in_col, 'convection__shallow_in_col', activate=.true.)
       call invoke( setval_c(shallow_in_col, 0.0_r_def) )
     end if
 

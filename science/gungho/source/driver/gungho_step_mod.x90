@@ -39,7 +39,7 @@ module gungho_step_mod
   use minmax_tseries_mod,             only : minmax_tseries
   use model_clock_mod,                only : model_clock_type
   use mr_indices_mod,                 only : nummr
-  use section_choice_config_mod,      only : cloud, cloud_um
+  use section_choice_config_mod,      only : cloud_um
   use sum_fluxes_alg_mod,             only : sum_fluxes_alg
   use moisture_conservation_alg_mod,  only : moisture_conservation_alg
   use moisture_fluxes_alg_mod,        only : moisture_fluxes_alg
@@ -107,7 +107,11 @@ module gungho_step_mod
     logical( l_def ) :: use_moisture
     integer( tik )   :: id
 
+    integer(i_def) :: cloud
+
     if ( LPROF ) call start_timing( id, 'gungho_timestep' )
+
+    cloud = modeldb%config%section_choice%cloud()
 
     write( log_scratch_space, '("/", A, "\ ")' ) repeat( "*", 76 )
     call log_event( log_scratch_space, LOG_LEVEL_TRACE )

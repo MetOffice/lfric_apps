@@ -714,12 +714,14 @@ contains
     ! Set energy_field to have the same properties as height_w3
     call height_w3%copy_field_properties(energy_field)
 
-    dry_mass_flag = init_diag(tot_col_dry_air_mass,'processed__tot_col_dry_air_mass')
-    wet_mass_flag = init_diag(tot_col_wetplusdry_mass,'processed__tot_col_wetplusdry_mass')
-    encorr_flag = init_diag(tot_col_encorr,'processed__tot_col_encorr')
+    dry_mass_flag = init_diag(config, tot_col_dry_air_mass,'processed__tot_col_dry_air_mass')
+    wet_mass_flag = init_diag(config, tot_col_wetplusdry_mass,'processed__tot_col_wetplusdry_mass')
+    encorr_flag = init_diag(config, tot_col_encorr,'processed__tot_col_encorr')
 
     if (encorr_flag .or. wet_mass_flag) then
-      if (.not. dry_mass_flag) ignore = init_diag(tot_col_dry_air_mass,'processed__tot_col_dry_air_mass', activate=.true.)
+      if (.not. dry_mass_flag) then
+        ignore = init_diag(config, tot_col_dry_air_mass,'processed__tot_col_dry_air_mass', activate=.true.)
+      end if
     end if
 
     if (dry_mass_flag .or. encorr_flag .or. wet_mass_flag) then
@@ -749,10 +751,11 @@ contains
 
     do i_mr = 1, nummr
 
-      X_mass_flag = init_diag(tot_col_moist_mass(i_mr),'processed__tot_col_'//trim(mr_names(i_mr)))
+      X_mass_flag = init_diag(config, tot_col_moist_mass(i_mr),'processed__tot_col_'//trim(mr_names(i_mr)))
       if (wet_mass_flag) then
-        if (.not. X_mass_flag) &
-             ignore = init_diag(tot_col_moist_mass(i_mr),'processed__tot_col_'//trim(mr_names(i_mr)), activate=.true.)
+        if (.not. X_mass_flag) then
+          ignore = init_diag(config, tot_col_moist_mass(i_mr),'processed__tot_col_'//trim(mr_names(i_mr)), activate=.true.)
+        end if
       end if
 
       if (wet_mass_flag .or. X_mass_flag) then
@@ -779,7 +782,7 @@ contains
       call tot_col_wetplusdry_mass%write_field()
     end if
 
-    if (init_diag(tot_col_int_energy,'processed__tot_col_int_energy') .and. use_xios_io) then
+    if (init_diag(config, tot_col_int_energy,'processed__tot_col_int_energy') .and. use_xios_io) then
 
       call derived_fields%get_field( 'theta_in_w3', theta_in_w3 )
       ! Set up the air_temperature field then calculate it
@@ -795,7 +798,7 @@ contains
 
     end if
 
-    if (init_diag(tot_col_pot_energy,'processed__tot_col_pot_energy') .and. use_xios_io) then
+    if (init_diag(config, tot_col_pot_energy,'processed__tot_col_pot_energy') .and. use_xios_io) then
 
       ! Set height field as energy_field then calculate column potential energy
       call invoke( setval_X(energy_field, height_w3), &
@@ -807,7 +810,7 @@ contains
 
     end if
 
-    if (init_diag(tot_col_pot_energy_gr,'processed__tot_col_pot_energy_gr') .and. use_xios_io) then
+    if (init_diag(config, tot_col_pot_energy_gr,'processed__tot_col_pot_energy_gr') .and. use_xios_io) then
 
       ! Use geopotential to calculate potential energy from planet centre
       ! This requires the normalised geopotential (zero at the surface)
@@ -825,7 +828,7 @@ contains
 
     end if
 
-    if (init_diag(tot_col_uv_kinetic_energy,'processed__tot_col_uv_kinetic_energy') .and. use_xios_io) then
+    if (init_diag(config, tot_col_uv_kinetic_energy,'processed__tot_col_uv_kinetic_energy') .and. use_xios_io) then
 
       call derived_fields%get_field( 'u_in_w3', u_in_w3 )
       call derived_fields%get_field( 'v_in_w3', v_in_w3 )
@@ -844,7 +847,7 @@ contains
 
     end if
 
-    if (init_diag(tot_col_w_kinetic_energy,'processed__tot_col_w_kinetic_energy') .and. use_xios_io) then
+    if (init_diag(config, tot_col_w_kinetic_energy,'processed__tot_col_w_kinetic_energy') .and. use_xios_io) then
 
       call derived_fields%get_field( 'w_in_w3', w_in_w3 )
       call invoke( setval_c(energy_field, 0.0_r_def),                                  &
@@ -869,8 +872,9 @@ contains
   !!          zero. The diagnostic's primary use is in long, climate runs where
   !!          it is averaged in time to help indicate whether the model has any
   !!          stability problems.
+  !> @param[in] config    Application configuration object
   !> @param[in] w_in_wth  3D vertical velocity field seen by the model physics
-  subroutine calc_wbig_diagnostic_alg( w_in_wth )
+  subroutine calc_wbig_diagnostic_alg(config, w_in_wth )
 
     use calc_wbig_kernel_mod,             only: calc_wbig_kernel_type
     use io_config_mod,                    only: write_diag, use_xios_io
@@ -880,12 +884,13 @@ contains
     implicit none
 
     ! Set up necessary fields
-    type(field_type), intent(in) :: w_in_wth
+    type(config_type), intent(in) :: config
+    type(field_type),  intent(in) :: w_in_wth
 
     type(field_type) :: wbig
 
     ! Create diagnostic if requested
-    if (init_diag(wbig, 'processed__wbig') .and. use_xios_io) then
+    if (init_diag(config, wbig, 'processed__wbig') .and. use_xios_io) then
 
       call invoke( calc_wbig_kernel_type(w_in_wth, wbig) )
       call wbig%write_field()
@@ -896,24 +901,27 @@ contains
 !=============================================================================!
   !> @brief Calculate the pressure from the exner function and output it as
   !>        a diagnostic
-  !> @param[in] exner The exner function (Pa)
-  subroutine pressure_diag_alg(exner)
+  !> @param[in] config  Application configuration object
+  !> @param[in] exner   The exner function (Pa)
+  subroutine pressure_diag_alg(config, exner)
 
     use planet_config_mod, only: p_zero, one_over_kappa
     use io_config_mod,     only: use_xios_io
 
     implicit none
 
-    type(field_type), intent(in) :: exner
+    type(config_type), intent(in) :: config
+    type(field_type),  intent(in) :: exner
+
     type(field_type)             :: pressure
     integer(i_def)               :: fs
     logical                      :: pressure_flag
 
     fs = exner%which_function_space()
     if (fs == W3) then
-      pressure_flag = init_diag(pressure, 'processed__pressure_in_w3')
+      pressure_flag = init_diag(config, pressure, 'processed__pressure_in_w3')
     else if (fs == Wtheta) then
-      pressure_flag = init_diag(pressure, 'processed__pressure_in_wth')
+      pressure_flag = init_diag(config, pressure, 'processed__pressure_in_wth')
     end if
 
     if (pressure_flag .and. use_xios_io) then

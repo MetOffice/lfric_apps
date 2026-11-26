@@ -19,7 +19,7 @@ module atl_si_timestep_alg_mod
                                                  use_physics, use_wavedynamics
   use mixed_solver_config_mod,             only: guess_np1, reference_reset_time
   use timestepping_config_mod,             only: alpha, spinup_alpha, &
-                                                 outer_iterations, inner_iterations_si
+                                                 outer_iterations
   use linear_config_mod,                   only: fixed_ls,                 &
                                                  l_stabilise_bl,           &
                                                  n_bl_levels_to_stabilise, &
@@ -183,8 +183,7 @@ contains
        ! The linearisation state is evolved, and the intermediate iterations
        ! are used to calculate the evolution of the perturbation.
        self%ls_outer_iterations = outer_iterations
-       if (.not. allocated(self%ls_inner_iterations)) allocate(self%ls_inner_iterations(outer_iterations))
-       self%ls_inner_iterations(:) = inner_iterations_si(:)
+       self%ls_inner_iterations = self%config%timestepping%inner_iterations_si()
     end if
 
     allocate(self%state(bundle_size))
@@ -357,7 +356,11 @@ contains
     character(len=str_def)                             :: prime_mesh_name
     integer(tik)                                       :: id
 
+    integer(kind=i_def), allocatable :: inner_iterations_si(:)
+
     if ( LPROF ) call start_timing( id, 'atl_semi_implicit_timestep' )
+
+    inner_iterations_si = self%config%timestepping%inner_iterations_si()
 
     cast_dt = real( modeldb%clock%get_seconds_per_step(), r_def )
 

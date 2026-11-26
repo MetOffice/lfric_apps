@@ -417,7 +417,7 @@ subroutine radiation_alg(config, dtheta_rad, theta, exner, mr, moist_dyn,     &
   ! ------------------------------------
   ! Initialise the radiation diagnostics
   ! ------------------------------------
-  call initialise_diags_for_radiation(lw_down_surf, lw_heating_rate, &
+  call initialise_diags_for_radiation(config, lw_down_surf, lw_heating_rate, &
     lw_up_surf, sw_up_surf, lw_up_toa, sw_up_toa, sw_direct_toa, &
     sw_direct_rts, sw_down_rts, sw_up_rts, lw_down_rts, lw_up_rts, &
     sw_direct_band_rts, sw_down_band_rts, sw_up_band_rts, &
@@ -704,7 +704,7 @@ subroutine radiation_alg(config, dtheta_rad, theta, exner, mr, moist_dyn,     &
   ! Output diagnostics
   ! ------------------
   if (write_diag .and. use_xios_io) then
-    call output_diags_for_radiation( dtheta_rad, &
+    call output_diags_for_radiation( config, dtheta_rad, &
       lw_down_surf, sw_down_surf, sw_direct_surf, &
       sw_down_blue_surf, sw_direct_blue_surf, &
       sw_heating_rate, lw_heating_rate, &

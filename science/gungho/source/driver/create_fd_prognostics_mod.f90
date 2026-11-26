@@ -9,6 +9,7 @@
 
 module create_fd_prognostics_mod
 
+  use config_mod,                     only : config_type
   use constants_mod,                  only : i_def
   use field_mod,                      only : field_type
   use field_parent_mod,               only : read_interface, &
@@ -23,8 +24,7 @@ module create_fd_prognostics_mod
                                              LOG_LEVEL_ERROR
   use mesh_mod,                       only : mesh_type
   use init_ancils_mod,                only : setup_ancil_field
-  use initialization_config_mod,      only : ancil_option,                &
-                                             ancil_option_start_dump,     &
+  use initialization_config_mod,      only : ancil_option_start_dump,     &
                                              ancil_option_fixed,          &
                                              ancil_option_updating,       &
                                              read_w2h_wind,               &
@@ -44,7 +44,7 @@ module create_fd_prognostics_mod
 
   use aerosol_config_mod,             only : glomap_mode, &
                                              glomap_mode_dust_and_clim
-  use section_choice_config_mod,      only : aerosol, aerosol_um
+  use section_choice_config_mod,      only : aerosol_um
 
   implicit none
   private
@@ -53,17 +53,19 @@ module create_fd_prognostics_mod
 contains
   !>@brief Routine to create a field collection for finite difference
   !>       prognostic fields
+  !> @param[in] config      Application configuration object
   !> @param[in] mesh        The mesh
   !> @param[in] twod_mesh   The current 2d mesh
   !> @param[in,out] fd_field_collection The collection object to store fields in
   !> @param[in,out] depository The depository field collection
-  subroutine create_fd_prognostics( mesh, twod_mesh, fd_field_collection, &
+  subroutine create_fd_prognostics( config, mesh, twod_mesh, fd_field_collection, &
                                     depository)
 
     implicit none
 
-    type( mesh_type ), intent(in), pointer     :: mesh
-    type( mesh_type ), intent(in), pointer     :: twod_mesh
+    type(config_type), intent(in) :: config
+    type( mesh_type ), intent(in) :: mesh
+    type( mesh_type ), intent(in) :: twod_mesh
 
     type(field_collection_type), intent(inout) :: fd_field_collection
     type(field_collection_type), intent(inout) :: depository
@@ -84,6 +86,12 @@ contains
     type( field_type ) :: mcl_in_wtheta   ! Cloud liquid mix ratio
     type( field_type ) :: mcf_in_wtheta   ! Clould ice mix ratio
     type( field_type ) :: mr_in_wtheta    ! Rain mix ratio
+
+    integer(i_def) :: ancil_option
+    integer(i_def) :: aerosol
+
+    ancil_option = config%initialization%ancil_option()
+    aerosol      = config%section_choice%aerosol()
 
     call log_event( 'Physics: Creating Finite Difference prognostics...', LOG_LEVEL_INFO )
 
