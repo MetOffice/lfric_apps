@@ -3,6 +3,9 @@
 ! The file LICENCE, distributed with this code, contains details of the terms
 ! under which the code may be used.
 !-----------------------------------------------------------------------------
+! Some of the content of this file has been produced with the assistance of
+! Anthropic Claude Opus 5.5 (Claude Code).
+!-----------------------------------------------------------------------------
 !> @brief Routine for controlling transport of the potential temperature field.
 
 module theta_transport_alg_mod
@@ -17,7 +20,9 @@ module theta_transport_alg_mod
   use extrusion_mod,                  only: SHIFTED
   use field_mod,                      only: field_type
   use flux_precomputations_alg_mod,   only: flux_precomputations_type
-  use formulation_config_mod,         only: theta_moist_source
+  use formulation_config_mod,         only: theta_moist_source, variable_cp,   &
+                                            cp_law_ref, cp_law_t0,             &
+                                            cp_law_exponent
   use fs_continuity_mod,              only: Wtheta, W2
   use function_space_mod,             only: function_space_type
   use function_space_collection_mod,  only: function_space_collection
@@ -39,6 +44,8 @@ module theta_transport_alg_mod
                                             get_num_split_steps,               &
                                             get_dry_config
   use theta_moist_source_kernel_mod,  only: theta_moist_source_kernel_type
+  use theta_variable_cp_source_kernel_mod,                                     &
+                                      only: theta_variable_cp_source_kernel_type
   use timestepping_config_mod,        only: time_method => method,             &
                                             method_semi_implicit
   use transport_config_mod,           only: theta_variable,                    &
@@ -349,6 +356,69 @@ contains
                                                   mr_out(imr_s),               &
                                                   mr_out(imr_g),               &
                                                   dt, cp, Rd) )
+    end if
+
+    ! ------------------------------------------------------------------------ !
+    ! Apply variable heat capacity source term if desired
+    ! ------------------------------------------------------------------------ !
+
+    if ( variable_cp ) then
+      if (.not. use_shifted_mesh()) then
+        call log_event(                                                        &
+                'Variable heat capacity source term for theta requires ' //    &
+                'the shifted mesh', LOG_LEVEL_ERROR                            &
+        )
+      end if
+      if (element_order_h > 0 .or. element_order_v > 0) then
+        call log_event(                                                        &
+                'Variable heat capacity source term for theta not ' //         &
+                'implemented for higher-order elements', LOG_LEVEL_ERROR       &
+        )
+      end if
+
+      mesh => theta_out_rdef%get_mesh()
+      shifted_mesh => mesh_collection%get_mesh(mesh, SHIFTED)
+
+      ! Get wind on shifted mesh
+      w2_sh_fs => function_space_collection%get_fs(shifted_mesh, 0, 0, W2)
+      wind => transport_controller%get_transporting_wind()
+      call wind_shifted%initialise( w2_sh_fs )
+      call map_w2_to_sh_w2_alg_rtran(wind_shifted, wind)
+
+      ! Get divergence on shifted mesh
+      detj_at_w3 => get_detj_at_w3_r_tran(config, shifted_mesh)
+      call div_u_rtran%initialise( detj_at_w3%get_function_space() )
+      call invoke( fv_divergence_3d_kernel_type(div_u_rtran,                   &
+                                                wind_shifted, detj_at_w3) )
+
+      ! Convert divergence to rdef precision
+      call div_u%initialise( detj_at_w3%get_function_space() )
+      call invoke( real_to_real_x(div_u, div_u_rtran) )
+
+      ! Obtain the dry density at the end of transport, in Wtheta
+      wt_fs => theta_out_rdef%get_function_space()
+      flux_precomputations => transport_controller%get_flux_precomputations()
+      counter => transport_controller%get_transport_counter()
+      num_dry_steps = (                                                        &
+          get_num_split_steps(splitting(get_dry_config()))                     &
+          * counter%get_num_substeps()                                         &
+      )
+      rho_out_rtran => flux_precomputations%get_ref_field(                     &
+          mesh%get_id(), num_dry_steps + 1                                     &
+      )
+      w3_fs => rho_out_rtran%get_function_space()
+      call rho_out_w3%initialise( w3_fs )
+      call rho_out_wt%initialise( wt_fs )
+      call invoke( real_to_real_x(rho_out_w3, rho_out_rtran) )
+      call map_physics_scalars(config, rho_out_wt, rho_out_w3)
+
+      dt = real(counter%get_dt_substep() * counter%get_num_substeps(), r_def)
+
+      call invoke( theta_variable_cp_source_kernel_type(theta_out_rdef, div_u, &
+                                                        rho_out_wt, dt, cp,    &
+                                                        Rd, p_zero,            &
+                                                        cp_law_ref, cp_law_t0, &
+                                                        cp_law_exponent) )
     end if
 
     ! ------------------------------------------------------------------------ !

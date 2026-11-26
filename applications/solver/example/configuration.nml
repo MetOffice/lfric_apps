@@ -47,6 +47,7 @@ coord_system='native',
   init_exner_bt         = .false.
   theta_moist_source    = .false.
   si_momentum_equation  = .false.
+  variable_cp           = .false.
   vector_invariant      = .true.
 /
 

@@ -306,6 +306,7 @@ theta_moist_source    = .false.
 use_multires_coupling = .false.,
 use_physics           = .false.,
 use_wavedynamics      = .false.,
+variable_cp           = .false.,
 vector_invariant      = .false.,
 /
 

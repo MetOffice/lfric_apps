@@ -172,6 +172,7 @@ horizontal_physics_predictor=.false.
 horizontal_transport_predictor=.false.
 use_multires_coupling=.false.
 l_multigrid=.false.
+variable_cp=.false.
 /
 &departure_points
 horizontal_limit='cap',
