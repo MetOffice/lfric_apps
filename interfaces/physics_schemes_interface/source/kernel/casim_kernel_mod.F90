@@ -1000,6 +1000,8 @@ subroutine casim_code( nlayers,                     &
         ! Copy updated precip fraction to output
         precfrac(map_wth(1) + k) = precfrac_casim(k,1,1)
       end do
+      ! Copy k=1 value to set k=0
+      precfrac(map_wth(1) + 0) = precfrac(map_wth(1) + 1)
     end if
 
     if (l_refl_1km) then
