@@ -9,11 +9,13 @@
                       'module purge ; '~
                       'module use /home/users/lfricadmin/lmod' %}
 
-{% set azspice_compiler_gnu = 'module load lfric/vn3.3' %}
+{% set azspice_compiler_gnu = 'module load lfric/vn3.3 ; '~
+                              'module load xios/3.0.7.2' %}
 
-{% set azspice_oasis_gnu = 'module load xios/2.2701-oasis ; '~
-                           'module load oasis' %}
 
+{% set azspice_oasis_gnu = 'module load xios/3.0.7.2-oasis ; '~
+                           'module load oasis'%}
+                           
 {% set azspice_run = 'ulimit -s unlimited' %}
 
 {% set azspice_scitools = 'module load scitools/production-os48-1' %}

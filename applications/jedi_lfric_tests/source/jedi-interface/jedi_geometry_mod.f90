@@ -34,6 +34,7 @@ module jedi_geometry_mod
   use jedi_lfric_io_setup_mod,       only : initialise_io
   use lfric_mpi_mod,                 only : lfric_mpi_type, &
                                             lfric_comm_type
+  use lfric_xios_context_mod,        only : lfric_xios_context_type
   use log_mod,                       only : log_event, LOG_LEVEL_ERROR
   use mesh_mod,                      only : mesh_type
   use mesh_collection_mod,           only : mesh_collection
@@ -78,6 +79,9 @@ contains
 
   !> IO Setup
   procedure, private :: setup_io
+
+  !> IO context finalization to control order
+  procedure, public  :: finalise_io_context
 
   !> Finalizer
   final             :: jedi_geometry_destructor
@@ -301,6 +305,27 @@ function get_io_setup_increment(self) result(io_setup_increment)
   io_setup_increment = self%io_setup_increment
 
 end function get_io_setup_increment
+
+!! TODO: Move the context to a separate object similar to lfric-jedi so it
+!!       can be finalised at the end of the program.
+!> @brief    Finalise the geometry IO context
+subroutine finalise_io_context(self)
+
+  implicit none
+
+  class( jedi_geometry_type ), intent(inout) :: self
+
+  if (allocated(self%io_context)) then
+    select type(context_ptr => self%io_context)
+      type is (lfric_xios_context_type)
+        call context_ptr%set_current()
+        call context_ptr%finalise_xios_context()
+      class default
+        call log_event('Unsupported IO context type in finalise_io_context', LOG_LEVEL_ERROR)
+    end select
+  end if
+
+end subroutine finalise_io_context
 
 !> @brief    Private method to setup the IO for the application
 !>

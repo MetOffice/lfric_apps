@@ -96,10 +96,23 @@ module init_altitude_mod
           read_ptr => read_field_generic
           call surface_altitude%set_read_behaviour(read_ptr)
 
-          write(log_scratch_space,'(A,A)') "Initialise surface altitude: "// &
-                "Read surface altitude from ancil."
-          call log_event(log_scratch_space, LOG_LEVEL_INFO)
-          call surface_altitude%read_field(trim(adjustl(surface_altitude%get_name())))
+          if (orog_init_option == orog_init_option_ancil) then
+
+            write(log_scratch_space,'(A,A)') "Initialise surface altitude: "// &
+                  "Read surface altitude from ancil."
+            call log_event(log_scratch_space, LOG_LEVEL_INFO)
+
+            call surface_altitude%read_field(trim(adjustl(surface_altitude%get_name())))
+
+          else if ( orog_init_option == orog_init_option_start_dump) then
+
+            write(log_scratch_space,'(A,A)') "Initialise surface altitude: "// &
+                  "Read surface altitude from start dump."
+            call log_event(log_scratch_space, LOG_LEVEL_INFO)
+
+            call surface_altitude%read_field(trim(adjustl('read_' // surface_altitude%get_name())))
+
+          end if
 
           ! Write behaviour also set up for diagnostic output of altitude if required
           tmp_write_ptr => write_field_generic
