@@ -61,7 +61,7 @@
         "gungho_model_skamarock_klemp_gw_p0-BiP300x8-1000x2000_cascade_ifx_fast-debug-64bit",
         "gungho_model_skamarock_klemp_gw_p1-BiP75x4-4000x2000_cascade_ifx_fast-debug-64bit",
         "gungho_model_straka_200m-BiP256x8-200x200_cascade_ifx_fast-debug-64bit",
-        "gungho_model_straka_200m-alt1-BiP256x4-200x200_cascade_ifx_fast-debug-64bit",
+        "gungho_model_straka_200m-alt1-BiP256x4-200x200_cascade_ifx_fast-debug-64bit-rsolver64",
         "gungho_model_straka_200m-alt2-BiP256x16-200x50_op_cascade_ifx_fast-debug-64bit",
         "gungho_model_straka_200m-alt3-BiP256x8-200x200_cascade_ifx_fast-debug-64bit-rtran32",
         "gungho_model_tidally-locked-earth-C24s_rot_MG_cascade_ifx_fast-debug-64bit",
