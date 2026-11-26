@@ -130,20 +130,20 @@ fixed_length_header(data_set_format_version) = 20
 fixed_length_header(sub_model) = 1 ! Atmosphere
 fixed_length_header(vert_coord_type) = 5 ! Charney Phillips
 fixed_length_header(horiz_grid_type) = um_grid % horiz_grid_type
-fixed_length_header(dataset_type) = 1 ! Dump
+fixed_length_header(dataset_type) = lfric2um_config%dataset_type ! 1 if unset
 fixed_length_header(run_identifier) = 0 ! Undefined
 fixed_length_header(grid_staggering) = 6 ! Only Arakawa C - ENDGame supported
 fixed_length_header(calendar) = 1 ! Gregorian
 fixed_length_header(projection_number) = 1 ! Lat/lon grid
 fixed_length_header(model_version) = lfric2um_config%um_version_int
 
-! Data time of forecast, set equal to validity time
-fixed_length_header(t1_year) = lfric2um_config%dump_validity_time(1)
-fixed_length_header(t1_month) = lfric2um_config%dump_validity_time(2)
-fixed_length_header(t1_day) = lfric2um_config%dump_validity_time(3)
-fixed_length_header(t1_hour) = lfric2um_config%dump_validity_time(4)
-fixed_length_header(t1_minute) = lfric2um_config%dump_validity_time(5)
-fixed_length_header(t1_second) = lfric2um_config%dump_validity_time(6)
+! Data time of forecast
+fixed_length_header(t1_year) = lfric2um_config%dump_data_time(1)
+fixed_length_header(t1_month) = lfric2um_config%dump_data_time(2)
+fixed_length_header(t1_day) = lfric2um_config%dump_data_time(3)
+fixed_length_header(t1_hour) = lfric2um_config%dump_data_time(4)
+fixed_length_header(t1_minute) = lfric2um_config%dump_data_time(5)
+fixed_length_header(t1_second) = lfric2um_config%dump_data_time(6)
 ! Validity time of data
 fixed_length_header(t2_year) = lfric2um_config%dump_validity_time(1)
 fixed_length_header(t2_month) = lfric2um_config%dump_validity_time(2)
@@ -169,6 +169,8 @@ end subroutine lfric2um_set_fixed_length_header
 
 subroutine lfric2um_set_integer_constants(um_output_file, um_grid, lfric_mesh)
 
+use lfric2um_namelists_mod,          only: lfric2um_config
+
 implicit none
 
 type(shum_file_type), intent(in out) :: um_output_file
@@ -188,8 +190,8 @@ int_constants(ih_soilT_levels) = 4
 int_constants(ih_soilQ_levels) = int_constants(ih_soilT_levels)
 int_constants(ih_cloud_levels) = lfric_mesh%get_nlayers()
 int_constants(ih_tracer_levels) = lfric_mesh%get_nlayers()
-! hardcode for now, doesn't exist as a concept in lfric yet
-int_constants(ih_boundary_levels) = 29
+! read in from namelist, doesn't exist as a concept in lfric yet
+int_constants(ih_boundary_levels) = lfric2um_config%boundary_levels
 int_constants(ih_height_gen) = 2 ! Smooth height generation method
 ! hardcode for now - doesn't exist in lfric yet
 int_constants(ih_1_c_rho_level) = 30
