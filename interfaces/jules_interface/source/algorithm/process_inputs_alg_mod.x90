@@ -8,15 +8,16 @@ module process_inputs_alg_mod
 
   use config_mod,           only: config_type
   use field_collection_mod, only: field_collection_type
-  use field_mod,            only: field_type
+  use field_mod,            only: field_type, field_proxy_type
   use fs_continuity_mod,    only: W3
   use mesh_mod,             only: mesh_type
   use mesh_collection_mod,  only: mesh_collection
   use integer_field_mod,    only: integer_field_type
-  use constants_mod,        only: i_def
+  use constants_mod,        only: i_def, str_def
 
   use initialization_config_mod,  only: sst_source, sst_source_start_dump, &
                                         init_option, init_option_fd_start_dump, &
+                                        init_option_fe_start_dump, &
                                         snow_source, snow_source_surf, &
                                         sea_ice_source, &
                                         sea_ice_source_start_dump, &
@@ -35,6 +36,7 @@ module process_inputs_alg_mod
                                   only: initial_ice_conductivity_kernel_type
   use jules_snow_mod,             only: nsmax
   use jules_control_init_mod,     only: n_land_tile, &
+                                        n_surf_tile, &
                                         first_sea_tile, n_sea_tile, &
                                         first_sea_ice_tile, n_sea_ice_tile
   use jules_sea_seaice_config_mod, only: amip_ice_thick
@@ -45,7 +47,9 @@ module process_inputs_alg_mod
   use sci_geometric_constants_mod,      &
                                   only: get_latitude_fv
   use log_mod,                    only: log_event, log_scratch_space,  &
-                                        LOG_LEVEL_ERROR
+                                        LOG_LEVEL_ERROR, LOG_LEVEL_INFO
+
+  use sci_field_minmax_alg_mod,  only : log_field_minmax
 
   implicit none
 
@@ -89,9 +93,10 @@ contains
     type( field_type ), pointer :: tstar_sea_ice    => null()
     type( field_type ), pointer :: land_tile_temp   => null()
     type( field_type ), pointer :: tile_temperature => null()
+    type( field_type ), pointer :: tile_temperature_in => null()
 
     type( field_type ), pointer :: canopy_water => null()
-    type( field_type ), pointer :: can_water_in => null()
+    type( field_type ), pointer :: canopy_water_in => null()
 
     type( field_type ), pointer :: soil_moist_sat    => null()
     type( field_type ), pointer :: soil_moist_wilt   => null()
@@ -105,7 +110,11 @@ contains
     type( field_type ), pointer :: soil_suction_sat => null()
     type( field_type ), pointer :: clapp_horn_b     => null()
     type( field_type ), pointer :: soil_temperature => null()
+    type( field_type ), pointer :: soil_temperature_in => null()
+    
     type( field_type ), pointer :: soil_moisture    => null()
+    type( field_type ), pointer :: soil_moisture_in    => null()
+    
     type( field_type ), pointer :: unfrozen_soil_moisture => null()
     type( field_type ), pointer :: frozen_soil_moisture   => null()
 
@@ -120,6 +129,13 @@ contains
     type( field_type ), pointer :: snow_layer_liq_mass  => null()
     type( field_type ), pointer :: snow_layer_temp      => null()
     type( field_type ), pointer :: snow_layer_rgrain    => null()
+
+    type( field_type ), pointer :: snow_layer_thickness_in => null()
+    type( field_type ), pointer :: snow_layer_ice_mass_in  => null()
+    type( field_type ), pointer :: snow_layer_liq_mass_in  => null()
+    type( field_type ), pointer :: snow_layer_temp_in      => null()
+    type( field_type ), pointer :: snow_layer_rgrain_in    => null()
+    
     type( field_type ), pointer :: tile_snow_mass_in    => null()
     type( field_type ), pointer :: tile_snow_rgrain_in  => null()
     type( field_type ), pointer :: n_snow_layers_in     => null()
@@ -134,12 +150,28 @@ contains
     type( field_type ), pointer :: horizon_angle  => null()
     type( field_type ), pointer :: horizon_aspect => null()
 
+    type( field_type ), pointer :: surface_conductance_in => null()
+    type( field_type ), pointer :: surface_conductance    => null()
+    type( field_type ), pointer :: z0msea_in    => null()
+    type( field_type ), pointer :: z0msea   => null()
+    type( field_type ), pointer :: snow_soot_in    => null()
+    type( field_type ), pointer :: snow_soot   => null()
+
+    type( field_type ), pointer :: soil_sat_frac_in    => null()
+    type( field_type ), pointer :: soil_sat_frac   => null()
+    type( field_type ), pointer :: water_table_in    => null()
+    type( field_type ), pointer :: water_table   => null()
+    type( field_type ), pointer :: wetness_under_soil_in    => null()
+    type( field_type ), pointer :: wetness_under_soil   => null()
+
+    type( field_type ), pointer :: temp_field => null()
+
     type( mesh_type ),  pointer :: mesh
     type( mesh_type ),  pointer :: twod_mesh
     type( field_type ), pointer :: latitude
 
     integer( i_def ) :: n_horizon_angle, n_horizon_layer
-
+       
     if (checkpoint_read) then
       ! This algorithm should only be called on a new run
       ! i.e. checkpoint_read==.false.)
@@ -149,131 +181,252 @@ contains
       call log_event(log_scratch_space, LOG_LEVEL_ERROR)
     end if
 
-    if (surface == surface_jules) then
 
-      ! Only needed on cold start from UM
-      if (init_option == init_option_fd_start_dump) then
-        call ancil_fields%get_field('land_area_fraction', land_area_fraction)
-        call ancil_fields%get_field('land_tile_fraction', land_tile_fraction)
-        call fd_fields%get_field('land_tile_temp', land_tile_temp)
-        call fd_fields%get_field('tstar_sea_ice', tstar_sea_ice)
-        call fd_fields%get_field('can_water_in', can_water_in)
-        call surface_fields%get_field('canopy_water', canopy_water)
-      end if
+    call fd_fields%get_field('canopy_water_in', canopy_water_in)
+    call surface_fields%get_field('canopy_water', canopy_water)
+    call invoke( setval_x(canopy_water, canopy_water_in ))
 
-      ! For coupled models the sea ice fraction usually comes from the input
-      ! dump.
-      ! For atmosphere only models or coupled models with inland lakes it is
-      ! provided by an ancillary file
-      if (sea_ice_source == sea_ice_source_start_dump) then
-        call fd_fields%get_field('sea_ice_fraction', sea_ice_fraction)
-      else
-        call ancil_fields%get_field('sea_ice_fraction', sea_ice_fraction)
-      endif
-      call surface_fields%get_field('sea_ice_thickness', sea_ice_thickness)
-      call surface_fields%get_field('tile_fraction', tile_fraction)
 
-      if (sst_source == sst_source_start_dump) then
-        call fd_fields%get_field('tstar_sea', tstar_sea)
-      else
-        call ancil_fields%get_field('tstar_sea', tstar_sea)
-      end if
-      call surface_fields%get_field('tile_temperature', tile_temperature)
+    call snow_fields%get_field('tile_snow_mass', tile_snow_mass)
+    call snow_fields%get_field('tile_snow_rgrain', tile_snow_rgrain)
+    call snow_fields%get_field('n_snow_layers', n_snow_layers)
+    call snow_fields%get_field('snow_depth', snow_depth)
+    call snow_fields%get_field('snow_under_canopy', snow_under_canopy)
+    call snow_fields%get_field('snowpack_density', snowpack_density)
 
-      if (init_option == init_option_fd_start_dump) then
-        call soil_fields%get_field('soil_moist_sat', soil_moist_sat)
-        call soil_fields%get_field('soil_moist_wilt', soil_moist_wilt)
-        call soil_fields%get_field('mean_topog_index', mean_topog_index)
-        call ancil_fields%get_field('stdev_topog_index', stdev_topog_index)
-        call soil_fields%get_field('a_sat_frac', a_sat_frac)
-        call soil_fields%get_field('c_sat_frac', c_sat_frac)
-        call soil_fields%get_field('a_wet_frac', a_wet_frac)
-        call soil_fields%get_field('c_wet_frac', c_wet_frac)
+    if (snow_source == snow_source_surf) then
+    call ancil_fields%get_field('tile_snow_mass_in', tile_snow_mass_in)
+    call ancil_fields%get_field('tile_snow_rgrain_in', tile_snow_rgrain_in)
+    call ancil_fields%get_field('n_snow_layers_in', n_snow_layers_in)
+    call ancil_fields%get_field('snow_depth_in', snow_depth_in)
+    call ancil_fields%get_field('snow_under_canopy_in', snow_under_canopy_in)
+    call ancil_fields%get_field('snowpack_density_in', snowpack_density_in)
+    else
+    call fd_fields%get_field('tile_snow_mass_in', tile_snow_mass_in)
+    call fd_fields%get_field('tile_snow_rgrain_in', tile_snow_rgrain_in)
+    call fd_fields%get_field('n_snow_layers_in', n_snow_layers_in)
+    call fd_fields%get_field('snow_depth_in', snow_depth_in)
+    call fd_fields%get_field('snow_under_canopy_in', snow_under_canopy_in)
+    call fd_fields%get_field('snowpack_density_in', snowpack_density_in)
+    end if
+ 
+    call invoke( setval_x(tile_snow_mass, tile_snow_mass_in ))
+    call invoke( setval_x(tile_snow_rgrain, tile_snow_rgrain_in ))
+    call invoke( int_multi_insert_kernel_type(n_snow_layers,n_snow_layers_in,&
+                                                   1, n_surf_tile))
+    call invoke( setval_x(snow_depth, snow_depth_in ))
+    call invoke( setval_x(snow_under_canopy, snow_under_canopy_in ))
+    call invoke( setval_x(snowpack_density, snowpack_density_in ))
 
-        call soil_fields%get_field('soil_suction_sat', soil_suction_sat)
-        call soil_fields%get_field('clapp_horn_b', clapp_horn_b)
-        call soil_fields%get_field('soil_temperature', soil_temperature)
-        call soil_fields%get_field('soil_moisture', soil_moisture)
-        call soil_fields%get_field('unfrozen_soil_moisture', unfrozen_soil_moisture)
-        call soil_fields%get_field('frozen_soil_moisture', frozen_soil_moisture)
-      end if
+    if (snow_source == snow_source_surf) then
+    call ancil_fields%get_field('snow_layer_thickness', snow_layer_thickness_in)
+    call ancil_fields%get_field('snow_layer_ice_mass', snow_layer_ice_mass_in)
+    call ancil_fields%get_field('snow_layer_liq_mass', snow_layer_liq_mass_in)
+    call ancil_fields%get_field('snow_layer_temp', snow_layer_temp_in)
+    call ancil_fields%get_field('snow_layer_rgrain', snow_layer_rgrain_in)
+    else
+    call fd_fields%get_field('snow_layer_thickness', snow_layer_thickness_in)
+    call fd_fields%get_field('snow_layer_ice_mass', snow_layer_ice_mass_in)
+    call fd_fields%get_field('snow_layer_liq_mass', snow_layer_liq_mass_in)
+    call fd_fields%get_field('snow_layer_temp', snow_layer_temp_in)
+    call fd_fields%get_field('snow_layer_rgrain', snow_layer_rgrain_in)
+    end if
+    
+    call snow_fields%get_field('snow_layer_thickness', snow_layer_thickness)
+    call snow_fields%get_field('snow_layer_ice_mass', snow_layer_ice_mass)
+    call snow_fields%get_field('snow_layer_liq_mass', snow_layer_liq_mass)
+    call snow_fields%get_field('snow_layer_temp', snow_layer_temp)
+    call snow_fields%get_field('snow_layer_rgrain', snow_layer_rgrain)
 
-      if ( (init_option == init_option_fd_start_dump) .or. &
-            (snow_source == snow_source_surf)) then
-        ! need to add .or. use_surf_analysis here
-        call snow_fields%get_field('tile_snow_mass', tile_snow_mass)
-        call snow_fields%get_field('tile_snow_rgrain', tile_snow_rgrain)
-        call snow_fields%get_field('n_snow_layers', n_snow_layers)
-        call snow_fields%get_field('snow_depth', snow_depth)
-        call snow_fields%get_field('snow_under_canopy', snow_under_canopy)
-        call snow_fields%get_field('snowpack_density', snowpack_density)
-        call snow_fields%get_field('snow_layer_thickness', snow_layer_thickness)
-        call snow_fields%get_field('snow_layer_ice_mass', snow_layer_ice_mass)
-        call snow_fields%get_field('snow_layer_liq_mass', snow_layer_liq_mass)
-        call snow_fields%get_field('snow_layer_temp', snow_layer_temp)
-        call snow_fields%get_field('snow_layer_rgrain', snow_layer_rgrain)
-        call soil_fields%get_field('soil_temperature', soil_temperature)
+    call invoke( setval_x(snow_layer_thickness, snow_layer_thickness_in ))
+    call invoke( setval_x(snow_layer_ice_mass, snow_layer_ice_mass_in ))
+    call invoke( setval_x(snow_layer_liq_mass, snow_layer_liq_mass_in ))
+    call invoke( setval_x(snow_layer_temp, snow_layer_temp_in ))
+    call invoke( setval_x(snow_layer_rgrain, snow_layer_rgrain_in ))
 
-        if (snow_source == snow_source_surf) then
-          call ancil_fields%get_field('tile_snow_rgrain_in', tile_snow_rgrain_in)
-          call ancil_fields%get_field('tile_snow_mass_in', tile_snow_mass_in)
-          call ancil_fields%get_field('snow_under_canopy_in', snow_under_canopy_in)
-          call ancil_fields%get_field('snow_depth_in', snow_depth_in)
-          call ancil_fields%get_field('snowpack_density_in', snowpack_density_in)
-          call ancil_fields%get_field('n_snow_layers_in', n_snow_layers_in)
-        else
-          call fd_fields%get_field('tile_snow_mass_in', tile_snow_mass_in)
-          call fd_fields%get_field('tile_snow_rgrain_in', tile_snow_rgrain_in)
-          call fd_fields%get_field('n_snow_layers_in', n_snow_layers_in)
-          call fd_fields%get_field('snow_depth_in', snow_depth_in)
-          call fd_fields%get_field('snow_under_canopy_in', snow_under_canopy_in)
-          call fd_fields%get_field('snowpack_density_in', snowpack_density_in)
-        end if
-      end if
+    call surface_fields%get_field('tile_temperature', tile_temperature)
+    call fd_fields%get_field('tile_temperature', tile_temperature_in)
+    call invoke( setval_x(tile_temperature, tile_temperature_in))
 
-      nullify(twod_mesh, latitude, mesh)
+    call soil_fields%get_field('soil_temperature', soil_temperature)
+    call fd_fields%get_field('soil_temperature', soil_temperature_in)
+    call invoke( setval_x(soil_temperature, soil_temperature_in))
 
-      twod_mesh => sea_ice_thickness%get_mesh()
-      mesh      => mesh_collection%get_mesh(trim(config%base_mesh%prime_mesh_name()))
-      latitude  => get_latitude_fv(config, twod_mesh, W3)
+    call soil_fields%get_field('soil_moisture', soil_moisture)
+    call fd_fields%get_field('soil_moisture', soil_moisture_in)
+    call invoke( setval_x(soil_moisture, soil_moisture_in))
 
-      ! Surface fields
-      if (init_option == init_option_fd_start_dump) then
-        ! These only need processing when cold-starting from the UM
-        call invoke(process_land_kernel_type( land_area_fraction,             &
-                                            land_tile_fraction,               &
-                                            tile_fraction),                   &
-                  multi_insert_kernel_type(tile_temperature, land_tile_temp,  &
-                                           1, n_land_tile),                   &
-                  multi_insert_kernel_type(tile_temperature, tstar_sea_ice,   &
-                                         first_sea_ice_tile, n_sea_ice_tile ),&
-                  multi_insert_kernel_type(canopy_water, can_water_in,        &
-                                           1, n_land_tile))
-      end if
+    call surface_fields%get_field('z0msea', z0msea)
+    call fd_fields%get_field('z0msea', z0msea_in)
+    call invoke( setval_x(z0msea, z0msea_in))
 
-      ! The time-update so always need processing
-      call invoke(process_ssi_kernel_type( sea_ice_fraction,                  &
-                                           sea_ice_thickness,                 &
-                                           tile_fraction, latitude,           &
-                                           amip_ice_thick, l_couple_sea_ice), &
-                  multi_insert_kernel_type(tile_temperature, tstar_sea,       &
-                                           first_sea_tile, n_sea_tile ))
+    call surface_fields%get_field('surface_conductance', surface_conductance)
+    call fd_fields%get_field('surface_conductance', surface_conductance_in)
+    call invoke( setval_x(surface_conductance, surface_conductance_in))
 
-      ! In a coupled model with inland lakes we need to initialise the sea-ice
-      ! conductivity. This will be overwritten by values from SI3 except at
-      ! lake points.
-      if ((sea_ice_source == sea_ice_source_surf ) .and.                      &
-           (l_couple_sea_ice)) then
-           call surface_fields%get_field('sea_ice_conductivity',              &
-                                          sea_ice_conductivity)
-           call invoke(initial_ice_conductivity_kernel_type(sea_ice_fraction, &
-                                                         sea_ice_thickness,   &
-                                                         sea_ice_conductivity))
-      endif
+    call snow_fields%get_field('snow_soot', snow_soot)
+    call fd_fields%get_field('snow_soot', snow_soot_in)
+    call invoke( setval_x(snow_soot, snow_soot_in))
 
-      ! Soil fields
-      if (init_option == init_option_fd_start_dump) then
-        ! These only need processing when cold-starting from the UM
+    call soil_fields%get_field('soil_sat_frac', soil_sat_frac)
+    call fd_fields%get_field('soil_sat_frac', soil_sat_frac_in)
+    call invoke( setval_x(soil_sat_frac, soil_sat_frac_in))
+
+    call soil_fields%get_field('water_table', water_table)
+    call fd_fields%get_field('water_table', water_table_in)
+    call invoke( setval_x(water_table, water_table_in))
+
+    call soil_fields%get_field('wetness_under_soil', wetness_under_soil)
+    call fd_fields%get_field('wetness_under_soil', wetness_under_soil_in)
+    call invoke( setval_x(wetness_under_soil, wetness_under_soil_in))
+    
+
+    call surface_fields%get_field('tile_fraction', tile_fraction)
+    call ancil_fields%get_field('land_area_fraction', land_area_fraction)
+    call ancil_fields%get_field('land_tile_fraction', land_tile_fraction)
+    call invoke( process_land_kernel_type( land_area_fraction,             &
+                                   land_tile_fraction,               &
+                                   tile_fraction))
+
+    call soil_fields%get_field('soil_moist_sat', soil_moist_sat)
+    call soil_fields%get_field('soil_moist_wilt', soil_moist_wilt)
+    call soil_fields%get_field('mean_topog_index', mean_topog_index)
+    call ancil_fields%get_field('stdev_topog_index', stdev_topog_index)
+    call soil_fields%get_field('a_sat_frac', a_sat_frac)
+    call soil_fields%get_field('c_sat_frac', c_sat_frac)
+    call soil_fields%get_field('a_wet_frac', a_wet_frac)
+    call soil_fields%get_field('c_wet_frac', c_wet_frac)
+    call soil_fields%get_field('soil_suction_sat', soil_suction_sat)
+    call soil_fields%get_field('clapp_horn_b', clapp_horn_b)
+    call soil_fields%get_field('soil_temperature', soil_temperature)
+    call soil_fields%get_field('soil_moisture', soil_moisture)
+    call soil_fields%get_field('unfrozen_soil_moisture', unfrozen_soil_moisture)
+    call soil_fields%get_field('frozen_soil_moisture', frozen_soil_moisture)
+
+!!$    if (surface == surface_jules) then
+!!$
+!!$      ! Only needed on cold start from UM
+!!$      if (init_option == init_option_fd_start_dump) then
+!!$        call ancil_fields%get_field('land_area_fraction', land_area_fraction)
+!!$        call ancil_fields%get_field('land_tile_fraction', land_tile_fraction)
+!!$        call fd_fields%get_field('land_tile_temp', land_tile_temp)
+!!$        call fd_fields%get_field('tstar_sea_ice', tstar_sea_ice)
+!!$        !call fd_fields%get_field('can_water_in', can_water_in)
+!!$        call surface_fields%get_field('canopy_water', canopy_water)
+!!$      end if
+!!$  
+!!$      ! For coupled models the sea ice fraction usually comes from the input
+!!$      ! dump.
+!!$      ! For atmosphere only models or coupled models with inland lakes it is
+!!$      ! provided by an ancillary file
+!!$      if (sea_ice_source == sea_ice_source_start_dump) then
+!!$        call fd_fields%get_field('sea_ice_fraction', sea_ice_fraction)
+!!$      else
+!!$        call ancil_fields%get_field('sea_ice_fraction', sea_ice_fraction)
+!!$      endif
+!!$      call surface_fields%get_field('sea_ice_thickness', sea_ice_thickness)
+!!$      call surface_fields%get_field('tile_fraction', tile_fraction)
+!!$
+!!$      if (sst_source == sst_source_start_dump) then
+!!$        call fd_fields%get_field('tstar_sea', tstar_sea)
+!!$      else
+!!$        call ancil_fields%get_field('tstar_sea', tstar_sea)
+!!$      end if
+!!$
+!!$    !  if (init_option == init_option_fd_start_dump) then
+!!$        call soil_fields%get_field('soil_moist_sat', soil_moist_sat)
+!!$        call soil_fields%get_field('soil_moist_wilt', soil_moist_wilt)
+!!$        call soil_fields%get_field('mean_topog_index', mean_topog_index)
+!!$        call ancil_fields%get_field('stdev_topog_index', stdev_topog_index)
+!!$        call soil_fields%get_field('a_sat_frac', a_sat_frac)
+!!$        call soil_fields%get_field('c_sat_frac', c_sat_frac)
+!!$        call soil_fields%get_field('a_wet_frac', a_wet_frac)
+!!$        call soil_fields%get_field('c_wet_frac', c_wet_frac)
+!!$
+!!$        call soil_fields%get_field('soil_suction_sat', soil_suction_sat)
+!!$        call soil_fields%get_field('clapp_horn_b', clapp_horn_b)
+!!$        call soil_fields%get_field('soil_temperature', soil_temperature)
+!!$        call soil_fields%get_field('soil_moisture', soil_moisture)
+!!$        call soil_fields%get_field('unfrozen_soil_moisture', unfrozen_soil_moisture)
+!!$        call soil_fields%get_field('frozen_soil_moisture', frozen_soil_moisture)
+!!$    !  end if
+!!$
+!!$      if ( (init_option == init_option_fd_start_dump) .or. &
+!!$            (snow_source == snow_source_surf)) then
+!!$        ! need to add .or. use_surf_analysis here
+!!$        call snow_fields%get_field('tile_snow_mass', tile_snow_mass)
+!!$        call snow_fields%get_field('tile_snow_rgrain', tile_snow_rgrain)
+!!$        call snow_fields%get_field('n_snow_layers', n_snow_layers)
+!!$        call snow_fields%get_field('snow_depth', snow_depth)
+!!$        call snow_fields%get_field('snow_under_canopy', snow_under_canopy)
+!!$        call snow_fields%get_field('snowpack_density', snowpack_density)
+!!$        call snow_fields%get_field('snow_layer_thickness', snow_layer_thickness)
+!!$        call snow_fields%get_field('snow_layer_ice_mass', snow_layer_ice_mass)
+!!$        call snow_fields%get_field('snow_layer_liq_mass', snow_layer_liq_mass)
+!!$        call snow_fields%get_field('snow_layer_temp', snow_layer_temp)
+!!$        call snow_fields%get_field('snow_layer_rgrain', snow_layer_rgrain)
+!!$        call soil_fields%get_field('soil_temperature', soil_temperature)
+!!$
+!!$        if (snow_source == snow_source_surf) then
+!!$          call ancil_fields%get_field('tile_snow_rgrain_in', tile_snow_rgrain_in)
+!!$          call ancil_fields%get_field('tile_snow_mass_in', tile_snow_mass_in)
+!!$          call ancil_fields%get_field('snow_under_canopy_in', snow_under_canopy_in)
+!!$          call ancil_fields%get_field('snow_depth_in', snow_depth_in)
+!!$          call ancil_fields%get_field('snowpack_density_in', snowpack_density_in)
+!!$          call ancil_fields%get_field('n_snow_layers_in', n_snow_layers_in)
+!!$        else
+!!$          call fd_fields%get_field('tile_snow_mass_in', tile_snow_mass_in)
+!!$          call fd_fields%get_field('tile_snow_rgrain_in', tile_snow_rgrain_in)
+!!$          call fd_fields%get_field('n_snow_layers_in', n_snow_layers_in)
+!!$          call fd_fields%get_field('snow_depth_in', snow_depth_in)
+!!$          call fd_fields%get_field('snow_under_canopy_in', snow_under_canopy_in)
+!!$          call fd_fields%get_field('snowpack_density_in', snowpack_density_in)
+!!$        end if
+!!$      end if
+!!$
+!!$      nullify(twod_mesh, latitude, mesh)
+!!$
+!!$      twod_mesh => sea_ice_thickness%get_mesh()
+!!$      mesh      => mesh_collection%get_mesh(trim(config%base_mesh%prime_mesh_name()))
+!!$      latitude  => get_latitude_fv(config, twod_mesh, W3)
+!!$
+!!$      ! Surface fields
+!!$      if (init_option == init_option_fd_start_dump) then
+!!$        ! These only need processing when cold-starting from the UM
+!!$        call invoke(process_land_kernel_type( land_area_fraction,             &
+!!$                                            land_tile_fraction,               &
+!!$                                            tile_fraction),                   &
+!!$                  multi_insert_kernel_type(tile_temperature, land_tile_temp,  &
+!!$                                           1, n_land_tile),                   &
+!!$                  multi_insert_kernel_type(tile_temperature, tstar_sea_ice,   &
+!!$                                         first_sea_ice_tile, n_sea_ice_tile ),&
+!!$                  multi_insert_kernel_type(canopy_water, canopy_water_in,        &
+!!$                                           1, n_land_tile))
+!!$      end if
+!!$
+!!$      ! The time-update so always need processing
+!!$      call invoke(process_ssi_kernel_type( sea_ice_fraction,                  &
+!!$                                           sea_ice_thickness,                 &
+!!$                                           tile_fraction, latitude,           &
+!!$                                           amip_ice_thick, l_couple_sea_ice), &
+!!$                  multi_insert_kernel_type(tile_temperature, tstar_sea,       &
+!!$                                           first_sea_tile, n_sea_tile ))
+!!$
+!!$      ! In a coupled model with inland lakes we need to initialise the sea-ice
+!!$      ! conductivity. This will be overwritten by values from SI3 except at
+!!$      ! lake points.
+!!$      if ((sea_ice_source == sea_ice_source_surf ) .and.                      &
+!!$           (l_couple_sea_ice)) then
+!!$           call surface_fields%get_field('sea_ice_conductivity',              &
+!!$                                          sea_ice_conductivity)
+!!$           call invoke(initial_ice_conductivity_kernel_type(sea_ice_fraction, &
+!!$                                                         sea_ice_thickness,   &
+!!$                                                         sea_ice_conductivity))
+!!$      endif
+!!$
+!!$      ! Soil fields
+!!$ !     if (init_option == init_option_fd_start_dump) then
+!!$        ! These only need processing when cold-starting from the UM
         call invoke(process_soil_kernel_type( soil_moist_sat,                 &
                                             soil_moist_wilt,                  &
                                             mean_topog_index,                 &
@@ -288,38 +441,39 @@ contains
                                             soil_moisture,                    &
                                             unfrozen_soil_moisture,           &
                                             frozen_soil_moisture))
-      end if
-
-      ! Snow fields
-      if ((init_option == init_option_fd_start_dump) .or. &
-            (snow_source == snow_source_surf)) then
-        ! These only need processing when cold-starting from the UM
-        call invoke(multi_insert_kernel_type(tile_snow_mass, tile_snow_mass_in,&
-                                              1, n_land_tile),                   &
-                      int_multi_insert_kernel_type(n_snow_layers,n_snow_layers_in,&
-                                                   1, n_land_tile),               &
-                      multi_insert_kernel_type(snow_depth, snow_depth_in,         &
-                                               1, n_land_tile),                   &
-                      multi_insert_kernel_type(tile_snow_rgrain,                  &
-                                             tile_snow_rgrain_in, 1, n_land_tile),&
-                      multi_insert_kernel_type(snow_under_canopy,                 &
-                                            snow_under_canopy_in, 1, n_land_tile),&
-                      multi_insert_kernel_type(snowpack_density,                  &
-                                             snowpack_density_in, 1, n_land_tile), &
-                      process_snow_kernel_type(tile_snow_mass, n_snow_layers,      &
-                                               snow_under_canopy, snowpack_density,&
-                                               snow_depth, snow_layer_thickness,   &
-                                               snow_layer_ice_mass,                &
-                                               snow_layer_liq_mass,                &
-                                               snow_layer_temp, snow_layer_rgrain, &
-                                               soil_temperature) )
-      end if
-
-    end if
+!!$      end if
+!!$
+!!$      ! Snow fields
+!!$   !   if ((init_option == init_option_fd_start_dump) .or. &
+!!$   !         (snow_source == snow_source_surf)) then
+!!$        ! These only need processing when cold-starting from the UM
+!!$        call invoke(multi_insert_kernel_type(tile_snow_mass, tile_snow_mass_in,&
+!!$                                              1, n_land_tile),                   &
+!!$                      int_multi_insert_kernel_type(n_snow_layers,n_snow_layers_in,&
+!!$                                                   1, n_land_tile),               &
+!!$                      multi_insert_kernel_type(snow_depth, snow_depth_in,         &
+!!$                                               1, n_land_tile),                   &
+!!$                      multi_insert_kernel_type(tile_snow_rgrain,                  &
+!!$                                             tile_snow_rgrain_in, 1, n_land_tile),&
+!!$                      multi_insert_kernel_type(snow_under_canopy,                 &
+!!$                                            snow_under_canopy_in, 1, n_land_tile),&
+!!$                      multi_insert_kernel_type(snowpack_density,                  &
+!!$                                             snowpack_density_in, 1, n_land_tile), &
+!!$                      process_snow_kernel_type(tile_snow_mass, n_snow_layers,      &
+!!$                                               snow_under_canopy, snowpack_density,&
+!!$                                               snow_depth, snow_layer_thickness,   &
+!!$                                               snow_layer_ice_mass,                &
+!!$                                               snow_layer_liq_mass,                &
+!!$                                               snow_layer_temp, snow_layer_rgrain, &
+!!$                                               soil_temperature) )
+!!$    !  end if
+!!$
+!!$    end if
 
     if (radiation == radiation_socrates .and. &
         topography /= topography_flat .and. &
-        init_option == init_option_fd_start_dump) then
+        (init_option == init_option_fd_start_dump .or. &
+         init_option == init_option_fe_start_dump) ) then
 
       call ancil_fields%get_field('grad_x_orog', grad_x_orog)
       call ancil_fields%get_field('grad_y_orog', grad_y_orog)
@@ -341,7 +495,167 @@ contains
         slope_angle, slope_aspect, skyview, horizon_angle, horizon_aspect, &
         n_horizon_angle, n_horizon_layer))
 
-    end if
+   end if
+
+   call surface_fields%get_field('chloro_sea', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'chloro_sea', temp_field)
+
+   call surface_fields%get_field('sea_ice_thickness', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'sea_ice_thickness', temp_field)
+
+   call surface_fields%get_field('sea_ice_temperature', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'sea_ice_temperature', temp_field)
+
+   call surface_fields%get_field('gc_tile', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'gc_tile', temp_field)
+
+   call surface_fields%get_field('surface_conductance', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'surface_conductance', temp_field)
+
+   call surface_fields%get_field('canopy_water', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'canopy_water', temp_field)
+
+   call surface_fields%get_field('snowice_sublimation', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'snowice_sublimation', temp_field)
+
+   call surface_fields%get_field('snowice_melt', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'snowice_melt', temp_field)
+
+   call surface_fields%get_field('z0m_tile', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'z0m_tile', temp_field)
+
+   call surface_fields%get_field('tile_heat_flux', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'tile_heat_flux', temp_field)
+
+   call surface_fields%get_field('tile_moisture_flux', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'tile_moisture_flux', temp_field)
+
+   call surface_fields%get_field('net_prim_prod', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'net_prim_prod', temp_field)
+
+   call surface_fields%get_field('screen_temperature', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'screen_temperature', temp_field)
+
+   call surface_fields%get_field('time_since_transition', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'time_since_transition', temp_field)
+
+   call surface_fields%get_field('tile_fraction', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'tile_fraction', temp_field)
+
+   call surface_fields%get_field('leaf_area_index', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'leaf_area_index', temp_field)
+
+   call surface_fields%get_field('leaf_area_index', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'leaf_area_index', temp_field)
+
+   call surface_fields%get_field('canopy_height', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'canopy_height', temp_field)
+
+   call surface_fields%get_field('tile_temperature', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'tile_temperature', temp_field)
+
+   call surface_fields%get_field('tile_lw_grey_albedo', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'tile_lw_grey_albedo', temp_field)
+
+   call surface_fields%get_field('sea_ice_conductivity', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'sea_ice_conductivity', temp_field)
+
+   call surface_fields%get_field('melt_pond_fraction', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'melt_pond_fraction', temp_field)
+
+   call surface_fields%get_field('melt_pond_depth', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'melt_pond_depth', temp_field)
+
+   call surface_fields%get_field('surf_ht_flux', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'surf_ht_flux', temp_field)
+
+   call surface_fields%get_field('sea_u_current', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'sea_u_current', temp_field)
+
+   call surface_fields%get_field('sea_v_current', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'sea_v_current', temp_field)
+
+   call surface_fields%get_field('sea_current_w2', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'sea_current_w2', temp_field)
+
+   !call surface_fields%get_field('ocn_cpl_point', temp_field)
+   !call log_field_minmax(LOG_LEVEL_INFO, 'ocn_cpl_point', temp_field)
+
+   call surface_fields%get_field('wspd10m', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'wspd10m', temp_field)
+
+
+   call soil_fields%get_field('soil_albedo', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'soil_albedo', temp_field)
+
+   call soil_fields%get_field('soil_moist_wilt', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'soil_moist_wilt', temp_field)
+
+   call soil_fields%get_field('soil_moist_crit', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'soil_moist_crit', temp_field)
+
+   call soil_fields%get_field('soil_moist_sat', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'soil_moist_sat', temp_field)
+
+   call soil_fields%get_field('soil_cond_sat', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'soil_cond_sat', temp_field)
+
+   call soil_fields%get_field('soil_thermal_cap', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'soil_thermal_cap', temp_field)
+   
+   call soil_fields%get_field('soil_suction_sat', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'soil_suction_sat', temp_field)
+
+   call soil_fields%get_field('clapp_horn_b', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'clapp_horn_b', temp_field)
+
+   call soil_fields%get_field('soil_roughness', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'soil_roughness', temp_field)
+
+   call soil_fields%get_field('mean_topog_index', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'mean_topog_index', temp_field)
+
+   call soil_fields%get_field('a_sat_frac', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'a_sat_frac', temp_field)
+
+   call soil_fields%get_field('c_sat_frac', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'c_sat_frac', temp_field)
+
+   call soil_fields%get_field('a_wet_frac', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'a_wet_frac', temp_field)
+
+   call soil_fields%get_field('c_wet_frac', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'c_wet_frac', temp_field)
+
+   call soil_fields%get_field('surface_runoff', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'surface_runoff', temp_field)
+
+   call soil_fields%get_field('sub_surface_runoff', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'sub_surface_runoff', temp_field)
+
+   call soil_fields%get_field('inland_basin_flow', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'inland_basin_flow', temp_field)
+
+   call soil_fields%get_field('soil_sat_frac', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'soil_sat_frac', temp_field)
+
+   call soil_fields%get_field('water_table', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'water_table', temp_field)
+
+   call soil_fields%get_field('wetness_under_soil', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'wetness_under_soil', temp_field)
+   
+   call soil_fields%get_field('unfrozen_soil_moisture', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'unfrozen_soil_moisture', temp_field)
+
+   call soil_fields%get_field('frozen_soil_moisture', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'frozen_soil_moisture', temp_field)
+
+   call soil_fields%get_field('soil_temperature', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'soil_temperature', temp_field)
+
+   call soil_fields%get_field('soil_moisture', temp_field)
+   call log_field_minmax(LOG_LEVEL_INFO, 'soil_moisture', temp_field)
 
   end subroutine process_inputs_alg
 
