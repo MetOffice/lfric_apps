@@ -1506,13 +1506,16 @@
 {% if task_ns.conf_name.startswith("nwp_gal10-C896_MG_op_720t_opDiag_interleaved") %}
 
     {% do task_dict.update({
+
         "interleaved": true,
+        "mpi_parts": 4704,
         "task_ranks_per_node": 168,
         "use_xios": true,
         "xios_nodes": 0,
         "mpi_parts_xios": 168,
         "xios_ppn": 6,
         "xios_depth": 4,
+
     }) %}
 
 {% endif %}

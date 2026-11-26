@@ -96,16 +96,20 @@ Setting Environment variables for ``Segregated Server I/O`` mode:
 Interleaved Server I/O
 ++++++++++++++++++++++
 
-``Interleaved Server I/O`` configurations places application and I/O server ranks across nodes, with individual nodes hosting a mixture of application and I/O processes.
+``Interleaved Server I/O`` configurations place application and I/O server
+ranks across nodes, with individual nodes hosting a mixture of application and
+I/O processes.
 
-Interleaving is a more complicated job layout on the high performance computer, it commonly requires targeted configuration using the job scheduler for the target HPC.
+Interleaving is a more complicated job layout on the high performance computer,
+it commonly requires targeted configuration using the job scheduler for the
+target HPC.
 
-Interleaving can provide a further I/O performance benefit.  This is due to two different
-performance limitations:
+Interleaving can provide a further I/O performance benefit.  This is due to two
+different performance limitations:
 
 * MPI Network communication
     * Messages between application ranks and I/O ranks use the interconnect and
-      networking implementation on the HPC.  Interleaving reduces the node by node
+      networking implementation on the HPC.  Interleaving reduces the node-by-node
       messaging load, with fewer data offload messages being sent to each node in the
       configuration (compared to a small number of segregated  I/O nodes, which must
       receive all of the data offloads).
@@ -125,9 +129,8 @@ which configure the launch command based on the controlling environment variable
 Suites and tests may use this launch script and provide environment variables
 to configure the ``mpiexec`` command.
 
-Setting Environment variables for ``Segregated Server I/O`` mode:
-
-* ``XIOS_SERVER_MODE=True``
+Uniform Interleaving
+####################
 
 
 Launch Commands and Job Schedulers
