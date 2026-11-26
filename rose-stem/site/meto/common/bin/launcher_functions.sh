@@ -96,14 +96,15 @@ function utils::validate_env () {
 
 function utils::validate_interleaving_vars () {
     # Interleaving requires the following variables:
-    # EXEC_LABELS               A space-separated list of executable names in MPMD order. Names are case-insensitive.
+    # EXEC_LABELS               A space-separated list of executable names in
+    #                           MPMD order. Names are case-insensitive.
 
     # For each name listed in EXEC_LABELS, the following are required (all uppercase):
+    # <EXEC>_TOTAL_RANKS        The total number of ranks the executable will use.
     # <EXEC>_RANKS_PER_NODE     The number of MPI ranks to give the executable.
     # <EXEC>_RANK_DEPTH         The number of CPUs to allocate to each MPI rank.
     # <EXEC>_OMP_NUM_THREADS    The number of OpenMP threads the executable will use.
     # <EXEC>_PATH               The path to use for the executable.
-    # <EXEC>_TOTAL_RANKS        The total number of ranks the executable will use.
 
     # 0. Validate that we are on a valid platform for interleaving
     # ------------------------------------------------------------

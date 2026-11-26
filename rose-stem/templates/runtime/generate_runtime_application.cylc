@@ -202,4 +202,8 @@
     {% include "templates/runtime/coupled_task_environment.cylc" %}
 {% endif %}
 
+{% if task_values["interleaved"] %}
+    {% include "templates/runtime/interleaved_task_environment.cylc" %}
+{% endif %}
+
 {% do LOG.debug("Finished in templates/runtime/generate_runtime_application.cylc") %}
