@@ -817,12 +817,6 @@ subroutine create_model_data( modeldb,           &
         call moist_dyn_factors_alg( moist_dyn_array%bundle, &
                                     mr_array%bundle )
 
-        if ( .not. shallow ) then
-          call shallow_to_deep( modeldb%config,    &
-                                prognostic_fields, &
-                                moist_dyn_array%bundle )
-        end if
-
       case ( init_option_fd_start_dump )
 
         if (use_physics) then
@@ -873,9 +867,25 @@ subroutine create_model_data( modeldb,           &
 
       case ( init_option_fe_start_dump )
         ! Initialise FE prognostic fields from an FE dump
-        ! Not yet supported
-        call log_event("Gungho: Prognostic initialisation from an FE dump not yet supported, "// &
-                          "stopping program! ",LOG_LEVEL_ERROR)
+
+        ! Initialize prognostics using a checkpoint file
+        ! from a previous run
+
+        call read_checkpoint( prognostic_fields,                    &
+                              modeldb%clock%get_first_step() - 1,   &
+                              checkpoint_stem_name )
+        call combine_complex_prognostics( prognostic_fields )
+
+        ! Update factors for moist dynamics
+        call moist_dyn_factors_alg( moist_dyn_array%bundle, &
+                                    mr_array%bundle )
+
+        if ( .not. shallow ) then
+          call shallow_to_deep( modeldb%config,    &
+                                prognostic_fields, &
+                                moist_dyn_array%bundle )
+        end if
+
       case default
         ! No valid initialisation option selected
         call log_event("Gungho: No valid prognostic initialisation option selected, "// &
