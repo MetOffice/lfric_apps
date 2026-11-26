@@ -158,7 +158,7 @@
 {% endif %}
 
 {% if "interleaved" not in task_dict %}
-    {% do task_dict.update({"interleaved": true}) %}
+    {% do task_dict.update({"interleaved": false}) %}
 {% endif %}
 
 {# ############# #}
@@ -184,6 +184,12 @@
         {% do task_dict.update({"xios_server_mode": true}) %}
         {% do task_dict.update({"xios_server_ranks": task_dict["mpi_parts_xios"]}) %}
     {% else %}
+        {% if task_dict["interleaved"] %}
+            {% if task_dict["mpi_parts_xios"] > 0 %}
+                {% do task_dict.update({"xios_server_mode": true}) %}
+                {% do task_dict.update({"xios_server_ranks": task_dict["mpi_parts_xios"]}) %}
+            {% endif %}
+        {% endif %}
         {% do task_dict.update({"xios_server_mode": false}) %}
         {% do task_dict.update({"xios_server_ranks": 0}) %}
     {% endif %}
@@ -245,6 +251,10 @@
 
         {% if "xios_depth" not in task_dict %}
             {% do task_dict.update({"xios_depth": 1}) %}
+        {% endif %}
+
+        {% if task_dict["xios_nodes"] != 0 %}
+            {% do task_dict.update({"xios_nodes": 0}) %}
         {% endif %}
 
         {# Set exec_labels to be space-separated app_name and xios_server #}
