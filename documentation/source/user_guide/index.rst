@@ -15,3 +15,4 @@ User Guide
     checkpointing/index
     timestepping/index
     nudging/index
+    performance/index
