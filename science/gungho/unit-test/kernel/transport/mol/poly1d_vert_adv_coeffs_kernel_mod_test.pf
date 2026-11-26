@@ -34,6 +34,7 @@ contains
     use base_mesh_config_mod, only : geometry_planar,    &
                                      topology_fully_periodic
     use transport_config_mod, only : runge_kutta_method_ssp2,       &
+                                     theta_dispersion_correction_none, &
                                      operators_fv,                  &
                                      slice_order_cubic,             &
                                      si_outer_transport_none,       &
@@ -70,7 +71,7 @@ contains
                                  si_outer_transport = si_outer_transport_none,             &
                                  substep_transport = substep_transport_off,                &
                                  theta_variable=theta_variable_dry,                        &
-                                 theta_dispersion_correction  = .false.,                   &
+                                 theta_dispersion_correction  = theta_dispersion_correction_none, &
                                  use_density_predictor = .false.,                          &
                                  cap_density_predictor = 0.001_r_def,                      &
                                  min_val_abs_tol = -1.0e-12_r_def,                         &

@@ -31,6 +31,7 @@ contains
 
     use feign_config_mod,     only: feign_transport_config
     use transport_config_mod, only: operators_fv,                  &
+                                    theta_dispersion_correction_none, &
                                     runge_kutta_method_ssp2,       &
                                     slice_order_cubic,             &
                                     si_outer_transport_none,       &
@@ -52,7 +53,7 @@ contains
                                  broken_w2_projection = .false.,                           &
                                  consistent_metric  = .false.,                             &
                                  substep_transport = substep_transport_off,                &
-                                 theta_dispersion_correction  = .false.,                   &
+                                 theta_dispersion_correction  = theta_dispersion_correction_none, &
                                  oned_reconstruction = .false.,                            &
                                  cfl_mol_1d_stab = 1.0_r_def,                              &
                                  cfl_mol_2d_stab = 1.0_r_def,                              &
