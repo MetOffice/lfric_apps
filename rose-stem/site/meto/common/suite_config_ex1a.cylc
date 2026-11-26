@@ -8,20 +8,20 @@
 {% if site_vars.ex_trustzone == "collab" %}
 {% set ex1a_base = 'module use /projects/metoff/spackadmin.mon/releases/2026.7.1/ngms' %}
 {% else %}
-{% set ex1a_base = 'module use /common/internal/spack/releases/2026.7.1/ngms' %}
+{% set ex1a_base = 'module use /common/internal/spack/releases/2026.11.1/ngms' %}
 {% endif %}
 
 {% set ex1a_compiler_gnu =  'module switch cpe/22.11 cpe/23.05 ; ' ~
                             'module load PrgEnv-gnu ; '~
                             'module load gcc/12.2.0 ; '~
                             'module load cray-mpich/8.1.27 ; '~
-                            'module load lfric-gnu/12.2.0/3.2 || true' %}
+                            'module load lfric-gnu/12.2.0/3.3 || true' %}
 
 {% set ex1a_compiler_cce =  'module switch PrgEnv-cray PrgEnv-cray/8.4.0 ; ' ~
                             'module load cpe/23.05 ; '~
                             'module switch cce cce/15.0.0 ; '~
                             'module load cray-mpich/8.1.27 ; '~
-                            'module load lfric-cray/15.0.0/3.2 || true' %}
+                            'module load lfric-cray/15.0.0/3.3 || true' %}
 
 {% set ex1a_oasis = 'module load xios/2.2701-oasis oasis || true ; ' ~
                     'module load oasis || true' %}

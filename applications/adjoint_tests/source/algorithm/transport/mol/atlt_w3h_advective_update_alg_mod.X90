@@ -67,7 +67,7 @@ module atlt_w3h_advective_update_alg_mod
     real(kind=r_def)            :: wind_inner_prod
     real(kind=r_def)            :: wind_sf
     real(kind=r_def)            :: inner1
-    real(kind=r_def)            :: advective_increment_advective_increment_input_inner_prod
+    real(kind=r_def)            :: adv_inc_advective_increment_input_inner_prod
     real(kind=r_def)            :: wind_wind_input_inner_prod
     real(kind=r_def)            :: inner2
 
@@ -134,7 +134,7 @@ module atlt_w3h_advective_update_alg_mod
     call invoke( inc_a_times_X( wind_sf, wind ), &
                  inc_a_times_X( advective_increment_sf, advective_increment ) )
 
-    advective_increment_advective_increment_input_inner_prod = 0.0_r_def
+    adv_inc_advective_increment_input_inner_prod = 0.0_r_def
     wind_wind_input_inner_prod = 0.0_r_def
 
     call invoke( atl_w3h_advective_update_kernel_type( advective_increment, &
@@ -144,7 +144,7 @@ module atlt_w3h_advective_update_alg_mod
                                                        stencil_extent,      &
                                                        wind,                &
                                                        m3_inv ),            &
-                 x_innerproduct_y( advective_increment_advective_increment_input_inner_prod, &
+                 x_innerproduct_y( adv_inc_advective_increment_input_inner_prod, &
                                    advective_increment,                                      &
                                    advective_increment_input ),                              &
                  x_innerproduct_y( wind_wind_input_inner_prod, &
@@ -152,7 +152,7 @@ module atlt_w3h_advective_update_alg_mod
                                    wind_input ) )
 
     inner2 = 0.0_r_def
-    inner2 = inner2 + advective_increment_advective_increment_input_inner_prod
+    inner2 = inner2 + adv_inc_advective_increment_input_inner_prod
     inner2 = inner2 + wind_wind_input_inner_prod
 
     ! Test the inner-product values for equality, allowing for the precision of the active variables

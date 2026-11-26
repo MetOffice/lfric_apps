@@ -289,7 +289,7 @@ contains
     real(kind=r_def) :: state_sf(bundle_size), rhs_sf(bundle_size), &
                         moist_dyn_gas_law_sf, mr_sf(nummr), dry_flux_solver_sf
     real(kind=r_def) :: state_state_inp_inner_prod(bundle_size), rhs_rhs_inp_inner_prod(bundle_size), &
-                        moist_dyn_gas_law_moist_dyn_gas_law_inp_inner_prod, mr_mr_inp_inner_prod(nummr), &
+                        moist_dyn_gas_law_m_dyn_gas_law_inp_inner_prod, mr_mr_inp_inner_prod(nummr), &
                         dry_flux_solver_dry_flux_solver_inp_inner_prod
     real(kind=r_def) :: inner1, inner2
     real(kind=r_def), parameter :: overall_tolerance = 1000.0_r_def
@@ -420,7 +420,7 @@ contains
                  x_innerproduct_y( rhs_rhs_inp_inner_prod(igh_d), rhs_in(igh_d), rhs(igh_d) ),         &
                  x_innerproduct_y( rhs_rhs_inp_inner_prod(igh_p), rhs_in(igh_p), rhs(igh_p) ),         &
                  x_innerproduct_y( dry_flux_solver_dry_flux_solver_inp_inner_prod, dry_flux_solver_in, dry_flux_solver ), &
-                 x_innerproduct_y( moist_dyn_gas_law_moist_dyn_gas_law_inp_inner_prod, moist_dyn_gas_law_in, moist_dyn_gas_law ) )
+                 x_innerproduct_y( moist_dyn_gas_law_m_dyn_gas_law_inp_inner_prod, moist_dyn_gas_law_in, moist_dyn_gas_law ) )
     do i = 1, nummr
       call invoke( name="adjt_siss_15", &
                    x_innerproduct_y( mr_mr_inp_inner_prod(i), mr_in(i), mr(i) ) )
@@ -436,7 +436,7 @@ contains
     inner2 = inner2 + rhs_rhs_inp_inner_prod(igh_d)
     inner2 = inner2 + rhs_rhs_inp_inner_prod(igh_p)
     inner2 = inner2 + dry_flux_solver_dry_flux_solver_inp_inner_prod
-    inner2 = inner2 + moist_dyn_gas_law_moist_dyn_gas_law_inp_inner_prod
+    inner2 = inner2 + moist_dyn_gas_law_m_dyn_gas_law_inp_inner_prod
     do i = 1, nummr
       inner2 = inner2 + mr_mr_inp_inner_prod(i)
     end do

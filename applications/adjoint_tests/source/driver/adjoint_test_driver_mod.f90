@@ -36,10 +36,7 @@ contains
   !> @param[in,out]  modeldb  The model database
   subroutine run( modeldb )
 
-    ! PSyAD generated tests
-    use gen_adj_kernel_tests_mod,                   only : run_gen_adj_kernel_tests
-
-    ! Handwritten kernel tests
+    ! Kernel tests
     ! ./
     use adjt_sci_psykal_builtin_alg_mod,            only : adjt_convert_cart2sphere_vector_alg
 
@@ -50,7 +47,24 @@ contains
     use adjt_transpose_matrix_vector_alg_mod,       only : adjt_transpose_matrix_vector_alg
 
     ! ./inter_function_space
+    use adjt_combine_w2_field_alg_mod,              only : adjt_combine_w2_field_alg
+    use adjt_sample_field_alg_mod,                  only : adjt_sample_field_alg
+    use adjt_sample_flux_alg_mod,                   only : adjt_sample_flux_alg
+    use adjt_sci_average_w2b_to_w2_alg_mod,         only : adjt_sci_average_w2b_to_w2_alg
+    use adjt_sci_combine_multidata_field_alg_mod,   only : adjt_sci_combine_multidata_field_alg
     use adjt_sci_convert_hdiv_field_alg_mod,        only : adjt_sci_convert_hdiv_field_alg
+    use adjt_sci_extract_w_alg_mod,                 only : adjt_sci_extract_w_alg
+    use adjt_split_w2_field_alg_mod,                only : adjt_split_w2_field_alg
+    use adjt_w2_to_w1_projection_alg_mod,           only : adjt_w2_to_w1_projection_alg
+
+    ! ./solver
+    use adjt_apply_elim_mixed_lp_operator_alg_mod,  only : adjt_apply_elim_mixed_lp_operator_alg
+    use adjt_apply_mixed_lu_operator_alg_mod,       only : adjt_apply_mixed_lu_operator_alg
+    use adjt_apply_mixed_operator_alg_mod,          only : adjt_apply_mixed_operator_alg
+    use adjt_apply_mixed_u_operator_alg_mod,        only : adjt_apply_mixed_u_operator_alg
+    use adjt_apply_mixed_wp_operator_alg_mod,       only : adjt_apply_mixed_wp_operator_alg
+    use adjt_opt_apply_variable_hx_alg_mod,         only : adjt_opt_apply_variable_hx_alg
+    use adjt_schur_backsub_alg_mod,                 only : adjt_schur_backsub_alg
 
     ! ./transport/mol
     use atlt_poly_adv_update_alg_mod,               only : atlt_poly_adv_update_alg
@@ -64,8 +78,12 @@ contains
 
     ! ./linear_physics
     use atlt_bl_inc_alg_mod,                        only : atlt_bl_inc_alg
+    use adjt_stabilise_bl_u_alg_mod,                only : adjt_stabilise_bl_u_alg
 
-    ! Handwritten algorithm tests
+    ! ./fem
+    use adjt_strong_curl_alg_mod,                   only : adjt_strong_curl_alg
+
+    ! Algorithm tests
     ! ./interpolation
     use adjt_interpolation_alg_mod,                 only : adjt_interp_w3wth_to_w2_alg, &
                                                            adjt_interp_w2_to_w3wth_alg
@@ -127,9 +145,6 @@ contains
     ! ./solver
     use adjt_pressure_precon_alg_mod,               only : adjt_pressure_precon_alg
     use adjt_mixed_operator_alg_mod,                only : adjt_mixed_operator_alg
-    use adjt_apply_mixed_u_operator_alg_mod,        only : adjt_apply_mixed_u_operator_alg
-    use adjt_apply_mixed_wp_operator_alg_mod,       only : adjt_apply_mixed_wp_operator_alg
-    use adjt_schur_backsub_alg_mod,                 only : adjt_schur_backsub_alg
     use adjt_mixed_schur_preconditioner_alg_mod,    only : adjt_mixed_schur_preconditioner_alg
     use adjt_mixed_solver_alg_mod,                  only : adjt_mixed_solver_alg
     use adjt_semi_implicit_solver_step_alg_mod,     only : adjt_semi_implicit_solver_step_alg
@@ -160,9 +175,6 @@ contains
 
     call adj_solver_lookup_cache%initialise(mesh)
     call adj_trans_lookup_cache%initialise(modeldb%config, mesh)
-
-    call log_event( "TESTING generated adjoint kernels", LOG_LEVEL_INFO )
-    call run_gen_adj_kernel_tests( mesh, chi, panel_id )
 
     call log_event( "TESTING adjoint kernels", LOG_LEVEL_INFO )
 
@@ -201,9 +213,21 @@ contains
 
     ! ./linear_physics
     call atlt_bl_inc_alg( mesh )
+    call adjt_stabilise_bl_u_alg( modeldb%config, mesh )
+
+    ! ./fem
+    call adjt_strong_curl_alg( modeldb%config, mesh )
 
     ! ./inter_function_space
+    call adjt_combine_w2_field_alg( modeldb%config, mesh )
+    call adjt_sample_field_alg( modeldb%config, mesh )
+    call adjt_sample_flux_alg( modeldb%config, mesh )
+    call adjt_sci_average_w2b_to_w2_alg( modeldb%config, mesh )
+    call adjt_sci_combine_multidata_field_alg( modeldb%config, mesh )
     call adjt_sci_convert_hdiv_field_alg( modeldb%config, mesh, chi, panel_id )
+    call adjt_sci_extract_w_alg( modeldb%config, mesh )
+    call adjt_split_w2_field_alg( modeldb%config, mesh )
+    call adjt_w2_to_w1_projection_alg( modeldb%config, mesh )
 
     ! ./algebra
     call adjt_matrix_vector_alg( mesh )
@@ -212,8 +236,12 @@ contains
     call adjt_transpose_matrix_vector_alg( mesh )
 
     ! ./solver
+    call adjt_apply_elim_mixed_lp_operator_alg( modeldb%config, mesh )
+    call adjt_apply_mixed_lu_operator_alg( modeldb%config, mesh )
+    call adjt_apply_mixed_operator_alg( modeldb%config, mesh )
     call adjt_apply_mixed_u_operator_alg( modeldb%config, mesh )
     call adjt_apply_mixed_wp_operator_alg( modeldb%config, mesh )
+    call adjt_opt_apply_variable_hx_alg( modeldb%config, mesh )
     call adjt_schur_backsub_alg( modeldb%config, mesh )
 
     call log_event( "TESTING misc adjoints", LOG_LEVEL_INFO )

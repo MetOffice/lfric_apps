@@ -1,0 +1,163 @@
+!-----------------------------------------------------------------------------
+! (C) Crown copyright Met Office. All rights reserved.
+! The file LICENCE, distributed with this code, contains details of the terms
+! under which the code may be used.
+!-----------------------------------------------------------------------------
+
+!> @brief Module containing standard adjoint test for adj_split_w2_field_kernel
+module adjt_split_w2_field_alg_mod
+
+  use config_mod,                        only : config_type
+  use field_mod,                         only : field_type
+  use function_space_mod,                only : function_space_type
+  use mesh_mod,                          only : mesh_type
+  use function_space_collection_mod,     only : function_space_collection
+  use fs_continuity_mod,                 only : W2, W2v, W3
+  use constants_mod,                     only : i_def, r_def, EPS
+  use log_mod,                           only : log_event,         &
+                                                log_scratch_space, &
+                                                LOG_LEVEL_ERROR,   &
+                                                LOG_LEVEL_DEBUG,   &
+                                                LOG_LEVEL_INFO
+  use sci_geometric_constants_mod,       only : get_face_selector_ew, &
+                                                get_face_selector_ns
+  use integer_field_mod,                 only : integer_field_type
+
+  implicit none
+
+  private
+  public :: adjt_split_w2_field_alg
+
+  contains
+
+  !=============================================================================
+  !> @brief Adjoint test for adj_split_w2_field_kernel
+  !> @param[in] config    Application namelist configuration object
+  !> @param[in] mesh      A mesh object
+  subroutine adjt_split_w2_field_alg(config, mesh)
+
+    use split_w2_field_kernel_mod,     only : split_w2_field_kernel_type
+    use adj_split_w2_field_kernel_mod, only : adj_split_w2_field_kernel_type
+
+    implicit none
+
+    ! Arguments
+    type(config_type),        intent(in) :: config
+    type(mesh_type), pointer, intent(in) :: mesh
+
+    ! Arguments for tl and adj calls
+    type(field_type)                  :: uv
+    type(field_type)                  :: w
+    type(field_type)                  :: uvw
+    type(integer_field_type), pointer :: face_selector_ew
+    type(integer_field_type), pointer :: face_selector_ns
+
+    ! Copies of input fields used in inner products
+    type(field_type) :: uv_input
+    type(field_type) :: w_input
+    type(field_type) :: uvw_input
+
+    ! Variables for initialising fields
+    type(function_space_type), pointer :: vector_space_w2_ptr
+    type(function_space_type), pointer :: vector_space_w2v_ptr
+    type(function_space_type), pointer :: vector_space_w3_ptr
+    integer(kind=i_def)                :: element_order_h
+    integer(kind=i_def)                :: element_order_v
+
+    ! Inner products
+    real(kind=r_def) :: uv_inner_prod
+    real(kind=r_def) :: w_inner_prod
+    real(kind=r_def) :: uvw_inner_prod
+    real(kind=r_def) :: uv_sf
+    real(kind=r_def) :: w_sf
+    real(kind=r_def) :: uvw_sf
+    real(kind=r_def) :: inner1
+    real(kind=r_def) :: uv_uv_input_inner_prod
+    real(kind=r_def) :: w_w_input_inner_prod
+    real(kind=r_def) :: uvw_uvw_input_inner_prod
+    real(kind=r_def) :: inner2
+
+    ! Test parameters and variables
+    real(kind=r_def)            :: machine_tol
+    real(kind=r_def)            :: relative_diff
+    real(kind=r_def), parameter :: overall_tolerance = 1500.0_r_def
+
+    element_order_h = config%finite_element%element_order_h()
+    element_order_v = config%finite_element%element_order_v()
+    vector_space_w2_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2)
+    vector_space_w2v_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w2v)
+    vector_space_w3_ptr => function_space_collection%get_fs(mesh,element_order_h,element_order_v,w3)
+    call uv%initialise(vector_space=vector_space_w3_ptr, name='uv')
+    call w%initialise(vector_space=vector_space_w2v_ptr, name='w')
+    call uvw%initialise(vector_space=vector_space_w2_ptr, name='uvw')
+    call uv%initialise(vector_space=vector_space_w2_ptr, name='uv')
+    call uv_input%initialise(vector_space=vector_space_w2_ptr, name='uv_input')
+    call w_input%initialise(vector_space=vector_space_w2v_ptr, name='w_input')
+    call uvw_input%initialise(vector_space=vector_space_w2_ptr, name='uvw_input')
+
+    uv_inner_prod = 0.0_r_def
+    w_inner_prod = 0.0_r_def
+    uvw_inner_prod = 0.0_r_def
+    face_selector_ew => get_face_selector_ew(mesh)
+    face_selector_ns => get_face_selector_ns(mesh)
+
+    ! Initialise arguments and call the tangent-linear kernel.
+    call invoke( setval_random(uv), setval_x(uv_input, uv),                              &
+                 setval_random(w), setval_x(w_input, w),                                 &
+                 setval_random(uvw), setval_x(uvw_input, uvw),                           &
+                 split_w2_field_kernel_type(uv, w, uvw,                                  &
+                                            face_selector_ew, face_selector_ns),         &
+                 x_innerproduct_x(uv_inner_prod, uv),                                    &
+                 x_innerproduct_x(w_inner_prod, w),                                      &
+                 x_innerproduct_x(uvw_inner_prod, uvw) )
+
+    write( log_scratch_space, * ) "adjt_split_w2_field_alg inner products:"
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write( log_scratch_space, * ) "uvw inner product = ", uvw_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write( log_scratch_space, * ) "uv inner product = ", uv_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+    write( log_scratch_space, * ) "w inner product = ", w_inner_prod
+    call log_event( log_scratch_space, LOG_LEVEL_DEBUG )
+
+    uvw_sf = 1.0_r_def / (uvw_inner_prod + EPS)
+    uv_sf = 1.0_r_def / (uv_inner_prod + EPS)
+    w_sf = 1.0_r_def / (w_inner_prod + EPS)
+
+    inner1 = 0.0_r_def
+    inner1 = inner1 + uvw_inner_prod * uvw_sf
+    inner1 = inner1 + uv_inner_prod * uv_sf
+    inner1 = inner1 + w_inner_prod * w_sf
+
+    uv_uv_input_inner_prod = 0.0_r_def
+    w_w_input_inner_prod = 0.0_r_def
+    uvw_uvw_input_inner_prod = 0.0_r_def
+
+    call invoke( inc_a_times_X( uvw_sf, uvw ),                                       &
+                 inc_a_times_X( uv_sf, uv ),                                         &
+                 inc_a_times_X( w_sf, w ),                                           &
+                 adj_split_w2_field_kernel_type(uv, w, uvw,                          &
+                                                face_selector_ew, face_selector_ns), &
+                 x_innerproduct_y(uv_uv_input_inner_prod, uv, uv_input),             &
+                 x_innerproduct_y(w_w_input_inner_prod, w, w_input),                 &
+                 x_innerproduct_y(uvw_uvw_input_inner_prod, uvw, uvw_input) )
+
+    inner2 = 0.0_r_def
+    inner2 = inner2 + uv_uv_input_inner_prod
+    inner2 = inner2 + w_w_input_inner_prod
+    inner2 = inner2 + uvw_uvw_input_inner_prod
+
+    ! Test the inner-product values for equality, allowing for the precision of the active variables
+    machine_tol = spacing(max(abs(inner1), abs(inner2)))
+    relative_diff = abs(inner1 - inner2) / machine_tol
+    if (relative_diff < overall_tolerance) then
+      write(log_scratch_space, *) "PASSED split_w2_field_kernel_type:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, LOG_LEVEL_INFO)
+    else
+      write(log_scratch_space, *) "FAILED split_w2_field_kernel_type:", inner1, inner2, relative_diff
+      call log_event(log_scratch_space, LOG_LEVEL_ERROR)
+    end if
+
+  end subroutine adjt_split_w2_field_alg
+
+end module adjt_split_w2_field_alg_mod
