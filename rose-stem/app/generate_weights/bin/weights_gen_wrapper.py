@@ -68,7 +68,7 @@ def weight_gen(um_ptype, int_method):
     run_command(["mv", "regrid_weights.nc", outfilename])
 
 
-def add_mask(kind, mask_file, mask_var, invert):
+def add_mask(kind, mask_file, mask_variable_name, invert):
     '''
     Add a mask field to a local copy of the LFRic mesh, for generating
     masked weights.
@@ -76,7 +76,7 @@ def add_mask(kind, mask_file, mask_var, invert):
     param str kind: Name of the mask type (e.g. 'land'), used to name the
                     masked mesh file.
     param str mask_file: NetCDF file holding the mask on the LFRic mesh faces.
-    param str mask_var: Name of the mask variable in mask_file.
+    param str mask_variable_name: Name of the mask variable in mask_file.
     param bool invert: Whether to invert the mask before adding it.
     return: The path of the masked mesh file.
 
@@ -88,9 +88,9 @@ def add_mask(kind, mask_file, mask_var, invert):
                "--mesh-in", os.environ.get('GRID_PATH_LFRIC'),
                "--mesh-name", os.environ.get('MESH_NAME_LFRIC'),
                "--mask-file", mask_file,
-               "--mask-var", mask_var,
+               "--mask-variable-name", mask_variable_name,
                "--mesh-out", masked_mesh,
-               "--out-var", mask_var]
+               "--out-var", mask_variable_name]
     if invert:
         command.append("--invert")
     run_command(command)
@@ -122,13 +122,14 @@ if __name__ == "__main__":
     # any sea are 0, so it is inverted to leave just those cells unmasked
     masks = {}
     for kind, file_env, var_env, invert in [
-            ("land", "MASK_FILE", "MASK_VAR", False),
-            ("sea", "SEA_MASK_FILE", "SEA_MASK_VAR", True)]:
+            ("land", "LAND_MASK_FILE", "LAND_MASK_VARIABLE_NAME", False),
+            ("sea", "SEA_MASK_FILE", "SEA_MASK_VARIABLE_NAME", True)]:
         mask_file = os.environ.get(file_env)
         if mask_file:
-            mask_var = os.environ.get(var_env)
-            masks[kind] = (add_mask(kind, mask_file, mask_var, invert),
-                           mask_var)
+            mask_variable_name = os.environ.get(var_env)
+            masked_mesh = add_mask(kind, mask_file, mask_variable_name,
+                                   invert)
+            masks[kind] = (masked_mesh, mask_variable_name)
             int_methods["P"].extend([kind + "_mask_bilinear",
                                      kind + "_mask_neareststod"])
 
@@ -138,5 +139,5 @@ if __name__ == "__main__":
             kind = int_method.split("_mask_")[0]
             if kind in masks:
                 os.environ["GRID_PATH_LFRIC_MASKED"] = masks[kind][0]
-                os.environ["MASK_VAR_LFRIC"] = masks[kind][1]
+                os.environ["MASK_VARIABLE_NAME_LFRIC"] = masks[kind][1]
             weight_gen(um_ptype, int_method)

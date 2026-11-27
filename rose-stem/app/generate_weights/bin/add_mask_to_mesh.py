@@ -24,7 +24,7 @@ FILL_VALUE = 0.0
 COPY_ATTRS = ['units', 'standard_name', 'long_name', 'um_stash_source']
 
 
-def add_mask_to_mesh(mesh_in, mesh_name, mask_file, mask_var,
+def add_mask_to_mesh(mesh_in, mesh_name, mask_file, mask_variable_name,
                      mesh_out, out_var, invert=False):
     '''
     Write mesh_out: a copy of mesh_in with out_var added on the faces.
@@ -32,7 +32,7 @@ def add_mask_to_mesh(mesh_in, mesh_name, mask_file, mask_var,
     param str mesh_in: Path to the input LFRic UGRID mesh file.
     param str mesh_name: Name of the mesh topology within mesh_in.
     param str mask_file: Path to the NetCDF file containing the mask.
-    param str mask_var: Name of the mask variable in mask_file.
+    param str mask_variable_name: Name of the mask variable in mask_file.
     param str mesh_out: Path of the masked mesh file to write.
     param str out_var: Name to give the mask variable in mesh_out.
     param bool invert: If True, swap masked (0) and unmasked (1) cells.
@@ -41,9 +41,10 @@ def add_mask_to_mesh(mesh_in, mesh_name, mask_file, mask_var,
     shutil.copyfile(mesh_in, mesh_out)
 
     with Dataset(mask_file, 'r') as src:
-        if mask_var not in src.variables:
-            raise ValueError(f"Variable '{mask_var}' not found in {mask_file}")
-        src_var = src.variables[mask_var]
+        if mask_variable_name not in src.variables:
+            raise ValueError(f"Variable '{mask_variable_name}' "
+                             f"not found in {mask_file}")
+        src_var = src.variables[mask_variable_name]
         # Read raw values as a plain array rather than a numpy masked array
         src_var.set_auto_mask(False)
         # Drop singleton dimensions (e.g. time) to leave a 1D face array
@@ -55,7 +56,8 @@ def add_mask_to_mesh(mesh_in, mesh_name, mask_file, mask_var,
         data = np.where(data == FILL_VALUE, 1.0, FILL_VALUE)
         # The source metadata describes the un-inverted mask
         attrs = {'units': '1',
-                 'long_name': f'inverse of {mask_var} from {mask_file}'}
+                 'long_name': f'inverse of {mask_variable_name} '
+                              f'from {mask_file}'}
 
     with Dataset(mesh_out, 'a') as mesh:
         # LFRic UGRID naming convention for the face dimension
@@ -65,7 +67,7 @@ def add_mask_to_mesh(mesh_in, mesh_name, mask_file, mask_var,
         n_faces = len(mesh.dimensions[face_dim])
         if data.shape != (n_faces,):
             raise ValueError(
-                f"Shape of '{mask_var}' {data.shape} does not match "
+                f"Shape of '{mask_variable_name}' {data.shape} does not match "
                 f"'{face_dim}' ({n_faces})")
 
         var = mesh.createVariable(out_var, 'f8', (face_dim,),
@@ -86,7 +88,7 @@ if __name__ == "__main__":
     parser.add_argument('--mesh-in', required=True)
     parser.add_argument('--mesh-name', required=True)
     parser.add_argument('--mask-file', required=True)
-    parser.add_argument('--mask-var', required=True)
+    parser.add_argument('--mask-variable-name', required=True)
     parser.add_argument('--mesh-out', required=True)
     parser.add_argument('--out-var', required=True)
     parser.add_argument('--invert', action='store_true',
@@ -94,5 +96,5 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     add_mask_to_mesh(args.mesh_in, args.mesh_name, args.mask_file,
-                     args.mask_var, args.mesh_out, args.out_var,
+                     args.mask_variable_name, args.mesh_out, args.out_var,
                      args.invert)

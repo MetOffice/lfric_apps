@@ -37,10 +37,10 @@
         "target_grid_type": "global",
         "source_dump": "$BIG_DATA_DIR/lfric2um/apps3.2/nwp-gal9_N320L70_C48L70.nc",
         "namelist_src": "um_grid.nml",
-        "mask_file": "$BIG_DATA_DIR/ancils/basic-gal/yak/C48/land_sea_mask/etop01/qrparm.mask.nc",
-        "mask_var": "land_binary_mask",
+        "land_mask_file": "$BIG_DATA_DIR/ancils/basic-gal/yak/C48/land_sea_mask/etop01/qrparm.mask.nc",
+        "land_mask_variable_name": "land_binary_mask",
         "sea_mask_file": "$BIG_DATA_DIR/ancils/basic-gal/yak/C48/land_sea_mask/etop01/qrparm.mask_sea.nc",
-        "sea_mask_var": "land_binary_mask",
+        "sea_mask_variable_name": "land_binary_mask",
     }) %}
 
 {% elif task_ns.conf_name == "lfric2um-nwp_gal9-C224L70_N512L70" %}

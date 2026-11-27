@@ -41,10 +41,10 @@
             INTERPOLATION_DIRECTION = {{task_values["app_name"]}}
             LFRIC_MESH_FILE = {{mesh_dir}}/{{task_values["resolution"][0]}}/mesh_{{task_values["resolution"][0]}}.nc
             LFRIC_MESH_NAME = {{task_values["mesh_name"]|default("")}}
-            LFRIC_MASK_FILE = {{task_values["mask_file"]|default("")}}
-            LFRIC_MASK_VAR = {{task_values["mask_var"]|default("")}}
+            LFRIC_LAND_MASK_FILE = {{task_values["land_mask_file"]|default("")}}
+            LFRIC_LAND_MASK_VARIABLE_NAME = {{task_values["land_mask_variable_name"]|default("")}}
             LFRIC_SEA_MASK_FILE = {{task_values["sea_mask_file"]|default("")}}
-            LFRIC_SEA_MASK_VAR = {{task_values["sea_mask_var"]|default("")}}
+            LFRIC_SEA_MASK_VARIABLE_NAME = {{task_values["sea_mask_variable_name"]|default("")}}
     {% if task_ns.application == "lfric2lfric" %}
             DST_GRID_PATH = {{mesh_dir}}/{{task_values["dst_mesh"]}}/mesh_{{task_values["dst_mesh"]}}.nc
             DST_GRID_TYPE = {{task_values["dst_type"]}}

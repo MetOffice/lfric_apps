@@ -43,7 +43,8 @@ class INTER:
         self.lfric_grid_type = os.environ.get('GRID_TYPE_LFRIC')
         self.lfric_grid_path = os.environ.get('GRID_PATH_LFRIC')
         self.lfric_masked_grid_path = os.environ.get('GRID_PATH_LFRIC_MASKED')
-        self.lfric_mask_var = os.environ.get('MASK_VAR_LFRIC')
+        self.lfric_mask_variable_name = os.environ.get(
+            'MASK_VARIABLE_NAME_LFRIC')
 
     def set_arguments_um2lfric(self):
         '''Set ESMF regrid command line options'''
@@ -75,7 +76,8 @@ class INTER:
             # Land- or sea-masked weights, e.g. 'sea_mask_bilinear'
             options = ' -s ' + self.lfric_masked_grid_path
             options = options + ' --src_loc center'
-            options = options + ' --src_missingvalue ' + self.lfric_mask_var
+            options = options + ' --src_missingvalue ' \
+                + self.lfric_mask_variable_name
             esmf_method = self.method.split('_mask_')[1]
             # TODO: ESMF has a bug that means the masked weights generation
             # doesn't work with bilinear interpolation. Force the regridding to
