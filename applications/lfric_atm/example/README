@@ -36,9 +36,12 @@ configuration.nml
 This file holds the application configuration. It configures a "single
 column" run of lfric_atm. It is configured to use the mesh file in
 this directory which is, in reality, not a single column mesh, but a
-2x2 biperiodic mesh. However, the configuration is designed in such a
-way as each column is computed independently from the other columns
-and, in fact, gives identical results for each column.
+4x4 biperiodic mesh with 50 km x 50 km cells. The user can generate
+a different mesh using the LFRic Core planar mesh generator and by
+modifying the provided periodic_mesh_gen.nml. However, the
+configuration is designed in such a way as each column is computed
+independently from the other columns and, in fact, gives identical
+results for each column.
 
 The configuration was originally copied from the Rose Stem
 "run_lfric_atm_scm_gal9_bomex" configuration. Note that the Rose Stem version
