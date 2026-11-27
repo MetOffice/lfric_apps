@@ -98,8 +98,9 @@ contains
     type( field_type ), pointer :: v_in_w3
 
     type( field_type ), pointer :: bcf_in
-    type( field_type ), pointer :: cfl_in              => null()
-    type( field_type ), pointer :: cff_in              => null()
+    type( field_type ), pointer :: cfl_in
+    type( field_type ), pointer :: cff_in
+    type( field_type ), pointer :: precfrac
 
     type( field_type ), pointer :: dmv_mphys           => null()
     type( field_type ), pointer :: ls_rain             => null()
@@ -185,6 +186,7 @@ contains
     call cloud_fields%get_field('bulk_fraction', bcf_in)
     call cloud_fields%get_field('liquid_fraction', cfl_in)
     call cloud_fields%get_field('frozen_fraction', cff_in)
+    call microphysics_fields%get_field('precfrac', precfrac)
 
     call microphysics_fields%get_field('ls_rain', ls_rain)
     call microphysics_fields%get_field('ls_snow', ls_snow)
@@ -238,7 +240,7 @@ contains
     call invoke(name = "invoke_casim_kernel_type",                             &
                  casim_kernel_type ( mr_n(imr_v), mr_n(imr_cl), mr_n(imr_ci),  &
                                      mr_n(imr_r), mr_n(imr_g), mr_n(imr_s),    &
-                                     cfl_in, cff_in, bcf_in,                   &
+                                     cfl_in, cff_in, bcf_in, precfrac,         &
                                      nl_mphys, nr_mphys,                       &
                                      ni_mphys, ns_mphys, ng_mphys,             &
                                      w_in_wth,                                 &

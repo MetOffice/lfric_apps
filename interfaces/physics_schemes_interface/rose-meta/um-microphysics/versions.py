@@ -44,3 +44,17 @@ class vn32_t709(MacroUpgrade):
         )
 
         return config, self.reports
+
+
+class vn32_t258(MacroUpgrade):
+    # Upgrade macro for Issue #258 by Mike Whitall
+
+    BEFORE_TAG = "vn3.2_t709"
+    AFTER_TAG = "vn3.2_t258"
+
+    def upgrade(self, config, meta_config=None):
+        # Add settings
+
+        # Blank macro needed due to meta-data changes.
+
+        return config, self.reports

@@ -40,6 +40,7 @@ Science settings
 - coarse_aero - coarse mesh radaer
 - coma9 - ComorphA9 configuration
 - comatb - Modifications to Coma9 for 5km trailblazer setup
+- comorph_casim - Test CoMorph convection scheme with CASIM microphysics
 - comorph_dev - development ComorphB configuration
 - da - with IAU applying data assimilation increments instantaneously,
      - and additive inflation elements throughout the forecast run

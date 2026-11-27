@@ -36,7 +36,7 @@ private
 
 type, public, extends(kernel_type) :: casim_kernel_type
   private
-  type(arg_type) :: meta_args(69) = (/                                      &
+  type(arg_type) :: meta_args(70) = (/                                      &
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! mv_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! ml_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! mi_wth
@@ -46,6 +46,7 @@ type, public, extends(kernel_type) :: casim_kernel_type
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! cfl_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! cff_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! bcf_wth
+       arg_type(GH_FIELD, GH_REAL, GH_READWRITE,  WTHETA),                  & ! precfrac
        arg_type(GH_FIELD, GH_REAL, GH_READWRITE,  WTHETA),                  & ! nl_mphys
        arg_type(GH_FIELD, GH_REAL, GH_READWRITE,  WTHETA),                  & ! nr_mphys
        arg_type(GH_FIELD, GH_REAL, GH_READWRITE,  WTHETA),                  & ! ni_mphys
@@ -134,6 +135,7 @@ contains
 !> @param[in]     cfl_wth             Liquid cloud fraction
 !> @param[in]     cff_wth             Ice cloud fraction
 !> @param[in]     bcf_wth             Bulk cloud fraction
+!> @param[in,out] precfrac            Prognostic precip fraction
 !> @param[in,out] nl_mphys            CASIM cloud-droplet number concentration
 !> @param[in,out] nr_mphys            CASIM rain-drop number concentration
 !> @param[in,out] ni_mphys            CASIM cloud-ice number concentration
@@ -217,6 +219,7 @@ subroutine casim_code( nlayers,                     &
                        mv_wth,   ml_wth,   mi_wth,  &
                        mr_wth,   mg_wth,   ms_wth,  &
                        cfl_wth,  cff_wth,  bcf_wth, &
+                       precfrac,                    &
                        nl_mphys, nr_mphys,          &
                        ni_mphys, ns_mphys, ng_mphys,&
                        w_phys,                      &
@@ -278,11 +281,14 @@ subroutine casim_code( nlayers,                     &
     use casim_switches,             only: its, ite, jts, jte, kts, kte, &
                                           ils, ile, jls, jle,           &
                                           l_ukca_aerosol
+    use mphys_inputs_mod,           only: l_mcr_precfrac
     use generic_diagnostic_variables,                                  &
                                     only: allocate_diagnostic_space,   &
                                           deallocate_diagnostic_space, &
                                           casdiags
     use number_droplet_mod,         only: min_cdnc_sea_ice
+    use casim_calc_cfrain_mod,      only: casim_calc_cfrain
+    use casim_update_precfrac_mod,  only: casim_update_precfrac
     use mphys_air_density_mod,      only: mphys_air_density
     use mphys_radar_mod,            only: ref_lim
     use variable_precision,         only: wp
@@ -310,6 +316,8 @@ subroutine casim_code( nlayers,                     &
     real(kind=r_def), intent(in),  dimension(undf_wth) :: cfl_wth
     real(kind=r_def), intent(in),  dimension(undf_wth) :: cff_wth
     real(kind=r_def), intent(in),  dimension(undf_wth) :: bcf_wth
+    real(kind=r_def), intent(inout), dimension(undf_wth) :: precfrac
+
     real(kind=r_def), intent(in),  dimension(undf_wth) :: w_phys
     real(kind=r_def), intent(in),  dimension(undf_wth) :: theta_in_wth
     real(kind=r_def), intent(in),  dimension(undf_wth) :: exner_in_wth
@@ -398,11 +406,11 @@ subroutine casim_code( nlayers,                     &
          rho_casim, w_casim, tke_casim,                                        &
          dz_casim,                                                             &
          cfliq_casim, cfice_casim, cfsnow_casim,                               &
-         cfrain_casim, cfgr_casim,                                             &
+         cfrain_casim, cfgr_casim, precfrac_casim,                             &
          dqv_casim, dqc_casim,  dqr_casim, dnc_casim,                          &
          dnr_casim, dm3r_casim, dqi_casim, dqs_casim,                          &
          dqg_casim, dni_casim, dns_casim,  dng_casim,                          &
-         dm3s_casim, dm3g_casim, dth_casim,                                    &
+         dm3s_casim, dm3g_casim, dth_casim, dcfliq_casim, dcfice_casim,        &
          daitken_sol_mass, daitken_sol_number,                                 &
          daccum_sol_mass, daccum_sol_number,                                   &
          dcoarse_sol_mass, dcoarse_sol_number,                                 &
@@ -489,7 +497,7 @@ subroutine casim_code( nlayers,                     &
     l_pc2_response = ( i_cld_vn == i_cld_pc2 )
 
     ! Configure optional diagnostics
-    casdiags % l_graupfall_3d = ls_graup_3d_flag
+    casdiags % l_graupfall_3d = ls_graup_3d_flag .or. l_mcr_precfrac
 
     ! Set CDNC for radiation here as we need the start of timestep value.
     ! The mechanistic activation options always work the cloud number out from
@@ -676,12 +684,29 @@ subroutine casim_code( nlayers,                     &
 
     cfrain_casim(nlayers,:,:)=0.0_wp
     cfgr_casim(nlayers,:,:)=0.0_wp
-    do k =  nlayers-1, 1, -1
-      !make cfrain the max of cfl in column
-      cfrain_casim(k,1,1)=max(cfrain_casim(k+1,1,1),cfliq_casim(k,1,1),cfsnow_casim(k,1,1))
-      !make graupel fraction
-      cfgr_casim(k,1,1)=cfrain_casim(k,1,1)
-    end do
+
+    if ( l_mcr_precfrac ) then
+      ! If using prognostic precip fraction, use a blend of the existing
+      ! value of the prognostic and the current cloud-fraction,
+      ! smoothly extrapolated downwards
+      do k = 1, nlayers
+        precfrac_casim(k,1,1) = precfrac(map_wth(1) + k)
+      end do
+      call casim_calc_cfrain( nlayers, dz_casim, rho_casim,                    &
+                              qc_casim, qi_casim, qs_casim, qr_casim, qg_casim,&
+                              cfliq_casim, cfice_casim, precfrac_casim,        &
+                              cfrain_casim, cfgr_casim )
+    else
+      ! Otherwise just copy max cloud-fraction in the column downwards
+      do k =  nlayers-1, 1, -1
+        !make cfrain the max of cfl in column
+        cfrain_casim(k,1,1) = max( cfrain_casim(k+1,1,1),                      &
+                                   cfliq_casim(k,1,1),                         &
+                                   cfsnow_casim(k,1,1) )
+        !make graupel fraction
+        cfgr_casim(k,1,1)=cfrain_casim(k,1,1)
+      end do
+    end if
 
     ! Set up diagnostic flags for CASIM
     l_refl_tot = .not. associated(refl_tot, empty_real_data)
@@ -954,6 +979,30 @@ subroutine casim_code( nlayers,                     &
     ! Copy lsca_2d - like mphys_kernel_mod, use rain fraction
     ! from lowest model level
     lsca_2d(map_2d(1)) = cfrain_casim(1,1,1)
+
+    if (l_mcr_precfrac) then
+      ! Update prognostic precip fraction based on the precip mass
+      ! increments from CASIM...
+      do k = 1, nlayers
+        ! Copy cloud-fraction increments into local arrays
+        dcfliq_casim(k,1,1) = dcfl_wth(map_wth(1) + k)
+        dcfice_casim(k,1,1) = dcff_wth(map_wth(1) + k)
+      end do
+      call casim_update_precfrac( nlayers, dz_casim, rho_casim,                &
+                                  casdiags%rainfall_3d, casdiags%graupfall_3d, &
+                                  qc_casim, qi_casim, qs_casim,                &
+                                  qr_casim, qg_casim,                          &
+                                  cfliq_casim, cfice_casim, precfrac_casim,    &
+                                  dqc_casim, dqi_casim, dqs_casim,             &
+                                  dqr_casim, dqg_casim,                        &
+                                  dcfliq_casim, dcfice_casim )
+      do k = 1, nlayers
+        ! Copy updated precip fraction to output
+        precfrac(map_wth(1) + k) = precfrac_casim(k,1,1)
+      end do
+      ! Copy k=1 value to set k=0
+      precfrac(map_wth(1) + 0) = precfrac(map_wth(1) + 1)
+    end if
 
     if (l_refl_1km) then
       do k = 1, nlayers
