@@ -71,11 +71,12 @@ class INTER:
 
     def set_arguments_lfric2um(self):
         '''Set ESMF regrid command line options'''
-        if self.method in ('land_mask_bilinear', 'land_mask_neareststod'):
+        if '_mask_' in self.method:
+            # Land- or sea-masked weights, e.g. 'sea_mask_bilinear'
             options = ' -s ' + self.lfric_masked_grid_path
             options = options + ' --src_loc center'
             options = options + ' --src_missingvalue ' + self.lfric_mask_var
-            esmf_method = self.method[len('land_mask_'):]
+            esmf_method = self.method.split('_mask_')[1]
             # TODO: ESMF has a bug that means the masked weights generation
             # doesn't work with bilinear interpolation. Force the regridding to
             # use nearest neighbour interpolation, until the bug is fixed. The

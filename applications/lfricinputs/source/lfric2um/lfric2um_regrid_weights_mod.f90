@@ -23,7 +23,9 @@ type(lfricinp_regrid_weights_type), public, target ::                          &
                          mesh_face_centre_to_grid_u_bilinear,                  &
                          mesh_face_centre_to_grid_v_bilinear,                  &
                          mesh_face_centre_to_grid_p_land_mask_bilinear,        &
-                         mesh_face_centre_to_grid_p_land_mask_neareststod
+                         mesh_face_centre_to_grid_p_land_mask_neareststod,     &
+                         mesh_face_centre_to_grid_p_sea_mask_bilinear,         &
+                         mesh_face_centre_to_grid_p_sea_mask_neareststod
 
 public ::  lfric2um_regrid_weightsfile_ctl, get_weights
 
@@ -64,25 +66,42 @@ call mesh_face_centre_to_grid_v_bilinear % populate_dst_address_2D(            &
      int(um_grid % num_v_points_x, kind=int32))
 
 ! Optional land-masked P points weights, used for land fields
-if (trim(lfric2um_config%weights_file_face_centre_to_p_land_mask_bilinear)     &
-    /= 'unset') then
-  call mesh_face_centre_to_grid_p_land_mask_bilinear % load(                   &
-       lfric2um_config%weights_file_face_centre_to_p_land_mask_bilinear)
-  call mesh_face_centre_to_grid_p_land_mask_bilinear % populate_dst_address_2D(&
-       int(um_grid % num_p_points_x, kind=int32))
-end if
+call load_optional_p_weights(                                                  &
+     mesh_face_centre_to_grid_p_land_mask_bilinear,                            &
+     lfric2um_config%weights_file_face_centre_to_p_land_mask_bilinear)
+call load_optional_p_weights(                                                  &
+     mesh_face_centre_to_grid_p_land_mask_neareststod,                         &
+     lfric2um_config%weights_file_face_centre_to_p_land_mask_neareststod)
 
-! Optional land-masked P points nearest neighbour weights, used for land
-! fields listed in specify_nearest_neighbour
-if (trim(lfric2um_config%weights_file_face_centre_to_p_land_mask_neareststod)  &
-    /= 'unset') then
-  call mesh_face_centre_to_grid_p_land_mask_neareststod % load(                &
-       lfric2um_config%weights_file_face_centre_to_p_land_mask_neareststod)
-  call mesh_face_centre_to_grid_p_land_mask_neareststod %                      &
-       populate_dst_address_2D(int(um_grid % num_p_points_x, kind=int32))
-end if
+! Optional sea-masked P points weights, used for sea fields
+call load_optional_p_weights(                                                  &
+     mesh_face_centre_to_grid_p_sea_mask_bilinear,                             &
+     lfric2um_config%weights_file_face_centre_to_p_sea_mask_bilinear)
+call load_optional_p_weights(                                                  &
+     mesh_face_centre_to_grid_p_sea_mask_neareststod,                          &
+     lfric2um_config%weights_file_face_centre_to_p_sea_mask_neareststod)
 
 end subroutine lfric2um_regrid_weightsfile_ctl
+
+!---------------------------------------------------------
+
+subroutine load_optional_p_weights(weights, filename)
+! Description:
+!  Load P points weights from filename, unless it is 'unset', in which
+!  case the weights are left unallocated
+use lfricinp_um_grid_mod, only: um_grid
+implicit none
+
+type(lfricinp_regrid_weights_type), intent(in out) :: weights
+character(len=*),                   intent(in)     :: filename
+
+if (trim(filename) == 'unset') return
+
+call weights % load(filename)
+call weights % populate_dst_address_2D(                                        &
+     int(um_grid % num_p_points_x, kind=int32))
+
+end subroutine load_optional_p_weights
 
 !---------------------------------------------------------
 
@@ -120,6 +139,7 @@ type(lfricinp_regrid_weights_type), pointer :: weights
 ! Local variables
 integer(kind=int64) :: horiz_grid_code = 0
 type(lfricinp_regrid_weights_type), pointer :: land_mask_weights
+type(lfricinp_regrid_weights_type), pointer :: sea_mask_weights
 character(len=32) :: method
 
 ! Check if interpolation method is supported.
@@ -152,18 +172,25 @@ case( p_points, ozone_points, land_compressed, p_points_values_over_sea )
   if (any(specify_nearest_neighbour(1:nn_fields) == stashcode)) then
     weights => mesh_face_centre_to_grid_p_neareststod
     land_mask_weights => mesh_face_centre_to_grid_p_land_mask_neareststod
+    sea_mask_weights => mesh_face_centre_to_grid_p_sea_mask_neareststod
     method = 'nearest neighbour'
   else
     weights => mesh_face_centre_to_grid_p_bilinear
     land_mask_weights => mesh_face_centre_to_grid_p_land_mask_bilinear
+    sea_mask_weights => mesh_face_centre_to_grid_p_sea_mask_bilinear
     method = 'bilinear'
   end if
 
-  ! Land fields use the land-masked version of those weights, if loaded
+  ! Land and sea fields use the land- or sea-masked version of those
+  ! weights, if loaded
   if (horiz_grid_code == land_compressed .and.                          &
       allocated(land_mask_weights % remap_matrix)) then
     weights => land_mask_weights
     method = 'land-masked ' // trim(method)
+  else if (horiz_grid_code == p_points_values_over_sea .and.            &
+           allocated(sea_mask_weights % remap_matrix)) then
+    weights => sea_mask_weights
+    method = 'sea-masked ' // trim(method)
   end if
 
   write(log_scratch_space, '((A,I4,A))') "Will use " // trim(method) // &

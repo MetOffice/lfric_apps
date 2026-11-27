@@ -9,7 +9,8 @@
 '''
 Copy an LFRic UGRID mesh file and add a face-located mask field to it,
 taken from another NetCDF file. The field is written on the mesh's
-n<mesh>_face dimension with _FillValue=0
+n<mesh>_face dimension with _FillValue=0. Optionally the mask can be
+inverted first (e.g. to turn a land mask into a sea mask).
 '''
 import argparse
 import shutil
@@ -24,7 +25,7 @@ COPY_ATTRS = ['units', 'standard_name', 'long_name', 'um_stash_source']
 
 
 def add_mask_to_mesh(mesh_in, mesh_name, mask_file, mask_var,
-                     mesh_out, out_var):
+                     mesh_out, out_var, invert=False):
     '''
     Write mesh_out: a copy of mesh_in with out_var added on the faces.
 
@@ -34,6 +35,7 @@ def add_mask_to_mesh(mesh_in, mesh_name, mask_file, mask_var,
     param str mask_var: Name of the mask variable in mask_file.
     param str mesh_out: Path of the masked mesh file to write.
     param str out_var: Name to give the mask variable in mesh_out.
+    param bool invert: If True, swap masked (0) and unmasked (1) cells.
     '''
     # Work on a copy so the original mesh is left untouched
     shutil.copyfile(mesh_in, mesh_out)
@@ -48,6 +50,12 @@ def add_mask_to_mesh(mesh_in, mesh_name, mask_file, mask_var,
         data = np.squeeze(src_var[...])
         attrs = {name: src_var.getncattr(name) for name in COPY_ATTRS
                  if name in src_var.ncattrs()}
+
+    if invert:
+        data = np.where(data == FILL_VALUE, 1.0, FILL_VALUE)
+        # The source metadata describes the un-inverted mask
+        attrs = {'units': '1',
+                 'long_name': f'inverse of {mask_var} from {mask_file}'}
 
     with Dataset(mesh_out, 'a') as mesh:
         # LFRic UGRID naming convention for the face dimension
@@ -81,7 +89,10 @@ if __name__ == "__main__":
     parser.add_argument('--mask-var', required=True)
     parser.add_argument('--mesh-out', required=True)
     parser.add_argument('--out-var', required=True)
+    parser.add_argument('--invert', action='store_true',
+                        help='Swap masked (0) and unmasked (non-zero) cells')
     args = parser.parse_args()
 
     add_mask_to_mesh(args.mesh_in, args.mesh_name, args.mask_file,
-                     args.mask_var, args.mesh_out, args.out_var)
+                     args.mask_var, args.mesh_out, args.out_var,
+                     args.invert)

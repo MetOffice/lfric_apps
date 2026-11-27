@@ -87,14 +87,16 @@ call log_event(log_scratch_space, LOG_LEVEL_INFO)
 
 end subroutine lfric2um_read_land_sea_mask
 
-!> @brief Set sea points of land-compressed fields to missing data
+!> @brief Set sea points of land-compressed fields, and land points of
+!>        sea-only fields, to missing data
 !> @param[in]     stashcode Stashcode of the field
 !> @param[in,out] field     Regridded field on the UM P grid
 subroutine lfric2um_apply_land_sea_mask(stashcode, field)
 
 ! lfricinputs modules
 use lfricinp_stashmaster_mod,   only: get_stashmaster_item, grid, &
-                                      land_compressed
+                                      land_compressed,            &
+                                      p_points_values_over_sea
 use lfricinp_um_parameters_mod, only: um_rmdi
 
 implicit none
@@ -102,13 +104,17 @@ implicit none
 integer(kind=int64), intent(in)   :: stashcode
 real(kind=real64),   intent(in out) :: field(:,:)
 
-! If there is no mask, or this isn't a land-only field, just return
+! If there is no mask, just return
 if (.not. allocated(um_land_sea_mask)) return
-if (get_stashmaster_item(stashcode, grid) /= land_compressed) return
 
 ! Having an explicit loop would be more OpenMP friendly, but as we don't
 ! use OpenMP in lfricinputs, this is probably the most efficient method
-where (.not. um_land_sea_mask) field = um_rmdi
+select case (get_stashmaster_item(stashcode, grid))
+case (land_compressed)
+  where (.not. um_land_sea_mask) field = um_rmdi
+case (p_points_values_over_sea)
+  where (um_land_sea_mask) field = um_rmdi
+end select
 
 end subroutine lfric2um_apply_land_sea_mask
 

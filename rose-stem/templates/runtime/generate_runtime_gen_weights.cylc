@@ -43,6 +43,8 @@
             LFRIC_MESH_NAME = {{task_values["mesh_name"]|default("")}}
             LFRIC_MASK_FILE = {{task_values["mask_file"]|default("")}}
             LFRIC_MASK_VAR = {{task_values["mask_var"]|default("")}}
+            LFRIC_SEA_MASK_FILE = {{task_values["sea_mask_file"]|default("")}}
+            LFRIC_SEA_MASK_VAR = {{task_values["sea_mask_var"]|default("")}}
     {% if task_ns.application == "lfric2lfric" %}
             DST_GRID_PATH = {{mesh_dir}}/{{task_values["dst_mesh"]}}/mesh_{{task_values["dst_mesh"]}}.nc
             DST_GRID_TYPE = {{task_values["dst_type"]}}
