@@ -1,6 +1,6 @@
 <file_definition>
 
-  <file id="lfric_diag" name="lfric_diag" output_freq="1ts" convention="UGRID" enabled=".TRUE.">
+  <file id="lfric_diag" name="lfric_diag" output_freq="1ts" write_initial_condition=".TRUE." convention="UGRID" enabled=".TRUE.">
     <field_group id="dynamics_prognostics" operation="instant" freq_op="1ts">
       <field field_ref="theta"/>
       <field field_ref="m_v"/>

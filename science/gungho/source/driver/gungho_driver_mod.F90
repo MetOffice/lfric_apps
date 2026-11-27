@@ -269,8 +269,7 @@ contains
     call initialise_model_data( modeldb, mesh, twod_mesh )
 
     ! Initial output
-    call write_initial_output( modeldb, mesh, twod_mesh, &
-                               io_context_name, nodal_output_on_w3 )
+    call write_initial_output( modeldb, mesh, twod_mesh, nodal_output_on_w3 )
 
     ! Model configuration initialisation
     call initialise_model( mesh, modeldb )
