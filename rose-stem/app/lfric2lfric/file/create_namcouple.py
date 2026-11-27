@@ -51,6 +51,7 @@ AXIS_MAP = {
     "general":               [1, "regrid_weights_conserve2nd.nc"],
 }
 
+
 # Dictionary for special fields, with the associated number of
 # multidata levels, and the associated weights file. These values
 # overide the values in the AXIS_MAP.
@@ -63,11 +64,12 @@ SPECIAL_FIELDS = {
     "snowpack_density":     [11, "regrid_weights_masked_neareststod.nc"],
     "snow_under_canopy":    [11, "regrid_weights_masked_neareststod.nc"],
     # Single layer fields on land are masked
-    "z0msea":               [1, "regrid_weights_masked_conserve2nd.nc"],
-    "surface_conductance":  [1, "regrid_weights_masked_conserve2nd.nc"],
-    "soil_sat_frac":        [1, "regrid_weights_masked_conserve2nd.nc"],
-    "wetness_under_soil":   [1, "regrid_weights_masked_conserve2nd.nc"],
-    "snow_soot":            [1, "regrid_weights_masked_conserve2nd.nc"],
+    "z0msea":               [1, "regrid_weights_masked_neareststod.nc"],
+    "water_table":          [1, "regrid_weights_masked_neareststod.nc"],
+    "surface_conductance":  [1, "regrid_weights_masked_neareststod.nc"],
+    "soil_sat_frac":        [1, "regrid_weights_masked_neareststod.nc"],
+    "wetness_under_soil":   [1, "regrid_weights_masked_neareststod.nc"],
+    "snow_soot":            [1, "regrid_weights_masked_neareststod.nc"],
 }
 
 # ---------------------------------------------------------------

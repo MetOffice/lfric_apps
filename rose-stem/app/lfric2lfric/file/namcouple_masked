@@ -43,14 +43,14 @@ src_z0msea_level_1 dst_z0msea_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTE
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 4 
 src_surface_conductance_level_1 dst_surface_conductance_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 5 
 src_tile_fraction_level_1 dst_tile_fraction_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
@@ -323,21 +323,21 @@ src_soil_sat_frac_level_1 dst_soil_sat_frac_level_1 1 5000 1 lfric2lfric_restart
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 44 
 src_water_table_level_1 dst_water_table_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 45 
 src_wetness_under_soil_level_1 dst_wetness_under_soil_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 # Mapping entry 46 
 src_soil_temperature_level_1 dst_soil_temperature_level_1 1 5000 1 lfric2lfric_restart_oa.nc EXPORTED 
@@ -1863,7 +1863,7 @@ src_snow_soot_level_1 dst_snow_soot_level_1 1 5000 1 lfric2lfric_restart_oa.nc E
 512 1 1024 1 lfric2lfric lfric2lfric SEQ=+1 
 R 0 R 0 
 MAPPING 
-regrid_weights_masked_conserve2nd.nc 
+regrid_weights_masked_neareststod.nc 
 ############################################ 
 $END 
 ############################################# 
