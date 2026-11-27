@@ -625,12 +625,12 @@ class TestLaunchExeEnv():
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
 
-    def test_interleaved_C896_lfric_atm_32bit(self, monkeypatch):
+    def test_lfric_atm_nwp_gal10_C896_MG_op_720t_opDiag_interleaved_ex1a_cce_fast_debug_64bit(self, monkeypatch):
         monkeypatch.setenv("TARGET_PLATFORM", "meto-ex1a")
         monkeypatch.setenv("RUN_METHOD", "mpiexec")
         monkeypatch.setenv("CORES_PER_NODE", "192")
         monkeypatch.setenv("XIOS_SERVER_MODE", "True")
-        monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/lfric_atm/cce_fast-debug-64bit-rbl32")
+        monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/lfric_atm/cce_fast-debug-64bit")
         monkeypatch.setenv("INTERLEAVE_EXECS", "True")
         # Now the interleaving-specific settings
         monkeypatch.setenv("EXEC_LABELS", "lfric_atm xios_server")
@@ -656,13 +656,14 @@ class TestLaunchExeEnv():
         monkeypatch.setenv("XIOS_SERVER_OMP_NUM_THREADS", "1")
         monkeypatch.setenv("XIOS_SERVER_TOTAL_RANKS", "168")
         monkeypatch.setenv("XIOS_SERVER_PATH", "xios_server.exe")
+        monkeypatch.setenv("XIOS_SERVER_ARGS", "")
 
         monkeypatch.setenv("TEST_LAUNCH_EXE_EXEC",
                            (f"mpiexec -hostfile={os.getenv("INTERLEAVER_FILES")}/hostfile.txt --cpu-bind=none "
                             # LFRIC_ATM command
                             f"--depth=1 -n 4704 "
                             f"bash {os.getenv("CYLC_WORKFLOW_RUN_DIR")}/site/meto/common/bin/interleaver/rank_binder.sh 0 4704 168 0 1 "
-                            f"env OMP_NUM_THREADS=1 $OUTPUT_ROOT/bin/lfric_atm/cce_fast-debug-64bit-rbl32/lfric_atm configuration.nml "
+                            f"env OMP_NUM_THREADS=1 $OUTPUT_ROOT/bin/lfric_atm/cce_fast-debug-64bit/lfric_atm configuration.nml "
                             # XIOS command
                             f": --depth=4 -n 168 "
                             f"bash {os.getenv("CYLC_WORKFLOW_RUN_DIR")}/site/meto/common/bin/interleaver/rank_binder.sh 4704 168 24 168 4 "
@@ -670,3 +671,46 @@ class TestLaunchExeEnv():
         sr = subprocess.run(self.launch_exe,
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
+
+
+    def test_interleaving_config_error_too_many_nodes(self, monkeypatch):
+        monkeypatch.setenv("TARGET_PLATFORM", "meto-ex1a")
+        monkeypatch.setenv("RUN_METHOD", "mpiexec")
+        monkeypatch.setenv("CORES_PER_NODE", "192")
+        monkeypatch.setenv("XIOS_SERVER_MODE", "True")
+        monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/lfric_atm/cce_fast-debug-64bit")
+        monkeypatch.setenv("INTERLEAVE_EXECS", "True")
+        # Now the interleaving-specific settings
+        monkeypatch.setenv("EXEC_LABELS", "lfric_atm xios_server")
+        monkeypatch.setenv("INTERLEAVER_FILES", str(tempfile.mkdtemp()))
+
+        # PBS_NODEFILE
+        monkeypatch.setenv("PBS_NODEFILE", f"{os.getenv("INTERLEAVER_FILES")}/PBS_NODEFILE")
+        pbs_contents = [ f"nid{x:02d}\n" for x in range(0,28) ]
+        with open(os.getenv("PBS_NODEFILE"), mode='w') as pbs_file:
+            pbs_file.write(''.join(pbs_contents))
+            pbs_file.close()
+
+        # lfric_atm
+        monkeypatch.setenv("LFRIC_ATM_RANKS_PER_NODE", "168")
+        monkeypatch.setenv("LFRIC_ATM_RANK_DEPTH", "1")
+        monkeypatch.setenv("LFRIC_ATM_OMP_NUM_THREADS", "1")
+        monkeypatch.setenv("LFRIC_ATM_TOTAL_RANKS", "4704")
+        monkeypatch.setenv("LFRIC_ATM_PATH", f"{os.getenv("BIN_DIR")}/lfric_atm")
+        monkeypatch.setenv("LFRIC_ATM_ARGS", "configuration.nml" )
+        # xios_server
+        monkeypatch.setenv("XIOS_SERVER_RANKS_PER_NODE", "8")
+        monkeypatch.setenv("XIOS_SERVER_RANK_DEPTH", "4")
+        monkeypatch.setenv("XIOS_SERVER_OMP_NUM_THREADS", "1")
+        monkeypatch.setenv("XIOS_SERVER_TOTAL_RANKS", "168")
+        monkeypatch.setenv("XIOS_SERVER_PATH", "xios_server.exe")
+        monkeypatch.setenv("XIOS_SERVER_ARGS", "")
+
+        sr = subprocess.run(self.launch_exe,
+                            capture_output=True)
+        assert sr.returncode == 1
+
+        error = sr.stderr.decode("UTF-8")
+
+        assert ("LFRIC LAUNCHER ERROR: The total number of requested cores for "
+                "interleaving exceeds the number of available cores") in error
