@@ -7,10 +7,11 @@
 import os
 import pytest
 import subprocess
+import tempfile
 
 class TestLaunchExeEnv():
     launch_exe = os.environ["launch_exe_meto_path"]
-    def test_run_shallow_water_williamson5_C24_azspice_gnu_fast_debug_64bit(self, monkeypatch):
+    def test_run_shallow_water_williamson5_C24_azspice_gnu_fast_debug_64bit(self, monkeypatch, xios_server_false_env):
         monkeypatch.setenv("TARGET_PLATFORM", "meto-azspice")
         monkeypatch.setenv("RUN_METHOD", "mpiexec")
         monkeypatch.setenv("HYPERTHREADS", "1")
@@ -18,10 +19,6 @@ class TestLaunchExeEnv():
         monkeypatch.setenv("NUMA_REGIONS_PER_NODE", "0")
         monkeypatch.setenv("OMP_NUM_THREADS", "3")
         monkeypatch.setenv("TOTAL_RANKS", "6")
-        monkeypatch.setenv("XIOS_SERVER_MODE", "False")
-        monkeypatch.setenv("XIOS_SERVER_RANKS", "0")
-        monkeypatch.setenv("xios_nodes", "0")
-        monkeypatch.setenv("mpi_parts_xios", "0")
         monkeypatch.setenv("CORES_PER_NODE_OVERRIDE", "0")
         monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/shallow_water/gnu_fast-debug-64bit")
         monkeypatch.setenv("EXEC_NAME", "shallow_water")
@@ -31,7 +28,7 @@ class TestLaunchExeEnv():
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
 
-    def test_run_lfric_atm_nwp_gal9_C48_MG_azspice_gnu_fast_debug_64bit(self, monkeypatch):
+    def test_run_lfric_atm_nwp_gal9_C48_MG_azspice_gnu_fast_debug_64bit(self, monkeypatch, xios_server_false_env):
         monkeypatch.setenv("TARGET_PLATFORM", "meto-azspice")
         monkeypatch.setenv("RUN_METHOD", "mpiexec")
         monkeypatch.setenv("HYPERTHREADS", "1")
@@ -39,10 +36,6 @@ class TestLaunchExeEnv():
         monkeypatch.setenv("NUMA_REGIONS_PER_NODE", "0")
         monkeypatch.setenv("OMP_NUM_THREADS", "1")
         monkeypatch.setenv("TOTAL_RANKS", "24")
-        monkeypatch.setenv("XIOS_SERVER_MODE", "False")
-        monkeypatch.setenv("XIOS_SERVER_RANKS", "0")
-        monkeypatch.setenv("xios_nodes", "0")
-        monkeypatch.setenv("mpi_parts_xios", "0")
         monkeypatch.setenv("CORES_PER_NODE_OVERRIDE", "0")
         monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/lfric_atm/gnu_fast-debug-64bit")
         monkeypatch.setenv("EXEC_NAME", "lfric_atm")
@@ -52,7 +45,7 @@ class TestLaunchExeEnv():
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
 
-    def test_run_shallow_water_vortex_plane_BiP64x64_1x1_ex1a_gnu_fast_debug_64bit(self, monkeypatch):
+    def test_run_shallow_water_vortex_plane_BiP64x64_1x1_ex1a_gnu_fast_debug_64bit(self, monkeypatch, xios_server_false_env):
         monkeypatch.setenv("TARGET_PLATFORM", "meto-ex1a")
         monkeypatch.setenv("RUN_METHOD", "mpiexec")
         monkeypatch.setenv("HYPERTHREADS", "1")
@@ -60,10 +53,6 @@ class TestLaunchExeEnv():
         monkeypatch.setenv("NUMA_REGIONS_PER_NODE", "2")
         monkeypatch.setenv("OMP_NUM_THREADS", "1")
         monkeypatch.setenv("TOTAL_RANKS", "6")
-        monkeypatch.setenv("XIOS_SERVER_MODE", "False")
-        monkeypatch.setenv("XIOS_SERVER_RANKS", "0")
-        monkeypatch.setenv("xios_nodes", "0")
-        monkeypatch.setenv("mpi_parts_xios", "0")
         monkeypatch.setenv("CORES_PER_NODE_OVERRIDE", "0")
         monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/shallow_water/gnu_fast-debug-64bit")
         monkeypatch.setenv("EXEC_NAME", "shallow_water")
@@ -73,7 +62,7 @@ class TestLaunchExeEnv():
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
 
-    def test_run_gungho_model_sbr_lam_n96_MG_lam_rotate_ex1a_gnu_fast_debug_64bit(self, monkeypatch):
+    def test_run_gungho_model_sbr_lam_n96_MG_lam_rotate_ex1a_gnu_fast_debug_64bit(self, monkeypatch, xios_server_false_env):
         monkeypatch.setenv("TARGET_PLATFORM", "meto-ex1a")
         monkeypatch.setenv("RUN_METHOD", "mpiexec")
         monkeypatch.setenv("HYPERTHREADS", "1")
@@ -81,10 +70,6 @@ class TestLaunchExeEnv():
         monkeypatch.setenv("NUMA_REGIONS_PER_NODE", "2")
         monkeypatch.setenv("OMP_NUM_THREADS", "6")
         monkeypatch.setenv("TOTAL_RANKS", "4")
-        monkeypatch.setenv("XIOS_SERVER_MODE", "False")
-        monkeypatch.setenv("XIOS_SERVER_RANKS", "0")
-        monkeypatch.setenv("xios_nodes", "0")
-        monkeypatch.setenv("mpi_parts_xios", "0")
         monkeypatch.setenv("CORES_PER_NODE_OVERRIDE", "0")
         monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/gungho_model/gnu_fast-debug-64bit")
         monkeypatch.setenv("EXEC_NAME", "gungho_model")
@@ -94,7 +79,7 @@ class TestLaunchExeEnv():
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
 
-    def test_run_gungho_model_skamarock_klemp_gw_ph1pv0_BiP75x4_4000x2000_ex1a_gnu_fast_debug_64bit(self, monkeypatch):
+    def test_run_gungho_model_skamarock_klemp_gw_ph1pv0_BiP75x4_4000x2000_ex1a_gnu_fast_debug_64bit(self, monkeypatch, xios_server_false_env):
         monkeypatch.setenv("TARGET_PLATFORM", "meto-ex1a")
         monkeypatch.setenv("RUN_METHOD", "mpiexec")
         monkeypatch.setenv("HYPERTHREADS", "1")
@@ -102,10 +87,6 @@ class TestLaunchExeEnv():
         monkeypatch.setenv("NUMA_REGIONS_PER_NODE", "2")
         monkeypatch.setenv("OMP_NUM_THREADS", "2")
         monkeypatch.setenv("TOTAL_RANKS", "6")
-        monkeypatch.setenv("XIOS_SERVER_MODE", "False")
-        monkeypatch.setenv("XIOS_SERVER_RANKS", "0")
-        monkeypatch.setenv("xios_nodes", "0")
-        monkeypatch.setenv("mpi_parts_xios", "0")
         monkeypatch.setenv("CORES_PER_NODE_OVERRIDE", "0")
         monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/gungho_model/gnu_fast-debug-64bit")
         monkeypatch.setenv("EXEC_NAME", "gungho_model")
@@ -115,7 +96,7 @@ class TestLaunchExeEnv():
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
 
-    def test_run_gungho_model_straka_200m_alt1_BiP256x4_200x200_ex1a_gnu_fast_debug_64bit(self, monkeypatch):
+    def test_run_gungho_model_straka_200m_alt1_BiP256x4_200x200_ex1a_gnu_fast_debug_64bit(self, monkeypatch, xios_server_false_env):
         monkeypatch.setenv("TARGET_PLATFORM", "meto-ex1a")
         monkeypatch.setenv("RUN_METHOD", "mpiexec")
         monkeypatch.setenv("HYPERTHREADS", "1")
@@ -123,10 +104,6 @@ class TestLaunchExeEnv():
         monkeypatch.setenv("NUMA_REGIONS_PER_NODE", "2")
         monkeypatch.setenv("OMP_NUM_THREADS", "1")
         monkeypatch.setenv("TOTAL_RANKS", "8")
-        monkeypatch.setenv("XIOS_SERVER_MODE", "False")
-        monkeypatch.setenv("XIOS_SERVER_RANKS", "0")
-        monkeypatch.setenv("xios_nodes", "0")
-        monkeypatch.setenv("mpi_parts_xios", "0")
         monkeypatch.setenv("CORES_PER_NODE_OVERRIDE", "0")
         monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/gungho_model/gnu_fast-debug-64bit")
         monkeypatch.setenv("EXEC_NAME", "gungho_model")
@@ -136,7 +113,7 @@ class TestLaunchExeEnv():
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
 
-    def test_run_lfric_atm_scm_ral3_urban2t_BiP2x2_50000x50000_azspice_gnu_fast_debug_64bit(self, monkeypatch):
+    def test_run_lfric_atm_scm_ral3_urban2t_BiP2x2_50000x50000_azspice_gnu_fast_debug_64bit(self, monkeypatch, xios_server_false_env):
         monkeypatch.setenv("TARGET_PLATFORM", "meto-azspice")
         monkeypatch.setenv("RUN_METHOD", "mpiexec")
         monkeypatch.setenv("HYPERTHREADS", "1")
@@ -144,10 +121,6 @@ class TestLaunchExeEnv():
         monkeypatch.setenv("NUMA_REGIONS_PER_NODE", "0")
         monkeypatch.setenv("OMP_NUM_THREADS", "1")
         monkeypatch.setenv("TOTAL_RANKS", "1")
-        monkeypatch.setenv("XIOS_SERVER_MODE", "False")
-        monkeypatch.setenv("XIOS_SERVER_RANKS", "0")
-        monkeypatch.setenv("xios_nodes", "0")
-        monkeypatch.setenv("mpi_parts_xios", "0")
         monkeypatch.setenv("CORES_PER_NODE_OVERRIDE", "0")
         monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/lfric_atm/gnu_fast-debug-64bit")
         monkeypatch.setenv("EXEC_NAME", "lfric_atm")
@@ -157,7 +130,7 @@ class TestLaunchExeEnv():
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
 
-    def test_run_lfric_atm_nwp_gal9_mg_C48_MG_ex1a_cce_fast_debug_64bit(self, monkeypatch):
+    def test_run_lfric_atm_nwp_gal9_mg_C48_MG_ex1a_cce_fast_debug_64bit(self, monkeypatch, xios_server_false_env):
         monkeypatch.setenv("TARGET_PLATFORM", "meto-ex1a")
         monkeypatch.setenv("RUN_METHOD", "mpiexec")
         monkeypatch.setenv("HYPERTHREADS", "1")
@@ -165,10 +138,6 @@ class TestLaunchExeEnv():
         monkeypatch.setenv("NUMA_REGIONS_PER_NODE", "2")
         monkeypatch.setenv("OMP_NUM_THREADS", "2")
         monkeypatch.setenv("TOTAL_RANKS", "12")
-        monkeypatch.setenv("XIOS_SERVER_MODE", "False")
-        monkeypatch.setenv("XIOS_SERVER_RANKS", "0")
-        monkeypatch.setenv("xios_nodes", "0")
-        monkeypatch.setenv("mpi_parts_xios", "0")
         monkeypatch.setenv("CORES_PER_NODE_OVERRIDE", "0")
         monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/lfric_atm/cce_fast-debug-64bit")
         monkeypatch.setenv("EXEC_NAME", "lfric_atm")
@@ -178,7 +147,7 @@ class TestLaunchExeEnv():
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
 
-    def test_run_linear_model_runge_kutta_C12_ex1a_gnu_fast_debug_64bit(self, monkeypatch):
+    def test_run_linear_model_runge_kutta_C12_ex1a_gnu_fast_debug_64bit(self, monkeypatch, xios_server_false_env):
         monkeypatch.setenv("TARGET_PLATFORM", "meto-ex1a")
         monkeypatch.setenv("RUN_METHOD", "mpiexec")
         monkeypatch.setenv("HYPERTHREADS", "1")
@@ -186,10 +155,6 @@ class TestLaunchExeEnv():
         monkeypatch.setenv("NUMA_REGIONS_PER_NODE", "2")
         monkeypatch.setenv("OMP_NUM_THREADS", "1")
         monkeypatch.setenv("TOTAL_RANKS", "1")
-        monkeypatch.setenv("XIOS_SERVER_MODE", "False")
-        monkeypatch.setenv("XIOS_SERVER_RANKS", "0")
-        monkeypatch.setenv("xios_nodes", "0")
-        monkeypatch.setenv("mpi_parts_xios", "0")
         monkeypatch.setenv("CORES_PER_NODE_OVERRIDE", "0")
         monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/linear_model/gnu_fast-debug-64bit")
         monkeypatch.setenv("EXEC_NAME", "linear_model")
@@ -199,7 +164,7 @@ class TestLaunchExeEnv():
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
 
-    def test_run_lfric_atm_ral3_ens_seuk_MG_ex1a_cce_fast_debug_64bit_crun1(self, monkeypatch):
+    def test_run_lfric_atm_ral3_ens_seuk_MG_ex1a_cce_fast_debug_64bit_crun1(self, monkeypatch, xios_server_false_env):
         monkeypatch.setenv("TARGET_PLATFORM", "meto-ex1a")
         monkeypatch.setenv("RUN_METHOD", "mpiexec")
         monkeypatch.setenv("HYPERTHREADS", "1")
@@ -207,10 +172,6 @@ class TestLaunchExeEnv():
         monkeypatch.setenv("NUMA_REGIONS_PER_NODE", "2")
         monkeypatch.setenv("OMP_NUM_THREADS", "1")
         monkeypatch.setenv("TOTAL_RANKS", "16")
-        monkeypatch.setenv("XIOS_SERVER_MODE", "False")
-        monkeypatch.setenv("XIOS_SERVER_RANKS", "0")
-        monkeypatch.setenv("xios_nodes", "0")
-        monkeypatch.setenv("mpi_parts_xios", "0")
         monkeypatch.setenv("CORES_PER_NODE_OVERRIDE", "0")
         monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/lfric_atm/cce_fast-debug-64bit")
         monkeypatch.setenv("EXEC_NAME", "lfric_atm")
@@ -220,7 +181,7 @@ class TestLaunchExeEnv():
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
 
-    def test_run_shallow_water_galewsky_vi_ffsl_C96_ex1a_gnu_fast_debug_64bit(self, monkeypatch):
+    def test_run_shallow_water_galewsky_vi_ffsl_C96_ex1a_gnu_fast_debug_64bit(self, monkeypatch, xios_server_false_env):
         monkeypatch.setenv("TARGET_PLATFORM", "meto-ex1a")
         monkeypatch.setenv("RUN_METHOD", "mpiexec")
         monkeypatch.setenv("HYPERTHREADS", "1")
@@ -228,10 +189,6 @@ class TestLaunchExeEnv():
         monkeypatch.setenv("NUMA_REGIONS_PER_NODE", "2")
         monkeypatch.setenv("OMP_NUM_THREADS", "3")
         monkeypatch.setenv("TOTAL_RANKS", "6")
-        monkeypatch.setenv("XIOS_SERVER_MODE", "False")
-        monkeypatch.setenv("XIOS_SERVER_RANKS", "0")
-        monkeypatch.setenv("xios_nodes", "0")
-        monkeypatch.setenv("mpi_parts_xios", "0")
         monkeypatch.setenv("CORES_PER_NODE_OVERRIDE", "0")
         monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/shallow_water/gnu_fast-debug-64bit")
         monkeypatch.setenv("EXEC_NAME", "shallow_water")
@@ -241,7 +198,7 @@ class TestLaunchExeEnv():
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
 
-    def test_run_transport_eternal_fountain_xz_split_vhv_BiP100x10_20x20_ex1a_gnu_fast_debug_64bit(self, monkeypatch):
+    def test_run_transport_eternal_fountain_xz_split_vhv_BiP100x10_20x20_ex1a_gnu_fast_debug_64bit(self, monkeypatch, xios_server_false_env):
         monkeypatch.setenv("TARGET_PLATFORM", "meto-ex1a")
         monkeypatch.setenv("RUN_METHOD", "mpiexec")
         monkeypatch.setenv("HYPERTHREADS", "1")
@@ -249,10 +206,6 @@ class TestLaunchExeEnv():
         monkeypatch.setenv("NUMA_REGIONS_PER_NODE", "2")
         monkeypatch.setenv("OMP_NUM_THREADS", "1")
         monkeypatch.setenv("TOTAL_RANKS", "5")
-        monkeypatch.setenv("XIOS_SERVER_MODE", "False")
-        monkeypatch.setenv("XIOS_SERVER_RANKS", "0")
-        monkeypatch.setenv("xios_nodes", "0")
-        monkeypatch.setenv("mpi_parts_xios", "0")
         monkeypatch.setenv("CORES_PER_NODE_OVERRIDE", "0")
         monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/transport/gnu_fast-debug-64bit")
         monkeypatch.setenv("EXEC_NAME", "transport")
@@ -262,7 +215,7 @@ class TestLaunchExeEnv():
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
 
-    def test_run_transport_cylinder_xz_split_BiP100x10_20x20_ex1a_gnu_fast_debug_64bit(self, monkeypatch):
+    def test_run_transport_cylinder_xz_split_BiP100x10_20x20_ex1a_gnu_fast_debug_64bit(self, monkeypatch, xios_server_false_env):
         monkeypatch.setenv("TARGET_PLATFORM", "meto-ex1a")
         monkeypatch.setenv("RUN_METHOD", "mpiexec")
         monkeypatch.setenv("HYPERTHREADS", "1")
@@ -270,10 +223,6 @@ class TestLaunchExeEnv():
         monkeypatch.setenv("NUMA_REGIONS_PER_NODE", "2")
         monkeypatch.setenv("OMP_NUM_THREADS", "1")
         monkeypatch.setenv("TOTAL_RANKS", "4")
-        monkeypatch.setenv("XIOS_SERVER_MODE", "False")
-        monkeypatch.setenv("XIOS_SERVER_RANKS", "0")
-        monkeypatch.setenv("xios_nodes", "0")
-        monkeypatch.setenv("mpi_parts_xios", "0")
         monkeypatch.setenv("CORES_PER_NODE_OVERRIDE", "0")
         monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/transport/gnu_fast-debug-64bit")
         monkeypatch.setenv("EXEC_NAME", "transport")
@@ -283,7 +232,7 @@ class TestLaunchExeEnv():
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
 
-    def test_run_lfric_atm_ral3_seuk_MG_azspice_gnu_fast_debug_64bit_crun1(self, monkeypatch):
+    def test_run_lfric_atm_ral3_seuk_MG_azspice_gnu_fast_debug_64bit_crun1(self, monkeypatch, xios_server_false_env):
         monkeypatch.setenv("TARGET_PLATFORM", "meto-azspice")
         monkeypatch.setenv("RUN_METHOD", "mpiexec")
         monkeypatch.setenv("HYPERTHREADS", "1")
@@ -291,10 +240,6 @@ class TestLaunchExeEnv():
         monkeypatch.setenv("NUMA_REGIONS_PER_NODE", "0")
         monkeypatch.setenv("OMP_NUM_THREADS", "1")
         monkeypatch.setenv("TOTAL_RANKS", "16")
-        monkeypatch.setenv("XIOS_SERVER_MODE", "False")
-        monkeypatch.setenv("XIOS_SERVER_RANKS", "0")
-        monkeypatch.setenv("xios_nodes", "0")
-        monkeypatch.setenv("mpi_parts_xios", "0")
         monkeypatch.setenv("CORES_PER_NODE_OVERRIDE", "0")
         monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/lfric_atm/gnu_fast-debug-64bit")
         monkeypatch.setenv("EXEC_NAME", "lfric_atm")
@@ -304,7 +249,7 @@ class TestLaunchExeEnv():
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
 
-    def test_run_lfric_atm_nwp_gal9_C48_MG_ex1a_cce_fast_debug_64bit(self, monkeypatch):
+    def test_run_lfric_atm_nwp_gal9_C48_MG_ex1a_cce_fast_debug_64bit(self, monkeypatch, xios_server_false_env):
         monkeypatch.setenv("TARGET_PLATFORM", "meto-ex1a")
         monkeypatch.setenv("RUN_METHOD", "mpiexec")
         monkeypatch.setenv("HYPERTHREADS", "1")
@@ -312,10 +257,6 @@ class TestLaunchExeEnv():
         monkeypatch.setenv("NUMA_REGIONS_PER_NODE", "2")
         monkeypatch.setenv("OMP_NUM_THREADS", "1")
         monkeypatch.setenv("TOTAL_RANKS", "54")
-        monkeypatch.setenv("XIOS_SERVER_MODE", "False")
-        monkeypatch.setenv("XIOS_SERVER_RANKS", "0")
-        monkeypatch.setenv("xios_nodes", "0")
-        monkeypatch.setenv("mpi_parts_xios", "0")
         monkeypatch.setenv("CORES_PER_NODE_OVERRIDE", "0")
         monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/lfric_atm/cce_fast-debug-64bit")
         monkeypatch.setenv("EXEC_NAME", "lfric_atm")
@@ -325,7 +266,7 @@ class TestLaunchExeEnv():
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
 
-    def test_run_gungho_model_straka_200m_BiP256x8_200x200_azspice_gnu_fast_debug_64bit(self, monkeypatch):
+    def test_run_gungho_model_straka_200m_BiP256x8_200x200_azspice_gnu_fast_debug_64bit(self, monkeypatch, xios_server_false_env):
         monkeypatch.setenv("TARGET_PLATFORM", "meto-azspice")
         monkeypatch.setenv("RUN_METHOD", "mpiexec")
         monkeypatch.setenv("HYPERTHREADS", "1")
@@ -333,10 +274,6 @@ class TestLaunchExeEnv():
         monkeypatch.setenv("NUMA_REGIONS_PER_NODE", "0")
         monkeypatch.setenv("OMP_NUM_THREADS", "1")
         monkeypatch.setenv("TOTAL_RANKS", "8")
-        monkeypatch.setenv("XIOS_SERVER_MODE", "False")
-        monkeypatch.setenv("XIOS_SERVER_RANKS", "0")
-        monkeypatch.setenv("xios_nodes", "0")
-        monkeypatch.setenv("mpi_parts_xios", "0")
         monkeypatch.setenv("CORES_PER_NODE_OVERRIDE", "0")
         monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/gungho_model/gnu_fast-debug-64bit")
         monkeypatch.setenv("EXEC_NAME", "gungho_model")
@@ -346,7 +283,7 @@ class TestLaunchExeEnv():
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
 
-    def test_run_transport_hadley_dcmip_ffsl_C48_azspice_gnu_fast_debug_64bit(self, monkeypatch):
+    def test_run_transport_hadley_dcmip_ffsl_C48_azspice_gnu_fast_debug_64bit(self, monkeypatch, xios_server_false_env):
         monkeypatch.setenv("TARGET_PLATFORM", "meto-azspice")
         monkeypatch.setenv("RUN_METHOD", "mpiexec")
         monkeypatch.setenv("HYPERTHREADS", "1")
@@ -354,10 +291,6 @@ class TestLaunchExeEnv():
         monkeypatch.setenv("NUMA_REGIONS_PER_NODE", "0")
         monkeypatch.setenv("OMP_NUM_THREADS", "1")
         monkeypatch.setenv("TOTAL_RANKS", "12")
-        monkeypatch.setenv("XIOS_SERVER_MODE", "False")
-        monkeypatch.setenv("XIOS_SERVER_RANKS", "0")
-        monkeypatch.setenv("xios_nodes", "0")
-        monkeypatch.setenv("mpi_parts_xios", "0")
         monkeypatch.setenv("CORES_PER_NODE_OVERRIDE", "0")
         monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/transport/gnu_fast-debug-64bit")
         monkeypatch.setenv("EXEC_NAME", "transport")
@@ -367,7 +300,7 @@ class TestLaunchExeEnv():
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
 
-    def test_run_gungho_model_baroclinic_C192_MG_ex1a_gnu_fast_debug_64bit(self, monkeypatch):
+    def test_run_gungho_model_baroclinic_C192_MG_ex1a_gnu_fast_debug_64bit(self, monkeypatch, xios_server_false_env):
         monkeypatch.setenv("TARGET_PLATFORM", "meto-ex1a")
         monkeypatch.setenv("RUN_METHOD", "mpiexec")
         monkeypatch.setenv("HYPERTHREADS", "1")
@@ -375,10 +308,6 @@ class TestLaunchExeEnv():
         monkeypatch.setenv("NUMA_REGIONS_PER_NODE", "2")
         monkeypatch.setenv("OMP_NUM_THREADS", "1")
         monkeypatch.setenv("TOTAL_RANKS", "384")
-        monkeypatch.setenv("XIOS_SERVER_MODE", "False")
-        monkeypatch.setenv("XIOS_SERVER_RANKS", "0")
-        monkeypatch.setenv("xios_nodes", "0")
-        monkeypatch.setenv("mpi_parts_xios", "0")
         monkeypatch.setenv("CORES_PER_NODE_OVERRIDE", "0")
         monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/gungho_model/gnu_fast-debug-64bit")
         monkeypatch.setenv("EXEC_NAME", "gungho_model")
@@ -388,7 +317,7 @@ class TestLaunchExeEnv():
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
 
-    def test_run_lfric_atm_nwp_gal9_debug_C48_MG_ex1a_gnu_full_debug_64bit(self, monkeypatch):
+    def test_run_lfric_atm_nwp_gal9_debug_C48_MG_ex1a_gnu_full_debug_64bit(self, monkeypatch, xios_server_false_env):
         monkeypatch.setenv("TARGET_PLATFORM", "meto-ex1a")
         monkeypatch.setenv("RUN_METHOD", "mpiexec")
         monkeypatch.setenv("HYPERTHREADS", "1")
@@ -396,10 +325,6 @@ class TestLaunchExeEnv():
         monkeypatch.setenv("NUMA_REGIONS_PER_NODE", "2")
         monkeypatch.setenv("OMP_NUM_THREADS", "1")
         monkeypatch.setenv("TOTAL_RANKS", "24")
-        monkeypatch.setenv("XIOS_SERVER_MODE", "False")
-        monkeypatch.setenv("XIOS_SERVER_RANKS", "0")
-        monkeypatch.setenv("xios_nodes", "0")
-        monkeypatch.setenv("mpi_parts_xios", "0")
         monkeypatch.setenv("CORES_PER_NODE_OVERRIDE", "0")
         monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/lfric_atm/gnu_full-debug-64bit")
         monkeypatch.setenv("EXEC_NAME", "lfric_atm")
@@ -409,7 +334,7 @@ class TestLaunchExeEnv():
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
 
-    def test_run_gungho_model_skamarock_klemp_gw_p1_BiP75x4_4000x2000_azspice_gnu_fast_debug_64bit(self, monkeypatch):
+    def test_run_gungho_model_skamarock_klemp_gw_p1_BiP75x4_4000x2000_azspice_gnu_fast_debug_64bit(self, monkeypatch, xios_server_false_env):
         monkeypatch.setenv("TARGET_PLATFORM", "meto-azspice")
         monkeypatch.setenv("RUN_METHOD", "mpiexec")
         monkeypatch.setenv("HYPERTHREADS", "1")
@@ -417,10 +342,6 @@ class TestLaunchExeEnv():
         monkeypatch.setenv("NUMA_REGIONS_PER_NODE", "0")
         monkeypatch.setenv("OMP_NUM_THREADS", "2")
         monkeypatch.setenv("TOTAL_RANKS", "3")
-        monkeypatch.setenv("XIOS_SERVER_MODE", "False")
-        monkeypatch.setenv("XIOS_SERVER_RANKS", "0")
-        monkeypatch.setenv("xios_nodes", "0")
-        monkeypatch.setenv("mpi_parts_xios", "0")
         monkeypatch.setenv("CORES_PER_NODE_OVERRIDE", "0")
         monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/gungho_model/gnu_fast-debug-64bit")
         monkeypatch.setenv("EXEC_NAME", "gungho_model")
@@ -430,7 +351,7 @@ class TestLaunchExeEnv():
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
 
-    def test_run_gungho_model_lfric_real_domain_C48_MG_ex1a_gnu_fast_debug_64bit(self, monkeypatch):
+    def test_run_gungho_model_lfric_real_domain_C48_MG_ex1a_gnu_fast_debug_64bit(self, monkeypatch, xios_server_false_env):
         monkeypatch.setenv("TARGET_PLATFORM", "meto-ex1a")
         monkeypatch.setenv("RUN_METHOD", "mpiexec")
         monkeypatch.setenv("HYPERTHREADS", "1")
@@ -439,10 +360,6 @@ class TestLaunchExeEnv():
         monkeypatch.setenv("OMP_NUM_THREADS", "4")
         monkeypatch.setenv("RANKS_DEPTH_PAD", "3")
         monkeypatch.setenv("TOTAL_RANKS", "6")
-        monkeypatch.setenv("XIOS_SERVER_MODE", "False")
-        monkeypatch.setenv("XIOS_SERVER_RANKS", "0")
-        monkeypatch.setenv("xios_nodes", "0")
-        monkeypatch.setenv("mpi_parts_xios", "0")
         monkeypatch.setenv("CORES_PER_NODE_OVERRIDE", "0")
         monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/gungho_model/gnu_fast-debug-64bit")
         monkeypatch.setenv("EXEC_NAME", "gungho_model")
@@ -452,7 +369,7 @@ class TestLaunchExeEnv():
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
 
-    def test_run_gungho_model_skamarock_klemp_gw_p1_BiP75x4_4000x2000_ex1a_gnu_fast_debug_64bit(self, monkeypatch):
+    def test_run_gungho_model_skamarock_klemp_gw_p1_BiP75x4_4000x2000_ex1a_gnu_fast_debug_64bit(self, monkeypatch, xios_server_false_env):
         monkeypatch.setenv("TARGET_PLATFORM", "meto-ex1a")
         monkeypatch.setenv("RUN_METHOD", "mpiexec")
         monkeypatch.setenv("HYPERTHREADS", "1")
@@ -461,10 +378,6 @@ class TestLaunchExeEnv():
         monkeypatch.setenv("OMP_NUM_THREADS", "2")
         monkeypatch.setenv("RANKS_DEPTH_PAD", "3")
         monkeypatch.setenv("TOTAL_RANKS", "3")
-        monkeypatch.setenv("XIOS_SERVER_MODE", "False")
-        monkeypatch.setenv("XIOS_SERVER_RANKS", "0")
-        monkeypatch.setenv("xios_nodes", "0")
-        monkeypatch.setenv("mpi_parts_xios", "0")
         monkeypatch.setenv("CORES_PER_NODE_OVERRIDE", "0")
         monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/gungho_model/gnu_fast-debug-64bit")
         monkeypatch.setenv("EXEC_NAME", "gungho_model")
@@ -474,7 +387,7 @@ class TestLaunchExeEnv():
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
 
-    def test_run_gungho_model_bryan_fritsch_dry_BiP200x10_100x100_azspice_gnu_fast_debug_64bit(self, monkeypatch):
+    def test_run_gungho_model_bryan_fritsch_dry_BiP200x10_100x100_azspice_gnu_fast_debug_64bit(self, monkeypatch, xios_server_false_env):
         monkeypatch.setenv("TARGET_PLATFORM", "meto-azspice")
         monkeypatch.setenv("RUN_METHOD", "mpiexec")
         monkeypatch.setenv("HYPERTHREADS", "1")
@@ -482,10 +395,6 @@ class TestLaunchExeEnv():
         monkeypatch.setenv("NUMA_REGIONS_PER_NODE", "0")
         monkeypatch.setenv("OMP_NUM_THREADS", "1")
         monkeypatch.setenv("TOTAL_RANKS", "10")
-        monkeypatch.setenv("XIOS_SERVER_MODE", "False")
-        monkeypatch.setenv("XIOS_SERVER_RANKS", "0")
-        monkeypatch.setenv("xios_nodes", "0")
-        monkeypatch.setenv("mpi_parts_xios", "0")
         monkeypatch.setenv("CORES_PER_NODE_OVERRIDE", "0")
         monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/gungho_model/gnu_fast-debug-64bit")
         monkeypatch.setenv("EXEC_NAME", "gungho_model")
@@ -495,7 +404,7 @@ class TestLaunchExeEnv():
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
 
-    def test_run_gungho_model_robert_moist_smag_BiP100x8_10x10_azspice_gnu_fast_debug_64bit(self, monkeypatch):
+    def test_run_gungho_model_robert_moist_smag_BiP100x8_10x10_azspice_gnu_fast_debug_64bit(self, monkeypatch, xios_server_false_env):
         monkeypatch.setenv("TARGET_PLATFORM", "meto-azspice")
         monkeypatch.setenv("RUN_METHOD", "mpiexec")
         monkeypatch.setenv("HYPERTHREADS", "1")
@@ -503,10 +412,6 @@ class TestLaunchExeEnv():
         monkeypatch.setenv("NUMA_REGIONS_PER_NODE", "0")
         monkeypatch.setenv("OMP_NUM_THREADS", "2")
         monkeypatch.setenv("TOTAL_RANKS", "5")
-        monkeypatch.setenv("XIOS_SERVER_MODE", "False")
-        monkeypatch.setenv("XIOS_SERVER_RANKS", "0")
-        monkeypatch.setenv("xios_nodes", "0")
-        monkeypatch.setenv("mpi_parts_xios", "0")
         monkeypatch.setenv("CORES_PER_NODE_OVERRIDE", "0")
         monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/gungho_model/gnu_fast-debug-64bit")
         monkeypatch.setenv("EXEC_NAME", "gungho_model")
@@ -516,7 +421,7 @@ class TestLaunchExeEnv():
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
 
-    def test_run_linear_model_dcmip301_C24_ex1a_gnu_fast_debug_64bit(self, monkeypatch):
+    def test_run_linear_model_dcmip301_C24_ex1a_gnu_fast_debug_64bit(self, monkeypatch, xios_server_false_env):
         monkeypatch.setenv("TARGET_PLATFORM", "meto-ex1a")
         monkeypatch.setenv("RUN_METHOD", "mpiexec")
         monkeypatch.setenv("HYPERTHREADS", "1")
@@ -524,10 +429,6 @@ class TestLaunchExeEnv():
         monkeypatch.setenv("NUMA_REGIONS_PER_NODE", "2")
         monkeypatch.setenv("OMP_NUM_THREADS", "1")
         monkeypatch.setenv("TOTAL_RANKS", "12")
-        monkeypatch.setenv("XIOS_SERVER_MODE", "False")
-        monkeypatch.setenv("XIOS_SERVER_RANKS", "0")
-        monkeypatch.setenv("xios_nodes", "0")
-        monkeypatch.setenv("mpi_parts_xios", "0")
         monkeypatch.setenv("CORES_PER_NODE_OVERRIDE", "0")
         monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/linear_model/gnu_fast-debug-64bit")
         monkeypatch.setenv("EXEC_NAME", "linear_model")
@@ -608,10 +509,6 @@ class TestLaunchExeEnv():
         monkeypatch.setenv("NUMA_REGIONS_PER_NODE", "2")
         monkeypatch.setenv("OMP_NUM_THREADS", "3")
         monkeypatch.setenv("TOTAL_RANKS", "5")
-        monkeypatch.setenv("XIOS_SERVER_MODE", "False")
-        monkeypatch.setenv("XIOS_SERVER_RANKS", "0")
-        monkeypatch.setenv("xios_nodes", "0")
-        monkeypatch.setenv("mpi_parts_xios", "0")
         monkeypatch.setenv("CORES_PER_NODE_OVERRIDE", "0")
         monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/gungho_model/gnu_fast-debug-64bit")
         monkeypatch.setenv("EXEC_NAME", "gungho_model")
@@ -727,3 +624,93 @@ class TestLaunchExeEnv():
         sr = subprocess.run(self.launch_exe,
                             capture_output=True)
         assert sr.returncode == 0, sr.stderr.decode("UTF-8")
+
+    def test_lfric_atm_nwp_gal10_C896_MG_op_720t_opDiag_interleaved_ex1a_cce_fast_debug_64bit(self, monkeypatch):
+        monkeypatch.setenv("TARGET_PLATFORM", "meto-ex1a")
+        monkeypatch.setenv("RUN_METHOD", "mpiexec")
+        monkeypatch.setenv("CORES_PER_NODE", "192")
+        monkeypatch.setenv("XIOS_SERVER_MODE", "True")
+        monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/lfric_atm/cce_fast-debug-64bit")
+        monkeypatch.setenv("INTERLEAVE_EXECS", "True")
+        # Now the interleaving-specific settings
+        monkeypatch.setenv("EXEC_LABELS", "lfric_atm xios_server")
+        monkeypatch.setenv("INTERLEAVER_FILES", str(tempfile.mkdtemp()))
+
+        # PBS_NODEFILE
+        monkeypatch.setenv("PBS_NODEFILE", f"{os.getenv("INTERLEAVER_FILES")}/PBS_NODEFILE")
+        pbs_contents = [ f"nid{x:02d}\n" for x in range(0,28) ]
+        with open(os.getenv("PBS_NODEFILE"), mode='w') as pbs_file:
+            pbs_file.write(''.join(pbs_contents))
+            pbs_file.close()
+
+        # lfric_atm
+        monkeypatch.setenv("LFRIC_ATM_RANKS_PER_NODE", "168")
+        monkeypatch.setenv("LFRIC_ATM_RANK_DEPTH", "1")
+        monkeypatch.setenv("LFRIC_ATM_OMP_NUM_THREADS", "1")
+        monkeypatch.setenv("LFRIC_ATM_TOTAL_RANKS", "4704")
+        monkeypatch.setenv("LFRIC_ATM_PATH", f"{os.getenv("BIN_DIR")}/lfric_atm")
+        monkeypatch.setenv("LFRIC_ATM_ARGS", "configuration.nml" )
+        # xios_server
+        monkeypatch.setenv("XIOS_SERVER_RANKS_PER_NODE", "6")
+        monkeypatch.setenv("XIOS_SERVER_RANK_DEPTH", "4")
+        monkeypatch.setenv("XIOS_SERVER_OMP_NUM_THREADS", "1")
+        monkeypatch.setenv("XIOS_SERVER_TOTAL_RANKS", "168")
+        monkeypatch.setenv("XIOS_SERVER_PATH", "xios_server.exe")
+        monkeypatch.setenv("XIOS_SERVER_ARGS", "")
+
+        monkeypatch.setenv("TEST_LAUNCH_EXE_EXEC",
+                           (f"mpiexec -hostfile={os.getenv("INTERLEAVER_FILES")}/hostfile.txt --cpu-bind=none "
+                            # LFRIC_ATM command
+                            f"--depth=1 -n 4704 "
+                            f"bash {os.getenv("CYLC_WORKFLOW_RUN_DIR")}/site/meto/common/bin/interleaver/rank_binder.sh 0 4704 168 0 1 "
+                            f"env OMP_NUM_THREADS=1 $OUTPUT_ROOT/bin/lfric_atm/cce_fast-debug-64bit/lfric_atm configuration.nml "
+                            # XIOS command
+                            f": --depth=4 -n 168 "
+                            f"bash {os.getenv("CYLC_WORKFLOW_RUN_DIR")}/site/meto/common/bin/interleaver/rank_binder.sh 4704 168 24 168 4 "
+                            f"env OMP_NUM_THREADS=1 xios_server.exe"))
+        sr = subprocess.run(self.launch_exe,
+                            capture_output=True)
+        assert sr.returncode == 0, sr.stderr.decode("UTF-8")
+
+
+    def test_interleaving_config_error_too_many_nodes(self, monkeypatch):
+        monkeypatch.setenv("TARGET_PLATFORM", "meto-ex1a")
+        monkeypatch.setenv("RUN_METHOD", "mpiexec")
+        monkeypatch.setenv("CORES_PER_NODE", "192")
+        monkeypatch.setenv("XIOS_SERVER_MODE", "True")
+        monkeypatch.setenv("BIN_DIR", "$OUTPUT_ROOT/bin/lfric_atm/cce_fast-debug-64bit")
+        monkeypatch.setenv("INTERLEAVE_EXECS", "True")
+        # Now the interleaving-specific settings
+        monkeypatch.setenv("EXEC_LABELS", "lfric_atm xios_server")
+        monkeypatch.setenv("INTERLEAVER_FILES", str(tempfile.mkdtemp()))
+
+        # PBS_NODEFILE
+        monkeypatch.setenv("PBS_NODEFILE", f"{os.getenv("INTERLEAVER_FILES")}/PBS_NODEFILE")
+        pbs_contents = [ f"nid{x:02d}\n" for x in range(0,28) ]
+        with open(os.getenv("PBS_NODEFILE"), mode='w') as pbs_file:
+            pbs_file.write(''.join(pbs_contents))
+            pbs_file.close()
+
+        # lfric_atm
+        monkeypatch.setenv("LFRIC_ATM_RANKS_PER_NODE", "168")
+        monkeypatch.setenv("LFRIC_ATM_RANK_DEPTH", "1")
+        monkeypatch.setenv("LFRIC_ATM_OMP_NUM_THREADS", "1")
+        monkeypatch.setenv("LFRIC_ATM_TOTAL_RANKS", "4704")
+        monkeypatch.setenv("LFRIC_ATM_PATH", f"{os.getenv("BIN_DIR")}/lfric_atm")
+        monkeypatch.setenv("LFRIC_ATM_ARGS", "configuration.nml" )
+        # xios_server
+        monkeypatch.setenv("XIOS_SERVER_RANKS_PER_NODE", "8")
+        monkeypatch.setenv("XIOS_SERVER_RANK_DEPTH", "4")
+        monkeypatch.setenv("XIOS_SERVER_OMP_NUM_THREADS", "1")
+        monkeypatch.setenv("XIOS_SERVER_TOTAL_RANKS", "168")
+        monkeypatch.setenv("XIOS_SERVER_PATH", "xios_server.exe")
+        monkeypatch.setenv("XIOS_SERVER_ARGS", "")
+
+        sr = subprocess.run(self.launch_exe,
+                            capture_output=True)
+        assert sr.returncode == 1
+
+        error = sr.stderr.decode("UTF-8")
+
+        assert ("LFRIC LAUNCHER ERROR: The total number of requested cores for "
+                "interleaving exceeds the number of available cores") in error

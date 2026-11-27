@@ -157,6 +157,9 @@
     {% endif %}
 {% endif %}
 
+{% if "interleaved" not in task_dict %}
+    {% do task_dict.update({"interleaved": false}) %}
+{% endif %}
 
 {# ############# #}
 {# XIOS Settings #}
@@ -181,8 +184,15 @@
         {% do task_dict.update({"xios_server_mode": true}) %}
         {% do task_dict.update({"xios_server_ranks": task_dict["mpi_parts_xios"]}) %}
     {% else %}
-        {% do task_dict.update({"xios_server_mode": false}) %}
-        {% do task_dict.update({"xios_server_ranks": 0}) %}
+        {% if task_dict["interleaved"] %}
+            {% if task_dict["mpi_parts_xios"] > 0 %}
+                {% do task_dict.update({"xios_server_mode": true}) %}
+                {% do task_dict.update({"xios_server_ranks": task_dict["mpi_parts_xios"]}) %}
+            {% endif %}
+        {% else %}
+            {% do task_dict.update({"xios_server_mode": false}) %}
+            {% do task_dict.update({"xios_server_ranks": 0}) %}
+        {% endif %}
     {% endif %}
 {% else %}
     {% do task_dict.update({"use_xios_io": ".false."}) %}
@@ -226,6 +236,38 @@
     {% include "templates/default_task_definitions_coupled.cylc" %}
 {% endif %}
 
+{# ##################### #}
+{# Interleaving Settings #}
+{# ##################### #}
+{% if task_dict["interleaved"] %}
+    {% if task_dict["xios_server_mode"] %}
+        {# Set these to be 1 server per node default #}
+        {% if "xios_threads" not in task_dict %}
+            {% do task_dict.update({"xios_threads": 1}) %}
+        {% endif %}
+
+        {% if "xios_ppn" not in task_dict %}
+            {% do task_dict.update({"xios_ppn": 1}) %}
+        {% endif %}
+
+        {% if "xios_depth" not in task_dict %}
+            {% do task_dict.update({"xios_depth": 1}) %}
+        {% endif %}
+
+        {% if task_dict["xios_nodes"] != 0 %}
+            {% do task_dict.update({"xios_nodes": 0}) %}
+        {% endif %}
+
+        {# Set exec_labels to be space-separated app_name and xios_server #}
+        {% if "exec_labels" not in task_dict %}
+            {% do task_dict.update({"exec_labels": task_dict["app_name"]~" xios_server"}) %}
+        {% endif %}
+    {% else %}
+        {# Rose-stem can only support app + XIOS currently #}
+        {% do task_dict.update({"interleaved": false}) %}
+    {% endif %}
+
+{% endif %}
 
 {# ############################ #}
 {# Default Inheritance Families #}

@@ -1,0 +1,47 @@
+{# ########################################################################### #}
+{# (c) Crown copyright 2025 Met Office. All rights reserved. #}
+{# The file LICENCE, distributed with this code, contains details of the terms #}
+{# under which the code may be used. #}
+{# ########################################################################### #}
+{% do LOG.debug("Entered templates/runtime/interleaved_task_environment.cylc") %}
+
+{% from "utils" import get_site %}
+
+{% if SITE is not defined  %}
+    {% set SITE = get_site() %}
+{% endif %}
+
+{# List of sites that support interleaving #}
+{% set SUPPORTED_SITES = ["meto"] %}
+
+{% if SITE not in SUPPORTED_SITES %}
+    {% do LOG.debug("Site does not support interleaving - using default launch method.") %}
+            INTERLEAVE_EXECS        = "False"
+{% else %}
+    {# Haven't worked out logic for coupled runs yet #}
+    {% if task_values["app_name"] != "coupled_interface" %}
+        {# Rose-stem support only for app + XIOS currently #}
+        {% if task_values["xios_server_mode"] %}
+            {% set EXEC = task_values["app_name"]|upper %}
+            INTERLEAVE_EXECS        = "True"
+            EXEC_LABELS             = {{task_values["exec_labels"]}}
+            {{EXEC}}_TOTAL_RANKS        = {{task_values["mpi_parts"]}}
+            {{EXEC}}_RANKS_PER_NODE     = {{task_values["task_ranks_per_node"]}}
+            {{EXEC}}_RANK_DEPTH         = {{task_values["task_ranks_depth_pad"]}}
+            {{EXEC}}_OMP_NUM_THREADS    = {{task_values["threads"]}}
+            {{EXEC}}_PATH               = {{bin_dir}}/{{task_values["app_name"]}}{{PAT_EXE_EXTEN}}
+
+            XIOS_SERVER_TOTAL_RANKS     = {{task_values["xios_server_ranks"]}}
+            XIOS_SERVER_RANKS_PER_NODE  = {{task_values["xios_ppn"]}}
+            XIOS_SERVER_RANK_DEPTH      = {{task_values["xios_depth"]}}
+            XIOS_SERVER_OMP_NUM_THREADS = {{task_values["xios_threads"]}}
+            XIOS_SERVER_PATH            = "xios_server.exe"
+            XIOS_SERVER_ARGS            = ""
+        {% else %}
+            INTERLEAVE_EXECS        = "False"
+        {% endif %}
+    {% endif %}
+{% endif %}
+
+
+{% do LOG.debug("Finished in templates/runtime/interleaved_task_environment.cylc") %}
