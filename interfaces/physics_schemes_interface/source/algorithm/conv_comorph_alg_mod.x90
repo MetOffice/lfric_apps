@@ -263,6 +263,11 @@ contains
     type( field_type ), pointer :: precfrac
     type( field_type ), pointer :: ls_rain
     type( field_type ), pointer :: ls_snow
+    type( field_type ), pointer :: nl_mphys
+    type( field_type ), pointer :: nr_mphys
+    type( field_type ), pointer :: ni_mphys
+    type( field_type ), pointer :: ns_mphys
+    type( field_type ), pointer :: ng_mphys
 
     type( field_type ), pointer :: height_w3
     type( field_type ), pointer :: height_wth
@@ -471,6 +476,11 @@ contains
     call microphysics_fields%get_field('precfrac', precfrac)
     call microphysics_fields%get_field('ls_rain', ls_rain)
     call microphysics_fields%get_field('ls_snow', ls_snow)
+    call microphysics_fields%get_field('nl_mphys',nl_mphys)
+    call microphysics_fields%get_field('nr_mphys',nr_mphys)
+    call microphysics_fields%get_field('ni_mphys',ni_mphys)
+    call microphysics_fields%get_field('ns_mphys',ns_mphys)
+    call microphysics_fields%get_field('ng_mphys',ng_mphys)
 
     height_wth => get_height_fv(config, mesh, Wtheta)
     height_w3  => get_height_fv(config, mesh, W3)
@@ -519,6 +529,7 @@ contains
                           mr_n(imr_r), mr_n(imr_g), mr_n(imr_s),              &
                           mr(imr_v), mr(imr_cl), mr(imr_ci),                  &
                           mr(imr_r), mr(imr_g), mr(imr_s),                    &
+                          nl_mphys, nr_mphys, ni_mphys, ns_mphys, ng_mphys,    &
                           cf_fro, cf_liq, cf_bulk, cca, ccw, precfrac,        &
                           cf_liq_n, cf_fro_n, cf_bulk_n,                      &
                           cape_diluted, cca_2d,                               &

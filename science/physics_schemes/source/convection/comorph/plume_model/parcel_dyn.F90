@@ -157,7 +157,7 @@ real(kind=real_cvprec), intent(in) :: par_radius(n_points)
 ! Super-array containing environment fields at k; properties
 ! of source air for precip which falls into the parcel
 real(kind=real_cvprec), intent(in) :: env_k_fields                             &
-                                      ( n_points_env, n_fields )
+                                      ( n_points_env, n_fields_tot )
 
 ! Environment dry static stability
 real(kind=real_cvprec), intent(in) :: Nsq_dry(n_points)
@@ -256,6 +256,9 @@ real(kind=real_cvprec) :: linear_qs_super                                      &
 
 ! Super-array to store precip fall fluxes
 real(kind=real_cvprec) :: flux_cond( n_points, n_cond_species )
+
+! Condensate number concentrations
+real(kind=real_cvprec) :: n_cond( n_points, n_cond_species )
 
 ! Total heat capacity for phase-change
 real(kind=real_cvprec) :: cp_tot(n_points)
@@ -541,7 +544,7 @@ if ( l_diags ) then
                    par_next_fields(:,i_temperature),                           &
                    par_next_fields(:,i_q_vap),                                 &
                    par_next_fields(:,i_qc_first:i_qc_last),                    &
-                   flux_cond, cmpr, k, call_string, l_diags,                   &
+                   flux_cond, n_cond, cmpr, k, call_string, l_diags,           &
                    plume_model_diags % moist_proc,                             &
                    n_points_diag, n_diags_super, diags_super )
 else
@@ -559,7 +562,7 @@ else
                    par_next_fields(:,i_temperature),                           &
                    par_next_fields(:,i_q_vap),                                 &
                    par_next_fields(:,i_qc_first:i_qc_last),                    &
-                   flux_cond, cmpr, k, call_string, l_diags,                   &
+                   flux_cond, n_cond, cmpr, k, call_string, l_diags,           &
                    moist_proc_diags_dummy,                                     &
                    1, 1, diags_super_dummy )
 end if
@@ -642,9 +645,15 @@ end if
 ! Apply any in-parcel source terms for tracers
 ! (e.g. in-plume scavenging of aerosols by precipitation)
 if ( l_tracer ) then
-  call tracer_source( n_points, n_points_next,                                 &
-                      massflux_d, dq_prec, par_next_fields(:,1:n_fields),      &
-                      par_next_fields(:,i_tracers(1):i_tracers(n_tracers)) )
+  call tracer_source( n_points, n_points_env, n_points_next, n_points_res,     &
+                      l_res_source, massflux_d, dq_prec,                       &
+                      n_cond, flux_cond, dt_over_rhod_lz,                      &
+                      env_k_fields(:,1:n_fields),                              &
+                      env_k_fields(:,i_tracers(1):i_tracers(n_tracers)),       &
+                      par_next_fields(:,1:n_fields),                           &
+                      par_next_fields(:,i_tracers(1):i_tracers(n_tracers)),    &
+                      res_source_tracers=res_source_fields                     &
+                                     (:,i_tracers(1):i_tracers(n_tracers)) )
 end if
 
 

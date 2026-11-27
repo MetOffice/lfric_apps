@@ -356,7 +356,7 @@ if ( l_updraft ) then
   l_down = .false.
   do i_type = 1, n_updraft_types
     call set_par_fields( n_points, n_points_super, n_fields_tot,               &
-                         cmpr_init, k, l_tracer, l_down, i_type,               &
+                         cmpr_init, k, l_down, i_type,                         &
                          fields_k, frac_r_k,                                   &
                          par_radius_amp, turb_pert_k, turb_len_k,              &
                          updraft_par_gen(i_type) % par_super,                  &
@@ -371,7 +371,7 @@ if ( l_dndraft ) then
   l_down = .true.
   do i_type = 1, n_dndraft_types
     call set_par_fields( n_points, n_points_super, n_fields_tot,               &
-                         cmpr_init, k, l_tracer, l_down, i_type,               &
+                         cmpr_init, k, l_down, i_type,                         &
                          fields_k, frac_r_k,                                   &
                          par_radius_amp, turb_pert_k, turb_len_k,              &
                          dndraft_par_gen(i_type) % par_super,                  &
@@ -698,11 +698,12 @@ if ( l_updraft ) then
       end if
     end do
     ! If any points have updraft initiating mass-sources,
-    ! normalise the mass-weighted means
+    ! apply final safety-checks and perturbations
     if ( nc > 0 ) then
       l_down = .false.
-      call finalise_init_parcel( n_points, nc, index_ic,                       &
-                                 fields_k(:,i_q_vap),                          &
+      call finalise_init_parcel( n_points, n_points_super, n_fields_tot,       &
+                                 nc, index_ic, l_tracer,                       &
+                                 fields_k,                                     &
                                  updraft_par_gen(i_type) % mean_super,         &
                                  updraft_par_gen(i_type) % core_super )
     end if
@@ -720,11 +721,12 @@ if ( l_dndraft ) then
       end if
     end do
     ! If any points have downdraft initiating mass-sources,
-    ! normalise the mass-weighted means
+    ! apply final safety-checks and perturbations
     if ( nc > 0 ) then
       l_down = .true.
-      call finalise_init_parcel( n_points, nc, index_ic,                       &
-                                 fields_k(:,i_q_vap),                          &
+      call finalise_init_parcel( n_points, n_points_super, n_fields_tot,       &
+                                 nc, index_ic, l_tracer,                       &
+                                 fields_k,                                     &
                                  dndraft_par_gen(i_type) % mean_super,         &
                                  dndraft_par_gen(i_type) % core_super )
     end if

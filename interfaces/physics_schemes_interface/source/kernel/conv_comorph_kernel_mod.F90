@@ -15,12 +15,8 @@ module conv_comorph_kernel_mod
                                       ANY_DISCONTINUOUS_SPACE_1, &
                                       ANY_DISCONTINUOUS_SPACE_2, &
                                       ANY_DISCONTINUOUS_SPACE_3
-  use constants_mod,           only : i_def, i_um, r_def, r_um, rmdi
-  use empty_data_mod,          only : empty_real_data
   use fs_continuity_mod,       only : W3, Wtheta
   use kernel_mod,              only : kernel_type
-  use timestepping_config_mod, only : outer_iterations
-  use microphysics_config_mod, only : prog_tnuc, microphysics_casim
 
   implicit none
 
@@ -33,7 +29,7 @@ module conv_comorph_kernel_mod
   !>
   type, public, extends(kernel_type) :: conv_comorph_kernel_type
     private
-    type(arg_type) :: meta_args(196) = (/                                         &
+    type(arg_type) :: meta_args(201) = (/                                         &
          arg_type(GH_SCALAR, GH_INTEGER, GH_READ),                                &! outer
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      W3),                       &! rho_in_w3
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! rho_in_wth
@@ -71,6 +67,11 @@ module conv_comorph_kernel_mod
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! m_r
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! m_g
          arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! m_s
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! nl_mphys
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! nr_mphys
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! ni_mphys
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! ns_mphys
+         arg_type(GH_FIELD,  GH_REAL,    GH_READWRITE, WTHETA),                   &! ng_mphys
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! cf_ice
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! cf_liq
          arg_type(GH_FIELD,  GH_REAL,    GH_READ,      WTHETA),                   &! cf_bulk
@@ -278,6 +279,11 @@ contains
   !> @param[in,out] m_r                  Rain mixing ratio after advection
   !> @param[in,out] m_g                  Graupel mixing ratio after advection
   !> @param[in,out] m_s                  Snow mixing ratio after advection
+  !> @param[in,out] nl_mphys             Cloud liq number conc after advection
+  !> @param[in,out] nr_mphys             Rain number conc after advection
+  !> @param[in,out] ni_mphys             Cloud ice number conc after advection
+  !> @param[in,out] ns_mphys             Snow number conc after advection
+  !> @param[in,out] ng_mphys             Graupel number conc after advection
   !> @param[in]     cf_ice               Ice cloud fraction
   !> @param[in]     cf_liq               Liquid cloud fraction
   !> @param[in]     cf_bulk              Bulk cloud fraction
@@ -489,6 +495,11 @@ contains
                           m_r,                               &
                           m_g,                               &
                           m_s,                               &
+                          nl_mphys,                          &
+                          nr_mphys,                          &
+                          ni_mphys,                          &
+                          ns_mphys,                          &
+                          ng_mphys,                          &
                           cf_ice,                            &
                           cf_liq,                            &
                           cf_bulk,                           &
@@ -780,12 +791,16 @@ contains
                                          glomap_mode_dust_and_clim,            &
                                          glomap_mode_ukca
 
+    use constants_mod,             only : i_def, i_um, r_def, r_um, rmdi
+    use empty_data_mod,            only : empty_real_data
     use log_mod, only : log_event, log_scratch_space, LOG_LEVEL_ERROR
 !$  use omp_lib, only : omp_get_max_threads
 
     !---------------------------------------
     ! Physics modules containing switches or global constants
     !---------------------------------------
+    use timestepping_config_mod, only : outer_iterations
+    use microphysics_config_mod, only : prog_tnuc, microphysics_casim
     use bl_option_mod, only: max_tke
     use cloud_inputs_mod, only: l_pc2_homog_conv_pressure,                     &
                                 l_cloud_call_b4_conv,                          &
@@ -793,9 +808,11 @@ contains
     use cv_run_mod, only: l_mom,                                               &
                           l_conv_prog_dtheta, l_conv_prog_dq,                  &
                           tau_conv_prog_dtheta, tau_conv_prog_dq
+    use comorph_um_namelist_mod, only: l_cv_numconcs
     use jules_surface_mod, only: srf_ex_cnv_gust, IP_SrfExWithCnv
     use mphys_inputs_mod, only: l_mcr_qgraup, l_mcr_qrain, l_mcr_qcf2,         &
-                                l_mcr_precfrac, l_improve_precfrac_checks
+                                l_mcr_precfrac, l_improve_precfrac_checks,     &
+                                casim_iopt_act
     use nlsizes_namelist_mod, only: row_length, rows, bl_levels
     use planet_constants_mod, only: p_zero, kappa, planet_radius, g
     use timestep_mod, only: timestep, recip_timestep
@@ -813,10 +830,12 @@ contains
     use comorph_constants_mod, only: l_init_constants, l_turb_par_gen,         &
          l_cv_rain, l_cv_cf, l_cv_snow, l_cv_graup,                            &
          i_convcloud, i_convcloud_liqonly, l_spherical_coord
+    use tracer_source_mod,  only: i_tr_n_cl, i_tr_n_rain,                      &
+                                  i_tr_n_cf, i_tr_n_snow, i_tr_n_graup
     use calc_conv_incs_mod, only: calc_conv_incs, i_call_save_before_conv,     &
-         i_call_diff_to_get_incs
-    use calc_qcf2_incs_mod, ONLY: calc_qcf2_incs, i_call_combine_in_qcf2,      &
-         i_call_subtract_qcf, i_call_repartition
+                                  i_call_diff_to_get_incs
+    use calc_qcf2_incs_mod, only: calc_qcf2_incs, i_call_combine_in_qcf2,      &
+                                  i_call_subtract_qcf, i_call_repartition
     use fracs_consistency_mod, only: fracs_consistency
     use conv_update_precfrac_mod, only: conv_update_precfrac
     use interp_turb_mod, only: interp_turb
@@ -876,7 +895,9 @@ contains
                                           massflux_up, massflux_down,          &
                                           tke_bl, pressure_inc_env,            &
                                           conv_prog_dtheta, conv_prog_dmv,     &
-                                          precfrac, m_r, m_g, m_ci
+                                          precfrac, m_r, m_g, m_ci,            &
+                                          nl_mphys, nr_mphys,                  &
+                                          ni_mphys, ns_mphys, ng_mphys
 
     real(kind=r_def), dimension(undf_w3), intent(inout) :: du_conv, dv_conv
 
@@ -1028,7 +1049,7 @@ contains
     integer(i_def) :: k, i, n
 
     ! local switches and scalars
-    integer(i_um) :: segments, n_conv_levels, ntra_fld
+    integer(i_um) :: segments, n_conv_levels, ntra_fld, nukca_tra
 
     logical :: l_tracer
 
@@ -1068,6 +1089,8 @@ contains
     character(len=ukca_maxlen_fieldname), target  ::                         &
                  local_dust_tracer_list(4) = [ 'Acc_INS_N ' , 'Acc_INS_DU' , &
                                                'Cor_INS_N ' , 'Cor_INS_DU' ]
+
+    character(len=ukca_maxlen_fieldname), target :: empty_list(0)
 
     ! Heat and moisture fluxs from BL scheme
     real(r_um), dimension(row_length,rows,bl_levels) :: fqw, ftl
@@ -1295,12 +1318,35 @@ contains
     if ( glomap_mode == glomap_mode_dust_and_clim ) then
       ukca_tracer_names => local_dust_tracer_list
       l_tracer = .true.
-    else
+    else if (glomap_mode == glomap_mode_ukca) then
       call ukca_get_tracer_varlist( ukca_tracer_names, ukca_errcode )
       l_tracer = ( ukca_errcode == 0 )
+    else
+      l_tracer = .false.
+      ukca_tracer_names => empty_list
     end if
+    ! If CoMorph is updating CASIM prognostic number concentrations,
+    ! use tracer array to also transport number concentrations
+    if (l_cv_numconcs) l_tracer = .true.
+
     if (l_tracer) then
-      ntra_fld = size(ukca_tracer_names)
+      nukca_tra = size(ukca_tracer_names)
+      ntra_fld = nukca_tra
+      if (l_cv_numconcs) then
+        ! CASIM always prognoses nr, ni, ns, ng
+        ! Store tracer-array indices of the number concentrations for use
+        ! inside CoMorph, for setting detrained number consistent with mass
+        i_tr_n_rain  = ntra_fld + 1
+        i_tr_n_cf    = ntra_fld + 2
+        i_tr_n_snow  = ntra_fld + 3
+        i_tr_n_graup = ntra_fld + 4
+        ntra_fld = ntra_fld + 4
+        ! Add nl if that is prognosed
+        if ( .not. casim_iopt_act==0 ) then
+          i_tr_n_cl    = ntra_fld + 1
+          ntra_fld = ntra_fld + 1
+        end if
+      end if
     else
       ntra_fld = 1
     end if
@@ -1384,7 +1430,7 @@ contains
 
       allocate(tot_tracer( row_length, 1, nlayers, ntra_fld ))
 
-      do n = 1, ntra_fld
+      do n = 1, nukca_tra
         select case(ukca_tracer_names(n))
         case(fldname_o3p)
           do i = 1, row_length
@@ -1948,6 +1994,32 @@ contains
           call log_event( log_scratch_space, LOG_LEVEL_ERROR )
         end select
       end do
+
+      if (l_cv_numconcs) then
+        ! Copy number concentrations into final tracer fields
+        do i = 1, row_length
+          tot_tracer(i,1,:,i_tr_n_rain) =                                      &
+               real(nr_mphys(map_wth(1,i)+1:map_wth(1,i)+nlayers), r_um)
+        end do
+        do i = 1, row_length
+          tot_tracer(i,1,:,i_tr_n_cf) =                                        &
+               real(ni_mphys(map_wth(1,i)+1:map_wth(1,i)+nlayers), r_um)
+        end do
+        do i = 1, row_length
+          tot_tracer(i,1,:,i_tr_n_snow) =                                      &
+               real(ns_mphys(map_wth(1,i)+1:map_wth(1,i)+nlayers), r_um)
+        end do
+        do i = 1, row_length
+          tot_tracer(i,1,:,i_tr_n_graup) =                                     &
+               real(ng_mphys(map_wth(1,i)+1:map_wth(1,i)+nlayers), r_um)
+        end do
+        if ( .not. casim_iopt_act==0 ) then
+          do i = 1, row_length
+            tot_tracer(i,1,:,i_tr_n_cl) =                                      &
+                 real(nl_mphys(map_wth(1,i)+1:map_wth(1,i)+nlayers), r_um)
+          end do
+        end if
+      end if
 
     end if  ! outer == outer_iterations .AND. l_tracer
 
@@ -2837,7 +2909,7 @@ contains
 
     ! Copy tracers back to LFRic fields
     if ( outer == outer_iterations .and. l_tracer ) then
-      do n = 1, ntra_fld
+      do n = 1, nukca_tra
         select case(ukca_tracer_names(n))
          case(fldname_o3p)
            do i = 1, row_length
@@ -3501,6 +3573,38 @@ contains
           end do
         end select
       end do
+
+      if (l_cv_numconcs) then
+        ! Copy number concentrations out of final tracer fields
+        do i = 1, row_length
+          nr_mphys(map_wth(1,i)+1:map_wth(1,i)+nlayers) =                      &
+               real(tot_tracer(i,1,:,i_tr_n_rain), r_def)
+          nr_mphys(map_wth(1,i)) = nr_mphys(map_wth(1,i)+1)
+        end do
+        do i = 1, row_length
+          ni_mphys(map_wth(1,i)+1:map_wth(1,i)+nlayers) =                      &
+               real(tot_tracer(i,1,:,i_tr_n_cf), r_def)
+          ni_mphys(map_wth(1,i)) = ni_mphys(map_wth(1,i)+1)
+        end do
+        do i = 1, row_length
+          ns_mphys(map_wth(1,i)+1:map_wth(1,i)+nlayers) =                      &
+               real(tot_tracer(i,1,:,i_tr_n_snow), r_def)
+          ns_mphys(map_wth(1,i)) = ns_mphys(map_wth(1,i)+1)
+        end do
+        do i = 1, row_length
+          ng_mphys(map_wth(1,i)+1:map_wth(1,i)+nlayers) =                      &
+               real(tot_tracer(i,1,:,i_tr_n_graup), r_def)
+          ng_mphys(map_wth(1,i)) = ng_mphys(map_wth(1,i)+1)
+        end do
+        if ( .not. casim_iopt_act==0 ) then
+          do i = 1, row_length
+            nl_mphys(map_wth(1,i)+1:map_wth(1,i)+nlayers) =                    &
+                 real(tot_tracer(i,1,:,i_tr_n_cl), r_def)
+            nl_mphys(map_wth(1,i)) = nl_mphys(map_wth(1,i)+1)
+          end do
+        end if
+      end if
+
       deallocate(tot_tracer)
     end if  ! outer == outer_iterations .AND. l_tracer
 

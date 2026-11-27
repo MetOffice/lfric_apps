@@ -65,6 +65,7 @@ use calc_q_tot_mod, only: calc_q_tot
 use set_cp_tot_mod, only: set_cp_tot
 use dry_adiabat_mod, only: dry_adiabat
 use calc_virt_temp_dry_mod, only: calc_virt_temp_dry
+use tracer_source_mod, only: tracer_homog_conv_bl
 
 implicit none
 
@@ -156,8 +157,9 @@ real(kind=real_cvprec) :: fields_cmpr                                          &
 real(kind=real_cvprec) :: layer_mass_bl(n_points_top)
 
 ! Vertical means of fields over the boundary-layer
+! (only needed for u,v,w,T,q,q_cond)
 real(kind=real_cvprec) :: par_bl_mean_fields                                   &
-                          ( n_points_top, n_fields_tot )
+                          ( n_points_top, 1:i_qc_last )
 
 ! Compressed environment total condensed water mixing-ratio
 real(kind=real_cvprec) :: q_cond_tot(n_points_top)
@@ -417,7 +419,7 @@ end if
 do ic = 1, n_points_top
   layer_mass_bl(ic) = zero
 end do
-do i_field = 1, n_fields_tot
+do i_field = 1, i_qc_last
   do ic = 1, n_points_top
     par_bl_mean_fields(ic,i_field) = zero
   end do
@@ -778,52 +780,10 @@ end if  ! ( l_cv_cloudfrac )
 !----------------------------------------------------------------
 
 if ( n_fields_tot > n_fields ) then
-
-  do k = k_bot_conv, k_bl_top
-    if ( cmpr(k) % n_points > 0 ) then
-
-      ! For each tracer field
-      do i_field = n_fields+1, n_fields_tot
-        ! Add up vertical integral of tracer
-        do ic2 = 1, cmpr(k) % n_points
-          ic = index_ic_top(ic2,k)
-          par_bl_mean_fields(ic,i_field)                                       &
-            = par_bl_mean_fields(ic,i_field)                                   &
-            + fields_cmpr(ic2,i_field,k) * layer_mass_cmpr(ic2,k)
-        end do
-      end do  ! i_field = n_fields+1, n_fields_tot
-
-    end if  ! ( cmpr(k) % n_points > 0 )
-  end do  ! k = k_bot_conv, k_bl_top
-
-  do k = k_bot_conv, k_bl_top
-    if ( cmpr(k) % n_points > 0 ) then
-
-      ! Add perturbations to entrained tracer so-as to
-      ! scale the vertical integral of entrained
-      ! tracer to the value in the parcel at BL-top
-      do i_field = n_fields+1, n_fields_tot
-        do ic2 = 1, cmpr(k) % n_points
-          ic = index_ic_top(ic2,k)
-
-          ! Calc ratio of BL-top parcel value over mean value in
-          ! the BL, with safety-check to avoid div-by-zero:
-          if ( abs(par_bl_mean_fields(ic,i_field)) > sqrt_min_float ) then
-            fac = par_bl_top_fields(ic,i_field)                                &
-                / par_bl_mean_fields(ic,i_field)
-          else
-            fac = one
-          end if
-
-          ! Apply correction factor
-          fields_cmpr(ic2,i_field,k) = fields_cmpr(ic2,i_field,k) * fac
-
-        end do
-      end do
-
-    end if  ! ( cmpr(k) % n_points > 0 )
-  end do  ! k = k_bot_conv, k_bl_top
-
+  call tracer_homog_conv_bl( n_points_top, k_bl_top, n_fields_tot,             &
+                             cmpr, index_ic_top,                               &
+                             par_bl_top_fields, layer_mass_cmpr,               &
+                             fields_cmpr)
 end if  ! ( n_fields_tot > n_fields )
 
 

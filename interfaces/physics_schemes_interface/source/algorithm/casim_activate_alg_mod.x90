@@ -57,9 +57,10 @@ contains
                                 aerosol_fields, turbulence_fields,             &
                                 initialise)
 
-    use casim_activate_kernel_mod,  only: casim_activate_kernel_type
+    use casim_activate_kernel_mod, only: casim_activate_kernel_type
     use casim_ice_act_kernel_mod,  only: casim_ice_act_kernel_type
     use casim_arg_act_kernel_mod,  only: casim_arg_act_kernel_type
+    use comorph_config_mod,        only: cv_numconcs
 
     implicit none
 
@@ -197,9 +198,10 @@ contains
 
     end if
 
-    ! If convection has provided an increment to ice or we want to
-    ! initialise the ice
-    if (convection == convection_um .or. initialise) then
+    ! If convection has provided an increment to ice mass but not ice number,
+    ! or we want to initialise the ice
+    if ( ( convection == convection_um .and. (.not. cv_numconcs) )             &
+         .or. initialise ) then
 
       call derived_fields%get_field('exner_in_wth', exner_wth)
       call derived_fields%get_field('rho_in_wth', rho_wth)

@@ -23,7 +23,7 @@ subroutine moist_proc( n_points, n_points_super, linear_qs,                    &
                        fallin_wind_w, fallin_temp,                             &
                        wind_u, wind_v, wind_w,                                 &
                        temperature, q_vap, q_cond,                             &
-                       flux_cond, cmpr, k, call_string, l_diags,               &
+                       flux_cond, n_cond, cmpr, k, call_string, l_diags,       &
                        moist_proc_diags, n_points_diag, n_diags, diags_super )
 
 use comorph_constants_mod, only: real_cvprec, zero, one, cond_params,          &
@@ -158,6 +158,10 @@ real(kind=real_cvprec), intent(in out) :: q_cond                               &
 ! IN:  - fluxes falling into the current air
 ! OUT: - fluxes falling out of the current air
 real(kind=real_cvprec), intent(in out) :: flux_cond                            &
+                                   ( n_points, n_cond_species )
+
+! Hydrometeor number concentration per unit dry-mass
+real(kind=real_cvprec), intent(out) :: n_cond                                  &
                                    ( n_points, n_cond_species )
 
 ! Stuff used to make error messages more informative:
@@ -356,7 +360,7 @@ call microphysics_1( n_points, n_points_super, nc, index_ic,                   &
                      linear_qs(:,i_dqsatdT_liq),                               &
                      delta_t, vert_len, rho_dry, rho_wet,                      &
                      cp_tot, temperature, q_vap, q_cond,                       &
-                     q_loc_cond, wf_cond, kq_cond, kt_cond,                    &
+                     q_loc_cond, wf_cond, kq_cond, kt_cond, n_cond,            &
                      dq_frz_cond, l_diags, moist_proc_diags,                   &
                      n_points_diag, n_diags, diags_super )
 

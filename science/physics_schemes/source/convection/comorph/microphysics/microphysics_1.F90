@@ -45,7 +45,7 @@ subroutine microphysics_1( n_points, n_points_super,  nc, index_ic,            &
                            ref_temp, qsat_liq_ref, dqsatdT_liq,                &
                            delta_t, vert_len, rho_dry, rho_wet,                &
                            cp_tot, temperature, q_vap, q_cond,                 &
-                           q_loc_cond, wf_cond, kq_cond, kt_cond,              &
+                           q_loc_cond, wf_cond, kq_cond, kt_cond, n_cond,      &
                            dq_frz_cond, l_diags, moist_proc_diags,             &
                            n_points_diag, n_diags, diags_super )
 
@@ -124,6 +124,10 @@ real(kind=real_cvprec), intent(out) :: kq_cond                                 &
 real(kind=real_cvprec), intent(out) :: kt_cond                                 &
                                    ( n_points, n_cond_species )
 
+! Hydrometeor number concentration per unit dry-mass
+real(kind=real_cvprec), intent(out) :: n_cond                                 &
+                                   ( n_points, n_cond_species )
+
 ! Total amount of freezing onto each ice hydrometeor species
 ! (includes homogeneous and heterogeneous freezing and riming)
 ! Needed for the hydrometeor surface heat budget, important for
@@ -147,10 +151,6 @@ real(kind=real_cvprec), intent(in out) :: diags_super                          &
 ! Store for delta_t / vert_len, used in implicit fall-out
 ! calculations in calc_cond_properties
 real(kind=real_cvprec) :: dt_over_lz(n_points)
-
-! Number concentration per unit dry-mass
-real(kind=real_cvprec) :: n_cond                                               &
-                          ( n_points, n_cond_species )
 
 ! Particle radii of each hydrometeor species / m
 real(kind=real_cvprec) :: r_cond                                               &
@@ -277,6 +277,15 @@ if ( maxval(nc) > 0 ) then
                       dq_frz_cond, kq_cond, kt_cond, l_diags,                  &
                       moist_proc_diags, n_points_diag, n_diags, diags_super )
 
+else  ! ( MAXVAL(nc) > 0 )
+  ! If no condensate, still need to set output n_cond to zero
+  ! (other outputs can be left unset as not used, but n_cond might be used)
+
+  do i_cond = 1, n_cond_species
+    do ic = 1, n_points
+      n_cond(ic,i_cond) = zero
+    end do
+  end do
 
 end if  ! ( MAXVAL(nc) > 0 )
 
