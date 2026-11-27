@@ -4,6 +4,8 @@
 # For further details please refer to the file LICENCE
 # which you should have received as part of this distribution.
 # *****************************COPYRIGHT*******************************
+# Some content in this file was generated or refactored with assistance from
+# - Met Office Github Copilot Enterprise (Claude Opus 5.5)
 '''Run ESMF regrid program to generate weights'''
 import subprocess
 import sys
@@ -40,6 +42,9 @@ class INTER:
         self.um_grid_path = os.environ.get('GRID_PATH_UM')
         self.lfric_grid_type = os.environ.get('GRID_TYPE_LFRIC')
         self.lfric_grid_path = os.environ.get('GRID_PATH_LFRIC')
+        self.lfric_masked_grid_path = os.environ.get('GRID_PATH_LFRIC_MASKED')
+        self.lfric_mask_variable_name = os.environ.get(
+            'MASK_VARIABLE_NAME_LFRIC')
 
     def set_arguments_um2lfric(self):
         '''Set ESMF regrid command line options'''
@@ -67,10 +72,26 @@ class INTER:
 
     def set_arguments_lfric2um(self):
         '''Set ESMF regrid command line options'''
-        options = ' -s ' + self.lfric_grid_path
-        options = options + ' --src_loc center'
+        if '_mask_' in self.method:
+            # Land- or sea-masked weights, e.g. 'sea_mask_bilinear'
+            options = ' -s ' + self.lfric_masked_grid_path
+            options = options + ' --src_loc center'
+            options = options + ' --src_missingvalue ' \
+                + self.lfric_mask_variable_name
+            esmf_method = self.method.split('_mask_')[1]
+            # TODO: ESMF has a bug that means the masked weights generation
+            # doesn't work with bilinear interpolation. Force the regridding to
+            # use nearest neighbour interpolation, until the bug is fixed. The
+            # weights won't be correct, but we can continue to build the rest
+            # of the process. When the bug is fixed, remove this override.
+            if esmf_method == 'bilinear':
+                esmf_method = 'neareststod'
+        else:
+            options = ' -s ' + self.lfric_grid_path
+            options = options + ' --src_loc center'
+            esmf_method = self.method
         options = options + ' -d ' + self.um_grid_path
-        options = options + ' --64bit_offset --check -m ' + self.method
+        options = options + ' --64bit_offset --check -m ' + esmf_method
         if self.um_grid_type == 'regional':
             options = options + ' --src_regional '
         if self.lfric_grid_type == 'regional':

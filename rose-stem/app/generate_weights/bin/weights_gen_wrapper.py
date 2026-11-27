@@ -4,6 +4,8 @@
 # For further details please refer to the file LICENCE
 # which you should have received as part of this distribution.
 # *****************************COPYRIGHT*******************************
+# Some content in this file was generated or refactored with assistance from
+# - Met Office Github Copilot Enterprise (Claude Opus 5.5)
 '''
 Wrapper script for a set of commands/script used to create weights files.
 
@@ -66,6 +68,35 @@ def weight_gen(um_ptype, int_method):
     run_command(["mv", "regrid_weights.nc", outfilename])
 
 
+def add_mask(kind, mask_file, mask_variable_name, invert):
+    '''
+    Add a mask field to a local copy of the LFRic mesh, for generating
+    masked weights.
+
+    param str kind: Name of the mask type (e.g. 'land'), used to name the
+                    masked mesh file.
+    param str mask_file: NetCDF file holding the mask on the LFRic mesh faces.
+    param str mask_variable_name: Name of the mask variable in mask_file.
+    param bool invert: Whether to invert the mask before adding it.
+    return: The path of the masked mesh file.
+
+    '''
+    if os.environ.get('INT_DIRECT') != 'lfric2um':
+        raise Exception('Masked weights are only supported for lfric2um')
+    masked_mesh = "lfric_mesh_" + kind + "_masked.nc"
+    command = ["add_mask_to_mesh.py",
+               "--mesh-in", os.environ.get('GRID_PATH_LFRIC'),
+               "--mesh-name", os.environ.get('MESH_NAME_LFRIC'),
+               "--mask-file", mask_file,
+               "--mask-variable-name", mask_variable_name,
+               "--mesh-out", masked_mesh,
+               "--out-var", mask_variable_name]
+    if invert:
+        command.append("--invert")
+    run_command(command)
+    return masked_mesh
+
+
 if __name__ == "__main__":
 
     option = os.environ.get('UM_GRID_INPUT')
@@ -81,7 +112,32 @@ if __name__ == "__main__":
         argument = os.environ.get('RESOLUTION')
         run_command(["create_um_grid_nml.py", "-r", argument])
 
+    int_methods = {"P": ["bilinear", "neareststod"],
+                   "U": ["bilinear", "neareststod"],
+                   "V": ["bilinear", "neareststod"]}
+
+    # Optionally generate land- and sea-masked weights. Land and sea
+    # fields are only on P points, so these are only generated for the
+    # P grid. The sea mask file is a land mask in which cells containing
+    # any sea are 0, so it is inverted to leave just those cells unmasked
+    masks = {}
+    for kind, file_env, var_env, invert in [
+            ("land", "LAND_MASK_FILE", "LAND_MASK_VARIABLE_NAME", False),
+            ("sea", "SEA_MASK_FILE", "SEA_MASK_VARIABLE_NAME", True)]:
+        mask_file = os.environ.get(file_env)
+        if mask_file:
+            mask_variable_name = os.environ.get(var_env)
+            masked_mesh = add_mask(kind, mask_file, mask_variable_name,
+                                   invert)
+            masks[kind] = (masked_mesh, mask_variable_name)
+            int_methods["P"].extend([kind + "_mask_bilinear",
+                                     kind + "_mask_neareststod"])
+
     # Loop over grid types and generate weights for each
-    for um_ptype in ["P", "U", "V"]:
-        for int_method in ["bilinear", "neareststod"]:
+    for um_ptype, ptype_int_methods in int_methods.items():
+        for int_method in ptype_int_methods:
+            kind = int_method.split("_mask_")[0]
+            if kind in masks:
+                os.environ["GRID_PATH_LFRIC_MASKED"] = masks[kind][0]
+                os.environ["MASK_VARIABLE_NAME_LFRIC"] = masks[kind][1]
             weight_gen(um_ptype, int_method)
