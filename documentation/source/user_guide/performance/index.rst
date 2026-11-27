@@ -11,5 +11,4 @@ Performance
 .. toctree::
     :maxdepth: 2
 
-    executable_interleaving
     IO_performance

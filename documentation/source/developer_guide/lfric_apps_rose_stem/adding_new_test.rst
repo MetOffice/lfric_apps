@@ -81,6 +81,7 @@ Below this the build task is defined - unless you're adding a brand new applicat
 
 The final section defines some defaults for all tasks for this application. The ``application_dir`` shouldn't be set elsewhere and sets the path the the application source code in the cylc-run directory. The ``app_name`` defines the rose app that will be run - this can be overwritten if a different app is required.
 
+.. _rose-stem_task_options:
 
 Task Options
 ------------
@@ -231,6 +232,10 @@ The table below shows a list of possible entries for ``task_dict`` in the task d
      - Int
      - NA
      - For adding a manual depth 'pad' to a task, generally used on EXs or XC40s where depth option is available in mpi launch. This is to be used in combination with ``task_ranks_per_node``, but does work on it's own. If only ``task_ranks_per_node`` is set, the ranks may bunch up together on the node, and not utilise all of the extra free memory properly (see `EX Placement <EXlink_>`_.). The 'pad' will push ranks deeper into the node, where they will utilise better cache access and this may improve runtime performance when the two options are used in tandem. If threads are set, the larger of the two values will be passed to depth, and the thread export preserved for threading purposes.
+   * - interleaved
+     - Boolean
+     - False
+     - When set to True, initialises :ref:`executable interleaving <executable_interleaving_user_index>` provided the other :ref:`required interleaving settings <interleaving_required_settings>` are initialised as well.
 
    * - **Auto-Populated**
      -

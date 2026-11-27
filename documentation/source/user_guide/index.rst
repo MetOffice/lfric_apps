@@ -13,6 +13,7 @@ User Guide
 
     applications/index
     checkpointing/index
-    timestepping/index
+    job_scheduling/index
     nudging/index
     performance/index
+    timestepping/index

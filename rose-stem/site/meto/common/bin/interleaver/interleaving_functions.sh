@@ -14,10 +14,7 @@ function utils::interleave () {
 
     validate_interleaving_settings
     generate_interleaving_vars
-
     gen_nodefile
-    gen_binding_file
-    gen_exec_command
 
 }
 
@@ -71,41 +68,6 @@ function gen_nodefile () {
 
 
 }
-
-
-function gen_binding_file () {
-    # Set up variables
-    # ----------------
-    local name
-    local rank
-    local core_offset=0
-
-    # Generates the list of rank ids that belong to each MPI rank
-    # -----------------------------------------------------------
-    {
-        for name in ${EXEC_LABELS}; do
-            # Common work
-            local TOTAL_RANKS_VAR="${name^^}_TOTAL_RANKS"
-            local RANKS_PER_NODE_VAR="${name^^}_RANKS_PER_NODE"
-            local RANK_DEPTH_VAR="${name^^}_RANK_DEPTH"
-
-            local -n EXEC_TOTAL_RANKS="${TOTAL_RANKS_VAR}"
-            local -n EXEC_RANKS_PER_NODE="${RANKS_PER_NODE_VAR}"
-            local -n EXEC_RANK_DEPTH="${RANK_DEPTH_VAR}"
-
-            if [ "${INTERLEAVING_METHOD}" = "uniform" ]; then
-                # Generate the CPU range for each rank.
-                for ((rank = 0; rank < EXEC_TOTAL_RANKS; rank++)); do
-                    base=$((core_offset + (rank % EXEC_RANKS_PER_NODE) * EXEC_RANK_DEPTH))
-                    printf '%d-%d\n' "$base" "$((base + ${EXEC_RANK_DEPTH} - 1))"
-                done
-                # Start the next executable after this executable's cores.
-                (( core_offset += EXEC_RANKS_PER_NODE * EXEC_RANK_DEPTH ))
-            fi
-        done
-    } > "${BINDINGS_FILE}"
-}
-
 
 function gen_exec_command () {
     # This function requires the following variables to be set by the selected
@@ -178,7 +140,7 @@ function gen_exec_command () {
             EXEC_COMMAND+="--depth=$EXEC_RANK_DEPTH "
             EXEC_COMMAND+="-n "${EXEC_TOTAL_RANKS}" "
             # Rank binding opts
-            EXEC_COMMAND+="bash $RANK_BINDER_SCRIPT $EXEC_START_RANK $EXEC_TOTAL_RANKS $EXEC_PPN $EXEC_CPU_START $EXEC_RANK_DEPTH "
+            # EXEC_COMMAND+="bash $RANK_BINDER_SCRIPT $EXEC_START_RANK $EXEC_TOTAL_RANKS $EXEC_PPN $EXEC_CPU_START $EXEC_RANK_DEPTH "
             EXEC_COMMAND+="env OMP_NUM_THREADS=$EXEC_OMP_NUM_THREADS "
 
             if [ "${MEMORY_PROFILE}" = "True" ]; then

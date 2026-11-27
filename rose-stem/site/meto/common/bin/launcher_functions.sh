@@ -140,9 +140,9 @@ function utils::validate_interleaving_vars () {
         # Check if path is empty or unset
         local PATH_VAR="${name^^}_PATH"
         : "${!PATH_VAR:=?LFRIC LAUNCHER ERROR: No path set for ${name} executable (use "${"${name^^}_PATH"}")}"
-        # Assure that exec's args are not unset - can be empty
+        # Default an unset argument list to the namelist file (standard arg for model) - can be empty
         local ARGS_VAR="${name^^}_ARGS"
-        : "${!ARGS_VAR=""}"
+        : "${!ARGS_VAR="${NAMELIST_FILE}"}"
     done
 
     # Assert that an output directory exists
@@ -151,7 +151,6 @@ function utils::validate_interleaving_vars () {
 
     # And the files that interleaving depends on (defaults for if empty or unset)
     : "${HOSTFILE:="${INTERLEAVER_FILES}/hostfile.txt"}"
-    : "${BINDINGS_FILE:="${INTERLEAVER_FILES}/cpu_bind.txt"}"
 }
 
 # This function exists to set variables that are derived from required

@@ -36,6 +36,7 @@
             XIOS_SERVER_RANK_DEPTH      = {{task_values["xios_depth"]}}
             XIOS_SERVER_OMP_NUM_THREADS = {{task_values["xios_threads"]}}
             XIOS_SERVER_PATH            = "xios_server.exe"
+            XIOS_SERVER_ARGS            = ""
         {% else %}
             INTERLEAVE_EXECS        = "False"
         {% endif %}

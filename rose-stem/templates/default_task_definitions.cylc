@@ -189,9 +189,10 @@
                 {% do task_dict.update({"xios_server_mode": true}) %}
                 {% do task_dict.update({"xios_server_ranks": task_dict["mpi_parts_xios"]}) %}
             {% endif %}
+        {% else %}
+            {% do task_dict.update({"xios_server_mode": false}) %}
+            {% do task_dict.update({"xios_server_ranks": 0}) %}
         {% endif %}
-        {% do task_dict.update({"xios_server_mode": false}) %}
-        {% do task_dict.update({"xios_server_ranks": 0}) %}
     {% endif %}
 {% else %}
     {% do task_dict.update({"use_xios_io": ".false."}) %}

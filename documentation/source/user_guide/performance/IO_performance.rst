@@ -16,7 +16,7 @@ all data output. XIOS is maintained at
 ``lfric_apps`` applications use XIOS in multiple configurations.
 
 Attached I/O
-------------
+============
 
 In ``Attached I/O`` mode, then the simulation or application ranks act as their own
 I/O resource, using XIOS functionality to interact with the storage system.
@@ -32,7 +32,7 @@ This configuration often does not scale well with job size and complexity.
 There is limited opportunity for I/O performance tuning.
 
 Implementing Attached I/O
-+++++++++++++++++++++++++
+-------------------------
 
 Launching applications in SPMD (Single Program Multiple Data) mode, with an
 ``mpiexec`` command (or similar) that only references the applications executable will
@@ -69,12 +69,12 @@ available to offload data).
 
 
 Segregated Server I/O
-+++++++++++++++++++++
+=====================
 
 ``Segregated Server I/O`` configurations place application ranks on separate nodes from I/O server ranks.  There are nodes which are dedicated to only running ``xios_server.exe`` processes.
 
 Implementing Segregated Server I/O
-##################################
+----------------------------------
 
 Launching applications in MPMD (Multiple Programs, Multiple Data streams) mode, with an
 ``mpiexec`` command (or similar) that references the applications executable and the
@@ -92,9 +92,10 @@ Setting Environment variables for ``Segregated Server I/O`` mode:
 
 * ``XIOS_SERVER_MODE=True``
 
+.. _interleaved_server_io:
 
 Interleaved Server I/O
-++++++++++++++++++++++
+======================
 
 ``Interleaved Server I/O`` configurations place application and I/O server
 ranks across nodes, with individual nodes hosting a mixture of application and
@@ -119,8 +120,9 @@ different performance limitations:
       I/O.  Where more nodes are able to interact with the storage system directly, then
       more I/O throughput can be achieved.
 
+
 Implementing Interleaved Server I/O
-###################################
+-----------------------------------
 
 ``lfric_apps`` provides site specific launch scripts, for example
 `meto/launch-exe <https://github.com/MetOffice/lfric_apps/blob/main/rose-stem/site/meto/common/bin/launch-exe>`_
@@ -129,43 +131,45 @@ which configure the launch command based on the controlling environment variable
 Suites and tests may use this launch script and provide environment variables
 to configure the ``mpiexec`` command.
 
-Uniform Interleaving
-####################
+It is recommended to dedicate an entire NUMA region to I/O server executables
+(though not every CPU must be a server) to preserve memory locality on the
+model-side.
 
+Suites
+------
 
-Launch Commands and Job Schedulers
-----------------------------------
+For suites, the required environment variables for a given job can be found in
+the :ref:`interleaving requirements <interleaving_requirements>` section of
+the :ref:`executable interleaving <executable_interleaving_user_index>` page.
 
-A scheduler will manage work being run on HPC platforms, including:
+Rose-stem
+---------
 
-* targeting queues,
-* requesting cores and nodes,
-* requesting node types.
+For tasks wishing to use interleaving, see :ref:`these required settings <exec_interleaving_rose-stem>`.
+As an example, the task definition might add this for an ``lfric_atm`` task:
 
-A launch command is responsible for defining the job layout, including facets such as:
+.. code-block::text
 
-* ``--ppn`` Processes/ Ranks per compute node.
-* ``-n``  Number of processes to start
-* ``--depth`` CPUs per process / rank. e.g. Run <application> with two CPUs per process.
-
-(see ``man mpiexec`` for more information)
-
-The layout must be consistent with the job definition, particularly:
-
-* the number of nodes being requested
-* the number of cores per node being compatible with:
-    * the processes / ranks per compute node
-    * the number of ``threads`` for ``OMP``
-    * the CPUs per process / rank
+    "interleaved": true,
+    "mpi_parts": 2352,
+    "threads": 2,
+    "task_ranks_depth_pad": 2,
+    "task_ranks_per_node": 168,
+    "use_xios": true,
+    "mpi_parts_xios": 168,
+    "xios_ppn": 6,
+    "xios_depth": 4,
 
 
 Storage System
---------------
+==============
 
-Performance characteristics of the storage system being used have large impacts on I/O performance.  Implementation specific storage system interaction tuning is a valuable optimisation surface.
+Performance characteristics of the storage system being used have large impacts
+on I/O performance.  Implementation specific storage system interaction tuning
+is a valuable optimisation surface.
 
 Lustre Striping
-+++++++++++++++
+---------------
 
 Lustre is a commonly used storage provision in high performance computing.
 
