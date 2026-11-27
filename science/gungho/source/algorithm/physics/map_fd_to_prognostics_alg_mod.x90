@@ -204,8 +204,8 @@ contains
       ! Initialize hydrostatically balanced exner field
       call hydrostatic_balance( config, exner, rho, theta, u, moist_dyn, &
                                 init_eos_height, regrav_interp,          &
-                                recompute_rho=.false.,                   &
-                                exner_from_rho=.true. )
+                                recompute_rho  = .not. shallow,          &
+                                exner_from_rho = .true. )
     end select
 
     if ( perturb_init ) then
@@ -488,13 +488,7 @@ contains
                                                      cp,                      &
                                                      eos_level ) )
 
-      if ( recompute_rho ) then
-        ! Recompute density using the equation of state
-        call invoke( &
-               sample_eos_rho_kernel_type( rho, exner, theta,  &
-                                           moist_dyn(gas_law), &
-                                           mask, kappa, rd, p_zero) )
-      end if
+
    else
       ! Initialize the vertical profile of exner pressure by initializing
       ! with the equation of state, and then integrating from eos_level to
@@ -545,12 +539,16 @@ contains
              sample_w3_to_wtheta_kernel_type( exner_in_wth, exner,     &
                                               height_wth, height_w3 ), &
              ! Recompute potential temperature, theta = T /exner
-             X_divideby_Y( theta, temperature, exner_in_wth ), &
-             ! Recompute density using the equation of state
+             X_divideby_Y( theta, temperature, exner_in_wth ) )
+
+    end if
+
+    if ( recompute_rho ) then
+      ! Recompute density using the equation of state
+      call invoke( &
              sample_eos_rho_kernel_type( rho, exner, theta,  &
                                          moist_dyn(gas_law), &
                                          mask, kappa, rd, p_zero) )
-
     end if
 
     nullify( mesh )
