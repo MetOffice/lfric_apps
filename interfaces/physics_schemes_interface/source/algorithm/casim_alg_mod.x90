@@ -107,6 +107,10 @@ contains
 
     type( field_type ), pointer :: ls_rain_3d          => null()
     type( field_type ), pointer :: ls_snow_3d          => null()
+    type( field_type ), pointer :: autoconv
+    type( field_type ), pointer :: accretion
+    type( field_type ), pointer :: rim_cry
+    type( field_type ), pointer :: rim_agg
 
     type( field_type ), pointer :: nl_mphys            => null()
     type( field_type ), pointer :: nr_mphys            => null()
@@ -168,6 +172,10 @@ contains
 
     call microphysics_fields%get_field('ls_rain_3d', ls_rain_3d)
     call microphysics_fields%get_field('ls_snow_3d', ls_snow_3d)
+    call microphysics_fields%get_field('autoconv', autoconv)
+    call microphysics_fields%get_field('accretion', accretion)
+    call microphysics_fields%get_field('rim_cry', rim_cry)
+    call microphysics_fields%get_field('rim_agg', rim_agg)
 
     call microphysics_fields%get_field('nl_mphys',nl_mphys)
     call microphysics_fields%get_field('nr_mphys',nr_mphys)
@@ -203,6 +211,7 @@ contains
                                      dcfl, dcff, dbcf,                         &
                                      ls_rain, ls_snow, ls_graup, lsca_2d,      &
                                      ls_rain_3d, ls_snow_3d, ls_graup_3d,      &
+                                     autoconv, accretion, rim_cry, rim_agg,    &
                                      theta_inc, cloud_drop_no_conc, murk,      &
                                      refl_tot, refl_1km,                       &
                                      superc_liq, superc_rain ) )

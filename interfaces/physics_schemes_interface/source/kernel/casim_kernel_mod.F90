@@ -36,7 +36,7 @@ private
 
 type, public, extends(kernel_type) :: casim_kernel_type
   private
-  type(arg_type) :: meta_args(47) = (/                                      &
+  type(arg_type) :: meta_args(51) = (/                                      &
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! mv_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! ml_wth
        arg_type(GH_FIELD, GH_REAL, GH_READ,  WTHETA),                       & ! mi_wth
@@ -76,6 +76,10 @@ type, public, extends(kernel_type) :: casim_kernel_type
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, ANY_DISCONTINUOUS_SPACE_1),    & ! lsca_2d
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                       & ! ls_rain_3d
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                       & ! ls_snow_3d
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                       & ! autoconv
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                       & ! accretion
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                       & ! rim_cry
+       arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                       & ! rim_agg
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                       & ! ls_graup_3d
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                       & ! theta_inc
        arg_type(GH_FIELD, GH_REAL, GH_WRITE, WTHETA),                       & ! cloud_drop_no_conc
@@ -190,6 +194,8 @@ subroutine casim_code( nlayers,                     &
                        ls_graup_2d, lsca_2d,        &
                        ls_rain_3d, ls_snow_3d,      &
                        ls_graup_3d,                 &
+                       autoconv, accretion,         &
+                       rim_cry, rim_agg,            &
                        theta_inc,                   &
                        cloud_drop_no_conc, murk,    &
                        refl_tot, refl_1km,          &
@@ -222,6 +228,8 @@ subroutine casim_code( nlayers,                     &
     use number_droplet_mod,         only: min_cdnc_sea_ice
     use mphys_air_density_mod,      only: mphys_air_density
     use mphys_radar_mod,            only: ref_lim
+    use mphys_diags_mod,            only: l_praut_diag, l_pracw_diag, &
+                                          l_piacw_diag, l_psacw_diag
     use variable_precision,         only: wp
     use thresholds,                 only: ql_tidy, qi_tidy, cfliq_small
 
@@ -281,6 +289,10 @@ subroutine casim_code( nlayers,                     &
 
     real(kind=r_def), intent(inout), dimension(undf_wth) :: ls_rain_3d
     real(kind=r_def), intent(inout), dimension(undf_wth) :: ls_snow_3d
+    real(kind=r_def), intent(inout), dimension(undf_wth) :: autoconv
+    real(kind=r_def), intent(inout), dimension(undf_wth) :: accretion
+    real(kind=r_def), intent(inout), dimension(undf_wth) :: rim_cry
+    real(kind=r_def), intent(inout), dimension(undf_wth) :: rim_agg
 
     real(kind=r_def), pointer, intent(inout) :: refl_tot(:)
     real(kind=r_def), pointer, intent(inout) :: refl_1km(:)
@@ -576,6 +588,12 @@ subroutine casim_code( nlayers,                     &
 
     if (l_refl_tot .or. l_refl_1km) casdiags % l_radar = .true.
     if (murk_prognostic) casdiags % l_snowfall_3d = .true.
+
+    ! UKCA fields
+    casdiags % l_praut = l_praut_diag
+    casdiags % l_pracw = l_pracw_diag
+    casdiags % l_piacw = l_piacw_diag
+    casdiags % l_psacw = l_psacw_diag
 
     ! The cloud fraction response below needs the rates at which CASIM
     ! sublimates, melts and deposits onto ice and snow, and freezes liquid.
@@ -1185,6 +1203,27 @@ subroutine casim_code( nlayers,                     &
         end do ! nlayers
       end if ! not assoc. superc_rain
     end if ! not assoc. either superc species
+
+    if (l_praut_diag) then
+      do k = 1, nlayers
+        autoconv(map_wth(1) + k) = casdiags%praut(1,1,k)
+      end do
+    end if
+    if (l_pracw_diag) then
+      do k = 1, nlayers
+        accretion(map_wth(1) + k) = casdiags%pracw(1,1,k)
+      end do
+    end if
+    if (l_piacw_diag) then
+      do k = 1, nlayers
+        rim_cry(map_wth(1) + k) = casdiags%piacw(1,1,k)
+      end do
+    end if
+    if (l_psacw_diag) then
+      do k = 1, nlayers
+        rim_agg(map_wth(1) + k) = casdiags%psacw(1,1,k)
+      end do
+    end if
 
     ! CASIM deallocate diagnostics
     call deallocate_diagnostic_space()
