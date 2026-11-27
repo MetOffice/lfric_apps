@@ -235,7 +235,7 @@ The table below shows a list of possible entries for ``task_dict`` in the task d
    * - interleaved
      - Boolean
      - False
-     - When set to True, initialises :ref:`executable interleaving <executable_interleaving_user_index>` provided the other :ref:`required interleaving settings <interleaving_required_settings>` are initialised as well.
+     - When set to True, initialises :ref:`executable interleaving <executable_interleaving_user_index>` provided the other :ref:`required interleaving settings <exec_interleaving_rose-stem>` are initialised as well.
 
    * - **Auto-Populated**
      -
