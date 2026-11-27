@@ -15,6 +15,7 @@ function utils::interleave () {
     validate_interleaving_settings
     generate_interleaving_vars
     gen_nodefile
+    gen_exec_command
 
 }
 
@@ -140,7 +141,7 @@ function gen_exec_command () {
             EXEC_COMMAND+="--depth=$EXEC_RANK_DEPTH "
             EXEC_COMMAND+="-n "${EXEC_TOTAL_RANKS}" "
             # Rank binding opts
-            # EXEC_COMMAND+="bash $RANK_BINDER_SCRIPT $EXEC_START_RANK $EXEC_TOTAL_RANKS $EXEC_PPN $EXEC_CPU_START $EXEC_RANK_DEPTH "
+            EXEC_COMMAND+="bash $RANK_BINDER_SCRIPT $EXEC_START_RANK $EXEC_TOTAL_RANKS $EXEC_PPN $EXEC_CPU_START $EXEC_RANK_DEPTH "
             EXEC_COMMAND+="env OMP_NUM_THREADS=$EXEC_OMP_NUM_THREADS "
 
             if [ "${MEMORY_PROFILE}" = "True" ]; then
