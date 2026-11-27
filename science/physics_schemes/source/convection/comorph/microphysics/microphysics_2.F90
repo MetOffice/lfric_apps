@@ -18,14 +18,15 @@ contains
 !
 ! This includes any microphysical processes that need to be done
 ! after the implicit solution of phase-changes.
-! Currently only does autoconversion of liquid-cloud to rain
+! Currently does autoconversion of liquid-cloud to rain and ice-cloud to snow
 subroutine microphysics_2( n_points, n_points_super, nc, index_ic,             &
                            delta_t, vert_len, wf_cond, q_cond,                 &
                            l_diags, moist_proc_diags,                          &
                            n_points_diag, n_diags, diags_super )
 
 use comorph_constants_mod, only: real_cvprec, n_cond_species, i_cond_cl,       &
-                                 i_cond_rain, l_cv_rain
+                                 i_cond_rain, i_cond_cf, i_cond_snow,          &
+                                 l_cv_rain, l_cv_cf, l_cv_snow
 use moist_proc_diags_type_mod, only: moist_proc_diags_type
 use autoconversion_mod, only: autoconversion
 
@@ -79,6 +80,19 @@ if ( nc(i_cond_cl) > 0 .and. l_cv_rain) then
                        l_diags, moist_proc_diags % diags_cl,                   &
                                 moist_proc_diags % diags_rain,                 &
                        n_points_diag, n_diags, diags_super )
+end if
+
+if ( l_cv_cf ) then
+  if ( nc(i_cond_cf) > 0 .and. l_cv_snow ) then
+    ! If any ice cloud present
+    ! Autoconversion of ice cloud to snow
+    call autoconversion( n_points, nc(i_cond_cf), index_ic(:,i_cond_cf),       &
+                         delta_t, vert_len, wf_cond(:,i_cond_cf),              &
+                         q_cond(:,i_cond_cf), q_cond(:,i_cond_snow),           &
+                         l_diags, moist_proc_diags % diags_cf,                 &
+                                  moist_proc_diags % diags_snow,               &
+                         n_points_diag, n_diags, diags_super )
+  end if
 end if
 
 

@@ -15,7 +15,7 @@ module pc2_conv_coupling_alg_mod
    use mr_indices_mod,       only: nummr, imr_v, imr_cl, imr_ci, imr_s
    use um_sizes_init_mod,    only: um_sizes_init
    use microphysics_config_mod, only: microphysics_casim
-   use convection_config_mod,only: cv_scheme, cv_scheme_comorph
+   use comorph_config_mod,   only: cv_snow
 
    implicit none
 
@@ -125,12 +125,16 @@ contains
     ! Re-initialise UM back to columns
     call um_sizes_init(1_i_def)
 
-    if (microphysics_casim .and. (.not. cv_scheme == cv_scheme_comorph)) then
-      ! If Casim and WB, add any convective source to the ice cloud, but
-      ! subtract any sink from the snow
+    if (microphysics_casim .and. (.not. cv_snow)) then
+      ! If using CASIM and convection is only updating a single ice category,
+      ! add any convective "snow" source to the ice, but borrow from existing
+      ! snow if convective sink would make ice mass negative.
       call invoke(inc_X_plus_Y(mr(imr_ci), dms_conv),              &
                   casim_conv_inc_kernel_type(mr(imr_ci), mr(imr_s)))
     else
+      ! Not CASIM (so only 1 ice category in the host-model),
+      ! or convection updating 2 ice categories (so already updated ice);
+      ! just add convective snow source onto snow.
       call invoke(inc_X_plus_Y(mr(imr_s), dms_conv))
     end if
 

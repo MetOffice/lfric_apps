@@ -25,8 +25,9 @@ subroutine collision_ctl( n_points, n_points_super, nc, index_ic,              &
 
 use comorph_constants_mod, only: real_cvprec, zero,                            &
                                  n_cond_species, n_cond_species_liq,           &
-                                 cond_params, l_cv_cf, l_cv_graup,             &
-                                 i_cond_rain, i_cond_cf, i_cond_graup
+                                 cond_params, l_cv_cf, l_cv_snow, l_cv_graup,  &
+                                 i_cond_rain, i_cond_cf, i_cond_snow,          &
+                                 i_cond_graup, i_cond_collected
 use moist_proc_diags_type_mod, only: moist_proc_diags_type
 use collision_rate_mod, only: collision_rate_cmpr
 use lat_heat_mod, only: lat_heat_incr, i_phase_change_frz
@@ -163,8 +164,7 @@ end if  ! ( l_diags )
 
 
 ! Loop over all collected species which have non-zero mixing ratio
-! (currently only doing collection of liquids though)
-do i_cond1 = 1, n_cond_species_liq
+do i_cond1 = 1, i_cond_collected
   if ( nc(i_cond1) > 0 ) then
 
     ! Initialise total collection increment to species i_cond1
@@ -179,9 +179,8 @@ do i_cond1 = 1, n_cond_species_liq
 
     ! Loop over all collecting species after the current one.
     ! Note loop from i_cond1+1 ensures all pairs of species
-    ! are compared once but not twice (except we don't
-    ! currently bother with ice-ice collisions).
-    do i_cond2 = i_cond1+1, n_cond_species
+    ! are compared once but not twice.
+    do i_cond2 = i_cond1+1, cond_params(i_cond1)%pt % i_cond_collecting
       ! Initialise number of points where collection occurs
       nc_col(i_cond2) = 0
       if ( nc(i_cond2) > 0 ) then
@@ -239,7 +238,7 @@ do i_cond1 = 1, n_cond_species_liq
         end if  ! ( nc_col(i_cond2) > 0 )
 
       end if  ! ( nc(i_cond2) > 0 )
-    end do  ! i_cond2 = i_cond1+1, n_cond_species
+    end do  ! i_cond2 = i_cond1+1, cond_params(i_cond1)%pt % i_cond_collecting
 
 
     ! If any collection was done...
@@ -272,7 +271,7 @@ do i_cond1 = 1, n_cond_species_liq
         end do
         ! Reduce the collection increments accordingly at
         ! points where we removed too much of species i_cond1
-        do i_cond2 = i_cond1+1, n_cond_species
+        do i_cond2 = i_cond1+1, cond_params(i_cond1)%pt % i_cond_collecting
           if ( nc_col(i_cond2) > 0 ) then
             do ic2 = 1, nc_tmp
               ic = index_ic_tmp(ic2)
@@ -291,7 +290,7 @@ do i_cond1 = 1, n_cond_species_liq
       end do
 
       ! Add on increments for each collecting species...
-      do i_cond2 = i_cond1+1, n_cond_species
+      do i_cond2 = i_cond1+1, cond_params(i_cond1)%pt % i_cond_collecting
         if ( nc_col(i_cond2) > 0 ) then
 
           ! Increment the collecting species' mixing ratio
@@ -319,36 +318,53 @@ do i_cond1 = 1, n_cond_species_liq
           end if
 
         end if
-      end do
+      end do ! i_cond2 = i_cond1+1, cond_params(i_cond1)%pt % i_cond_collecting
 
-      ! If i_cond1 is rain, and ice & graupel are both on
-      if ( i_cond1 == i_cond_rain .and. l_cv_cf                                &
-                                .and. l_cv_graup ) then
-        ! If any collisions between rain and ice
-        if ( nc_col(i_cond_cf) > 0 ) then
+      ! If i_cond1 is rain, and graupel is on
+      if ( i_cond1 == i_cond_rain .and. l_cv_graup ) then
 
-          ! Call routine to convert collided ice-cloud and rain
-          ! into graupel...
-          call ice_rain_to_graupel( n_points,                                  &
-                 nc_col(i_cond_cf), index_ic_col(:,i_cond_cf),                 &
-                 nc(i_cond_graup), index_ic(:,i_cond_graup),                   &
-                 dq_col_cond(:,i_cond_cf),                                     &
-                 dq_col_cond(:,i_cond1), q_cond(:,i_cond1),                    &
-                 kq_cond(:,i_cond1), kt_cond(:,i_cond1),                       &
-                 n_cond(:,i_cond_cf), n_cond(:,i_cond1),                       &
-                 q_loc_cond(:,i_cond_cf), q_loc_cond(:,i_cond1),               &
-                 q_cond(:,i_cond_cf), q_cond(:,i_cond_graup),                  &
-                 dq_frz_cond(:,i_cond_cf), dq_frz_cond(:,i_cond_graup),        &
-                 kq_cond(:,i_cond_graup), kt_cond(:,i_cond_graup) )
+        ! If any collisions between rain and ice-cloud
+        if ( l_cv_cf ) then
+          if ( nc_col(i_cond_cf) > 0 ) then
+            ! Call routine to convert collided ice-cloud and rain to graupel
+            call ice_rain_to_graupel( n_points,                                &
+                   nc_col(i_cond_cf), index_ic_col(:,i_cond_cf),               &
+                   nc(i_cond_graup), index_ic(:,i_cond_graup),                 &
+                   dq_col_cond(:,i_cond_cf),                                   &
+                   dq_col_cond(:,i_cond1), q_cond(:,i_cond1),                  &
+                   kq_cond(:,i_cond1), kt_cond(:,i_cond1),                     &
+                   n_cond(:,i_cond_cf), n_cond(:,i_cond1),                     &
+                   q_loc_cond(:,i_cond_cf), q_loc_cond(:,i_cond1),             &
+                   q_cond(:,i_cond_cf), q_cond(:,i_cond_graup),                &
+                   dq_frz_cond(:,i_cond_cf), dq_frz_cond(:,i_cond_graup),      &
+                   kq_cond(:,i_cond_graup), kt_cond(:,i_cond_graup) )
+          end if  ! ( nc_col(i_cond_cf) > 0 )
+        end if  ! ( l_cv_cf )
 
-        end if  ! ( nc_col(i_cond_cf) > 0 )
-      end if  ! ( i_cond1 == i_cond_rain .AND. l_cv_cf
-              !                        .AND. l_cv_graup )
+        ! If any collisions between rain and snow
+        if ( l_cv_snow ) then
+          if ( nc_col(i_cond_snow) > 0 ) then
+            ! Call routine to convert collided snow and rain to graupel
+            call ice_rain_to_graupel( n_points,                                &
+                   nc_col(i_cond_snow), index_ic_col(:,i_cond_snow),           &
+                   nc(i_cond_graup), index_ic(:,i_cond_graup),                 &
+                   dq_col_cond(:,i_cond_snow),                                 &
+                   dq_col_cond(:,i_cond1), q_cond(:,i_cond1),                  &
+                   kq_cond(:,i_cond1), kt_cond(:,i_cond1),                     &
+                   n_cond(:,i_cond_snow), n_cond(:,i_cond1),                   &
+                   q_loc_cond(:,i_cond_snow), q_loc_cond(:,i_cond1),           &
+                   q_cond(:,i_cond_snow), q_cond(:,i_cond_graup),              &
+                   dq_frz_cond(:,i_cond_snow), dq_frz_cond(:,i_cond_graup),    &
+                   kq_cond(:,i_cond_graup), kt_cond(:,i_cond_graup) )
+          end if  ! ( nc_col(i_cond_snow) > 0 )
+        end if  ! ( l_cv_cf )
+
+      end if  ! ( i_cond1 == i_cond_rain .AND. l_cv_graup )
 
     end if  ! ( l_collect )
 
   end if  ! ( nc(i_cond1) > 0 )
-end do  ! i_cond1 = 1, n_cond_species_liq
+end do  ! i_cond1 = 1, i_cond_collected
 
 
 if ( l_diags ) then

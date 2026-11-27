@@ -26,7 +26,7 @@ use comorph_constants_mod, only: newline, l_init_constants,                    &
                                  L_con_ref, L_sub_ref, L_fus_ref,              &
                                  L_con_0, L_sub_0, L_fus_0, melt_temp,         &
                                  l_cv_rain, l_cv_cf, l_cv_snow, l_cv_graup,    &
-                                 n_cond_species,                               &
+                                 i_cond_collected, n_cond_species,             &
                                  n_cond_species_liq, n_cond_species_ice,       &
                                  i_cond_cl, i_cond_rain,                       &
                                  i_cond_cf, i_cond_snow, i_cond_graup,         &
@@ -212,6 +212,32 @@ end do  ! i_cond = 1, n_cond_species
 ! Set special reduced density of rimed ice for graupel
 if ( i_cond_graup > 0 ) then
   cond_params(i_cond_graup)%pt % rho = rho_rim
+end if
+
+! Set which condensed water species may collect which others via collision
+if ( l_cv_graup .and. n_cond_species_ice > 1 ) then
+  ! If graupel is on and other ice species are active, don't allow graupel to
+  ! collect the other ice species (assumed to bounce off instead of sticking).
+  ! This code assumes that graupel is the last species in the list:
+  ! All except for graupel and the penultimate ice species can be collected
+  i_cond_collected = n_cond_species - 2
+  do i_cond = 1, i_cond_collected
+    if ( cond_params(i_cond)%pt % l_ice ) then
+      ! Ice species collected by all subsequent others except for graupel
+      cond_params(i_cond)%pt % i_cond_collecting = n_cond_species - 1
+    else
+      ! Liquid species collected by all subsequent others
+      cond_params(i_cond)%pt % i_cond_collecting = n_cond_species
+    end if
+  end do
+else
+  ! No graupel:
+  ! All except the last species can be collected
+  i_cond_collected = n_cond_species - 1
+  do i_cond = 1, i_cond_collected
+    ! Each species collected by all subsequent others
+    cond_params(i_cond)%pt % i_cond_collecting = n_cond_species
+  end do
 end if
 
 

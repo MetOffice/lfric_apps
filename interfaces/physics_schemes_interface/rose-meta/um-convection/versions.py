@@ -135,3 +135,20 @@ class vn32_t776(MacroUpgrade):
         self.add_setting(config, [nml, "turb_len_fac"], "8.0")
 
         return config, self.reports
+
+
+class vn32_t240(MacroUpgrade):
+    # Upgrade macro for Issue#240 by Mike Whitall
+
+    BEFORE_TAG = "vn3.2_t776"
+    AFTER_TAG = "vn3.2_t240"
+
+    def upgrade(self, config, meta_config=None):
+        # Add settings
+
+        # CoMorph settings
+        nml = "namelist:comorph"
+
+        self.add_setting(config, [nml,"cv_snow"], ".false.")
+
+        return config, self.reports

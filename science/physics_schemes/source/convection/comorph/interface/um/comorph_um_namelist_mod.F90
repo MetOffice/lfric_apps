@@ -38,6 +38,8 @@ save
 
 logical :: l_core_ent_cmr = .false.       ! include core/mean factor in
                                           ! comorph parcel core dilution
+logical :: l_cv_snow = .false.            ! Include 2nd ice category inside
+                                          ! comorph
 logical :: l_resdep_precipramp = .false.  ! Include grid-length dependence
                                           ! in the parcel radius precip ramp
 logical :: l_conv_inc_w = .false.         ! Switch to apply vertical velocity
@@ -219,7 +221,7 @@ vent_factor, col_eff_coef, q_cl_auto, coef_auto,                               &
 nconc_cl, nconc_cf, nconc_rain, nconc_snow, nconc_graup,                       &
 
 ! Logical switches
-l_core_ent_cmr, l_resdep_precipramp
+l_core_ent_cmr, l_cv_snow, l_resdep_precipramp
 
 !------------------------------------------------------------------------------
 
@@ -425,6 +427,8 @@ call umPrint(lineBuffer,src=ModuleName)
 
 write(lineBuffer,"(A,L1)")' l_core_ent_cmr = ', l_core_ent_cmr
 call umPrint(lineBuffer,src=ModuleName)
+write(lineBuffer,"(A,L1)")' l_cv_snow = ', l_cv_snow
+call umPrint(lineBuffer,src=ModuleName)
 write(lineBuffer,"(A,L1)")' l_resdep_precipramp = ', l_resdep_precipramp
 call umPrint(lineBuffer,src=ModuleName)
 
@@ -463,7 +467,7 @@ character(len=*), parameter :: RoutineName='READ_NML_RUN_COMORPH'
 integer, parameter :: no_of_types = 3
 integer, parameter :: n_int = 4
 integer, parameter :: n_real = 36
-integer, parameter :: n_log = 2
+integer, parameter :: n_log = 3
 
 type :: my_namelist
   sequence
@@ -508,6 +512,7 @@ type :: my_namelist
   real(kind=real_umphys) :: nconc_snow
   real(kind=real_umphys) :: nconc_graup
   logical :: l_core_ent_cmr
+  logical :: l_cv_snow
   logical :: l_resdep_precipramp
 end type my_namelist
 
@@ -573,6 +578,7 @@ if (mype == 0) then
   ! end of reals
   ! logicals
   my_nml % l_core_ent_cmr       = l_core_ent_cmr
+  my_nml % l_cv_snow            = l_cv_snow
   my_nml % l_resdep_precipramp  = l_resdep_precipramp
   ! end of logicals
 
@@ -624,6 +630,7 @@ if (mype /= 0) then
   nconc_graup          = my_nml % nconc_graup
   ! end of reals
   l_core_ent_cmr       = my_nml % l_core_ent_cmr
+  l_cv_snow            = my_nml % l_cv_snow
   l_resdep_precipramp  = my_nml % l_resdep_precipramp
 end if
 
