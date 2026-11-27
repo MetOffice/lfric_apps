@@ -1,0 +1,19 @@
+&mesh
+  coord_sys='xyz',
+  geometry='planar',
+  mesh_file_prefix='mesh_BiP4x4-50000x50000',
+  mesh_names='dynamics',
+  n_meshes=1,
+  partition_mesh=.false.,
+  topology='periodic',
+/
+&planar_mesh
+  create_lbc_mesh=.false.,
+  domain_centre=0.0,0.0,
+  domain_size=200000.0,200000.0,
+  edge_cells_x=4,
+  edge_cells_y=4,
+  periodic_x=.true.,
+  periodic_y=.true.,
+  stretch_function='uniform',
+/
