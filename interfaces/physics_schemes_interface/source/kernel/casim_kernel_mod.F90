@@ -587,7 +587,6 @@ subroutine casim_code( nlayers,                     &
     l_refl_1km = .not. associated(refl_1km, empty_real_data)
 
     if (l_refl_tot .or. l_refl_1km) casdiags % l_radar = .true.
-    if (murk_prognostic) casdiags % l_snowfall_3d = .true.
 
     ! UKCA fields
     casdiags % l_praut = l_praut_diag
@@ -604,6 +603,7 @@ subroutine casim_code( nlayers,                     &
     casdiags % l_pidep = l_pc2_response
     casdiags % l_psdep = l_pc2_response
     casdiags % l_phomc = l_pc2_response
+    casdiags % l_snowonly_3d = l_pc2_response
 
     call allocate_diagnostic_space(its, ite, jts, jte, kts, kte)
 
@@ -1145,7 +1145,7 @@ subroutine casim_code( nlayers,                     &
     ! Copy 3D precipitation rate quantities
     do k = 1, nlayers
       ls_rain_3d(map_wth(1) + k)  = casdiags % rainfall_3d(1,1,k)
-      ls_snow_3d(map_wth(1) + k)  = casdiags % snowonly_3d(1,1,k)
+      ls_snow_3d(map_wth(1) + k)  = casdiags % snowfall_3d(1,1,k)
       if (ls_graup_3d_flag) then
         ls_graup_3d(map_wth(1) + k) = casdiags % graupfall_3d(1,1,k)
       end if
