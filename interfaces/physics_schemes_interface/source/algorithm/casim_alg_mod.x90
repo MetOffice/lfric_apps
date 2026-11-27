@@ -91,9 +91,9 @@ contains
     type( field_type ), pointer :: rho_in_wth          => null()
 
     type( field_type ), pointer :: bcf_in
-    type( field_type ), pointer :: cfl_in              => null()
-    type( field_type ), pointer :: cff_in              => null()
-    type( field_type ), pointer :: precfrac            => null()
+    type( field_type ), pointer :: cfl_in
+    type( field_type ), pointer :: cff_in
+    type( field_type ), pointer :: precfrac
 
     type( field_type ), pointer :: dmv_mphys           => null()
     type( field_type ), pointer :: ls_rain             => null()
